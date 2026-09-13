@@ -1,0 +1,46 @@
+name: Feature or change
+description: Suggest something IdeaForge should do differently
+title: "[Idea]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        IdeaForge is deliberately small: no dependencies, no build step, and an interview
+        engine that stays free of the DOM and the network. Suggestions that hold that line
+        are much easier to say yes to.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you actually trying to do?
+      description: The situation, not the solution. What were you doing when this got in your way?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part does this touch?
+      multiple: true
+      options:
+        - The questions themselves (dimensions, moves, coverage)
+        - Voice and dictation
+        - A model provider
+        - The exported markdown
+        - The interface
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you have already tried, or considered and rejected?

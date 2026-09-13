@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # github-actions is the only ecosystem here: the app has zero npm dependencies, so the
+  # workflow actions are the entire dependency surface. That is not a formality — the
+  # Node 20 action runtime was removed in September 2026 and every unmaintained pin broke.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      # One PR for the routine bumps, one for majors that deserve reading first.
+      actions-minor-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      actions-major:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["major"]
+    cooldown:
+      # Do not open a PR the minute a release lands. If an action's publishing account is
+      # ever compromised, the malicious version is usually yanked within hours — this is
+      # the difference between reading about it and having already merged it.
+      default-days: 3
+      semver-major-days: 7

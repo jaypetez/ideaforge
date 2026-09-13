@@ -1,0 +1,22 @@
+# Shapes the notes produced by `gh release create --generate-notes`.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Breaking changes
+      labels: ["breaking"]
+    - title: Features
+      labels: ["enhancement", "feature"]
+    - title: Fixes
+      labels: ["bug", "fix"]
+    - title: Voice and dictation
+      labels: ["voice"]
+    - title: Providers
+      labels: ["providers"]
+    - title: Documentation
+      labels: ["documentation"]
+    - title: Build and CI
+      labels: ["dependencies", "ci"]
+    - title: Everything else
+      labels: ["*"]

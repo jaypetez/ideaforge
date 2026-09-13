@@ -1,0 +1,92 @@
+name: Bug report
+description: Something in IdeaForge is broken
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. IdeaForge is a zero-dependency static PWA, so the two
+        things that explain most reports are a stale service worker and a provider
+        rejecting the API key — the checkboxes at the bottom cover both.
+
+        **Never paste an API key into an issue.** If you think a key has leaked, revoke it
+        with your provider first.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown at the bottom of the settings screen, or a commit SHA.
+      placeholder: v0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Where were you running it?
+      multiple: true
+      options:
+        - Chrome or Edge (desktop)
+        - Firefox (desktop)
+        - Safari (macOS)
+        - Safari (iOS/iPadOS)
+        - Installed to the iPhone/iPad home screen
+        - Installed to the Android home screen
+        - Chrome (Android)
+        - Inside a Claude artifact viewer
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Which provider was selected?
+      options:
+        - Anthropic
+        - OpenAI
+        - Groq
+        - OpenRouter
+        - Ollama or LM Studio (local)
+        - Claude viewer (no key)
+        - Not relevant to this bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app and pick …
+        2. Answer the first question with …
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Anything red in the browser devtools console. Redact any key that appears.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I hard-reloaded, or unregistered the service worker, and it still happens
+          required: true
+        - label: I searched the existing issues
+          required: true
+        - label: There is no API key anywhere in this report
+          required: true

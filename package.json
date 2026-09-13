@@ -6,7 +6,8 @@
   "description": "An interviewer that forges a half-formed idea into a usable LLM prompt.",
   "license": "MIT",
   "scripts": {
-    "test": "npm run lint:purity && node --test test/",
-    "lint:purity": "node tools/lint-purity.mjs"
+    "test": "npm run lint:purity && node --test \"test/**/*.test.mjs\"",
+    "lint:purity": "node tools/lint-purity.mjs",
+    "serve": "python -m http.server 8765 --bind 127.0.0.1"
   }
 }

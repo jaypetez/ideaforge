@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IdeaForge</title>
+<meta name="description" content="An interviewer that forges a half-formed idea into a usable LLM prompt.">
+
+<!--
+  connect-src is an allowlist of the inference and transcription hosts, and nothing else.
+  It is the main thing standing between a stored API key and an injected script that wants
+  to post it somewhere, so add a host only when a provider genuinely needs one.
+  No unsafe-inline, no unsafe-eval, no third-party script origins: this app has zero
+  dependencies, which is what makes that affordable.
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self';
+  worker-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data:;
+  connect-src 'self'
+    https://api.anthropic.com
+    https://api.openai.com
+    https://api.groq.com
+    https://openrouter.ai
+    http://localhost:11434
+    http://localhost:1234;
+  manifest-src 'self';
+  base-uri 'none';
+  form-action 'none';
+  frame-ancestors *;
+">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0e6b73">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<link rel="stylesheet" href="./src/ui/app.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="bar">
+    <h1>IdeaForge</h1>
+    <div class="bar-right">
+      <span class="meter" id="meter" hidden>
+        <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
+        <span class="meter-label" id="meter-label">0%</span>
+      </span>
+      <button type="button" class="ghost small" id="b-settings">Settings</button>
+    </div>
+  </header>
+
+  <!-- ─────────────────────────────────────────────────────────── setup -->
+  <section id="panel-setup">
+    <p class="lede">
+      IdeaForge asks you one question at a time about a half-formed idea, then writes the
+      prompt you should have given an LLM in the first place.
+    </p>
+
+    <div class="field">
+      <label for="provider">Where should the questions come from?</label>
+      <select id="provider"></select>
+      <p class="hint" id="provider-note"></p>
+    </div>
+
+    <div class="field" id="field-key">
+      <label for="apikey">API key</label>
+      <input type="password" id="apikey" autocomplete="off" spellcheck="false"
+             placeholder="paste your key">
+      <p class="hint">
+        Stored encrypted on this device and sent only to the provider you picked.
+        Use a scoped, expiring key — <a id="keylink" href="#" target="_blank" rel="noreferrer noopener">get one here</a>.
+      </p>
+    </div>
+
+    <div class="field" id="field-base" hidden>
+      <label for="baseurl">Base URL</label>
+      <input type="url" id="baseurl" spellcheck="false" placeholder="https://…/v1">
+    </div>
+
+    <div class="field">
+      <label for="stt">Dictation</label>
+      <select id="stt">
+        <option value="browser">Use the browser’s recogniser where it works</option>
+        <option value="groq">Groq Whisper — about a penny per interview</option>
+        <option value="openai">OpenAI — around 0.3 cents a minute</option>
+        <option value="off">Off — keyboard only</option>
+      </select>
+      <p class="hint" id="stt-note"></p>
+    </div>
+
+    <div class="field" id="field-sttkey" hidden>
+      <label for="sttkey">Transcription key</label>
+      <input type="password" id="sttkey" autocomplete="off" spellcheck="false"
+             placeholder="paste your key">
+      <p class="hint" id="sttkey-note"></p>
+    </div>
+
+    <div class="btns">
+      <button type="button" id="b-start">Start an interview</button>
+      <button type="button" class="ghost" id="b-check">Check the key</button>
+      <button type="button" class="ghost" id="b-forget" hidden>Forget my key</button>
+    </div>
+
+    <div id="resume" hidden>
+      <h2>Pick up where you left off</h2>
+      <div class="rows" id="resume-rows"></div>
+    </div>
+
+    <p class="hint version" id="version"></p>
+  </section>
+
+  <!-- ───────────────────────────────────────────────────────── interview -->
+  <section id="panel-interview" hidden>
+    <p class="bridge" id="bridge" hidden></p>
+    <h2 class="question" id="question">…</h2>
+    <p class="asking" id="asking" hidden>thinking of the next question…</p>
+
+    <div class="chips" id="chips"></div>
+
+    <label class="sr-only" for="answer">Your answer</label>
+    <textarea id="answer" rows="4" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
+
+    <div class="listening" id="listening" hidden>
+      <span class="pulse" id="pulse"></span>
+      <span id="listening-label">Listening…</span>
+    </div>
+
+    <div class="btns">
+      <button type="button" id="b-send">Send</button>
+      <button type="button" class="ghost" id="b-mic" hidden>🎤 Answer out loud</button>
+      <button type="button" class="ghost" id="b-skip">Skip this one</button>
+      <button type="button" class="ghost" id="b-wrap" hidden>That’s enough — write it up</button>
+    </div>
+
+    <label class="toggle" id="handsfree-wrap" hidden>
+      <input type="checkbox" id="handsfree">
+      <span>Hands-free — read each question aloud and listen for the answer</span>
+    </label>
+
+    <p class="turnline" id="turnline"></p>
+
+    <details class="cov">
+      <summary>Coverage</summary>
+      <div class="rows" id="coverage"></div>
+    </details>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────── done -->
+  <section id="panel-done" hidden>
+    <h2 id="done-title">Your refined prompt</h2>
+    <p class="hint" id="done-meta"></p>
+    <pre class="output" id="output"></pre>
+    <div class="btns">
+      <button type="button" id="b-copy">Copy markdown</button>
+      <button type="button" class="ghost" id="b-download">Download .md</button>
+      <button type="button" class="ghost" id="b-reopen">Ask me more</button>
+      <button type="button" class="ghost" id="b-new">New idea</button>
+    </div>
+  </section>
+
+  <p class="note" id="note" hidden></p>
+  <p class="err" id="err" hidden></p>
+
+</div>
+
+<script type="module" src="./src/ui/app.js"></script>
+</body>
+</html>
