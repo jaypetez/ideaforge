@@ -1,6 +1,12 @@
 # IdeaForge
 
+[![CI](https://github.com/jaypetez/ideaforge/actions/workflows/ci.yml/badge.svg)](https://github.com/jaypetez/ideaforge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 An interviewer that forges a half-formed idea into a usable LLM prompt.
+
+**→ [Try it](https://jaypetez.github.io/ideaforge/)** — it runs entirely in your browser
+with your own API key. Nothing is sent anywhere but the provider you pick.
 
 You have a vague idea. You know things about it you would never think to type — the real
 numbers, the case you have in mind, the thing that would make you throw the output away.
@@ -34,7 +40,7 @@ Pick a provider and paste a key. The options:
 | **Anthropic** | ~10–20¢ per interview | Haiku asks the questions, Sonnet writes the wrap-up. |
 | **OpenAI** | a few cents | `gpt-5-nano` for turns. |
 | **OpenRouter** | varies | Anything it fronts. |
-| **Ollama / LM Studio** | free | Local. Needs `OLLAMA_ORIGINS` set to this app's origin, or LM Studio's CORS toggle. |
+| **Ollama / LM Studio** | free | Local, and awkward from a hosted page — see below. |
 | **Claude viewer** | no key at all | Only when IdeaForge is opened inside a Claude artifact viewer. |
 
 ## Talking instead of typing
@@ -59,6 +65,13 @@ So the app starts the recogniser and requires it to prove it is alive within a s
 half; if it does not, dictation switches to Whisper for good. **If you want to dictate on
 an installed iPhone app, set a transcription key** — the browser path cannot work there.
 Without one, the app says so rather than showing a mic button that hangs.
+
+**A local model is easiest from a local page.** Ollama and LM Studio both refuse
+cross-origin requests by default, so from the hosted site you would need
+`OLLAMA_ORIGINS=https://jaypetez.github.io` (or LM Studio's CORS toggle) — and even then
+Safari blocks an `http://localhost` request from an `https://` page outright, and Chrome
+adds a Private Network Access preflight neither server answers. If you want to run against
+a local model, run the app locally too: `npm run serve`.
 
 **About the key.** It is encrypted with a non-extractable `CryptoKey` and stored in
 IndexedDB on your device, and it is sent to exactly one host — the provider you picked,

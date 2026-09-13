@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # create the release and upload its assets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0     # git archive needs the tag object, not just a shallow tip
+          persist-credentials: false
+
+      - name: Build the archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME="ideaforge-${VERSION}"
+          mkdir -p dist
+
+          # Straight from the tagged tree. There is no build step, so the archive is
+          # byte-stable and anyone can reproduce it with the same one-liner.
+          git archive --format=tar.gz --prefix="${NAME}/" -o "dist/${NAME}.tar.gz" "${GITHUB_REF_NAME}"
+          git archive --format=zip    --prefix="${NAME}/" -o "dist/${NAME}.zip"    "${GITHUB_REF_NAME}"
+
+          cd dist
+          sha256sum "${NAME}.tar.gz" "${NAME}.zip" > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Guard against a version mismatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          SRC="$(node -p "/'([^']+)'/.exec(require('fs').readFileSync('src/version.js','utf8'))[1]")"
+          echo "tag=$TAG package.json=$PKG src/version.js=$SRC"
+          # A release whose archive reports a different version than its tag is a support
+          # problem forever after, so fail here rather than publish it.
+          [ "$TAG" = "$PKG" ] && [ "$TAG" = "$SRC" ] || {
+            echo "::error::tag, package.json and src/version.js disagree"; exit 1; }
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag

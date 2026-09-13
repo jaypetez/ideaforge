@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write        # deploy-pages authenticates to the Pages service over OIDC
+
+# One deployment at a time, and never cancel one that is already running.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Publish only what the app actually needs. Everything is relative-path already, so
+      # this works unchanged at localhost:8765/ and at jaypetez.github.io/ideaforge/.
+      - name: Assemble the site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp index.html manifest.webmanifest sw.js LICENSE dist/
+          cp -r src dist/
+          # The tests, the purity linter and the day-0 spikes are not part of the site.
+          find dist -name '*.test.mjs' -delete
+          echo "published files:"
+          find dist -type f | sort
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

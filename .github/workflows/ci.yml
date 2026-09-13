@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default; no job here needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is not optional here: two of the bugs this repo has already hit were
+        # Windows-only path handling in the toolchain, caught by hand rather than by CI.
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          # No `cache: npm`. There are zero dependencies and therefore no lockfile, and
+          # the cache step hard-fails with "Dependencies lock file is not found".
+
+      - name: Versions
+        shell: bash
+        run: node --version && npm --version
+
+      # No install step at all: zero dependencies means the npm registry is not in this
+      # pipeline's trust boundary. `npm test` runs the purity lint, then the test runner.
+      - name: Test
+        shell: bash
+        run: npm test
+
+  # The one and only required status check.
+  #
+  # Requiring the matrix legs by name instead would mean every edit to the matrix silently
+  # orphans a required context, which then hangs at "Expected" on every PR forever. This
+  # name never changes however the matrix grows.
+  #
+  # `if: always()` is load-bearing: without it this job is SKIPPED when `test` fails, and
+  # GitHub counts a skipped check as passing — so the gate would wave through the exact
+  # failures it exists to catch.
+  ci:
+    name: ci
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every required job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        shell: bash
+        run: |
+          echo "upstream results: $RESULTS"
+          for r in $RESULTS; do
+            # Checks for != success rather than == failure, so `cancelled` and `skipped`
+            # are caught too.
+            if [ "$r" != "success" ]; then
+              echo "::error::a required job did not succeed ($r)"
+              exit 1
+            fi
+          done
+          echo "all required jobs succeeded"
