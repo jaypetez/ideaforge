@@ -100,8 +100,10 @@ export async function createRecorder({ vad = {} } = {}) {
         if (settled) return;
         analyser.getByteTimeDomainData(buf);
         const rms = rmsOf(buf);
-        if (onLevel) onLevel(rms, gate.state());
+        // Push first, then report: otherwise the state handed to onLevel always lags the
+        // sample by one frame and a caller can never observe the terminal `done`.
         const verdict = gate.push(rms, performance.now());
+        if (onLevel) onLevel(rms, gate.state());
         if (verdict === 'done' && autoStop) { safeStop(rec); return; }
         raf = requestAnimationFrame(tick);
       };
