@@ -373,3 +373,14 @@ test('tripwire catches short compound questions, but not legitimate "and" clause
   assert.equal(questionTripwire('What would make you abandon this and never come back?', s), null);
   assert.equal(questionTripwire('If you could ship one screen and one button, which survives?', s), null);
 });
+
+// ─────────────────────────────────────────────────────────── the version
+test('the app version matches package.json', async () => {
+  // src/version.js duplicates the version because a browser ES module cannot import JSON
+  // without an import attribute and this app has no build step. This is the guard.
+  const { VERSION } = await import('../src/version.js');
+  const pkg = JSON.parse(
+    await (await import('node:fs/promises')).readFile(new URL('../package.json', import.meta.url), 'utf8')
+  );
+  assert.equal(VERSION, pkg.version, 'bump src/version.js and package.json together');
+});

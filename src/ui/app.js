@@ -13,9 +13,10 @@ import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js'
 import { runSynthesis } from '../runtime/synthesize.js';
 import { createProvider, PROVIDER_CHOICES, defaultProviderKind } from '../providers/index.js';
 import { saveSession, loadSession, listSessions, newSessionId } from '../store/sessions.js';
-import { saveCredentials, loadCredentials, maskKey } from '../store/secrets.js';
+import { saveCredentials, loadCredentials, clearCredentials, maskKey } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
 import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
+import { VERSION } from '../version.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {};
@@ -23,7 +24,7 @@ for (const id of [
   'meter', 'meter-fill', 'meter-label', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'b-start', 'b-check', 'resume', 'resume-rows',
-  'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note',
+  'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
@@ -112,6 +113,23 @@ function onProviderChange() {
   } else {
     els.apikey.placeholder = 'paste your key';
   }
+  // Only offer to forget a key when there is one; an inert button is worse than none.
+  els['b-forget'].hidden = !(state.creds && (state.creds.apiKey || state.creds.sttKey));
+}
+
+/**
+ * Delete the stored key. The whole security story of this app is that the key lives on
+ * your device, which is only honest if there is a way to take it off again.
+ */
+async function forgetKey() {
+  await clearCredentials();
+  state.creds = null;
+  els.apikey.value = '';
+  els.sttkey.value = '';
+  fail(null);
+  onProviderChange();
+  onSttChange();
+  say('Key deleted from this device.');
 }
 
 function readCredsFromForm() {
@@ -553,6 +571,7 @@ function bind() {
       say('That key works.');
     } catch (e) { say(''); fail(e); }
   };
+  els['b-forget'].onclick = forgetKey;
   els['b-send'].onclick = () => send();
   els['b-skip'].onclick = async () => {
     if (state.busy || !openTurn(state.session)) return;
@@ -591,6 +610,7 @@ async function boot() {
   if (state.creds && state.creds.sttKind) els.stt.value = state.creds.sttKind;
   renderProviderChoices();
   onSttChange();
+  els.version.textContent = `IdeaForge v${VERSION}`;
   await renderResumeList();
   requestPersistence();
   show('panel-setup');
