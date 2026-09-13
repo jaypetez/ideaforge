@@ -102,6 +102,21 @@ export function answerQuestion(session, { text, source = 'typed', classification
   return bump(session, patch, now);
 }
 
+/**
+ * The user declined to answer. `skipped` is read by `openTurn`, `serializeTurn` and the
+ * export, but no reducer ever set it — the path was fully plumbed and unreachable, so a
+ * skip had to be faked as an answer whose text said "(skipped)".
+ */
+export function skipQuestion(session, { now = 0 } = {}) {
+  const idx = session.turns.length - 1;
+  if (idx < 0) throw new Error('no open turn to skip');
+  const turns = session.turns.slice();
+  // Same notion of "open" as openTurn: an answered OR already-skipped turn is closed.
+  if (turns[idx].answer || turns[idx].skipped) throw new Error('no open turn to skip');
+  turns[idx] = { ...turns[idx], skipped: true, answeredAt: now, classification: 'refusal' };
+  return bump(session, { turns, draftAnswer: '' }, now);
+}
+
 export function setDraftText(session, text, now = 0) {
   const idx = session.turns.length - 1;
   if (idx < 0) return session;

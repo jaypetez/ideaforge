@@ -1,0 +1,15 @@
+{
+  "name": "IdeaForge",
+  "short_name": "IdeaForge",
+  "description": "An interviewer that forges a half-formed idea into a usable LLM prompt.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f7f9",
+  "theme_color": "#0e6b73",
+  "icons": [
+    { "src": "./src/ui/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./src/ui/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

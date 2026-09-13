@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="IdeaForge">
+  <!-- Maskable: the whole square is background and the art sits inside the 80% safe zone,
+       so a circular or squircle mask never clips it. -->
+  <rect width="512" height="512" fill="#0e6b73"/>
+  <g transform="translate(256 256) scale(0.62) translate(-256 -256)">
+    <path d="M126 196h150c34 0 58 26 92 26h30v-40h44v104h-58c-30 0-52-16-72-30l-2 44h44l30 92H152l30-92h44l-4-56h-96z"
+          fill="#f6f7f9"/>
+    <rect x="176" y="404" width="160" height="34" rx="10" fill="#f6f7f9"/>
+  </g>
+</svg>

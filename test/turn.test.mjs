@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { DIMENSION_IDS, SEED_QUESTION } from '../src/core/dimensions.js';
 import {
-  createSession, askQuestion, answerQuestion, applyCoverage, openTurn, setPending,
+  createSession, askQuestion, answerQuestion, applyCoverage, openTurn, setPending, skipQuestion,
 } from '../src/core/session.js';
 import {
   buildTurnPrompt, buildTurnPromptParts, pickBankQuestion, lastAnswerClass, promptHash,
@@ -397,9 +397,21 @@ test('lastAnswerClass is what the prompt prints, so the two cannot drift', () =>
   assert.ok(tail.includes(`Last answer quality: ${cls}`));
 });
 
-test('a skipped turn reads as a refusal', () => {
+test('skipQuestion closes the turn without inventing an answer', () => {
   let s = opened();
   s = askQuestion(s, { question: 'What format?', dimension: 'voice' });
-  s = { ...s, turns: s.turns.map((t, i) => (i === 1 ? { ...t, skipped: true } : t)) };
+  s = skipQuestion(s, { now: 7 });
+  assert.equal(openTurn(s), null, 'a skipped turn is no longer open');
+  assert.equal(s.turns[1].skipped, true);
+  assert.equal(s.turns[1].answer, '', 'the transcript must not carry a fake answer');
   assert.equal(lastAnswerClass(s), 'refusal');
+  assert.throws(() => skipQuestion(s), /no open turn|already answered/);
+});
+
+test('a skipped turn still reaches the model and the export', () => {
+  let s = opened();
+  s = askQuestion(s, { question: 'What format should it take?', dimension: 'voice' });
+  s = skipQuestion(s, { now: 7 });
+  const { prefix } = buildTurnPromptParts(s, { target: 'voice', moves: ['menu'] });
+  assert.match(prefix, /\[skipped\]/);
 });

@@ -1,0 +1,127 @@
+/* The visual language established by spikes/probe.html: IBM Plex, a teal accent, tokens
+   defined light-first with dark redefined under both the media query and an explicit
+   [data-theme], so a future theme toggle wins in either direction. */
+
+:root {
+  --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+  --ink:#14181d; --ink-dim:#5b646f; --line:#dfe3e9;
+  --accent:#0e6b73; --ok:#1a7f4b; --fail:#b3261e; --pend:#8a6a00;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0f1216; --surface:#161b21; --surface-2:#1d242c;
+    --ink:#e6eaef; --ink-dim:#8d97a3; --line:#262d36;
+    --accent:#4fd1c5; --ok:#46c07f; --fail:#ff6b5e; --pend:#d9a441;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0f1216; --surface:#161b21; --surface-2:#1d242c;
+  --ink:#e6eaef; --ink-dim:#8d97a3; --line:#262d36;
+  --accent:#4fd1c5; --ok:#46c07f; --fail:#ff6b5e; --pend:#d9a441;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: var(--sans); font-size: 16px; line-height: 1.55;
+}
+.wrap {
+  max-width: 720px; margin: 0 auto;
+  padding-inline: 20px; padding-block: 20px 72px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* ───────────────────────────────────────────────────────────────── bar */
+.bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.bar h1 { font-size:19px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+.bar-right { display:flex; align-items:center; gap:12px; }
+.meter { display:flex; align-items:center; gap:8px; }
+.meter-track { width:84px; height:6px; border-radius:3px; background:var(--surface-2); overflow:hidden; }
+.meter-fill { display:block; height:100%; width:0%; background:var(--accent); transition:width .35s ease; }
+.meter-label { font-family:var(--mono); font-size:12px; color:var(--ink-dim); font-variant-numeric:tabular-nums; }
+
+/* ─────────────────────────────────────────────────────────────── forms */
+section { display:flex; flex-direction:column; gap:18px; }
+.lede { margin:0; color:var(--ink-dim); text-wrap:pretty; }
+.field { display:flex; flex-direction:column; gap:6px; }
+label { font-size:14px; font-weight:600; }
+input, select, textarea {
+  font-family:var(--sans); font-size:16px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line); border-radius:6px;
+  padding:10px 12px; width:100%;
+}
+textarea { resize:vertical; min-height:96px; line-height:1.5; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.hint { margin:0; font-size:13px; color:var(--ink-dim); }
+.hint a { color:var(--accent); }
+
+.btns { display:flex; flex-wrap:wrap; gap:8px; }
+button {
+  font-family:var(--sans); font-size:15px; font-weight:600;
+  color:var(--ground); background:var(--accent);
+  border:0; border-radius:6px; padding:10px 16px; cursor:pointer;
+}
+button.ghost { background:transparent; color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+button.small { font-size:13px; padding:6px 10px; }
+button:disabled { opacity:.45; cursor:default; }
+
+/* ─────────────────────────────────────────────────────────── interview */
+.bridge { margin:0; color:var(--ink-dim); font-size:15px; }
+.question {
+  margin:0; font-size:25px; font-weight:600; line-height:1.3;
+  letter-spacing:-0.015em; text-wrap:balance;
+}
+.asking { margin:0; font-family:var(--mono); font-size:13px; color:var(--ink-dim); }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chips:empty { display:none; }
+.chip {
+  font-family:var(--sans); font-size:14px; font-weight:400;
+  color:var(--ink); background:var(--surface-2);
+  border:1px solid var(--line); border-radius:999px; padding:7px 13px; cursor:pointer;
+  text-align:left;
+}
+.chip:hover { border-color:var(--accent); }
+.turnline { margin:0; font-family:var(--mono); font-size:12px; color:var(--ink-dim); }
+
+.cov { border-top:1px solid var(--line); padding-top:12px; }
+.cov summary {
+  cursor:pointer; font-family:var(--mono); font-size:11px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-dim);
+}
+.rows { display:flex; flex-direction:column; gap:1px; background:var(--line);
+        border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-top:10px; }
+.row { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
+       padding:9px 12px; background:var(--surface); font-size:14px; }
+.row .gap { grid-column:1/-1; font-size:12.5px; color:var(--ink-dim); }
+.row .gap:empty { display:none; }
+.row button { padding:4px 10px; font-size:13px; }
+.lvl { font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.05em;
+       text-transform:uppercase; padding:2px 8px; border-radius:3px;
+       background:var(--surface-2); color:var(--ink-dim); white-space:nowrap; }
+.lvl.partial { background:color-mix(in srgb,var(--pend) 18%,transparent); color:var(--pend); }
+.lvl.covered { background:color-mix(in srgb,var(--ok) 16%,transparent); color:var(--ok); }
+
+/* ──────────────────────────────────────────────────────────────── done */
+.output {
+  font-family:var(--mono); font-size:13px; line-height:1.65;
+  white-space:pre-wrap; word-break:break-word; margin:0;
+  background:var(--surface); border:1px solid var(--line); border-radius:6px;
+  padding:16px; max-height:60vh; overflow:auto;
+}
+
+/* ───────────────────────────────────────────────────────────── banners */
+.note, .err { margin:0; font-size:14px; border-radius:6px; padding:11px 14px; }
+.note { background:color-mix(in srgb,var(--pend) 14%,transparent); color:var(--ink); }
+.err  { background:color-mix(in srgb,var(--fail) 14%,transparent); color:var(--ink);
+        border:1px solid color-mix(in srgb,var(--fail) 45%,transparent); }
+
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
