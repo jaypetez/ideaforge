@@ -1,0 +1,127 @@
+<title>IdeaForge Runtime Probe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+  :root {
+    --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#14181d; --ink-dim:#5b646f; --line:#dfe3e9;
+    --accent:#0e6b73; --ok:#1a7f4b; --fail:#b3261e; --pend:#8a6a00;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0f1216; --surface:#161b21; --surface-2:#1d242c;
+      --ink:#e6eaef; --ink-dim:#8d97a3; --line:#262d36;
+      --accent:#4fd1c5; --ok:#46c07f; --fail:#ff6b5e; --pend:#d9a441;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0f1216; --surface:#161b21; --surface-2:#1d242c;
+    --ink:#e6eaef; --ink-dim:#8d97a3; --line:#262d36;
+    --accent:#4fd1c5; --ok:#46c07f; --fail:#ff6b5e; --pend:#d9a441;
+  }
+
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+  .wrap{max-width:780px;margin:0 auto;padding-inline:20px;padding-block:32px 64px;
+        display:flex;flex-direction:column;gap:28px}
+
+  header{display:flex;flex-direction:column;gap:6px}
+  h1{font-size:24px;font-weight:600;margin:0;letter-spacing:-0.01em;text-wrap:balance}
+  .sub{color:var(--ink-dim);font-size:14px;margin:0}
+  .stamp{font-family:var(--mono);font-size:12px;color:var(--ink-dim)}
+
+  section{display:flex;flex-direction:column;gap:10px}
+  h2{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.09em;
+     text-transform:uppercase;color:var(--ink-dim);margin:0}
+
+  /* Spike 1 verdict — the one thing that gets real emphasis */
+  .verdict{border:2px solid var(--line);border-radius:6px;padding:18px 20px;
+           background:var(--surface);display:flex;flex-direction:column;gap:6px}
+  .verdict.pass{border-color:var(--ok)}
+  .verdict.fail{border-color:var(--fail)}
+  .verdict-head{font-size:18px;font-weight:600}
+  .verdict.pass .verdict-head{color:var(--ok)}
+  .verdict.fail .verdict-head{color:var(--fail)}
+  .verdict p{margin:0;color:var(--ink-dim);font-size:14px}
+
+  .rows{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+  .row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+       padding:11px 14px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .name{font-family:var(--mono);font-size:13px}
+  .row .ms{font-family:var(--mono);font-size:12px;color:var(--ink-dim);
+           font-variant-numeric:tabular-nums}
+  .row .detail{grid-column:1/-1;font-size:12.5px;color:var(--ink-dim);
+               font-family:var(--mono);word-break:break-word}
+  .row .detail:empty{display:none}
+
+  .chip{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.05em;
+        text-transform:uppercase;padding:2px 8px;border-radius:3px;white-space:nowrap;
+        background:var(--surface-2);color:var(--ink-dim)}
+  .chip.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+  .chip.fail{background:color-mix(in srgb,var(--fail) 16%,transparent);color:var(--fail)}
+  .chip.pend{background:color-mix(in srgb,var(--pend) 18%,transparent);color:var(--pend)}
+
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ground);
+         background:var(--accent);border:0;border-radius:5px;padding:9px 15px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  button.ghost{background:transparent;color:var(--accent);
+               box-shadow:inset 0 0 0 1px var(--accent)}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  #log{font-family:var(--mono);font-size:12px;line-height:1.65;white-space:pre-wrap;
+       word-break:break-word;background:var(--surface);border:1px solid var(--line);
+       border-radius:6px;padding:14px;min-height:120px;max-height:420px;overflow:auto;
+       color:var(--ink);margin:0}
+  textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;
+           background:var(--surface);color:var(--ink);border:1px solid var(--line);
+           border-radius:6px;padding:12px;min-height:150px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>IdeaForge Runtime Probe</h1>
+    <p class="sub">Day-0 spikes: does a relative module load, does the mic work in the iframe,
+       does <code>downloads.save</code> take a <code>.md</code>, and how slow is each model tier?</p>
+    <p class="stamp" id="stamp">booting…</p>
+  </header>
+
+  <section>
+    <h2>Spike 1 · Multi-file module loading</h2>
+    <div class="verdict fail" id="modverdict">
+      <div class="verdict-head" id="modhead">probe.js did NOT load</div>
+      <p id="modbody">If this message is still here after the page settles, the
+         <code>files</code> map does not serve relative ES modules — the build step is required.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Capability resolution · claude.use()</h2>
+    <div class="rows" id="caps"></div>
+  </section>
+
+  <section>
+    <h2>Spikes 2–4 · Active probes</h2>
+    <div class="btns">
+      <button id="b-tiers">Time all three model tiers</button>
+      <button id="b-mic" class="ghost">Probe microphone</button>
+      <button id="b-dl" class="ghost">Save a .md file</button>
+      <button id="b-db" class="ghost">db round trip</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <pre id="log">waiting for probe.js…</pre>
+    <div class="btns">
+      <button id="b-copy">Copy results</button>
+      <button id="b-show" class="ghost">Show as selectable text</button>
+    </div>
+    <textarea id="dump" hidden readonly aria-label="Probe results as selectable text"></textarea>
+  </section>
+</div>
+
+<script type="module" src="./probe.js"></script>
