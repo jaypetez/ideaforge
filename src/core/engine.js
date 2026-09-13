@@ -51,6 +51,20 @@ export function classifyAnswer(text, question = '', { source = 'typed', chips = 
 
 // ─────────────────────────────────────────────────── dimension selection
 
+/**
+ * The classification of the most recent answered turn.
+ *
+ * Exported because two places need it and they must never disagree: the move policy
+ * (`legalMoves`) and the "Last answer quality" line in the prompt. Computing it twice is
+ * how those two silently drift apart.
+ */
+export function lastAnswerClass(session) {
+  const last = session.turns.filter((t) => t.answer || t.skipped).slice(-1)[0];
+  if (!last) return 'substantive';
+  if (last.skipped) return 'refusal';
+  return last.classification || 'substantive';
+}
+
 /** Lowest-covered dimension, weighted; ties broken by fewest turns, then fixed order. */
 export function selectNextDimension(session) {
   const candidates = DIMENSIONS.filter((d) => session.coverage[d.id].status === 'probing');
@@ -212,24 +226,28 @@ COVERAGE SCORING — a writing test, not a satisfaction test
 - At most TWO dimensions may improve in a single turn.`;
 
 /**
- * @returns {string} the complete prompt. Deterministic for a given session state.
+ * The turn prompt, split at its cache boundaries.
+ *
+ * `system` never changes. `prefix` only ever grows at the end — the idea, then the fact
+ * ledger, then the transcript — so a provider can put a prompt-cache breakpoint after it
+ * and hit that cache on every later turn. `tail` holds the volatile parts (the coverage
+ * map, rewritten every turn, and this turn's instructions) and must come last for that to
+ * hold. That ordering is the only reason the coverage map now sits below the transcript
+ * rather than above it.
+ *
+ * @returns {{system: string, prefix: string, tail: string}}
  */
-export function buildTurnPrompt(session, { target, moves, injected = null, budget = BUDGET_BYTES } = {}) {
+export function buildTurnPromptParts(
+  session, { target, moves, injected = null, budget = BUDGET_BYTES } = {}
+) {
   const t = getDimension(target);
-  const last = session.turns.filter((x) => x.answer || x.skipped).slice(-1)[0];
-  const lastClass = last ? (last.classification || 'substantive') : 'substantive';
+  const lastClass = lastAnswerClass(session);
   const { text: transcript } = buildTranscriptBlock(session, budget);
   const moveMenu = moves.map((m) => `  ${m.padEnd(14)} ${MOVES[m]}`).join('\n');
 
-  return [
-    RULES,
-    '',
+  const prefix = [
     '=== THE IDEA (their opening statement, verbatim) ===',
     session.opening || '(not yet given)',
-    '',
-    '=== COVERAGE MAP ===',
-    'Format: id | label | level | status | gap',
-    coverageBlock(session),
     '',
     '=== FACTS ESTABLISHED SO FAR ===',
     'Treat every one of these as ALREADY KNOWN. Asking about one is the worst error you can make.',
@@ -239,6 +257,12 @@ export function buildTurnPrompt(session, { target, moves, injected = null, budge
     'Answers marked [voice] are dictated: read for intent, tolerate transcription errors,',
     'and never ask them to clarify a mis-transcription.',
     transcript,
+  ].filter((l) => l !== '').join('\n');
+
+  const tail = [
+    '=== COVERAGE MAP ===',
+    'Format: id | label | level | status | gap',
+    coverageBlock(session),
     '',
     '=== THIS TURN ===',
     `Turn number: ${session.turns.length + 1}`,
@@ -267,6 +291,36 @@ export function buildTurnPrompt(session, { target, moves, injected = null, budge
     '  "wrap_reason": string | null',
     '}',
   ].filter((l) => l !== '').join('\n');
+
+  return { system: RULES, prefix, tail };
+}
+
+/**
+ * @returns {string} the complete prompt. Deterministic for a given session state.
+ */
+export function buildTurnPrompt(session, opts = {}) {
+  const { system, prefix, tail } = buildTurnPromptParts(session, opts);
+  return [system, prefix, tail].join('\n');
+}
+
+/**
+ * The no-model fallback: the first bank question not yet asked, preferring the target
+ * dimension and then any other dimension still being probed. Deterministic, so a degraded
+ * interview replays identically.
+ *
+ * @returns {{question: string, dimension: string} | null}
+ */
+export function pickBankQuestion(session, targetId) {
+  const asked = new Set(session.turns.map((t) => t.question));
+  const rest = DIMENSION_IDS.filter(
+    (id) => id !== targetId && session.coverage[id] && session.coverage[id].status === 'probing'
+  );
+  for (const id of [targetId, ...rest]) {
+    if (!id || !session.coverage[id]) continue;
+    const question = getDimension(id).bank.find((q) => !asked.has(q));
+    if (question) return { question, dimension: id };
+  }
+  return null;
 }
 
 /** Stable non-cryptographic hash (FNV-1a, 32-bit) for cache-replay recovery. */
