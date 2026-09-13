@@ -1,0 +1,108 @@
+// The real page, loaded in an iframe, twice: once at the origin root and once under a
+// subpath, because GitHub Pages serves this app from /ideaforge/ and a root-absolute path
+// anywhere would 404 there while working perfectly on localhost.
+//
+// The CSP is checked by listening for securitypolicyviolation rather than by reading the
+// meta tag. A policy that blocks a script the app needs throws nothing and logs nothing to
+// the page — it just silently does less, which is indistinguishable from working.
+
+const BOOT_MS = 4000;
+
+function loadFrame(src) {
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement('iframe');
+    frame.width = 900;
+    frame.height = 700;
+    frame.style.position = 'absolute';
+    frame.style.left = '-10000px';
+    frame.onload = () => resolve(frame);
+    frame.onerror = () => reject(new Error('iframe failed to load ' + src));
+    frame.src = src;
+    document.body.append(frame);
+  });
+}
+
+const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export default async function run(check, { subpath }) {
+  // ── boots at the origin root ──────────────────────────────────────────────
+  const frame = await loadFrame('/index.html');
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+
+  const violations = [];
+  win.addEventListener('securitypolicyviolation',
+    (e) => violations.push(e.violatedDirective + ' blocked ' + e.blockedURI));
+  const errors = [];
+  win.addEventListener('error', (e) => errors.push(String(e.message || e)));
+
+  await settle(BOOT_MS);
+  const $ = (id) => doc.getElementById(id);
+
+  check('the app boots with no uncaught error', errors.length === 0, errors.join('; '));
+  check('the CSP blocks nothing the app needs', violations.length === 0, violations.join('; '));
+
+  // These only get populated at the end of boot(), so they double as proof that the whole
+  // async startup path — credential load included — actually completed.
+  check('every provider is offered', $('provider').options.length >= 6,
+    $('provider').options.length + ' providers');
+  check('the version is shown', /^IdeaForge v\d+\.\d+\.\d+$/.test($('version').textContent),
+    $('version').textContent);
+  check('the dictation note is rendered', $('stt-note').textContent.trim().length > 0);
+  check('no key stored, so Forget my key is hidden', $('b-forget').hidden === true);
+  check('the interview panel starts hidden', $('panel-interview').hidden === true);
+  check('the mic button is hidden until an interview starts', $('b-mic').hidden === true);
+
+  frame.remove();
+
+  // The root-scoped service worker that boot() just registered shares this origin's cache
+  // storage with everything below, so tear it down before asserting on the subpath's cache
+  // — otherwise the two sets of entries are indistinguishable.
+  for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+  for (const n of await caches.keys()) await caches.delete(n);
+
+  // ── boots identically on a Pages-style subpath ────────────────────────────
+  const sub = await loadFrame(subpath + 'index.html');
+  const subWin = sub.contentWindow;
+  const subViolations = [];
+  subWin.addEventListener('securitypolicyviolation',
+    (e) => subViolations.push(e.violatedDirective + ' blocked ' + e.blockedURI));
+  await settle(BOOT_MS);
+
+  check('the app boots on a subpath too',
+    sub.contentDocument.getElementById('provider').options.length >= 6);
+  check('no CSP violations on the subpath', subViolations.length === 0, subViolations.join('; '));
+
+  // The manifest's start_url, scope and icons are resolved against the manifest URL, so a
+  // root-absolute value would break the installed app on Pages while looking fine locally.
+  const manifest = await (await fetch(subpath + 'manifest.webmanifest')).json();
+  const base = new URL(subpath + 'manifest.webmanifest', location.href);
+  const resolved = (v) => new URL(v, base).pathname;
+  check('manifest start_url resolves under the subpath',
+    resolved(manifest.start_url).startsWith(subpath), resolved(manifest.start_url));
+  check('manifest scope resolves under the subpath',
+    resolved(manifest.scope) === subpath, resolved(manifest.scope));
+  check('manifest icons resolve under the subpath',
+    manifest.icons.every((i) => resolved(i.src).startsWith(subpath)));
+  check('the manifest declares an id, so identity survives a start_url change',
+    typeof manifest.id === 'string' && manifest.id.length > 0, manifest.id);
+
+  // A service worker's scope is its own directory, and GitHub Pages cannot set the header
+  // that would widen it — so registering relatively is the only thing that works there.
+  const reg = await subWin.navigator.serviceWorker.register(subpath + 'sw.js', { scope: subpath });
+  check('the service worker registers scoped to the subpath',
+    new URL(reg.scope).pathname === subpath, new URL(reg.scope).pathname);
+
+  await settle(2500);
+  const names = await caches.keys();
+  const cache = names.length ? await caches.open(names[0]) : null;
+  const cached = cache ? (await cache.keys()).map((r) => new URL(r.url).pathname) : [];
+  check('the service worker precached the shell', cached.length > 20, cached.length + ' entries');
+  check('and cached it under the subpath, not the root',
+    cached.length > 0 && cached.every((p) => p.startsWith(subpath)),
+    cached.find((p) => !p.startsWith(subpath)) || 'all correct');
+
+  await reg.unregister();
+  await Promise.all(names.map((n) => caches.delete(n)));
+  sub.remove();
+}

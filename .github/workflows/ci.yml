@@ -46,6 +46,30 @@ jobs:
         shell: bash
         run: npm test
 
+  # IndexedDB, WebCrypto non-extractable keys, MediaRecorder, the Web Speech API, service
+  # workers and the CSP do not exist in Node, so `npm test` is blind to all of them. Chrome
+  # is preinstalled on the runners; one OS is enough, since this covers app behaviour rather
+  # than platform differences.
+  browser:
+    name: browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Browser checks
+        shell: bash
+        env:
+          # Locally a missing Chrome is a skip; here it must be a failure, or this job
+          # goes green having checked nothing.
+          BROWSER_CHECK_REQUIRED: '1'
+        run: npm run test:browser
+
   # The one and only required status check.
   #
   # Requiring the matrix legs by name instead would mean every edit to the matrix silently
@@ -58,7 +82,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [test]
+    needs: [test, browser]
     runs-on: ubuntu-latest
     steps:
       - name: Verify every required job succeeded
