@@ -33,7 +33,12 @@ for (const { rel, label } of SCANNED) {
 }
 
 function scan(name, src) {
-  src.split('\n').forEach((line, i) => {
+  // Split on \r?\n, not '\n'. A CRLF checkout otherwise leaves a trailing \r on every
+  // line, and `.` does not match \r — so `//.*$` never matches, no comment is stripped,
+  // and every banned word inside a comment is reported as a real reference. This passed
+  // on a Windows laptop with an LF checkout and failed on the Windows CI runner, which
+  // checks out CRLF by default.
+  src.split(/\r?\n/).forEach((line, i) => {
     // The ban is on real references, so strip comments and string literals first —
     // otherwise the word "claude" inside a mode name or a label trips it.
     const code = line
