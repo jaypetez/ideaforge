@@ -14,50 +14,18 @@
 //   No --virtual-time-budget. It fast-forwards timers while real IndexedDB and media I/O
 //   keep taking real time, which silently truncates probes and reports empty results as
 //   though the code were broken.
+//
+// Chrome discovery, the static server and the temp profile are shared with
+// tools/screenshots.mjs and live in tools/lib/harness.mjs.
 
-import { createServer } from 'node:http';
-import { readFile, readdir } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { join, extname } from 'node:path';
-import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { ROOT, MIME, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PROBE_DIR = join(ROOT, 'test', 'browser');
 const TIMEOUT_MS = Number(process.env.BROWSER_CHECK_TIMEOUT || 90000);
 /** The app is also served here, so probes can verify it works on a GitHub Pages subpath. */
 const SUBPATH = '/subpath-check/';
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.webmanifest': 'application/manifest+json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-};
-
-function findChrome() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  const candidates = {
-    win32: [
-      'C:/Program Files/Google/Chrome/Application/chrome.exe',
-      'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-      'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-    ],
-    darwin: [
-      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    ],
-    linux: [
-      '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
-      '/usr/bin/chromium-browser', '/usr/bin/chromium', '/snap/bin/chromium',
-    ],
-  }[process.platform] || [];
-  return candidates.find((p) => existsSync(p)) || null;
-}
 
 async function probeNames() {
   const files = await readdir(PROBE_DIR).catch(() => []);
@@ -98,45 +66,28 @@ function runnerHtml(probes) {
   ].join('\n');
 }
 
-async function serve(probes) {
-  const server = createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://127.0.0.1');
-    let path = decodeURIComponent(url.pathname);
+async function serve(probes, onResults) {
+  return serveRepo({
+    async before(req, res, url) {
+      let path = decodeURIComponent(url.pathname);
 
-    if (req.method === 'POST' && path === '/__result') {
-      const chunks = [];
-      for await (const c of req) chunks.push(c);
-      res.writeHead(204).end();
-      server.emit('results', JSON.parse(Buffer.concat(chunks).toString('utf8')));
-      return;
-    }
+      if (req.method === 'POST' && path === '/__result') {
+        const chunks = [];
+        for await (const c of req) chunks.push(c);
+        res.writeHead(204).end();
+        onResults(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        return { handled: true };
+      }
 
-    const onSubpath = path.startsWith(SUBPATH);
-    if (onSubpath) path = path.slice(SUBPATH.length - 1);
-    if (path === '/__run.html') {
-      res.writeHead(200, { 'content-type': MIME['.html'] }).end(runnerHtml(probes));
-      return;
-    }
-    if (path === '/' || path === '') path = '/index.html';
-
-    // Everything resolves under ROOT; anything that escapes it is refused.
-    const file = join(ROOT, path);
-    if (!file.startsWith(ROOT)) {
-      res.writeHead(403).end('forbidden');
-      return;
-    }
-    try {
-      const body = await readFile(file);
-      res.writeHead(200, {
-        'content-type': MIME[extname(file)] || 'application/octet-stream',
-        'service-worker-allowed': onSubpath ? SUBPATH : '/',
-      }).end(body);
-    } catch {
-      res.writeHead(404).end('not found');
-    }
+      const onSubpath = path.startsWith(SUBPATH);
+      if (onSubpath) path = path.slice(SUBPATH.length - 1);
+      if (path === '/__run.html') {
+        res.writeHead(200, { 'content-type': MIME['.html'] }).end(runnerHtml(probes));
+        return { handled: true };
+      }
+      return { path, swScope: onSubpath ? SUBPATH : '/' };
+    },
   });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return server;
 }
 
 async function main() {
@@ -159,33 +110,27 @@ async function main() {
     return 0;
   }
 
-  const server = await serve(probes);
+  let resolveResults;
+  const results = new Promise((r) => { resolveResults = r; });
+  const server = await serve(probes, (payload) => resolveResults(payload));
   const { port } = server.address();
-  const profile = mkdtempSync(join(tmpdir(), 'ideaforge-chrome-'));
 
-  const args = [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-    '--user-data-dir=' + profile,
+  const browser = launchChrome(chrome, {
+    url: 'http://127.0.0.1:' + port + '/__run.html',
     // Grant and synthesise a microphone so the recorder and the silence gate run for real.
-    '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
-    '--autoplay-policy=no-user-gesture-required',
-    'http://127.0.0.1:' + port + '/__run.html',
-  ];
-  if (process.platform === 'linux') args.unshift('--no-sandbox');
-
-  const child = spawn(chrome, args, { stdio: 'ignore' });
-  const payload = await new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), TIMEOUT_MS);
-    server.once('results', (r) => { clearTimeout(timer); resolve(r); });
+    extraArgs: [
+      '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
+      '--autoplay-policy=no-user-gesture-required',
+    ],
   });
 
-  child.kill();
+  const payload = await Promise.race([
+    results,
+    new Promise((r) => setTimeout(() => r(null), TIMEOUT_MS)),
+  ]);
+
+  browser.kill();
   server.close();
-  // Best-effort. On Windows Chrome keeps a handle on CrashpadMetrics for a moment after
-  // being killed, and a leftover temp profile must never be the thing that fails a run.
-  try {
-    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-  } catch { /* the OS will reap it */ }
 
   if (!payload) {
     console.error('browser checks TIMED OUT after ' + TIMEOUT_MS + 'ms - nothing was posted');

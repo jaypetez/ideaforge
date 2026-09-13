@@ -12,9 +12,10 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the full suite (123 tests)
+npm test                 # lint:purity, then the full suite (126 tests)
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
+npm run screenshots      # regenerate docs/ — the README's images and worked example
 
 node --test test/voice.test.mjs                        # one file
 node --test --test-name-pattern="zero gain"            # one test, by name (a JS regex)
@@ -25,6 +26,12 @@ There is **no install step** — zero dependencies, not even dev dependencies. N
 
 `npm run serve` needs `python` on PATH. Any static server works; ES modules, IndexedDB and
 the service worker all need a real origin.
+
+`npm run screenshots` needs Chrome. It drives the real app against the scripted interview in
+`tools/fixtures/walkthrough.mjs` and rewrites every image in `docs/` plus
+`docs/examples/remember-names.md`, so the README shows the app rather than a drawing of it.
+`.claude/skills/update-readme/SKILL.md` is the full procedure for updating the README,
+including which constants have to be re-derived from source.
 
 ## The seam, and why it is enforced
 

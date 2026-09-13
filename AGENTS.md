@@ -6,9 +6,10 @@ and the invariants that matter; this file covers *how to iterate on it and prove
 ## The short version
 
 ```sh
-npm test              # ~1s   — purity lint + 123 unit tests. Run constantly.
-npm run test:browser  # ~25s  — 53 checks in headless Chrome. Run before you push.
+npm test              # ~1s   — purity lint + 126 unit tests. Run constantly.
+npm run test:browser  # ~25s  — 58 checks in headless Chrome. Run before you push.
 npm run test:all      # both
+npm run screenshots   # ~35s  — only when the UI or the README changes
 ```
 
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or

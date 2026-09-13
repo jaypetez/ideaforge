@@ -53,6 +53,18 @@ export default async function run(check, { subpath }) {
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
   check('the mic button is hidden until an interview starts', $('b-mic').hidden === true);
 
+  // `hidden` is a property, not a guarantee. app.css gives section, .field, .meter, .btns,
+  // .listening and .toggle an explicit `display`, and an author display beats the UA
+  // stylesheet's `[hidden] { display: none }` — so every panel can report hidden === true
+  // and be on screen at the same time. Asserting the property is exactly what let that ship,
+  // so assert what a person actually sees instead.
+  const rendered = (id) => win.getComputedStyle($(id)).display !== 'none';
+  check('the hidden interview panel is not rendered', !rendered('panel-interview'));
+  check('the hidden done panel is not rendered', !rendered('panel-done'));
+  check('the hidden Base URL field is not rendered', !rendered('field-base'));
+  check('the hidden listening indicator is not rendered', !rendered('listening'));
+  check('the hidden coverage meter is not rendered', !rendered('meter'));
+
   frame.remove();
 
   // The root-scoped service worker that boot() just registered shares this origin's cache

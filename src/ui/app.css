@@ -24,6 +24,13 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* The whole app is panels toggled with `hidden` instead of a router, and an author `display`
+   beats the UA stylesheet's `[hidden] { display: none }`. Every rule below that sets display
+   on a section, .field, .meter, .btns, .listening or .toggle would otherwise un-hide it: all
+   three panels rendered at once, stacked down the page, while every element still reported
+   hidden === true. !important is the correct tool here rather than a smell — this has to beat
+   any later rule, including ones not written yet. */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
   font-family: var(--sans); font-size: 16px; line-height: 1.55;

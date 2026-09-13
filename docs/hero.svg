@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 384" width="760" height="384"
+     role="img" aria-labelledby="title desc">
+  <title id="title">IdeaForge</title>
+  <desc id="desc">Seven coverage meters — what we are making, what is actually in it, what good
+    looks like, hard limits, who it is for, tone and form, like or not like — filling from
+    thin to partial to covered as questions are answered, ending on an exported
+    refined-prompt.md file at 86% coverage.</desc>
+
+  <!-- No script and no external references: GitHub serves this through an <img>, where
+       scripts never run and remote fonts and images never load. CSS animation and generic
+       font stacks are what survive that. Colours are the app's own tokens from
+       src/ui/app.css, and the seven labels and final levels are the real end state of the
+       interview in docs/examples/remember-names.md. -->
+  <style>
+    :root, svg {
+      --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+      --ink:#14181d; --ink-dim:#5b646f; --line:#dfe3e9;
+      --accent:#0e6b73; --ok:#1a7f4b; --pend:#8a6a00;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root, svg {
+        --ground:#0f1216; --surface:#161b21; --surface-2:#1d242c;
+        --ink:#e6eaef; --ink-dim:#8d97a3; --line:#262d36;
+        --accent:#4fd1c5; --ok:#46c07f; --pend:#d9a441;
+      }
+    }
+    .sans { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .bg { fill: var(--ground); }
+    .card { fill: var(--surface); stroke: var(--line); }
+    .wordmark { fill: var(--ink); font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+    .q { fill: var(--ink); font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+    .label { fill: var(--ink-dim); font-size: 12.5px; }
+    .track { fill: var(--surface-2); }
+    /* transform-box is load-bearing: without it `transform-origin: left` resolves against
+       the viewBox, not the rect, so a half-filled meter scales out of the left edge of the
+       image and lands on top of its own label. scaleX(1) hides the bug; scaleX(0.5) shows it. */
+    .fill { fill: var(--accent); transform-box: fill-box; transform-origin: left center;
+            transform: scaleX(0); }
+    .pill { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; opacity: 0; }
+    .pill-covered { fill: var(--ok); }
+    .pill-partial { fill: var(--pend); }
+    .pct { fill: var(--ink-dim); font-size: 12px; opacity: 0; }
+    .file { fill: var(--ink); font-size: 13px; opacity: 0; }
+    .filecard { opacity: 0; }
+    .arrow { stroke: var(--line); fill: none; opacity: 0; }
+
+    /* One 11s loop. Each meter keeps the same keyframes and is staggered with a delay, so
+       the whole spine fills as a wave and resets as one. */
+    @keyframes riseFull  { 0%, 7% { transform: scaleX(0); } 13%, 100% { transform: scaleX(1); } }
+    @keyframes riseHalf  { 0%, 7% { transform: scaleX(0); } 13%, 100% { transform: scaleX(0.5); } }
+    @keyframes riseMeter { 0%, 7% { transform: scaleX(0); } 60%, 100% { transform: scaleX(0.86); } }
+    @keyframes appear    { 0%, 10% { opacity: 0; } 16%, 100% { opacity: 1; } }
+    @keyframes late      { 0%, 66% { opacity: 0; } 74%, 100% { opacity: 1; } }
+    @keyframes q1 { 0%, 1% { opacity: 0; } 5%, 26% { opacity: 1; } 31%, 100% { opacity: 0; } }
+    @keyframes q2 { 0%, 30% { opacity: 0; } 35%, 54% { opacity: 1; } 59%, 100% { opacity: 0; } }
+    @keyframes q3 { 0%, 58% { opacity: 0; } 63%, 95% { opacity: 1; } 99%, 100% { opacity: 0; } }
+
+    .fill  { animation: riseFull 11s ease-out infinite; }
+    .half  { animation-name: riseHalf; }
+    .pill  { animation: appear 11s ease-out infinite; }
+    .r0 { animation-delay: 0.6s; }  .r1 { animation-delay: 1.4s; }
+    .r2 { animation-delay: 2.2s; }  .r3 { animation-delay: 3.0s; }
+    .r4 { animation-delay: 3.8s; }  .r5 { animation-delay: 4.6s; }
+    .r6 { animation-delay: 5.4s; }
+    .meterfill { animation: riseMeter 11s ease-out infinite; }
+    .pct, .filecard, .file, .arrow { animation: late 11s ease-out infinite; }
+    .qa { animation: q1 11s linear infinite; }
+    .qb { animation: q2 11s linear infinite; }
+    .qc { animation: q3 11s linear infinite; }
+
+    /* The app's own stylesheet ends on exactly this rule. A banner that ignores it would be
+       the one part of the project that does. */
+    @media (prefers-reduced-motion: reduce) {
+      .fill, .meterfill { transform: scaleX(1); }
+      .half { transform: scaleX(0.5); }
+      .pill, .pct, .filecard, .file, .arrow, .qa { opacity: 1; }
+      .qb, .qc { opacity: 0; }
+      * { animation: none !important; }
+    }
+  </style>
+
+  <rect class="bg" width="760" height="384" rx="10"/>
+
+  <!-- header -->
+  <text class="sans wordmark" x="28" y="46">IdeaForge</text>
+  <g>
+    <rect class="track" x="580" y="36" width="100" height="6" rx="3"/>
+    <rect class="fill meterfill" x="580" y="36" width="100" height="6" rx="3"/>
+    <text class="mono pct" x="692" y="44">86%</text>
+  </g>
+
+  <!-- the question, grounded each time in the answer before it -->
+  <text class="sans q qa" x="28" y="88">In a sentence or two — what’s the idea?</text>
+  <text class="sans q qb" x="28" y="88">At the last conference, how many names did you actually lose?</text>
+  <text class="sans q qc" x="28" y="88">Where does the business-card comparison stop being true?</text>
+
+  <!-- the coverage spine -->
+  <g>
+    <text class="sans label" x="200" y="140" text-anchor="end">What we’re making</text>
+    <rect class="track" x="216" y="132" width="360" height="8" rx="4"/>
+    <rect class="fill r0" x="216" y="132" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-covered r0" x="592" y="140">COVERED</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="166" text-anchor="end">What’s actually in it</text>
+    <rect class="track" x="216" y="158" width="360" height="8" rx="4"/>
+    <rect class="fill r1" x="216" y="158" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-covered r1" x="592" y="166">COVERED</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="192" text-anchor="end">What good looks like</text>
+    <rect class="track" x="216" y="184" width="360" height="8" rx="4"/>
+    <rect class="fill r2" x="216" y="184" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-covered r2" x="592" y="192">COVERED</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="218" text-anchor="end">Hard limits</text>
+    <rect class="track" x="216" y="210" width="360" height="8" rx="4"/>
+    <rect class="fill r3" x="216" y="210" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-covered r3" x="592" y="218">COVERED</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="244" text-anchor="end">Who it’s for</text>
+    <rect class="track" x="216" y="236" width="360" height="8" rx="4"/>
+    <rect class="fill half r4" x="216" y="236" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-partial r4" x="592" y="244">PARTIAL</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="270" text-anchor="end">Tone &amp; form</text>
+    <rect class="track" x="216" y="262" width="360" height="8" rx="4"/>
+    <rect class="fill half r5" x="216" y="262" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-partial r5" x="592" y="270">PARTIAL</text>
+  </g>
+  <g>
+    <text class="sans label" x="200" y="296" text-anchor="end">Like / not like</text>
+    <rect class="track" x="216" y="288" width="360" height="8" rx="4"/>
+    <rect class="fill r6" x="216" y="288" width="360" height="8" rx="4"/>
+    <text class="mono pill pill-covered r6" x="592" y="296">COVERED</text>
+  </g>
+
+  <!-- and out the other end -->
+  <path class="arrow" d="M380 312 v14" stroke-width="1.5"/>
+  <path class="arrow" d="M375 321 l5 6 l5 -6" stroke-width="1.5" stroke-linecap="round"
+        stroke-linejoin="round"/>
+  <g class="filecard">
+    <rect class="card" x="262" y="334" width="236" height="32" rx="6" stroke-width="1"/>
+  </g>
+  <text class="mono file" x="380" y="354" text-anchor="middle">refined-prompt.md</text>
+</svg>
