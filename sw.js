@@ -35,6 +35,12 @@ const SHELL = [
   './src/store/db.js',
   './src/store/secrets.js',
   './src/store/sessions.js',
+  './src/voice/index.js',
+  './src/voice/vad.js',
+  './src/voice/recorder.js',
+  './src/voice/webspeech.js',
+  './src/voice/transcribe.js',
+  './src/voice/speak.js',
 ];
 
 self.addEventListener('install', (event) => {

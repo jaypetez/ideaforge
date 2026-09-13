@@ -37,6 +37,29 @@ Pick a provider and paste a key. The options:
 | **Ollama / LM Studio** | free | Local. Needs `OLLAMA_ORIGINS` set to this app's origin, or LM Studio's CORS toggle. |
 | **Claude viewer** | no key at all | Only when IdeaForge is opened inside a Claude artifact viewer. |
 
+## Talking instead of typing
+
+Tap **Answer out loud** to dictate one answer, or turn on **hands-free** and the app reads
+each question aloud, listens, and moves on when you stop talking. Dictated answers are
+marked as such: the interviewer is told to read them for intent and never to ask you to
+clarify a mis-transcription, and the export records which answers you spoke.
+
+There are two dictation backends and the app picks by *testing*, not by asking the browser
+what it supports:
+
+- **The browser's own recogniser** — free and shows words as you speak. It works in Chrome
+  and in Safari proper.
+- **Whisper** (Groq or OpenAI) — records and transcribes. About a penny for a whole
+  interview on Groq, and noticeably better on rambling or jargon-heavy speech.
+
+The reason for the testing is that `webkitSpeechRecognition` **exists and does nothing**
+inside an installed iOS home-screen app: it constructs, `start()` returns cleanly, and no
+event ever fires. Edge throws a `network` error instead, and Firefox has it off by default.
+So the app starts the recogniser and requires it to prove it is alive within a second and a
+half; if it does not, dictation switches to Whisper for good. **If you want to dictate on
+an installed iPhone app, set a transcription key** — the browser path cannot work there.
+Without one, the app says so rather than showing a mic button that hangs.
+
 **About the key.** It is encrypted with a non-extractable `CryptoKey` and stored in
 IndexedDB on your device, and it is sent to exactly one host — the provider you picked,
 which is also the only host the page's CSP permits it to talk to. What that does *not*
@@ -55,6 +78,7 @@ src/core/       pure interview logic — no DOM, no network, no clock
 src/runtime/    the turn loop; provider and clock injected, so it is testable offline
 src/providers/  the only directory allowed to touch the network
 src/store/      IndexedDB sessions and the encrypted key
+src/voice/      dictation, transcription and reading questions aloud
 src/ui/         the app shell
 ```
 

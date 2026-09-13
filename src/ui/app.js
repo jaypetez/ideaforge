@@ -15,6 +15,7 @@ import { createProvider, PROVIDER_CHOICES, defaultProviderKind } from '../provid
 import { saveSession, loadSession, listSessions, newSessionId } from '../store/sessions.js';
 import { saveCredentials, loadCredentials, maskKey } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
+import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {};
@@ -22,8 +23,10 @@ for (const id of [
   'meter', 'meter-fill', 'meter-label', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'b-start', 'b-check', 'resume', 'resume-rows',
+  'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
-  'b-send', 'b-skip', 'b-wrap', 'turnline', 'coverage',
+  'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
+  'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
   'panel-done', 'done-title', 'done-meta', 'output',
   'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
 ]) els[id] = $(id);
@@ -35,6 +38,10 @@ const state = {
   busy: false,
   /** Set when a chip was tapped, so answerQuestion records the right provenance. */
   answerSource: 'typed',
+  voice: null,
+  handsFree: false,
+  /** True while a hands-free cycle owns the turn, so nothing else drives it. */
+  cycling: false,
 };
 
 const now = () => Date.now();
@@ -111,11 +118,32 @@ function readCredsFromForm() {
   const c = currentChoice();
   const typed = els.apikey.value.trim();
   const keep = state.creds && state.creds.kind === c.id ? state.creds.apiKey : '';
+  const apiKey = typed || keep || '';
+  const sttKind = els.stt.value;
   return {
     kind: c.id,
-    apiKey: typed || keep || '',
+    apiKey,
     baseUrl: els.baseurl.value.trim() || undefined,
+    sttKind,
+    // Groq and OpenAI serve both chat and transcription, so when the inference provider
+    // is one of them the same key covers dictation and there is nothing extra to paste.
+    sttKey: sttKind === c.id ? apiKey
+      : (els.sttkey.value.trim() || (state.creds && state.creds.sttKey) || ''),
   };
+}
+
+function onSttChange() {
+  const kind = els.stt.value;
+  const preset = STT_PRESETS[kind];
+  const sharesKey = kind === currentChoice().id;
+  els['field-sttkey'].hidden = !preset || sharesKey;
+  els['sttkey-note'].textContent = preset ? `Sent only to ${new URL(preset.baseUrl).host}.` : '';
+  els['stt-note'].textContent =
+    kind === 'browser'
+      ? 'Free, and shows words as you speak — but it does not work in an installed iPhone app, ' +
+        'in Edge, or in Firefox. Pick Whisper below if you want dictation everywhere.'
+      : kind === 'off' ? ''
+      : `${preset.note}${sharesKey ? ' Uses the same key as above.' : ''}`;
 }
 
 async function buildProvider() {
@@ -241,6 +269,8 @@ async function nextQuestion() {
   } finally {
     busy(false);
   }
+  // Guarded, so the hands-free driver's own call to nextQuestion does not re-enter it.
+  if (state.handsFree && !state.cycling) runHandsFree();
 }
 
 function wrapMessage(reason) {
@@ -251,12 +281,9 @@ function wrapMessage(reason) {
   return '';
 }
 
-async function send(text, source) {
-  const body = String(text == null ? els.answer.value : text).trim();
-  if (!body || state.busy) return;
-  state.session = submitAnswer(state.session, {
-    text: body, source: source || state.answerSource, now: now(),
-  });
+/** Record an answer and ask the next question. The hands-free loop calls this directly. */
+async function submitAndAdvance(text, source) {
+  state.session = submitAnswer(state.session, { text, source, now: now() });
   els.answer.value = '';
   state.answerSource = 'typed';
   say('');
@@ -264,9 +291,134 @@ async function send(text, source) {
   await nextQuestion();
 }
 
+async function send(text, source) {
+  const body = String(text == null ? els.answer.value : text).trim();
+  if (!body || state.busy) return;
+  await submitAndAdvance(body, source || state.answerSource);
+}
+
+// ───────────────────────────────────────────────────────────────── voice
+
+/**
+ * Built once per interview, on the tap that starts it — which is also the only moment
+ * iOS will let us unlock speech synthesis, and the gesture the microphone permission
+ * prompt needs to be attached to.
+ */
+async function setupVoice() {
+  const { sttKind, sttKey } = state.creds || {};
+  primeSpeech();
+  try {
+    state.voice = await createVoice({
+      stt: STT_PRESETS[sttKind] && sttKey ? { kind: sttKind, apiKey: sttKey } : null,
+      preferRecorder: sttKind === 'groq' || sttKind === 'openai',
+    });
+  } catch {
+    state.voice = null;
+  }
+  const on = state.voice && state.voice.available;
+  els['b-mic'].hidden = !on;
+  els['handsfree-wrap'].hidden = !(on && ttsSupported());
+  if (on && state.voice.mode === 'recorder') {
+    // Say it once, plainly, rather than surprising anyone with a bill.
+    say(`Dictation goes through ${state.voice.transcriberLabel} — roughly a penny for a whole interview.`);
+  } else if (state.voice && state.voice.unavailableReason && els.stt.value !== 'off') {
+    say(state.voice.unavailableReason);
+  }
+}
+
+async function listenOnce({ prompt, autoStop }) {
+  els.listening.hidden = false;
+  els['listening-label'].textContent = state.voice.mode === 'recorder'
+    ? 'Listening — stop talking when you’re done.'
+    : 'Listening…';
+  els['b-mic'].textContent = 'Stop listening';
+  try {
+    return await state.voice.listen({
+      prompt,
+      autoStop,
+      onInterim: (t) => { els.answer.value = t; },
+      onLevel: (rms) => {
+        els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
+      },
+    });
+  } finally {
+    els.listening.hidden = true;
+    els['b-mic'].textContent = 'Answer out loud';
+    els.pulse.style.removeProperty('--level');
+  }
+}
+
+/**
+ * The hands-free cycle: read the question, listen, submit, repeat.
+ *
+ * A single driver loop rather than a chain of callbacks, because the alternative is
+ * mutual recursion between "ask" and "answer" that is one stray await away from running
+ * two microphones at once. `state.cycling` is what stops nextQuestion re-entering it.
+ */
+async function runHandsFree() {
+  if (state.cycling || !state.handsFree || !state.voice) return;
+  state.cycling = true;
+  try {
+    while (state.handsFree && !state.busy) {
+      const turn = openTurn(state.session);
+      if (!turn) break;
+
+      await state.voice.speak(spoken(turn));
+      if (!state.handsFree) break;
+
+      let heard = '';
+      try {
+        heard = await listenOnce({ prompt: turn.question, autoStop: true });
+      } catch (e) {
+        fail(e);
+        break;
+      }
+      if (!state.handsFree) break;
+      if (!heard.trim()) {
+        say('I didn’t catch that. Type your answer, or tap the mic to try again.');
+        break;
+      }
+      await submitAndAdvance(heard, 'voice');
+    }
+  } finally {
+    state.cycling = false;
+  }
+}
+
+/** What gets read aloud: the bridge and the question, never the chips. */
+function spoken(turn) {
+  return turn.bridge ? `${turn.bridge} ${turn.question}` : turn.question;
+}
+
+/** The open question, used to prime the transcriber with this turn's vocabulary. */
+function currentQuestion() {
+  const t = state.session && openTurn(state.session);
+  return t ? t.question : '';
+}
+
+function teardownVoice() {
+  setHandsFree(false);
+  if (state.voice) state.voice.dispose();
+  state.voice = null;
+  els['b-mic'].hidden = true;
+  els['handsfree-wrap'].hidden = true;
+  els.listening.hidden = true;
+}
+
+function setHandsFree(on) {
+  state.handsFree = on;
+  els.handsfree.checked = on;
+  if (!on) {
+    if (state.voice) { state.voice.cancelSpeech(); state.voice.stop(); }
+    return;
+  }
+  runHandsFree();
+}
+
 // ────────────────────────────────────────────────────────────── wrap-up
 
 async function wrapUp(note) {
+  teardownVoice();
   show('panel-done');
   els['done-title'].textContent = 'Writing it up…';
   els.output.textContent = '';
@@ -323,6 +475,7 @@ async function startInterview() {
   await persist();
   show('panel-interview');
   render();
+  await setupVoice();
   els.answer.focus();
 }
 
@@ -337,6 +490,7 @@ async function resumeInterview(id) {
   }
   state.session = s;
   show('panel-interview');
+  await setupVoice();
 
   if (s.pending) {
     busy(true, 'picking up where the last question left off…');
@@ -376,8 +530,21 @@ async function renderResumeList() {
 }
 
 function bind() {
-  els.provider.onchange = onProviderChange;
+  els.provider.onchange = () => { onProviderChange(); onSttChange(); };
+  els.stt.onchange = onSttChange;
   els['b-start'].onclick = startInterview;
+  els['b-mic'].onclick = async () => {
+    if (!state.voice) return;
+    if (!els.listening.hidden) { state.voice.stop(); return; }
+    setHandsFree(false);                 // a manual tap takes the wheel back
+    try {
+      // autoStop false: the button is press-to-talk, so the user decides when they are
+      // done. Whatever came back lands in the box for them to edit before sending.
+      const heard = await listenOnce({ prompt: currentQuestion(), autoStop: false });
+      if (heard.trim()) { els.answer.value = heard; state.answerSource = 'voice'; }
+    } catch (e) { fail(e); }
+  };
+  els.handsfree.onchange = () => setHandsFree(els.handsfree.checked);
   els['b-check'].onclick = async () => {
     fail(null); say('Checking…');
     try {
@@ -396,7 +563,7 @@ function bind() {
     await nextQuestion();
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
-  els['b-settings'].onclick = () => { show('panel-setup'); renderResumeList(); };
+  els['b-settings'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };
   els['b-copy'].onclick = async () => {
     try {
       await navigator.clipboard.writeText(els.output.textContent);
@@ -404,7 +571,7 @@ function bind() {
     } catch { say('Could not reach the clipboard — select the text above instead.'); }
   };
   els['b-download'].onclick = download;
-  els['b-new'].onclick = () => { show('panel-setup'); renderResumeList(); };
+  els['b-new'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };
   els['b-reopen'].onclick = async () => { show('panel-interview'); await nextQuestion(); };
 
   // Ctrl/Cmd+Enter sends; a plain Enter must still make a paragraph, because dictated
@@ -421,7 +588,9 @@ function bind() {
 async function boot() {
   bind();
   try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
+  if (state.creds && state.creds.sttKind) els.stt.value = state.creds.sttKind;
   renderProviderChoices();
+  onSttChange();
   await renderResumeList();
   requestPersistence();
   show('panel-setup');

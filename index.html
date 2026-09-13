@@ -81,6 +81,24 @@
       <input type="url" id="baseurl" spellcheck="false" placeholder="https://…/v1">
     </div>
 
+    <div class="field">
+      <label for="stt">Dictation</label>
+      <select id="stt">
+        <option value="browser">Use the browser’s recogniser where it works</option>
+        <option value="groq">Groq Whisper — about a penny per interview</option>
+        <option value="openai">OpenAI — around 0.3 cents a minute</option>
+        <option value="off">Off — keyboard only</option>
+      </select>
+      <p class="hint" id="stt-note"></p>
+    </div>
+
+    <div class="field" id="field-sttkey" hidden>
+      <label for="sttkey">Transcription key</label>
+      <input type="password" id="sttkey" autocomplete="off" spellcheck="false"
+             placeholder="paste your key">
+      <p class="hint" id="sttkey-note"></p>
+    </div>
+
     <div class="btns">
       <button type="button" id="b-start">Start an interview</button>
       <button type="button" class="ghost" id="b-check">Check the key</button>
@@ -103,11 +121,22 @@
     <label class="sr-only" for="answer">Your answer</label>
     <textarea id="answer" rows="4" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
 
+    <div class="listening" id="listening" hidden>
+      <span class="pulse" id="pulse"></span>
+      <span id="listening-label">Listening…</span>
+    </div>
+
     <div class="btns">
       <button type="button" id="b-send">Send</button>
+      <button type="button" class="ghost" id="b-mic" hidden>🎤 Answer out loud</button>
       <button type="button" class="ghost" id="b-skip">Skip this one</button>
       <button type="button" class="ghost" id="b-wrap" hidden>That’s enough — write it up</button>
     </div>
+
+    <label class="toggle" id="handsfree-wrap" hidden>
+      <input type="checkbox" id="handsfree">
+      <span>Hands-free — read each question aloud and listen for the answer</span>
+    </label>
 
     <p class="turnline" id="turnline"></p>
 
