@@ -125,8 +125,8 @@ Every one of these has already bitten someone here.
 
 ## Landing a change
 
-`main` requires a PR and a green `ci` check. You have an admin bypass — use it for genuine
-emergencies, not for routine work.
+`main` requires a PR and a green `ci` check. Do not merge around it — a check that was
+skipped rather than passed tells you nothing.
 
 ```sh
 git checkout -b some-branch
