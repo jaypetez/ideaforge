@@ -6,7 +6,7 @@
   "description": "An interviewer that forges a half-formed idea into a usable LLM prompt.",
   "license": "MIT",
   "scripts": {
-    "test": "npm run lint:purity && node --test test/",
+    "test": "npm run lint:purity && node --test \"test/**/*.test.mjs\"",
     "lint:purity": "node tools/lint-purity.mjs"
   }
 }

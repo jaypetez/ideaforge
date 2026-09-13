@@ -1,17 +1,38 @@
 // src/core/ must stay platform-free so the Phase-2 PWA port is a copy, not a rewrite.
 // Without this check, core/ acquires a `document.` reference within a week.
+//
+// src/runtime/ is scanned for the same reason with a different payoff: the turn runner
+// takes its provider and its clock as arguments, and linting it is what keeps it that
+// way — the first `Date.now()` someone adds inside runTurn is the end of resumability.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DIR = new URL('../src/core/', import.meta.url).pathname;
+// fileURLToPath, not .pathname: on Windows .pathname yields '/C:/...' and readdirSync
+// then resolves it to 'C:\C:\...' and throws ENOENT.
+const dirOf = (rel) => fileURLToPath(new URL(rel, import.meta.url));
+
+// src/providers/ is deliberately absent. It is the platform boundary: exactly one
+// directory in this repo may say `fetch` or `claude`, and that is the point of it.
+const SCANNED = [
+  { rel: '../src/core/', label: 'src/core/' },
+  { rel: '../src/runtime/', label: 'src/runtime/' },
+];
+
 const BANNED = [
   'window', 'document', 'localStorage', 'sessionStorage',
   'claude', 'navigator', 'fetch', 'alert',
 ];
 
 let failures = 0;
-for (const file of readdirSync(DIR).filter((f) => f.endsWith('.js'))) {
-  const src = readFileSync(join(DIR, file), 'utf8');
+for (const { rel, label } of SCANNED) {
+  const DIR = dirOf(rel);
+  for (const file of readdirSync(DIR).filter((f) => f.endsWith('.js'))) {
+    scan(`${label}${file}`, readFileSync(join(DIR, file), 'utf8'));
+  }
+}
+
+function scan(name, src) {
   src.split('\n').forEach((line, i) => {
     // The ban is on real references, so strip comments and string literals first —
     // otherwise the word "claude" inside a mode name or a label trips it.
@@ -20,17 +41,22 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.js'))) {
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/'(?:[^'\\]|\\.)*'/g, "''")
       .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-      .replace(/`(?:[^`\\]|\\.)*`/g, '``');
+      // Template literals keep their interpolations: blanking the whole literal would
+      // hide `${document.title}`, which is a real reference wearing a string's clothes.
+      // (A `}` nested inside an interpolation defeats this; a nested one is a smell anyway.)
+      .replace(/`(?:[^`\\]|\\.)*`/g, (lit) => '``' + (lit.match(/\$\{[^}]*\}/g) || []).join(''));
     for (const bad of BANNED) {
       if (new RegExp('\\b' + bad + '\\b').test(code)) {
-        console.error(`${file}:${i + 1}  banned reference "${bad}"\n    ${line.trim()}`);
+        console.error(`${name}:${i + 1}  banned reference "${bad}"\n    ${line.trim()}`);
         failures++;
       }
     }
   });
 }
+
+const where = SCANNED.map((s) => s.label).join(' and ');
 if (failures) {
-  console.error(`\nlint:purity FAILED — ${failures} platform reference(s) in src/core/.`);
+  console.error(`\nlint:purity FAILED — ${failures} platform reference(s) in ${where}.`);
   process.exit(1);
 }
-console.log('lint:purity ok — src/core/ is platform-free.');
+console.log(`lint:purity ok — ${where} are platform-free.`);
