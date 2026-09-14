@@ -9,9 +9,25 @@
 <!--
   connect-src is an allowlist of the inference and transcription hosts, and nothing else.
   It is the main thing standing between a stored API key and an injected script that wants
-  to post it somewhere, so add a host only when a provider genuinely needs one.
+  to post it somewhere, so add a REMOTE host only when a provider genuinely needs one.
   No unsafe-inline, no unsafe-eval, no third-party script origins: this app has zero
   dependencies, which is what makes that affordable.
+
+  Loopback is wildcarded by port because hardcoding 11434 and 1234 broke every other local
+  inference server for no security gain — anyone who can receive a request on your loopback
+  interface is already on your machine. Remote hosts stay a tight allowlist, and that is
+  exactly why src/providers/index.js refuses a hand-typed base URL that is not loopback: a
+  free-text remote endpoint would hand this defence away.
+
+  There is deliberately no http://[::1]:* here. CSP's host-source grammar has no form for
+  an IPv6 literal, so Chrome drops that token silently — no error, no violation event, just
+  a directive permitting less than it reads as. Verified in test/browser/app.browser.mjs,
+  which makes a request and watches which way it fails. Ollama binds 127.0.0.1 anyway, and
+  the settings screen steers anyone who types the bracket form.
+
+  Listing a host here does not make an http:// request from an https:// page legal — that
+  is mixed content, a separate gate. Chrome exempts a request marked
+  `targetAddressSpace: 'local'`; Safari has no exemption and refuses outright.
 -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'none';
@@ -25,8 +41,7 @@
     https://api.openai.com
     https://api.groq.com
     https://openrouter.ai
-    http://localhost:11434
-    http://localhost:1234;
+    http://localhost:* http://127.0.0.1:*;
   manifest-src 'self';
   base-uri 'none';
   form-action 'none';
@@ -77,8 +92,23 @@
     </div>
 
     <div class="field" id="field-base" hidden>
-      <label for="baseurl">Base URL</label>
-      <input type="url" id="baseurl" spellcheck="false" placeholder="https://…/v1">
+      <label for="baseurl">Server address</label>
+      <input type="url" id="baseurl" spellcheck="false" placeholder="http://localhost:11434/v1">
+      <p class="hint" id="base-note"></p>
+    </div>
+
+    <!--
+      A text input with a datalist rather than a select: pressing Check reads the installed
+      models off the server, but someone whose /models endpoint is unreachable and who
+      knows their model name must still be able to start. A select would need a "type a
+      name" escape hatch and a second hidden input; this is one control that is both.
+    -->
+    <div class="field" id="field-model" hidden>
+      <label for="model">Model</label>
+      <input id="model" list="model-list" spellcheck="false" autocomplete="off"
+             placeholder="press Check the connection to list what is installed">
+      <datalist id="model-list"></datalist>
+      <p class="hint" id="model-note"></p>
     </div>
 
     <div class="field">

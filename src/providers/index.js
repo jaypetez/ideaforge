@@ -43,6 +43,7 @@ export const PROVIDER_CHOICES = [
     needsKey: !p.local,
     local: !!p.local,
     discoverModels: !!p.discoverModels,
+    defaultBaseUrl: p.baseUrl,
     keyUrl: p.keyUrl || null,
     note: p.note || null,
     models: p.tiers,
@@ -80,7 +81,9 @@ export async function createProvider(config) {
   if (kind === 'anthropic') return createAnthropicProvider(config);
   if (OPENAI_COMPAT_PRESETS[kind]) return createOpenAICompatProvider({ ...config, preset: kind });
   if (kind === 'custom') {
-    return createOpenAICompatProvider({ ...config, local: true, modelRequired: true });
+    // modelRequired defaults on, but never overrides a caller who switched it off — that
+    // caller is the model-list read, which is how you find out what to put in the box.
+    return createOpenAICompatProvider({ modelRequired: true, ...config, local: true });
   }
   throw new ProviderError('config', `unknown provider: ${kind}`);
 }

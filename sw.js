@@ -7,12 +7,18 @@
 // deploy that never reaches anyone. Stale-while-revalidate is the compromise: serve the
 // cache instantly, fetch in the background, use it next time.
 
-const CACHE = 'ideaforge-v1';
+// Bumped whenever the shell's modules change shape together. Stale-while-revalidate
+// caches per request, so without a rename a returning user can load a NEW app.js against
+// a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
+// that fails in ways neither version would on its own. Renaming makes `activate` drop the
+// whole old cache at once.
+const CACHE = 'ideaforge-v2';
 
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './src/version.js',
   './src/ui/app.css',
   './src/ui/app.js',
   './src/ui/icon.svg',
@@ -27,6 +33,7 @@ const SHELL = [
   './src/runtime/gain.js',
   './src/runtime/synthesize.js',
   './src/providers/index.js',
+  './src/providers/http.js',
   './src/providers/errors.js',
   './src/providers/json.js',
   './src/providers/anthropic.js',
