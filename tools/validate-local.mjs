@@ -419,9 +419,17 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
       `${chatCalls.length} POSTs for ${wanted - 1} questions + 1 synthesis` +
       (chatCalls.length > wanted ? ` (${chatCalls.length - wanted} regenerated)` : ''));
 
-    check('coverage actually moved', (s?.coverage ? Object.values(s.coverage) : [])
-      .some((c) => c.level !== 'thin'),
-      Object.entries(s?.coverage || {}).map(([k, v]) => `${k}:${v.level}`).join(' '));
+    // Whether coverage RISES is the model's call, not the app's: a 7B frequently grades
+    // everything `thin`, honestly, and a four-turn interview then ends at 0% with nothing
+    // wrong. Gating on that makes the validator cry wolf. What must be true is that the
+    // claims arrived and were applied at all — a gap recorded against a dimension is proof
+    // the coverage path ran end to end, and the levels are reported for the reader to judge.
+    const cov = s?.coverage || {};
+    const levels = Object.entries(cov).map(([k, v]) => `${k}:${v.level}`).join(' ');
+    const applied = Object.values(cov).some((c) => c.level !== 'thin' || c.gap);
+    check('the coverage path ran and the model’s claims were applied', applied, levels);
+    const risen = Object.values(cov).filter((c) => c.level !== 'thin').length;
+    console.log(`  note  coverage after ${TURNS} turns: ${risen}/7 dimensions above thin`);
 
     // Not every warning means the run went wrong. The runtime also reports quirks it
     // absorbed — a model mis-keying its coverage block, say — and those are worth printing
@@ -430,7 +438,8 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     const warnings = consoleLines
       .filter((l) => /^\[ideaforge\]/.test(l.text))
       .flatMap((l) => l.text.replace(/^\[ideaforge\]\s*/, '').split('; '));
-    const serious = warnings.filter((w) => /^(provider |unfixable |no question)/.test(w));
+    const serious = warnings.filter(
+      (w) => /^(provider |unfixable |no question|no prompt|the model returned no usable)/.test(w));
     check('nothing went wrong that the runtime had to paper over',
       serious.length === 0, serious.join(' | '));
 

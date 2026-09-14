@@ -168,6 +168,13 @@ Every one of these has already bitten someone here.
   Sharing the network namespace makes `localhost` genuinely loopback inside the container,
   so the run exercises the real rule rather than a hole cut in it. A service using
   `network_mode: service:` may not declare its own `ports:` or `networks:`.
+- **The wrap-up is the call that degrades first.** It is the only one that sends the whole
+  transcript and asks for a title, a prompt, assumptions and open questions in one strict
+  shape. On qwen2.5:7b it is reliable over a four-question interview and starts failing
+  around eight, as the transcript grows — the same model, the same prompt, just more of it.
+  Nothing is lost when it does (`runSynthesis` returns `ok: false` and the export keeps the
+  transcript, the open questions and the coverage table), but a validator that judges a run
+  by "did an export appear" will not notice. Check for `_Not generated._`.
 - **A small model gets the coverage judgement right and the key wrong.** qwen2.5:7b returns
   `{"1": {...}}` rather than keying by dimension id. `parseTurnResult` now reads a single
   unkeyed claim as the turn's target dimension and says so in a warning; before that it
