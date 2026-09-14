@@ -5,8 +5,12 @@ import { extractJson } from '../src/providers/json.js';
 import {
   ProviderError, codeForStatus, isRetryable, retryAfterMs, withRetry, RETRYABLE,
 } from '../src/providers/errors.js';
-import { OPENAI_COMPAT_PRESETS, createOpenAICompatProvider } from '../src/providers/openaiCompat.js';
+import {
+  OPENAI_COMPAT_PRESETS, createOpenAICompatProvider, parseModelList,
+} from '../src/providers/openaiCompat.js';
 import { createAnthropicProvider, ANTHROPIC_TIERS } from '../src/providers/anthropic.js';
+import { AUTH_BEARER, AUTH_NONE, applyAuth, isLoopback } from '../src/providers/http.js';
+import { PROVIDER_CHOICES, createProvider } from '../src/providers/index.js';
 
 // ──────────────────────────────────────────────── getting an object back
 test('extractJson reads a bare object, a fenced one, and one buried in prose', () => {
@@ -200,28 +204,183 @@ test('an opaque first-call failure is reported as a probable bad key, not as "of
   } finally { globalThis.fetch = real; }
 });
 
-test('a local provider blames CORS rather than the key, because it has none', async () => {
+test('a local provider blames the server and the origin, never the key it has none of', async () => {
   const real = globalThis.fetch;
   globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
   try {
-    const p = createOpenAICompatProvider({ preset: 'ollama' });
+    const p = createOpenAICompatProvider({ preset: 'ollama', model: 'qwen3' });
     await assert.rejects(
       () => p.sampleJson({ system: 'S', prefix: 'P', tail: 'T' }),
-      (e) => e.code === 'network' && /CORS/.test(e.message)
+      (e) => e.code === 'network'
+        // Naming OLLAMA_ORIGINS is the whole point: it is the cause nobody guesses
+        // unprompted, and the one that needs a restart rather than a page reload.
+        && /OLLAMA_ORIGINS/.test(e.message)
+        && !/API key/.test(e.message)
     );
   } finally { globalThis.fetch = real; }
 });
 
-test('every preset is a usable base URL with all three tiers mapped', () => {
+test('every hosted preset maps all three tiers and declares how it authenticates', () => {
   for (const [name, preset] of Object.entries(OPENAI_COMPAT_PRESETS)) {
+    if (preset.local) continue;
     assert.doesNotThrow(() => new URL(preset.baseUrl), `${name} base URL`);
     for (const tier of ['quick', 'default', 'complex']) {
       assert.ok(preset.tiers[tier], `${name} is missing the ${tier} tier`);
     }
+    assert.ok(preset.auth && preset.auth.scheme, `${name} does not say how it authenticates`);
+    assert.ok(preset.tokenParam, `${name} does not name its output-budget parameter`);
+  }
+});
+
+test('every local preset asks for a model instead of guessing one', () => {
+  for (const [name, preset] of Object.entries(OPENAI_COMPAT_PRESETS)) {
+    if (!preset.local) continue;
+    assert.ok(isLoopback(preset.baseUrl), `${name} is marked local but is not on loopback`);
+    assert.equal(preset.tiers, null, `${name} still guesses a model; llama3.2 404s for most people`);
+    assert.ok(preset.modelRequired, `${name} must require a model`);
+    assert.ok(preset.discoverModels, `${name} should be able to read its own model list`);
   }
 });
 
 test('a hosted provider refuses to be constructed without a key', () => {
   assert.throws(() => createOpenAICompatProvider({ preset: 'openai' }), /needs an API key/);
-  assert.doesNotThrow(() => createOpenAICompatProvider({ preset: 'ollama' }), 'local needs no key');
+  assert.doesNotThrow(
+    () => createOpenAICompatProvider({ preset: 'ollama', model: 'qwen3' }),
+    'local needs no key'
+  );
+});
+
+// ─────────────────────────────────────── the auth descriptor, and what counts as local
+test('applyAuth speaks every scheme, and never sets a content-type', () => {
+  const bearer = applyAuth('https://x/v1', { auth: AUTH_BEARER, apiKey: 'k' });
+  assert.equal(bearer.headers.authorization, 'Bearer k');
+  assert.equal(bearer.url, 'https://x/v1');
+
+  const header = applyAuth('https://x/v1', {
+    auth: {
+      scheme: 'header', header: 'x-api-key',
+      extraHeaders: { 'anthropic-version': '2023-06-01' },
+    },
+    apiKey: 'sk',
+  });
+  assert.equal(header.headers['x-api-key'], 'sk');
+  assert.equal(header.headers['anthropic-version'], '2023-06-01');
+  assert.equal(header.headers.authorization, undefined);
+
+  // 'query' is the one scheme nothing here uses yet. It is four lines, and it is what
+  // makes "any token type" true rather than "either of the two we happened to need".
+  const query = applyAuth('https://x/v1/models', {
+    auth: { scheme: 'query', param: 'key' }, apiKey: 'abc',
+  });
+  assert.equal(new URL(query.url).searchParams.get('key'), 'abc');
+  assert.deepEqual(query.headers, {});
+
+  assert.deepEqual(applyAuth('https://x', { auth: AUTH_NONE, apiKey: 'k' }).headers, {});
+
+  // The transcription endpoint posts FormData and must set its own multipart boundary,
+  // which is why this helper returns credential headers and nothing else.
+  for (const scheme of [AUTH_BEARER, AUTH_NONE]) {
+    assert.equal(
+      applyAuth('https://x', { auth: scheme, apiKey: 'k' }).headers['content-type'],
+      undefined
+    );
+  }
+});
+
+test('isLoopback parses the URL rather than matching its prefix', () => {
+  for (const yes of ['http://localhost:11434/v1', 'http://127.0.0.1:1234', 'http://127.2.3.4',
+                     'http://[::1]:11434/v1', 'https://localhost:8443',
+                     'http://app.localhost:3000']) {
+    assert.ok(isLoopback(yes), `${yes} should be loopback`);
+  }
+  // The prefix match this replaces said yes to localhost.evil.com, which made a remote
+  // host the app would have trusted with no key and blamed its failures on CORS.
+  for (const no of ['http://192.168.1.50:11434', 'http://10.0.0.1', 'http://0.0.0.0:11434',
+                    'https://api.openai.com/v1', 'http://notlocalhost.com',
+                    'http://localhost.evil.com/v1', '', 'not a url']) {
+    assert.ok(!isLoopback(no), `${no} should not be loopback`);
+  }
+});
+
+test('a base URL that is not on this machine is refused, and the message says why', async () => {
+  await assert.rejects(
+    () => createProvider({ kind: 'custom', baseUrl: 'https://evil.example/v1', model: 'm' }),
+    (e) => e.code === 'config' && /not on this machine/.test(e.message)
+  );
+  await assert.doesNotReject(
+    () => createProvider({ kind: 'custom', baseUrl: 'http://127.0.0.1:11434/v1', model: 'm' })
+  );
+});
+
+test('a local provider will not be built without a model, because guessing one 404s', async () => {
+  await assert.rejects(
+    () => createProvider({ kind: 'custom', baseUrl: 'http://localhost:11434/v1' }),
+    (e) => e.code === 'config' && /needs a model name/.test(e.message)
+  );
+});
+
+test('needsKey is false for exactly the local choices', () => {
+  const byId = Object.fromEntries(PROVIDER_CHOICES.map((c) => [c.id, c]));
+  for (const id of ['ollama', 'lmstudio', 'custom', 'artifact']) {
+    assert.equal(byId[id].needsKey, false, `${id} should not demand a key`);
+  }
+  for (const id of ['anthropic', 'openai', 'groq', 'openrouter']) {
+    assert.equal(byId[id].needsKey, true, `${id} should demand a key`);
+  }
+});
+
+// ───────────────────────────────────────────────────── the output-budget parameter
+test('the OpenAI preset sends max_completion_tokens — gpt-5 rejects max_tokens outright', async () => {
+  await withFetch(
+    () => jsonResponse({ choices: [{ message: { content: '{"a":1}' }, finish_reason: 'stop' }] }),
+    async (seen) => {
+      const p = createOpenAICompatProvider({ preset: 'openai', apiKey: 'k' });
+      await p.sampleJson({ system: 'S', prefix: 'P', tail: 'T' });
+      assert.equal(seen[0].body.max_tokens, undefined, 'max_tokens 400s on every gpt-5 model');
+      assert.ok(seen[0].body.max_completion_tokens > 4096,
+        'a reasoning model spends budget before writing, so renaming alone is not the fix');
+    }
+  );
+});
+
+test('the presets that only understand max_tokens still send max_tokens', async () => {
+  for (const preset of ['groq', 'openrouter']) {
+    await withFetch(
+      () => jsonResponse({ choices: [{ message: { content: '{"a":1}' }, finish_reason: 'stop' }] }),
+      async (seen) => {
+        const p = createOpenAICompatProvider({ preset, apiKey: 'k' });
+        await p.sampleJson({ system: 'S', prefix: 'P', tail: 'T' });
+        assert.ok(seen[0].body.max_tokens, `${preset} should send max_tokens`);
+        assert.equal(seen[0].body.max_completion_tokens, undefined);
+      }
+    );
+  }
+});
+
+// ────────────────────────────────────────────────────────── reading the model list
+test('parseModelList survives every shape a local server might answer with', () => {
+  assert.deepEqual(parseModelList({ data: [{ id: 'b' }, { id: 'a' }] }), ['a', 'b']);
+  assert.deepEqual(parseModelList({ models: [{ name: 'qwen3:8b' }] }), ['qwen3:8b']);
+  assert.deepEqual(parseModelList(['z', 'y']), ['y', 'z']);
+  assert.deepEqual(parseModelList({ data: [{ id: 'a' }, { id: 'a' }] }), ['a'], 'deduped');
+  assert.deepEqual(parseModelList({ data: [{ id: '  spaced  ' }] }), ['spaced']);
+
+  // Never trust the list: the same rule parseTurnResult applies to the model.
+  for (const junk of [null, undefined, {}, [], 'nope', { data: null },
+                      { data: [{}, { id: '' }] }, { data: [{ id: 'x'.repeat(200) }] }]) {
+    assert.deepEqual(parseModelList(junk), [], `${JSON.stringify(junk)} should yield nothing`);
+  }
+  const many = { data: Array.from({ length: 500 }, (_, i) => ({ id: `m${i}` })) };
+  assert.equal(parseModelList(many).length, 100, 'a runaway list is capped');
+});
+
+test('listModels reads the list off the server it is pointed at', async () => {
+  await withFetch(
+    () => jsonResponse({ data: [{ id: 'qwen3:8b' }, { id: 'llama3.2' }] }),
+    async (seen) => {
+      const p = createOpenAICompatProvider({ preset: 'ollama', model: 'qwen3:8b' });
+      assert.deepEqual(await p.listModels(), ['llama3.2', 'qwen3:8b']);
+      assert.equal(seen[0].url, 'http://localhost:11434/v1/models');
+    }
+  );
 });

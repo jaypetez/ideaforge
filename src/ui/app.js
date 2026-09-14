@@ -11,9 +11,14 @@ import { coveragePercent, buildExport, exportFilename } from '../core/markdown.j
 import { SOFT_TURN_CEILING, HARD_TURN_CEILING } from '../core/engine.js';
 import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js';
 import { runSynthesis } from '../runtime/synthesize.js';
-import { createProvider, PROVIDER_CHOICES, defaultProviderKind } from '../providers/index.js';
+import {
+  createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback,
+} from '../providers/index.js';
 import { saveSession, loadSession, listSessions, newSessionId } from '../store/sessions.js';
-import { saveCredentials, loadCredentials, clearCredentials, maskKey } from '../store/secrets.js';
+import {
+  saveCredentials, loadCredentials, clearCredentials, maskKey,
+  emptyKeyring, credsFor, withCreds, withStt, hasAnyKey,
+} from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
 import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
 import { VERSION } from '../version.js';
@@ -23,7 +28,8 @@ const els = {};
 for (const id of [
   'meter', 'meter-fill', 'meter-label', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
-  'field-base', 'baseurl', 'b-start', 'b-check', 'resume', 'resume-rows',
+  'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
+  'b-start', 'b-check', 'resume', 'resume-rows',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
@@ -56,6 +62,21 @@ function show(panel) {
 function say(msg) {
   els.note.textContent = msg || '';
   els.note.hidden = !msg;
+}
+
+/**
+ * The runtime threads a `warnings` array through every return value and the UI used to
+ * drop it on the floor, so a turn the model mangled looked exactly like a clean one.
+ *
+ * The console rather than the screen, deliberately: every warning a user can act on is
+ * already surfaced somewhere — a bank fallback shows on the turnline, a provider error in
+ * #err, a failed wrap-up in its own message. What was missing was any way to see the
+ * model misbehaving while running against a real provider.
+ */
+function warn(out) {
+  if (out && out.warnings && out.warnings.length) {
+    console.debug('[ideaforge]', out.warnings.join('; '));
+  }
 }
 
 function fail(err) {
@@ -93,7 +114,7 @@ function renderProviderChoices() {
     o.textContent = c.label;
     els.provider.append(o);
   }
-  els.provider.value = (state.creds && state.creds.kind) || defaultProviderKind();
+  els.provider.value = (state.creds && state.creds.active) || defaultProviderKind();
   onProviderChange();
 }
 
@@ -103,18 +124,103 @@ function currentChoice() {
 
 function onProviderChange() {
   const c = currentChoice();
+  const saved = credsFor(state.creds, c.id);
+
   els['field-key'].hidden = !c.needsKey;
-  els['field-base'].hidden = c.id !== 'custom';
+  // A local server is the case where the address and the model are worth asking about.
+  // This used to read `c.id !== 'custom'` against a registry that offered no such choice,
+  // so the field could never appear at all.
+  els['field-base'].hidden = !c.local;
+  els['field-model'].hidden = !c.discoverModels;
   els['provider-note'].textContent = c.note || '';
   els.keylink.href = c.keyUrl || '#';
   els.keylink.hidden = !c.keyUrl;
-  if (state.creds && state.creds.kind === c.id && state.creds.apiKey) {
-    els.apikey.placeholder = `saved: ${maskKey(state.creds.apiKey)}`;
-  } else {
-    els.apikey.placeholder = 'paste your key';
-  }
+
+  els.baseurl.value = saved.baseUrl || (c.id === 'custom' ? '' : defaultBaseUrl(c.id));
+  els.model.value = saved.model || '';
+  // A model list read off a different server is a lie about this one.
+  els['model-list'].innerHTML = '';
+  els['model-note'].textContent = '';
+
+  els.apikey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste your key';
+  els['b-check'].textContent = c.needsKey ? 'Check the key' : 'Check the connection';
   // Only offer to forget a key when there is one; an inert button is worse than none.
-  els['b-forget'].hidden = !(state.creds && (state.creds.apiKey || state.creds.sttKey));
+  els['b-forget'].hidden = !hasAnyKey(state.creds);
+  onBaseChange();
+}
+
+/** The preset's own address, so the field starts usable rather than empty. */
+function defaultBaseUrl(id) {
+  const preset = PROVIDER_CHOICES.find((c) => c.id === id);
+  return (preset && preset.defaultBaseUrl) || '';
+}
+
+/**
+ * Refuse a remote address as it is typed, rather than at the first call. The CSP will not
+ * permit it anyway, and a CSP refusal reaches the page as an opaque failure with no
+ * explanation — so saying it here is the only place the user can learn why.
+ */
+function onBaseChange() {
+  const c = currentChoice();
+  const typed = els.baseurl.value.trim();
+  if (!c.local || !typed) {
+    els['base-note'].textContent = '';
+    els['b-start'].disabled = false;
+    els['b-check'].disabled = false;
+    return;
+  }
+
+  // `[::1]` really is loopback, so isLoopback says yes — but CSP's host-source grammar has
+  // no IPv6-literal form, so the browser drops that entry from connect-src without a word
+  // and blocks the request anyway. Saying so beats letting a correct-looking address fail
+  // as an unexplained network error.
+  const ipv6 = /^\w+:\/\/\[/.test(typed);
+  const bad = !isLoopback(typed);
+
+  els['base-note'].textContent = bad
+    ? 'That address is not on this machine. Local servers only — localhost or 127.0.0.1.'
+    : ipv6
+      ? 'This page cannot reach an IPv6 address in brackets — write it as 127.0.0.1 instead.'
+      : '';
+  els['b-start'].disabled = bad || ipv6;
+  els['b-check'].disabled = bad || ipv6;
+}
+
+/**
+ * Ask the server what it actually has, instead of guessing on its behalf.
+ *
+ * Only ever on an explicit press. From a hosted page this request is what triggers
+ * Chrome's local-network permission prompt, and firing a permission prompt off a dropdown
+ * change is how you teach someone to deny it.
+ */
+async function refreshModels() {
+  const c = currentChoice();
+  if (!c.discoverModels) return;
+  els['model-note'].textContent = 'Reading the model list…';
+  try {
+    const provider = await buildProvider({ requireModel: false });
+    const names = await provider.listModels();
+    fillModelList(names);
+    els['model-note'].textContent = names.length
+      ? `${names.length} model${names.length === 1 ? '' : 's'} installed.`
+      : 'That server answered, but it has no models. Pull one first.';
+  } catch (err) {
+    // Leave whatever they typed alone — it may well be right, and the server may simply
+    // not answer /models.
+    els['model-note'].textContent = `${err && err.message ? err.message : err} ` +
+      'You can still type the model name yourself.';
+  }
+}
+
+function fillModelList(names) {
+  els['model-list'].innerHTML = '';
+  for (const name of names) {
+    const o = document.createElement('option');
+    o.value = name;
+    els['model-list'].append(o);
+  }
+  // One installed model is not a choice, so make it for them.
+  if (!els.model.value.trim() && names.length === 1) els.model.value = names[0];
 }
 
 /**
@@ -123,31 +229,40 @@ function onProviderChange() {
  */
 async function forgetKey() {
   await clearCredentials();
-  state.creds = null;
+  state.creds = emptyKeyring();
   els.apikey.value = '';
   els.sttkey.value = '';
+  els.model.value = '';
+  els['model-list'].innerHTML = '';
   fail(null);
   onProviderChange();
   onSttChange();
   say('Key deleted from this device.');
 }
 
-function readCredsFromForm() {
+/**
+ * The form, folded into the keyring rather than replacing it. Every other provider's
+ * record survives, which is what stops switching provider destroying the previous key.
+ */
+function readRingFromForm() {
   const c = currentChoice();
-  const typed = els.apikey.value.trim();
-  const keep = state.creds && state.creds.kind === c.id ? state.creds.apiKey : '';
-  const apiKey = typed || keep || '';
+  const saved = credsFor(state.creds, c.id);
+  const apiKey = els.apikey.value.trim() || saved.apiKey || '';
   const sttKind = els.stt.value;
-  return {
-    kind: c.id,
+
+  let ring = withCreds(state.creds || emptyKeyring(), c.id, {
     apiKey,
-    baseUrl: els.baseurl.value.trim() || undefined,
-    sttKind,
+    baseUrl: els.baseurl.value.trim(),
+    model: els.model.value.trim(),
+  });
+  ring = withStt(ring, {
+    kind: sttKind,
     // Groq and OpenAI serve both chat and transcription, so when the inference provider
     // is one of them the same key covers dictation and there is nothing extra to paste.
-    sttKey: sttKind === c.id ? apiKey
-      : (els.sttkey.value.trim() || (state.creds && state.creds.sttKey) || ''),
-  };
+    apiKey: sttKind === c.id ? apiKey
+      : (els.sttkey.value.trim() || (state.creds && state.creds.stt && state.creds.stt.apiKey) || ''),
+  });
+  return ring;
 }
 
 function onSttChange() {
@@ -164,14 +279,27 @@ function onSttChange() {
       : `${preset.note}${sharesKey ? ' Uses the same key as above.' : ''}`;
 }
 
-async function buildProvider() {
-  const creds = readCredsFromForm();
+async function buildProvider({ requireModel = true } = {}) {
   const c = currentChoice();
+  const ring = readRingFromForm();
+  const creds = credsFor(ring, c.id);
   if (c.needsKey && !creds.apiKey) throw new Error('This provider needs an API key.');
-  const provider = await createProvider(creds);
-  state.creds = creds;
+
+  const provider = await createProvider({
+    kind: c.id,
+    apiKey: creds.apiKey,
+    baseUrl: creds.baseUrl || undefined,
+    model: creds.model || undefined,
+    // Reading the model list is how you find out what to put in the model box, so that
+    // one call cannot be the thing that insists the box is already filled.
+    modelRequired: requireModel ? undefined : false,
+  });
+
+  state.creds = ring;
   state.provider = provider;
-  if (creds.apiKey) await saveCredentials(creds);
+  // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
+  // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
+  await saveCredentials(ring);
   return provider;
 }
 
@@ -265,6 +393,7 @@ async function nextQuestion() {
   fail(null);
   try {
     const out = await runTurn(state.session, { provider: state.provider, now: now() });
+    warn(out);
     state.session = out.session;
     await persist();
 
@@ -323,7 +452,7 @@ async function send(text, source) {
  * prompt needs to be attached to.
  */
 async function setupVoice() {
-  const { sttKind, sttKey } = state.creds || {};
+  const { kind: sttKind, apiKey: sttKey } = (state.creds && state.creds.stt) || {};
   primeSpeech();
   try {
     state.voice = await createVoice({
@@ -443,6 +572,7 @@ async function wrapUp(note) {
   els['done-meta'].textContent = note || '';
 
   const out = await runSynthesis(state.session, { provider: state.provider, now: now() });
+  warn(out);
   state.session = out.session;
   await persist();
 
@@ -514,6 +644,7 @@ async function resumeInterview(id) {
     busy(true, 'picking up where the last question left off…');
     try {
       const out = await resumeTurn(s, { provider: state.provider, now: now() });
+      warn(out);
       state.session = out.session;
       await persist();
     } catch (e) { fail(e); } finally { busy(false); }
@@ -563,12 +694,21 @@ function bind() {
     } catch (e) { fail(e); }
   };
   els.handsfree.onchange = () => setHandsFree(els.handsfree.checked);
+  els.baseurl.oninput = onBaseChange;
   els['b-check'].onclick = async () => {
     fail(null); say('Checking…');
+    const c = currentChoice();
     try {
-      const p = await buildProvider();
-      await p.validateKey();
-      say('That key works.');
+      if (c.discoverModels) {
+        // For a local server "does the key work" is the wrong question — it has no key.
+        // What you actually want to know is whether it answers, and what it can run.
+        await refreshModels();
+        say('That server answered.');
+      } else {
+        const p = await buildProvider();
+        await p.validateKey();
+        say('That key works.');
+      }
     } catch (e) { say(''); fail(e); }
   };
   els['b-forget'].onclick = forgetKey;
@@ -607,7 +747,9 @@ function bind() {
 async function boot() {
   bind();
   try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
-  if (state.creds && state.creds.sttKind) els.stt.value = state.creds.sttKind;
+  if (state.creds && state.creds.stt && state.creds.stt.kind) {
+    els.stt.value = state.creds.stt.kind;
+  }
   renderProviderChoices();
   onSttChange();
   els.version.textContent = `IdeaForge v${VERSION}`;

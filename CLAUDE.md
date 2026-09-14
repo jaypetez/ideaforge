@@ -12,7 +12,7 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the full suite (126 tests)
+npm test                 # lint:purity, then the full suite (150 tests)
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
 npm run screenshots      # regenerate docs/ — the README's images and worked example
@@ -43,6 +43,9 @@ src/store/      IndexedDB sessions + the encrypted API key
 src/voice/      microphone, transcription, speech synthesis
 src/ui/         the app shell (the only place that touches the DOM)
 ```
+
+A new file under `src/` must also be added to `sw.js`'s `SHELL`; `test/wiring.test.mjs`
+enforces that, and the CSP allowlist with it.
 
 `tools/lint-purity.mjs` fails the build if anything under `src/core/` **or `src/runtime/`**
 mentions `window`, `document`, `localStorage`, `sessionStorage`, `navigator`, `fetch`,
@@ -121,6 +124,28 @@ correct itself rather than staying deaf.
 - **OpenAI**: sends **no CORS headers on an invalid-key 401**, so a bad key reaches the page
   as an opaque `TypeError`. The adapter reports that as a probable key problem rather than
   "you're offline", and validates keys against `GET /models`, which does answer with CORS.
+- **Local models (Ollama, LM Studio)**: two independent gates that fail identically, so
+  diagnose both. *CORS* is the server's: Ollama allows `localhost` and `127.0.0.1` on any
+  port by default and answers any other origin with no CORS headers at all, so a hosted
+  page needs `OLLAMA_ORIGINS` set **and the server restarted** — it reads that at startup.
+  *Local Network Access* is the browser's: since Chrome 142 a request from a public page to
+  a loopback address is gated on a user permission prompt. The older Private Network Access
+  design, where the server answered a preflight with `Access-Control-Allow-Private-Network`,
+  was abandoned — nothing needs that header now. `targetAddressSpace: 'local'` declares the
+  intent and is also what exempts the request from mixed-content blocking, the only way an
+  `https://` page may reach `http://localhost` at all. Safari implements none of it.
+- **CSP has no IPv6-literal form.** `http://[::1]:*` in `connect-src` is dropped silently —
+  no error, no violation event, a directive that permits less than it reads as. Verified by
+  probe in `test/browser/app.browser.mjs`. Loopback is wildcarded as `http://localhost:*`
+  and `http://127.0.0.1:*`, and the settings screen steers anyone typing the bracket form.
+- **Auth is a descriptor, not a branch.** `src/providers/http.js` owns `applyAuth`,
+  `isLoopback` and one `httpError`; a preset says how it signs requests. It also owns the
+  only definition of "local" — there were three, and two of them called
+  `localhost.evil.com` local because they matched a prefix instead of parsing a URL.
+- **The output-budget parameter is per-vendor.** Every GPT-5-era model rejects `max_tokens`
+  outright and wants `max_completion_tokens`; Groq, Ollama and LM Studio only know the old
+  name. Renaming it is half the fix — a reasoning model can spend the whole budget before
+  writing a character and come back empty with `finish_reason: 'length'`.
 - **GitHub Models is retired** (410 since 2026-07-30) and the **Copilot chat endpoint is not
   a general-purpose inference API** — its only sanctioned route was sunset in Nov 2025 and
   GitHub's terms name proxy usage as grounds for disabling Copilot access. Groq's free tier

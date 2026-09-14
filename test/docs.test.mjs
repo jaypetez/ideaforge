@@ -69,6 +69,22 @@ test('the constants the README states match the source it states them about', ()
   );
 });
 
+test('every source file the architecture doc points at exists', () => {
+  // The one mechanical check on docs/ARCHITECTURE.md, and deliberately the only one. That
+  // file cites code by `file.js` plus a symbol name rather than a line number, so a moved
+  // symbol cannot rot it — but a deleted or renamed FILE can, silently, and this catches
+  // exactly that. Policing its prose would be the tax this suite's header warns about.
+  const doc = readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8');
+  const paths = new Set();
+  for (const m of doc.matchAll(/`((?:src|test|tools|docs|\.github)\/[^`\s]+\.\w+)`/g)) {
+    paths.add(m[1]);
+  }
+  assert.ok(paths.size >= 15, `only found ${paths.size} cited paths; the regex stopped matching`);
+
+  const missing = [...paths].filter((p) => !existsSync(join(ROOT, p)));
+  assert.deepEqual(missing, [], `ARCHITECTURE.md cites files that do not exist: ${missing.join(', ')}`);
+});
+
 test('the worked example quoted in the README is the one on disk', () => {
   const example = join(ROOT, 'docs', 'examples', 'remember-names.md');
   assert.ok(existsSync(example), 'docs/examples/remember-names.md is missing; run npm run screenshots');

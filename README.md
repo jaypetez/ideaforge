@@ -223,7 +223,8 @@ Pick a provider and paste a key. The options:
 | **Anthropic** | ~10–20¢ per interview | Haiku asks the questions, Sonnet writes the wrap-up. |
 | **OpenAI** | a few cents | `gpt-5-nano` for turns. |
 | **OpenRouter** | varies | Anything it fronts. |
-| **Ollama / LM Studio** | free | Local, and awkward from a hosted page — see below. |
+| **Ollama / LM Studio** | free | Local. Pick the model from what you have pulled — see below. |
+| **Another local server** | free | Any OpenAI-compatible server on `localhost`. |
 | **Claude viewer** | no key at all | Only inside a Claude artifact viewer. |
 
 **About the key.** It is encrypted with a non-extractable `CryptoKey` and stored in
@@ -237,12 +238,19 @@ handing it your main one.
 Do not paste an API key into a **shared** Claude artifact — anyone the artifact is shared
 with can read the page. Inside a Claude viewer, use the built-in `sample` provider.
 
-**A local model is easiest from a local page.** Ollama and LM Studio both refuse
-cross-origin requests by default, so from the hosted site you would need
-`OLLAMA_ORIGINS=https://jaypetez.github.io` (or LM Studio's CORS toggle) — and even then
-Safari blocks an `http://localhost` request from an `https://` page outright, and Chrome
-adds a Private Network Access preflight neither server answers. If you want to run against
-a local model, run the app locally too.
+**A local model is easiest from a local page.** `npm run serve`, pick Ollama, press
+**Check the connection** and the model box fills with whatever you have actually pulled.
+Ollama allows any localhost origin out of the box, so there is nothing to configure.
+
+From the hosted site it takes two steps, and one of them is easy to miss. Ollama answers an
+origin it does not recognise with no CORS headers at all, so it needs
+`OLLAMA_ORIGINS=https://jaypetez.github.io` in its environment **and a restart** — it reads
+that variable at startup, so exporting it in another shell changes nothing. LM Studio has
+the same setting in its server panel. Chrome will also ask permission the first time a page
+on the internet reaches your local network, which is a prompt to accept rather than
+something to configure. Safari refuses an `http://` request from an `https://` page
+outright and has no setting that changes it. So: if you want to run against a local model,
+running the app locally too is still the path of least resistance.
 
 ## Talking instead of typing
 
@@ -280,8 +288,8 @@ engine portable and the turn loop testable without a network — the whole suite
 a second, with no mocking framework and no network access.
 
 ```sh
-npm test             # the purity lint, then 126 tests
-npm run test:browser # 58 checks in real Chrome, for what Node cannot see
+npm test             # the purity lint, then 150 tests
+npm run test:browser # 69 checks in real Chrome, for what Node cannot see
 npm run screenshots  # regenerate every image and the worked example above
 ```
 
@@ -298,9 +306,11 @@ prompt is lost, and you can retry it.
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup and what a good change looks like;
-[CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) record the invariants that fail silently
-when broken, which is most of them. Security policy and the honest threat model are in
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, what a good change looks like, and
+how to add a provider; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the map — what owns
+the session, what happens when a turn fails, and which costs this codebase has knowingly
+taken on. [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) record the invariants that fail
+silently when broken, which is most of them. Security policy and the honest threat model are in
 [SECURITY.md](SECURITY.md).
 
 ## Licence

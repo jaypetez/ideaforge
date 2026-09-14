@@ -6,7 +6,8 @@
 // a fifteen-minute interview costs about a penny, and it is the one provider whose CORS
 // headers are unambiguous on both the preflight and the real response.
 
-import { ProviderError, codeForStatus, retryAfterMs, withRetry } from '../providers/errors.js';
+import { ProviderError, withRetry } from '../providers/errors.js';
+import { AUTH_BEARER, applyAuth, httpError } from '../providers/http.js';
 
 /** 25 MB is the documented limit on both services. Opus at 24 kbps reaches it around 2h. */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -58,7 +59,9 @@ export function createTranscriber(config) {
       method: 'POST',
       credentials: 'omit',
       signal,
-      headers: { authorization: `Bearer ${apiKey}` },   // no content-type: FormData sets the boundary
+      // No content-type: FormData sets its own multipart boundary. applyAuth returns only
+      // credential headers precisely so this call site can stay that way.
+      headers: applyAuth(baseUrl, { auth: AUTH_BEARER, apiKey }).headers,
       body: form,
     }).catch((err) => {
       if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
@@ -70,16 +73,9 @@ export function createTranscriber(config) {
     });
 
     if (!res.ok) {
-      let detail = '';
-      try {
-        const body = await res.json();
-        detail = (body && body.error && (body.error.message || body.error.code)) || '';
-      } catch { /* a non-JSON error body is still an error */ }
-      const code = codeForStatus(res.status);
-      throw new ProviderError(code,
-        `transcription ${res.status}: ${detail || res.statusText}` +
-        (code === 'auth' ? ' — check the transcription key in Settings' : ''),
-        { status: res.status, retryAfterMs: retryAfterMs(res.headers) });
+      throw await httpError(res, {
+        label: 'transcription', keyHint: 'check the transcription key in Settings',
+      });
     }
 
     const body = await res.json();

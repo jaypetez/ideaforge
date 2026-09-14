@@ -31,11 +31,15 @@ async function wrappingKey() {
   return key;
 }
 
-/** @param {object} creds e.g. {kind, apiKey, baseUrl, model, sttKind, sttKey} */
-export async function saveCredentials(creds) {
+/**
+ * @param {object} ring a keyring, or a v1 blob, which is migrated on the way in so an old
+ *                      call site cannot write a shape the loader would have to guess at.
+ */
+export async function saveCredentials(ring) {
   const key = await wrappingKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const plaintext = new TextEncoder().encode(JSON.stringify(creds));
+  const payload = ring && ring.version === CREDENTIALS_VERSION ? ring : migrateCredentials(ring);
+  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
   await put(SECRETS, { iv, ciphertext }, PAYLOAD);
 }
@@ -49,7 +53,7 @@ export async function loadCredentials() {
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: blob.iv }, key, blob.ciphertext
     );
-    return JSON.parse(new TextDecoder().decode(plaintext));
+    return migrateCredentials(JSON.parse(new TextDecoder().decode(plaintext)));
   } catch {
     // The wrapping key was evicted independently of the payload, so the ciphertext is
     // now undecryptable rubbish. Clear it and make the user paste the key again — that
@@ -62,6 +66,99 @@ export async function loadCredentials() {
 export async function clearCredentials() {
   await del(SECRETS, PAYLOAD);
   await del(SECRETS, CRYPTO_KEY);
+}
+
+// ── the keyring ────────────────────────────────────────────────────────────────────────
+//
+// v1 stored ONE record — {kind, apiKey, baseUrl, model, sttKind, sttKey} — so choosing a
+// different provider in Settings overwrote the previous provider's key and it was simply
+// gone. Switch Groq -> OpenAI -> Groq and you were pasting the Groq key again.
+//
+// v2 keeps a record per provider id inside the same encrypted blob. The encryption is
+// untouched: same AES-GCM, same non-extractable wrapping key, same single record.
+
+export const CREDENTIALS_VERSION = 2;
+
+export function emptyKeyring() {
+  return {
+    version: CREDENTIALS_VERSION,
+    active: null,
+    byKind: {},
+    stt: { kind: null, apiKey: '' },
+  };
+}
+
+/**
+ * Applied on read rather than at upgrade time, the way src/store/sessions.js applies
+ * migrate(). Turning the boot-time read into a write would add a failure mode — a private
+ * window with storage blocked — to the one path that currently cannot fail for the user.
+ * The next saveCredentials upgrades the blob at rest anyway.
+ *
+ * Anything unrecognisable becomes an empty keyring instead of throwing, because the
+ * alternative is an app that will not boot over a credential it could simply re-ask for.
+ */
+export function migrateCredentials(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return emptyKeyring();
+  if (raw.version === CREDENTIALS_VERSION) return normalise(raw);
+
+  const ring = emptyKeyring();
+  const kind = str(raw.kind);
+  if (kind) {
+    ring.active = kind;
+    // No baseUrl is carried across: in v1 the Base URL field was unreachable dead UI, so
+    // no v1 blob can hold one. Dropping it is also what keeps this file from needing to
+    // know what loopback means.
+    ring.byKind[kind] = record({ apiKey: raw.apiKey, model: raw.model });
+  }
+  if (str(raw.sttKind)) ring.stt = { kind: str(raw.sttKind), apiKey: str(raw.sttKey) };
+  return ring;
+}
+
+function normalise(raw) {
+  const ring = emptyKeyring();
+  ring.active = str(raw.active) || null;
+  const by = raw.byKind && typeof raw.byKind === 'object' ? raw.byKind : {};
+  for (const [kind, rec] of Object.entries(by)) {
+    if (rec && typeof rec === 'object') ring.byKind[kind] = record(rec);
+  }
+  if (raw.stt && typeof raw.stt === 'object') {
+    ring.stt = { kind: str(raw.stt.kind) || null, apiKey: str(raw.stt.apiKey) };
+  }
+  return ring;
+}
+
+const record = (r) => ({ apiKey: str(r.apiKey), baseUrl: str(r.baseUrl), model: str(r.model) });
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+/** One provider's record, always an object, so no call site needs a guard. */
+export function credsFor(ring, kind) {
+  const r = (ring && ring.byKind && ring.byKind[kind]) || {};
+  return { kind, apiKey: r.apiKey || '', baseUrl: r.baseUrl || '', model: r.model || '' };
+}
+
+/**
+ * A new ring with one provider replaced and made active. Every other provider's record
+ * survives, which is the entire point and the bug this replaces.
+ */
+export function withCreds(ring, kind, rec) {
+  const base = ring && ring.version === CREDENTIALS_VERSION ? ring : emptyKeyring();
+  return { ...base, active: kind, byKind: { ...base.byKind, [kind]: record(rec || {}) } };
+}
+
+export function withStt(ring, stt) {
+  const base = ring && ring.version === CREDENTIALS_VERSION ? ring : emptyKeyring();
+  return { ...base, stt: { kind: str(stt && stt.kind) || null, apiKey: str(stt && stt.apiKey) } };
+}
+
+/**
+ * True when the ring holds a secret at all — what the Forget button keys off. A ring
+ * holding only {ollama: {baseUrl, model}} has nothing to forget, and offering to forget
+ * nothing is worse than not offering.
+ */
+export function hasAnyKey(ring) {
+  if (!ring) return false;
+  if (ring.stt && ring.stt.apiKey) return true;
+  return Object.values(ring.byKind || {}).some((r) => r && r.apiKey);
 }
 
 /** Never render a key in full; the user only needs enough to recognise which one it is. */

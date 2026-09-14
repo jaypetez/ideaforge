@@ -61,9 +61,64 @@ export default async function run(check, { subpath }) {
   const rendered = (id) => win.getComputedStyle($(id)).display !== 'none';
   check('the hidden interview panel is not rendered', !rendered('panel-interview'));
   check('the hidden done panel is not rendered', !rendered('panel-done'));
-  check('the hidden Base URL field is not rendered', !rendered('field-base'));
+  check('the Base URL field is not rendered for a hosted provider', !rendered('field-base'));
   check('the hidden listening indicator is not rendered', !rendered('listening'));
   check('the hidden coverage meter is not rendered', !rendered('meter'));
+
+  // ── the local-server fields are reachable, which they were not ────────────
+  //
+  // This block used to assert only that #field-base stayed invisible. That was true, but
+  // it was pinning down dead UI: onProviderChange showed the field when the choice was
+  // 'custom', and the registry offered no such choice, so no user could ever reach it.
+  $('provider').value = 'custom';
+  $('provider').dispatchEvent(new win.Event('change'));
+
+  check('choosing a local server reveals the address field', rendered('field-base'));
+  check('…and the model picker', rendered('field-model'));
+  check('…and asks for no API key', !rendered('field-key'));
+
+  const typeBase = (value) => {
+    $('baseurl').value = value;
+    $('baseurl').dispatchEvent(new win.Event('input'));
+  };
+
+  // The prefix match this replaces called localhost.evil.com local: no key required, and
+  // its failures blamed on CORS. The field being unreachable was all that hid it.
+  typeBase('http://localhost.evil.com/v1');
+  check('a remote address dressed as localhost is refused',
+    /not on this machine/.test($('base-note').textContent), $('base-note').textContent);
+  check('…and Start is disabled while it is refused', $('b-start').disabled === true);
+
+  typeBase('http://127.0.0.1:11435/v1');
+  check('a loopback address on a non-default port is accepted', $('b-start').disabled === false);
+  check('…with nothing to complain about', $('base-note').textContent === '');
+
+  // ── what the widened connect-src actually parses ─────────────────────────
+  //
+  // A CSP source expression the browser cannot parse is dropped silently: no error, no
+  // securitypolicyviolation, just a directive that quietly permits less than it reads as.
+  // The only way to know is to make a request and watch which way it fails. A CSP refusal
+  // fires a violation BEFORE any socket is opened; a permitted request to a dead port
+  // fails as an ordinary network error and fires nothing. Port 9 is discard, and is not
+  // listening anywhere.
+  const csp = (url) => new Promise((resolve) => {
+    const seen = [];
+    const onViolation = (e) => { if (e.blockedURI.includes(url.split('/')[2])) seen.push(e); };
+    win.addEventListener('securitypolicyviolation', onViolation);
+    win.fetch(url).catch(() => {}).finally(() => setTimeout(() => {
+      win.removeEventListener('securitypolicyviolation', onViolation);
+      resolve(seen.length === 0);
+    }, 60));
+  });
+
+  check('connect-src permits a loopback port nothing hardcoded', await csp('http://127.0.0.1:9/'));
+  check('connect-src permits localhost on any port', await csp('http://localhost:9/'));
+  // This is why there is no http://[::1]:* in the CSP. The grammar has no IPv6-literal
+  // form, so the token is dropped without a word and the directive permits less than it
+  // reads as. Asserting the refusal keeps the settings screen's warning honest: if a
+  // future Chrome starts parsing it, this check fails and tells us to revisit both.
+  check('the IPv6 loopback literal is still refused, which is why we warn about it',
+    !(await csp('http://[::1]:9/')));
 
   frame.remove();
 

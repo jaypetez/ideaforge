@@ -29,7 +29,12 @@ export default async function run(check) {
   // ── the key at rest ────────────────────────────────────────────────────────
   await saveCredentials({ kind: 'groq', apiKey: SECRET, sttKind: 'groq', sttKey: SECRET });
   const back = await loadCredentials();
-  check('credentials round-trip through WebCrypto + IndexedDB', back && back.apiKey === SECRET);
+  // A v1 blob on the way in, a keyring on the way out: the only end-to-end proof the
+  // migration survives real AES-GCM and real IndexedDB rather than a fake of both.
+  check('v1 credentials migrate into a keyring through WebCrypto + IndexedDB',
+    back && back.version === 2 && back.byKind.groq.apiKey === SECRET);
+  check('…and the dictation key comes across with them',
+    back && back.stt && back.stt.apiKey === SECRET);
   check('maskKey never reveals the middle', !maskKey(SECRET).includes('must_never'), maskKey(SECRET));
 
   const blob = await rawRecord('credentials');
