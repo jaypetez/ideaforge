@@ -19,4 +19,11 @@ COPY src/ /usr/share/nginx/html/src/
 # Belt and braces: .dockerignore should already have excluded these.
 RUN find /usr/share/nginx/html -name '*.test.mjs' -delete
 
+# nginx's stock mime.types has no entry for .webmanifest, so the manifest goes out as
+# application/octet-stream — which is not what the spec asks for and, more to the point, not
+# what GitHub Pages sends, so the container would quietly disagree with production about the
+# one file that decides whether the app can be installed. mime.types is a `types { ... }`
+# block, so this inserts before its closing brace.
+RUN sed -i '/^}/i\    application/manifest+json              webmanifest;' /etc/nginx/mime.types
+
 EXPOSE 80

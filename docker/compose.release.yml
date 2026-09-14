@@ -1,0 +1,104 @@
+# Run IdeaForge and a local model from published images. Nothing leaves your machine, and
+# there is no API key anywhere in this file.
+#
+# This file is standalone. Both images come from a registry, so there is nothing to clone and
+# no build step — download this one file and go:
+#
+#   curl -fsSLO https://raw.githubusercontent.com/jaypetez/ideaforge/main/docker/compose.release.yml
+#   docker compose -f compose.release.yml up -d
+#   docker compose -f compose.release.yml exec ollama ollama pull qwen2.5:7b-instruct
+#   open http://localhost:8765
+#
+# Then in Settings: pick "Ollama (local)", press "Check the connection" to read the installed
+# models off the server, choose one, and start.
+#
+# `:latest` is only ever moved by a tagged release — never by a push to main, and never by a
+# prerelease. `docker compose up` will not re-pull an image it already has, so to move to a
+# newer release:
+#
+#   docker compose -f compose.release.yml pull && docker compose -f compose.release.yml up -d
+#
+# To pin instead, replace `:latest` with a version: ghcr.io/jaypetez/ideaforge:0.3.0
+#
+# ── NO NVIDIA GPU? READ THIS FIRST ──────────────────────────────────────────────────────
+# The stanza marked GPU BLOCK below hands the ollama container your GPU. On a machine with no
+# NVIDIA Container Toolkit, Docker does not quietly ignore it — the whole `up` fails before
+# anything starts, with:
+#
+#   Error response from daemon: could not select device driver "nvidia" with capabilities: [[gpu]]
+#
+# That is deliberate. A model that silently falls back to the CPU does not fail, it just runs
+# ten to fifty times slower, and "the app is slow" is a far worse thing to debug than a clear
+# error on line one. There is no environment variable that switches the stanza off, because
+# compose merges that device list rather than clearing it — so delete the block between the
+# two markers and everything works on CPU. A 7B model then answers in tens of seconds rather
+# than a second or two: slow, but usable. If it is too slow, pull a smaller model instead —
+# qwen2.5:3b-instruct.
+# ────────────────────────────────────────────────────────────────────────────────────────
+#
+# Why both services publish on 127.0.0.1 rather than 0.0.0.0: IdeaForge refuses to talk to a
+# model endpoint that is not a loopback address, because that restriction is what stops an
+# injected script posting a stored API key to somewhere else. Publishing on loopback keeps the
+# browser's view of both ends loopback, so the default path works with nothing to configure.
+# Ollama's own default allowed origins already include http://localhost:* and
+# http://127.0.0.1:*, which is why there is no OLLAMA_ORIGINS here.
+#
+# If you already run Ollama natively, port 11434 is taken and the container will refuse to
+# start. Either stop it, or give this one a different port and type that address into the
+# app's "Server address" field:  IDEAFORGE_OLLAMA_PORT=11435 docker compose ... up -d
+#
+# Prefer 127.0.0.1 to localhost when you type that address. On a machine running more than one
+# Ollama they are not the same place — a native install binds 127.0.0.1 while a
+# Docker-published one binds [::1], both are "up", and which one you reach depends on whose
+# resolver is asking.
+#
+# This shares its project name with docker/compose.yml, so the two cannot run at once — which
+# is what you want, since they would otherwise fight over the same two ports. Sharing the name
+# also shares the model volume, so switching between the published app and one you built
+# yourself does not re-download gigabytes.
+
+name: ideaforge
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    # Unlike docker/compose.yml, which is a development convenience, this file is meant to be
+    # left running — so it comes back after a reboot.
+    restart: unless-stopped
+    # Models are gigabytes. A named volume means `docker compose down` does not throw them
+    # away and the next start is instant.
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "127.0.0.1:${IDEAFORGE_OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      # `ollama list` proves the API is actually answering, which `pgrep` would not.
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    # ── GPU BLOCK ── delete down to END GPU BLOCK if you have no NVIDIA Container Toolkit.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # ── END GPU BLOCK ──
+
+  ideaforge:
+    # Built and pushed by .github/workflows/release.yml on every v*.*.* tag, for linux/amd64
+    # and linux/arm64. It is nginx serving about 35 static files: there is no server-side
+    # anything, and this container never talks to Ollama — your browser does, directly.
+    image: ghcr.io/jaypetez/ideaforge:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${IDEAFORGE_PORT:-8765}:80"
+    # No depends_on: the page is static and the browser reaches Ollama on the host, so there
+    # is no startup order to enforce. Opening the app before the model has finished pulling is
+    # fine — press "Check the connection" again once it has.
+
+volumes:
+  ollama-models:

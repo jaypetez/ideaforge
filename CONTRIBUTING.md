@@ -118,3 +118,36 @@ Say how you verified it. If it touches voice, storage or a provider, name the br
 Label the PR before it merges. Release notes are generated from labels — `providers`,
 `voice`, `bug`, `enhancement`, `documentation` — and an unlabelled PR lands under
 "Everything else" for good. `.github/release.yml` has the full list.
+
+## Cutting a release
+
+The version lives in **two** files, because a browser ES module cannot import JSON without an
+import attribute and this project has no build step to inline it. Bump both, in the same
+commit:
+
+```sh
+# package.json      "version": "0.3.0"
+# src/version.js    export const VERSION = '0.3.0';
+npm test            # one of the 161 asserts the two agree
+```
+
+Then merge, and push a tag matching them:
+
+```sh
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+The tag is the whole trigger — there is no manual release button, deliberately.
+`.github/workflows/release.yml` re-checks that the tag, `package.json` and `src/version.js`
+all say the same thing and refuses to publish if they do not, because a release whose archive
+reports a different version than its tag is a support problem forever afterwards.
+
+The tag produces three things: a GitHub release with `.tar.gz`, `.zip` and `SHA256SUMS` built
+straight from the tagged tree with `git archive`; a container image at
+`ghcr.io/jaypetez/ideaforge`, tagged with the version and — unless the tag is a prerelease —
+`latest`; and a Pages deploy, which happens on the merge rather than the tag.
+
+**The first time a package is published it is private**, even from a public repository, and
+there is no API to change that. Someone has to open the package settings once and switch it
+to public. Every later push then stays public. Worth knowing before you announce a release
+whose notes tell people to `docker pull` something they cannot read.

@@ -58,3 +58,131 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             --verify-tag
+
+  # Publish the same tree as a container image, so "run IdeaForge against a local model" is
+  # one `docker compose up` for someone who has never cloned this repo.
+  #
+  # `needs: release` rather than running alongside it, for two reasons. It inherits the
+  # version guard above instead of carrying a second copy that someone has to remember to
+  # keep in step. And the failure modes are asymmetric: if this job fails the release still
+  # stands and this job alone can be re-run, whereas the other order could leave a public
+  # image — and a moved `latest` — pointing at a release that does not exist. A GitHub
+  # release deletes in two clicks; a published package version is effectively permanent.
+  image:
+    name: image
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      # Job-level permissions REPLACE the workflow-level block rather than merging with it,
+      # so `contents: read` has to be repeated here for checkout. It deliberately stays off
+      # the top-level block: the release job has no business writing packages.
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # No fetch-depth: 0 here. Unlike the release job there is no `git archive` — the
+          # tagged tip is the whole input.
+
+      - name: Work out the image reference
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # `,,` lowercases. ghcr.io rejects any uppercase character in a repository path,
+          # and github.repository preserves the owner's casing — this owner is already
+          # lowercase, but a fork under a MixedCase account would fail without it.
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+
+          TAGS="${IMAGE}:${VERSION}"
+          # A prerelease tag matches this workflow's trigger and deserves an image, but it
+          # must not move `latest`, or everyone pulling without a version pinned lands on a
+          # release candidate.
+          case "${VERSION}" in
+            *-*) echo "prerelease ${VERSION}: publishing the version tag only" ;;
+            *)   TAGS="${TAGS},${IMAGE}:latest" ;;
+          esac
+
+          {
+            echo "version=${VERSION}"
+            echo "tags=${TAGS}"
+            echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+          echo "will push: ${TAGS}"
+
+      # Needed only because Dockerfile.app has one RUN in it. Everything else is COPY, which
+      # buildx cross-builds natively; a RUN has to execute inside the target rootfs, so
+      # linux/arm64 needs binfmt. That RUN is a `find -delete` over about 35 files, so the
+      # emulation costs seconds.
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        with:
+          platforms: arm64
+
+      # The runner's preinstalled builder uses the `docker` driver, which can only produce a
+      # single-platform image. This swaps in `docker-container`, which can emit the manifest
+      # list that two architectures require.
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          # GHCR authenticates on the token alone and ignores the username, but the field
+          # cannot be empty. GITHUB_TOKEN suffices because `packages: write` above plus the
+          # package living under this repo's owner is all GHCR checks.
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          # The Dockerfile lives in docker/ but COPYs index.html and src/, so the context is
+          # the repo root — the same pairing docker/compose.yml already uses. Setting
+          # `context: .` explicitly matters for a reason that is easy to miss: with no
+          # `context:` the action uses the *git* context and re-clones the repo inside
+          # BuildKit over the network, ignoring the checkout above.
+          context: .
+          file: docker/Dockerfile.app
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+          # No cache-from/cache-to. There is nothing expensive to cache — a base image plus
+          # a 200 KiB COPY — and a cache round trip would move more bytes than the build
+          # does without speeding up the only slow part, which is pulling nginx.
+
+          # BuildKit attaches a provenance attestation by default when pushing, as an extra
+          # manifest with no platform inside the index. ghcr.io renders those as
+          # `unknown/unknown` architecture rows and then stops reading the image labels
+          # altogether, so the package page loses its description and licence. Off.
+          provenance: false
+          sbom: false
+
+          # Labels land in each platform's image config, which is where `docker inspect`
+          # reads them.
+          labels: |
+            org.opencontainers.image.title=IdeaForge
+            org.opencontainers.image.description=An interviewer that forges a half-formed idea into a usable LLM prompt.
+            org.opencontainers.image.url=https://jaypetez.github.io/ideaforge/
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.licenses=MIT
+
+          # The same values again, as annotations on the *index*. Not redundant: for a
+          # multi-architecture image ghcr.io reads the description and the repository link
+          # off the index rather than the per-platform configs, so labels alone leave the
+          # package page blank and unlinked.
+          annotations: |
+            index:org.opencontainers.image.title=IdeaForge
+            index:org.opencontainers.image.description=An interviewer that forges a half-formed idea into a usable LLM prompt.
+            index:org.opencontainers.image.url=https://jaypetez.github.io/ideaforge/
+            index:org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            index:org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            index:org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+            index:org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            index:org.opencontainers.image.licenses=MIT

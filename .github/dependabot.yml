@@ -32,3 +32,23 @@ updates:
       # the difference between reading about it and having already merged it.
       default-days: 3
       semver-major-days: 7
+
+  # The second ecosystem, added when releases started publishing a container image. The app
+  # still has no dependencies, but `FROM nginx:1.27-alpine` is now something this project
+  # ships to other people rather than something it merely builds with, so its base image is
+  # part of the surface after all.
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 3
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
