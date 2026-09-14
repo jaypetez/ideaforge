@@ -64,6 +64,21 @@ function say(msg) {
   els.note.hidden = !msg;
 }
 
+/**
+ * The runtime threads a `warnings` array through every return value and the UI used to
+ * drop it on the floor, so a turn the model mangled looked exactly like a clean one.
+ *
+ * The console rather than the screen, deliberately: every warning a user can act on is
+ * already surfaced somewhere — a bank fallback shows on the turnline, a provider error in
+ * #err, a failed wrap-up in its own message. What was missing was any way to see the
+ * model misbehaving while running against a real provider.
+ */
+function warn(out) {
+  if (out && out.warnings && out.warnings.length) {
+    console.debug('[ideaforge]', out.warnings.join('; '));
+  }
+}
+
 function fail(err) {
   const msg = err && err.message ? err.message : String(err || '');
   els.err.textContent = msg;
@@ -378,6 +393,7 @@ async function nextQuestion() {
   fail(null);
   try {
     const out = await runTurn(state.session, { provider: state.provider, now: now() });
+    warn(out);
     state.session = out.session;
     await persist();
 
@@ -556,6 +572,7 @@ async function wrapUp(note) {
   els['done-meta'].textContent = note || '';
 
   const out = await runSynthesis(state.session, { provider: state.provider, now: now() });
+  warn(out);
   state.session = out.session;
   await persist();
 
@@ -627,6 +644,7 @@ async function resumeInterview(id) {
     busy(true, 'picking up where the last question left off…');
     try {
       const out = await resumeTurn(s, { provider: state.provider, now: now() });
+      warn(out);
       state.session = out.session;
       await persist();
     } catch (e) { fail(e); } finally { busy(false); }

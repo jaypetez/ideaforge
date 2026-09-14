@@ -37,6 +37,51 @@ and the turn loop be driven without a network, and it is why the whole test suit
 under a second with no mocking framework. If you need a platform API, it belongs in one of
 the other directories, and the thing that needs it should take it as an argument.
 
+## Adding a provider
+
+Most providers are an OpenAI-shaped `/chat/completions` endpoint, and those are a preset
+rather than code. Four files, and the fourth is the one people forget:
+
+1. `src/providers/openaiCompat.js` — an entry in `OPENAI_COMPAT_PRESETS`: a label, a base
+   URL, how it authenticates, what its output-budget parameter is called, and either a
+   `tiers` map of model ids or `local: true` and a model the user picks.
+   `PROVIDER_CHOICES` derives itself from that object, so `src/providers/index.js` needs
+   no edit at all.
+2. `index.html` — the origin goes in `connect-src`. That list is an allowlist and the app
+   talks to nothing outside it. A missing host throws nothing and logs nothing to the
+   page: the request is simply blocked, the app carries on as though the network were
+   down, and you lose an afternoon.
+3. `sw.js` — only if you added a *file*. `SHELL` is hand-maintained, and a module missing
+   from it fails on a cold offline start and nowhere else, because any online visit caches
+   it anyway.
+4. `test/wiring.test.mjs` — nothing to write. It already asserts every preset's origin is
+   in the CSP and every file under `src/` is in `SHELL`, so steps 2 and 3 fail the build
+   instead of failing on someone's phone. That test exists because `src/version.js` was
+   missing from `SHELL` and broke cold offline launches for months without a symptom
+   anyone could see.
+
+How a credential is attached is data, not code. `src/providers/http.js` has the descriptor
+— `bearer`, a named `header`, a `query` parameter, or `none` — so a provider that signs
+requests differently is a preset field rather than a new adapter.
+
+A provider that is not OpenAI-shaped needs its own adapter beside
+`src/providers/anthropic.js` and a branch in `createProvider`. Whatever you write exposes
+`sample`, `sampleJson`, `listModels` and `validateKey`, and throws `ProviderError` with one
+of the codes in `src/providers/errors.js` — the turn loop reads that code to choose between
+retrying, falling back to the question bank, and telling the user their key is wrong.
+Returning a plain `Error` makes every failure look like the same failure.
+
+Two things to check by hand, because `npm test` cannot see either: that a *bad* key
+produces a useful message rather than an opaque `TypeError` — browsers strip CORS headers
+from some 401s, so the real error never reaches the page — and that the preflight survives
+a real browser. `npm run serve`, paste a key, and name the browser in the PR.
+
+## Where everything else goes
+
+`docs/ARCHITECTURE.md` is the map: what owns the session, what happens when a turn fails,
+where to cut in for a new dimension or panel, and which costs this codebase has knowingly
+taken on. Worth ten minutes before a first change of any size.
+
 ## Things worth knowing before you change them
 
 - **The turn prompt must stay a pure function of session state.** No timestamps, no
@@ -69,3 +114,7 @@ Node 22 and 24 — Windows especially, because two toolchain bugs in this repo's
 were Windows-only path handling.
 
 Say how you verified it. If it touches voice, storage or a provider, name the browser.
+
+Label the PR before it merges. Release notes are generated from labels — `providers`,
+`voice`, `bug`, `enhancement`, `documentation` — and an unlabelled PR lands under
+"Everything else" for good. `.github/release.yml` has the full list.

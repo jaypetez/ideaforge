@@ -14,7 +14,7 @@
 //
 // This header ships in Anthropic's own SDK but is absent from their public docs, so treat
 // it as supported-but-undocumented. If it ever stops working, the fix is to point
-// `baseUrl` at a proxy — both adapters take one — not a rewrite.
+// `baseUrl` at a proxy — every adapter takes one — not a rewrite.
 
 import { ProviderError, withRetry } from './errors.js';
 import { extractJson } from './json.js';

@@ -2,7 +2,11 @@
 //
 // Two invariants the rest of the app depends on:
 //   1. Nothing outside this file mutates a session. Every reducer returns a NEW
-//      object with `rev + 1`, which makes last-writer-wins reconciliation trivial.
+//      object with `rev + 1`, so an accidental in-place mutation is detectable and a
+//      future reconciliation has a version to compare. Nothing reads `rev` yet:
+//      saveSession does an unconditional put, and two tabs on one session are still
+//      last-write-wins with no merge. It is a mutation counter today, not a mechanism —
+//      see docs/ARCHITECTURE.md for what building the real thing would cost.
 //   2. No timestamps or randomness reach anything the prompt builder reads.
 //      Prompt construction must be a pure function of session state so an
 //      interrupted call can be replayed from cache for free (see engine.promptHash).
@@ -103,9 +107,9 @@ export function answerQuestion(session, { text, source = 'typed', classification
 }
 
 /**
- * The user declined to answer. `skipped` is read by `openTurn`, `serializeTurn` and the
- * export, but no reducer ever set it — the path was fully plumbed and unreachable, so a
- * skip had to be faked as an answer whose text said "(skipped)".
+ * The user declined to answer. `skipped` is structurally distinct from an answer whose
+ * text reads "(skipped)", which is how this was once faked: `openTurn`, `serializeTurn`
+ * and the export all branch on the flag, and none of them can read intent out of prose.
  */
 export function skipQuestion(session, { now = 0 } = {}) {
   const idx = session.turns.length - 1;

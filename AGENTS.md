@@ -98,6 +98,13 @@ is not decoration: two of this repo's toolchain bugs were Windows-only path hand
 
 ## Traps that will cost you an hour
 
+- **A new file under `src/` is invisible to the service worker.** `sw.js`'s `SHELL` list is
+  hand-maintained, and a module missing from it fails only on a *cold* offline start —
+  after any online visit the stale-while-revalidate handler has cached it anyway, so the
+  bug hides from every test you would think to run. `src/version.js` was missing from it,
+  and `src/ui/app.js` imports that at module scope. `test/wiring.test.mjs` asserts the list
+  is complete; nothing else catches it.
+
 Every one of these has already bitten someone here.
 
 - **`--dump-dom` lies about async work.** It snapshots before IndexedDB or `fetch` settles,

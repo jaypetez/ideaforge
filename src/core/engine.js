@@ -83,12 +83,19 @@ export function selectNextDimension(session) {
   return best ? best.id : null;
 }
 
+/**
+ * Five of the seven dimensions covered is the bar, not all seven: `voice` and `references`
+ * are the two lightest, and holding out for them turns a finished interview into a
+ * grind. min() is what keeps that honest when dimensions have been waived.
+ */
+export const READY_COVERED_TARGET = 5;
+
 export function isReadyToWrap(session) {
   const probing = DIMENSION_IDS.filter((id) => session.coverage[id].status === 'probing');
   if (!probing.length) return true;
   const allPartial = probing.every((id) => LEVEL_RANK[session.coverage[id].level] >= 1);
   const coveredCount = probing.filter((id) => session.coverage[id].level === 'covered').length;
-  return allPartial && coveredCount >= Math.min(5, probing.length);
+  return allPartial && coveredCount >= Math.min(READY_COVERED_TARGET, probing.length);
 }
 
 export function shouldOfferWrap(session) {
