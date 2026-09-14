@@ -1,0 +1,56 @@
+# Run IdeaForge against a model on your own machine. Nothing leaves it, and there is no
+# API key anywhere in this file.
+#
+#   docker compose -f docker/compose.yml up -d
+#   docker compose -f docker/compose.yml exec ollama ollama pull qwen2.5:7b-instruct
+#   open http://localhost:8765
+#
+# If you already run Ollama natively, port 11434 is taken and the container will refuse to
+# start. Either stop it, or give this one a different port and type that address into the
+# app's "Server address" field:  IDEAFORGE_OLLAMA_PORT=11435 docker compose ... up -d
+#
+# Then in Settings: pick "Ollama (local)", press "Check the connection" to read the
+# installed models off the server, choose one, and start.
+#
+# Why both services publish on 127.0.0.1 rather than 0.0.0.0: IdeaForge refuses to talk to
+# a model endpoint that is not a loopback address, because that restriction is what stops
+# an injected script posting a stored API key to somewhere else. Publishing on loopback
+# keeps the browser's view of both ends loopback, so the default path works with nothing
+# to configure. Ollama's own default allowed origins already include http://localhost:*
+# and http://127.0.0.1:*, which is why there is no OLLAMA_ORIGINS here.
+
+name: ideaforge
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    # Models are gigabytes. A named volume means `docker compose down` does not throw them
+    # away and the next start is instant.
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "127.0.0.1:${IDEAFORGE_OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      # `ollama list` proves the API is actually answering, which `pgrep` would not.
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ideaforge:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    ports:
+      - "127.0.0.1:${IDEAFORGE_PORT:-8765}:80"
+
+volumes:
+  ollama-models:

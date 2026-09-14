@@ -3,7 +3,12 @@
 // above this layer parses an HTTP status or an error string.
 
 /**
- * @typedef {'auth'|'rate_limit'|'overloaded'|'network'|'bad_response'|'aborted'|'config'} ProviderErrorCode
+ * `timeout` is distinct from `network` on purpose, and is deliberately NOT retryable. A
+ * request that failed outright may well succeed on a second try; one that went two minutes
+ * without a reply has a server that is wedged, and making someone wait three deadlines to
+ * be told so is worse than telling them after one.
+ *
+ * @typedef {'auth'|'rate_limit'|'overloaded'|'network'|'timeout'|'bad_response'|'aborted'|'config'} ProviderErrorCode
  */
 
 export class ProviderError extends Error {

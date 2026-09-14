@@ -97,6 +97,18 @@ export function buildExport(session, { mode = 'claude', note = null } = {}) {
   if (session.synthesis.stale) {
     parts.push('> The refined prompt below predates the most recent answers — regenerate it.');
   }
+  // A turn whose model call failed is answered from the static question bank instead, and
+  // the interview carries on. That is the right behaviour live — it never dead-ends — but
+  // this document outlives the session, and without a line here it is indistinguishable
+  // from one where every question was written for the answer before it. A wrap-up call can
+  // succeed while every turn failed, so the meta line's "synthesised by Claude" is not the
+  // same claim and cannot stand in for this.
+  const banked = session.turns.filter((t) => t.questionSource === 'bank').length;
+  if (banked > 0) {
+    parts.push(`> **${banked} of these questions came from the built-in checklist, not ` +
+               'from the model** — the model could not be reached for those turns, so they ' +
+               'are generic rather than grounded in your answers.');
+  }
 
   parts.push('## Refined prompt');
   parts.push(session.synthesis.text ||

@@ -15,6 +15,7 @@ import { ProviderError, withRetry } from './errors.js';
 import { extractJson } from './json.js';
 import {
   AUTH_BEARER, applyAuth, isLoopback, localFetchOptions, httpError, trimSlash,
+  withDeadline, abortError, DEADLINE_MS,
 } from './http.js';
 
 /**
@@ -69,6 +70,11 @@ export const OPENAI_COMPAT_PRESETS = {
     local: true,
     discoverModels: true,
     modelRequired: true,
+    // Double the default. A model that thinks out loud spends part of its budget narrating
+    // before it emits a character of JSON, and a reply cut off by the cap arrives as
+    // finish_reason 'length' — which is a bad_response, which is NOT retryable, which is
+    // the question bank for that turn. Cheap insurance locally, where tokens are free.
+    maxTokens: 8192,
     // There is deliberately no tier map. It used to say `llama3.2`, which is a guess, and
     // a guess 404s for everyone who has not pulled exactly that model. The installed list
     // is one GET /models away, so ask the server instead of guessing on its behalf.
@@ -84,6 +90,11 @@ export const OPENAI_COMPAT_PRESETS = {
     local: true,
     discoverModels: true,
     modelRequired: true,
+    // Double the default. A model that thinks out loud spends part of its budget narrating
+    // before it emits a character of JSON, and a reply cut off by the cap arrives as
+    // finish_reason 'length' — which is a bad_response, which is NOT retryable, which is
+    // the question bank for that turn. Cheap insurance locally, where tokens are free.
+    maxTokens: 8192,
     tiers: null,
     note: 'Enable CORS in LM Studio’s server settings, then pick a model below.',
   },
@@ -131,6 +142,7 @@ export function createOpenAICompatProvider(config) {
     tokenParam = (preset && preset.tokenParam) || 'max_tokens',
     maxTokens = (preset && preset.maxTokens) || 4096,
     modelRequired = (preset && preset.modelRequired) || false,
+    deadlineMs = (preset && preset.deadlineMs) || DEADLINE_MS,
   } = cfg;
   if (!baseUrl) throw new ProviderError('config', 'OpenAI-compatible provider needs a base URL');
 
@@ -155,11 +167,12 @@ export function createOpenAICompatProvider(config) {
     const res = await fetch(`${baseUrl}${path}`, {
       method: 'GET',
       credentials: 'omit',
-      signal,
+      signal: withDeadline(signal, deadlineMs),
       headers: head(),
       ...localFetchOptions(baseUrl),
     }).catch((err) => {
-      if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
+      const aborted = abortError(err, { label: hostLabel(baseUrl), ms: deadlineMs });
+      if (aborted) throw aborted;
       throw opaqueFailure(err, sawResponse, local, baseUrl);
     });
     sawResponse = true;
@@ -173,7 +186,7 @@ export function createOpenAICompatProvider(config) {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       credentials: 'omit',
-      signal,
+      signal: withDeadline(signal, deadlineMs),
       headers: head({ 'content-type': 'application/json' }),
       ...localFetchOptions(baseUrl),
       body: JSON.stringify({
@@ -190,7 +203,8 @@ export function createOpenAICompatProvider(config) {
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
     }).catch((err) => {
-      if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
+      const aborted = abortError(err, { label: hostLabel(baseUrl), ms: deadlineMs });
+      if (aborted) throw aborted;
       throw opaqueFailure(err, sawResponse, local, baseUrl);
     });
 

@@ -7,7 +7,9 @@
 // headers are unambiguous on both the preflight and the real response.
 
 import { ProviderError, withRetry } from '../providers/errors.js';
-import { AUTH_BEARER, applyAuth, httpError } from '../providers/http.js';
+import {
+  AUTH_BEARER, applyAuth, httpError, withDeadline, abortError,
+} from '../providers/http.js';
 
 /** 25 MB is the documented limit on both services. Opus at 24 kbps reaches it around 2h. */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -58,13 +60,14 @@ export function createTranscriber(config) {
     const res = await fetch(`${baseUrl}/audio/transcriptions`, {
       method: 'POST',
       credentials: 'omit',
-      signal,
+      signal: withDeadline(signal),
       // No content-type: FormData sets its own multipart boundary. applyAuth returns only
       // credential headers precisely so this call site can stay that way.
       headers: applyAuth(baseUrl, { auth: AUTH_BEARER, apiKey }).headers,
       body: form,
     }).catch((err) => {
-      if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
+      const aborted = abortError(err, { label: 'transcription' });
+      if (aborted) throw aborted;
       // Same opaque-CORS trap as the chat endpoints: a rejected key can come back with no
       // response at all, so "check the key" is a better guess than "you are offline".
       throw new ProviderError('auth',

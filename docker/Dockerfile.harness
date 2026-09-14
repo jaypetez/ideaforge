@@ -1,0 +1,20 @@
+# The image that runs tools/validate-local.mjs: Node, and a browser for it to drive.
+#
+# Chromium comes from Alpine's own repository rather than a download, so the image builds
+# on arm64 as well as amd64 and there is no binary to verify. CHROME_PATH is what
+# tools/lib/harness.mjs checks first, so nothing has to guess where it landed.
+
+FROM node:22-alpine
+
+RUN apk add --no-cache chromium font-noto
+ENV CHROME_PATH=/usr/bin/chromium-browser
+
+WORKDIR /app
+# There are no dependencies to install — that is the point of this project — so the source
+# is the whole build. Bind-mounted at run time by compose, copied here so the image also
+# works on its own.
+COPY . .
+
+# Chromium needs more than the default 64MB of shared memory to render, and --no-sandbox is
+# already applied on Linux by launchChrome.
+CMD ["npm", "run", "validate:local"]

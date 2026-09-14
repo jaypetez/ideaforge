@@ -9,6 +9,9 @@ import { ProviderError } from './errors.js';
 
 const FENCE = /```(?:json|JSON)?\s*([\s\S]*?)```/;
 
+const REASONING_BLOCK = /<(think|thinking|reasoning)>[\s\S]*?<\/\1>/gi;
+const REASONING_CLOSE = /<\/(?:think|thinking|reasoning)>/gi;
+
 /**
  * @param {string} text raw model output
  * @returns {object} the parsed object
@@ -31,6 +34,14 @@ export function extractJson(text) {
 }
 
 function* candidates(raw) {
+  yield* shapes(raw);
+
+  // Only worth a second pass when there was reasoning to remove.
+  const plain = withoutReasoning(raw);
+  if (plain && plain !== raw) yield* shapes(plain);
+}
+
+function* shapes(raw) {
   yield raw;
 
   const fenced = raw.match(FENCE);
@@ -44,6 +55,30 @@ function* candidates(raw) {
     yield slice;
     yield stripTrailingCommas(slice);
   }
+}
+
+/**
+ * Drop a reasoning model's narration.
+ *
+ * Local models that think out loud — qwen3, deepseek-r1, and anything else with a chat
+ * template that emits <think> — narrate before they answer, and the narration routinely
+ * contains braces. That defeats the outermost-brace rule above, which then starts its slice
+ * somewhere inside the reasoning and parses nothing. The failure is worth naming because of
+ * where it lands: extractJson throws from inside the adapter, which is OUTSIDE runTurn's
+ * JSON-repair retry, so the turn goes straight to the question bank with no second attempt
+ * and the interview quietly continues without the model.
+ */
+function withoutReasoning(raw) {
+  let out = raw.replace(REASONING_BLOCK, '').trim();
+
+  // A reply that was cut off, or one whose opening tag the server swallowed, arrives with a
+  // closing tag and no opener. Anything before the last one is narration either way.
+  const closes = [...out.matchAll(REASONING_CLOSE)];
+  if (closes.length) {
+    const last = closes[closes.length - 1];
+    out = out.slice(last.index + last[0].length).trim();
+  }
+  return out;
 }
 
 const stripTrailingCommas = (s) => s.replace(/,(\s*[}\]])/g, '$1');

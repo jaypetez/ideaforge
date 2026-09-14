@@ -118,6 +118,52 @@ function pageIsPublic() {
 }
 
 /**
+ * How long one model call may go without a reply before we stop waiting.
+ *
+ * Until this existed there was no deadline anywhere in the app: no AbortController was ever
+ * constructed, so every fetch got `signal: undefined` and a server that accepted the
+ * connection and then stalled hung the interview forever — "thinking of the next question…"
+ * on screen, no cancel, no recovery. Against a paid API that is rare enough to go unnoticed.
+ * Against a local model loading into VRAM, thrashing, or simply wedged, it is ordinary.
+ *
+ * Two minutes is chosen to be boring rather than clever: a 7B answering a 48 KiB prompt on a
+ * mid-range GPU takes seconds, and a cold model load tens of seconds, so anything past this
+ * is a fault rather than slowness.
+ */
+export const DEADLINE_MS = 120_000;
+
+/**
+ * The caller's signal and a deadline, as one signal.
+ *
+ * Kept separable because the two mean different things downstream: a caller aborting is
+ * `aborted` and ends the turn quietly, while a deadline expiring is `timeout` and is worth
+ * telling someone about. `AbortSignal.timeout` reports itself as a TimeoutError and
+ * `AbortSignal.any` propagates whichever fired, which is what lets `abortError` below tell
+ * them apart without either side having to track state.
+ */
+export function withDeadline(signal, ms = DEADLINE_MS) {
+  const deadline = AbortSignal.timeout(ms);
+  return signal ? AbortSignal.any([signal, deadline]) : deadline;
+}
+
+/**
+ * Translate a rejected fetch that was aborted, or return null if it was not aborted at all.
+ * Every adapter has to make this same distinction, and getting it backwards turns a user
+ * pressing cancel into a scary error message.
+ */
+export function abortError(err, { label, ms = DEADLINE_MS }) {
+  if (!err) return null;
+  if (err.name === 'TimeoutError') {
+    return new ProviderError('timeout',
+      `${label} did not answer within ${Math.round(ms / 1000)}s. For a local server that ` +
+      'usually means the model is still loading, or is too large for the memory it has.',
+      { cause: err });
+  }
+  if (err.name === 'AbortError') return new ProviderError('aborted', 'cancelled');
+  return null;
+}
+
+/**
  * Every adapter's failed response becomes the same four fields. This was copied out three
  * times, and the copies had already drifted apart in what they read off the error body.
  */

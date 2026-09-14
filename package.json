@@ -11,6 +11,7 @@
     "test:all": "npm test && npm run test:browser",
     "lint:purity": "node tools/lint-purity.mjs",
     "serve": "python -m http.server 8765 --bind 127.0.0.1",
-    "screenshots": "node tools/screenshots.mjs"
+    "screenshots": "node tools/screenshots.mjs",
+    "validate:local": "node tools/validate-local.mjs"
   }
 }

@@ -9,7 +9,9 @@ import {
   OPENAI_COMPAT_PRESETS, createOpenAICompatProvider, parseModelList,
 } from '../src/providers/openaiCompat.js';
 import { createAnthropicProvider, ANTHROPIC_TIERS } from '../src/providers/anthropic.js';
-import { AUTH_BEARER, AUTH_NONE, applyAuth, isLoopback } from '../src/providers/http.js';
+import {
+  AUTH_BEARER, AUTH_NONE, applyAuth, isLoopback, withDeadline, abortError, DEADLINE_MS,
+} from '../src/providers/http.js';
 import { PROVIDER_CHOICES, createProvider } from '../src/providers/index.js';
 
 // ──────────────────────────────────────────────── getting an object back
@@ -383,4 +385,83 @@ test('listModels reads the list off the server it is pointed at', async () => {
       assert.equal(seen[0].url, 'http://localhost:11434/v1/models');
     }
   );
+});
+
+// ──────────────────────────────────────────── deadlines, and reasoning models
+test('a call that never answers fails on its own rather than hanging forever', async () => {
+  // Until this existed there was no deadline anywhere: every fetch got signal: undefined,
+  // so a local server that accepted the connection and then stalled hung the interview
+  // with "thinking of the next question…" on screen and no way out.
+  const real = globalThis.fetch;
+  globalThis.fetch = (url, init) => new Promise((_, reject) => {
+    init.signal.addEventListener('abort', () => reject(init.signal.reason));
+  });
+  // Node's AbortSignal.timeout does not hold the event loop open. With a fetch that never
+  // settles it is the only pending work, so the loop drains and the deadline never fires —
+  // the test then reports "promise resolution is still pending" rather than the timeout it
+  // is checking for. Browsers have no such rule; this is a Node testing artefact.
+  const keepAlive = setInterval(() => {}, 20);
+  try {
+    const p = createOpenAICompatProvider({ preset: 'ollama', model: 'm', deadlineMs: 60 });
+    await assert.rejects(
+      () => p.sampleJson({ system: 'S', prefix: 'P', tail: 'T' }),
+      (e) => e.code === 'timeout' && /did not answer within/.test(e.message)
+    );
+  } finally {
+    clearInterval(keepAlive);
+    globalThis.fetch = real;
+  }
+});
+
+test('a timeout is not retried, because a wedged server stays wedged', () => {
+  // Three deadlines before telling someone is worse than one. `network` is retryable and
+  // `timeout` deliberately is not, which is the whole reason they are separate codes.
+  assert.equal(RETRYABLE.has('network'), true);
+  assert.equal(RETRYABLE.has('timeout'), false);
+});
+
+test('a caller cancelling is told it cancelled; a deadline is told it timed out', () => {
+  const cancelled = abortError(Object.assign(new Error('x'), { name: 'AbortError' }), { label: 'X' });
+  assert.equal(cancelled.code, 'aborted');
+
+  const timedOut = abortError(Object.assign(new Error('x'), { name: 'TimeoutError' }), { label: 'X' });
+  assert.equal(timedOut.code, 'timeout');
+
+  // Anything else is not an abort at all and must fall through to the real diagnosis.
+  assert.equal(abortError(new TypeError('Failed to fetch'), { label: 'X' }), null);
+});
+
+test('withDeadline honours the caller signal as well as the clock', async () => {
+  const ac = new AbortController();
+  const signal = withDeadline(ac.signal, 60_000);
+  assert.equal(signal.aborted, false);
+  ac.abort();
+  assert.equal(signal.aborted, true);
+  assert.equal(DEADLINE_MS >= 30_000, true, 'the default must survive a cold model load');
+});
+
+test('extractJson gets past a reasoning model narrating in braces', () => {
+  // qwen3, deepseek-r1 and friends think out loud before answering, and the narration
+  // routinely contains braces — which sent the outermost-brace rule into the middle of the
+  // thinking. It threw from inside the adapter, OUTSIDE runTurn's JSON-repair retry, so the
+  // turn went straight to the question bank with no second attempt.
+  const want = { question: 'and then?' };
+  assert.deepEqual(extractJson('<think>maybe {"question":"no"} fits</think>{"question":"and then?"}'), want);
+  assert.deepEqual(extractJson('<thinking>a stray { brace</thinking>{"question":"and then?"}'), want);
+  assert.deepEqual(extractJson('<think>hmm {</think>```json\n{"question":"and then?"}\n```'), want);
+  // A reply cut off mid-thought arrives with a closing tag and no opener.
+  assert.deepEqual(extractJson('braces { adrift</think>{"question":"and then?"}'), want);
+  // And none of this may disturb the ordinary cases.
+  assert.deepEqual(extractJson('{"question":"and then?"}'), want);
+  assert.deepEqual(extractJson('Here:\n{"question":"and then?"}\nhope that helps'), want);
+  assert.throws(() => extractJson('<think>only thoughts {</think>'), /did not return a JSON object/);
+});
+
+test('a local preset leaves a thinking model room to finish', () => {
+  // A reply cut off by the cap is finish_reason 'length' -> bad_response -> not retryable
+  // -> the question bank, every turn. Tokens are free locally; headroom is not a cost.
+  for (const [name, preset] of Object.entries(OPENAI_COMPAT_PRESETS)) {
+    if (!preset.local) continue;
+    assert.ok(preset.maxTokens >= 8192, `${name} needs room for a model that thinks first`);
+  }
 });
