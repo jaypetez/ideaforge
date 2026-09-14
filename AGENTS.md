@@ -100,8 +100,9 @@ npm run validate:local
 
 `IDEAFORGE_URL` points it at an origin that is already serving — which is how the built
 container gets validated rather than merely built. `IDEAFORGE_MODEL`, `OLLAMA_URL`,
-`VALIDATE_TURNS` and `VALIDATE_TURN_MS` do what they look like. To run the whole thing in
-containers, including the browser:
+`VALIDATE_TURNS` and `VALIDATE_TURN_MS` do what they look like. `VALIDATE_MIN_GBPS`
+(default 100) is the speed floor and `VALIDATE_ALLOW_CPU=1` lets a machine with no GPU run
+the rest of the checks anyway. To run the whole thing in containers, including the browser:
 
 ```sh
 docker compose -f docker/compose.yml -f docker/compose.validate.yml run --rm validate
@@ -114,6 +115,24 @@ Three independent signals catch that: the `questionSource` the app recorded in I
 the absence of the checklist suffix on `#turnline` and `#done-meta`, and — the only one the
 app's own bookkeeping cannot fake — a count of the POSTs that actually left the browser,
 taken off the CDP network feed.
+
+**It also proves the run was on the GPU, before it spends four turns not being.** The first
+thing it does after finding the model is issue its own `/api/generate`, which forces the
+lazy load and yields two independent readings: `size_vram` against `size` from `/api/ps`,
+which contains no timing at all, and decode speed from `eval_count` / `eval_duration`. A
+CPU-only server is then rejected in seconds rather than after twenty-five minutes of an
+interview that was never going to mean anything. Residency is sampled again after the
+wrap-up, because the synthesis is where the KV cache is largest and where an eviction and
+CPU reload would otherwise pass unseen.
+
+The speed floor is expressed as **memory bandwidth, not tokens per second**. Decode reads
+essentially the whole weight set once per token, so `tok/s × weight bytes` estimates the
+bandwidth the device is achieving — a property of the card rather than of the model, so one
+number covers a 7B and a 14B without being retuned every time the default changes. Dual
+channel DDR5 realises roughly 20-50 GB/s under llama.cpp. Measured on the machine this was
+written on: 49 GB/s for a 9GB model on a CPU-only server, 390 GB/s for a 4.7GB model on an
+RTX 5060 Ti. The 100 GB/s default sits in the empty band between the two populations rather
+than beside either.
 
 Before trusting a green run, make it fail on purpose. Point `OLLAMA_URL` at a dead port, or
 name a model that is not installed. A validator that cannot fail is not a validator.
@@ -146,10 +165,31 @@ Every one of these has already bitten someone here.
   The live tell is an eleven-word suffix on `#turnline` that describes only the *current*
   question; the sticky one is `#done-meta`. Judging a run by whether it produced an export
   tells you nothing: the single wrap-up call can succeed while every turn failed.
+- **`localhost:11434` can be two different servers at once.** This is the one that will cost
+  you the afternoon. A native Ollama binds `127.0.0.1:11434` while a Docker-published one
+  binds `[::1]:11434`, both are "up", and which one you get depends on whose resolver is
+  asking — Node's and Chrome's need not agree. So the harness can read `/api/ps` off a
+  healthy GPU server while the browser interviews a CPU-only container, and every claim
+  still passes. Use `127.0.0.1` explicitly, never the name, and identify a server by the
+  model digest from `/api/tags` rather than by the fact that something answered.
+  `validate:local` now asks every address the name resolves to and fails if they disagree.
+- **A CPU-only Ollama answers every probe perfectly.** A container started without `--gpus`
+  has `HostConfig.DeviceRequests: null`, logs `inference compute id=cpu library=cpu` and
+  `total_vram="0 B"`, and then loads 8 GiB of weights into system RAM. Nothing errors. The
+  tell from outside is exactly that: heavy RAM, no VRAM. `docker inspect <name> --format
+  '{{json .HostConfig.DeviceRequests}}'` settles it in one line.
 - **A GPU that is not being used does not fail, it is just slow.** Ollama falls back to CPU
   and everything still works, ten to fifty times slower, which reads as "the app is slow".
-  `GET /api/ps` gives `size` and `size_vram` per loaded model; compare them. Note the model
-  loads lazily, so `/api/ps` is legitimately empty until the first real request.
+  `GET /api/ps` gives `size` and `size_vram` per loaded model; compare them. But note what
+  that endpoint is evidence *about*: a **loaded model**, not a server. It is legitimately
+  empty until something has asked for inference, so it cannot be a pre-flight unless you
+  issue the load yourself — which is what the harness now does.
+- **Do not measure tokens per second on a two-token answer.** Prompting `Say OK.` and timing
+  the reply read **3 tok/s on a card that sustains 84**, because over two tokens the average
+  is almost entirely first-token latency and CUDA graph capture. That is a false CPU verdict
+  on a perfectly healthy GPU, which is worse than no check. Warm the model with one call and
+  time a second, longer one — and remember `num_predict` is a ceiling, not a target, so the
+  prompt has to be one the model will actually answer at length.
 - **Two Ollamas on one GPU deadlock each other in slow motion.** A native install and a
   container both holding a 7B leave neither enough VRAM, and the second one's load crawls
   past any sane deadline. If the native one is running, `IDEAFORGE_OLLAMA_PORT` moves the
@@ -175,6 +215,13 @@ Every one of these has already bitten someone here.
   Nothing is lost when it does (`runSynthesis` returns `ok: false` and the export keeps the
   transcript, the open questions and the coverage table), but a validator that judges a run
   by "did an export appear" will not notice. Check for `_Not generated._`.
+- **A 7B sometimes repeats itself twice running, and one bank question is the result.**
+  `questionTripwire` rejects a question overlapping an earlier one by more than 60% of its
+  content words, `runTurn` regenerates exactly once, and a second repeat is `unfixable
+  repeat` → bank fallback. That is the app behaving correctly — it will not ask you the same
+  thing twice — but it means a four-turn run against qwen2.5:7b is green most times and
+  amber occasionally, on the model's luck rather than the code's. Seen once in two
+  consecutive runs here. Re-run before believing you broke something.
 - **A small model gets the coverage judgement right and the key wrong.** qwen2.5:7b returns
   `{"1": {...}}` rather than keying by dimension id. `parseTurnResult` now reads a single
   unkeyed claim as the turn's target dimension and says so in a warning; before that it

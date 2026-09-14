@@ -3,11 +3,21 @@
 #
 #   docker compose -f docker/compose.yml up -d
 #   docker compose -f docker/compose.yml exec ollama ollama pull qwen2.5:7b-instruct
-#   open http://localhost:8765
+#   open http://127.0.0.1:8765
+#
+# This file BUILDS the app image from the tree next to it, which is what you want while
+# changing it, and it is the base that docker/compose.validate.yml overlays. To run a
+# released image instead, with nothing to clone and nothing to build, use
+# docker/compose.release.yml.
 #
 # If you already run Ollama natively, port 11434 is taken and the container will refuse to
 # start. Either stop it, or give this one a different port and type that address into the
 # app's "Server address" field:  IDEAFORGE_OLLAMA_PORT=11435 docker compose ... up -d
+#
+# Type 127.0.0.1 rather than localhost when you enter that address. On a machine running more
+# than one Ollama they are not the same place: a native install binds 127.0.0.1 while a
+# Docker-published one binds [::1], both are "up", and which one you reach depends on whose
+# resolver is asking.
 #
 # Then in Settings: pick "Ollama (local)", press "Check the connection" to read the
 # installed models off the server, choose one, and start.

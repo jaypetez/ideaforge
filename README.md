@@ -202,6 +202,48 @@ well.)
 Install it to your home screen or desktop from the browser menu and it runs offline, from
 the built-in question bank, until a model is reachable again.
 
+## Run it with Docker
+
+Published on every release as `ghcr.io/jaypetez/ideaforge`, for `linux/amd64` and
+`linux/arm64`. It is nginx over about 35 static files — no build step, nothing server-side,
+and the container never talks to a model. Your browser does that directly, which is why your
+API key never passes through anything of ours.
+
+**A model and the app together, from one file.** Nothing to clone, nothing to build, and no
+key anywhere. Needs an NVIDIA GPU — see the note in the file if you do not have one:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/jaypetez/ideaforge/main/docker/compose.release.yml
+docker compose -f compose.release.yml up -d
+docker compose -f compose.release.yml exec ollama ollama pull qwen2.5:7b-instruct
+# then open http://localhost:8765 and pick "Ollama (local)"
+```
+
+**Just the app**, pointed at an Ollama you already run. Works on any architecture, Apple
+Silicon included:
+
+```sh
+docker run -d -p 127.0.0.1:8765:80 ghcr.io/jaypetez/ideaforge:latest
+```
+
+**From a clone**, building the image yourself rather than pulling it:
+
+```sh
+docker compose -f docker/compose.yml up -d
+```
+
+Both ends publish on `127.0.0.1` rather than `0.0.0.0`, and that is load-bearing: IdeaForge
+refuses to talk to a model endpoint that is not loopback, because that restriction is what
+stops an injected script posting a stored key somewhere else. Publishing on loopback keeps
+the browser's view of both ends loopback, so the default path needs no configuration at all.
+
+If you already run Ollama natively, port 11434 is taken and the container will not start.
+`IDEAFORGE_OLLAMA_PORT=11435` moves this one, and you type that address into the app's
+**Server address** field. Type `127.0.0.1`, not `localhost`: on a machine running more than
+one Ollama those are not the same place — a native install binds `127.0.0.1` while a
+Docker-published one binds `[::1]`, both report themselves as up, and which one you get
+depends on whose resolver is asking.
+
 ## Bringing your own key
 
 <p align="center">
@@ -237,20 +279,6 @@ handing it your main one.
 
 Do not paste an API key into a **shared** Claude artifact — anyone the artifact is shared
 with can read the page. Inside a Claude viewer, use the built-in `sample` provider.
-
-**The one-command version.** If you have Docker and an NVIDIA GPU, this brings up a model
-and the app together, with nothing to configure and no key anywhere:
-
-```sh
-docker compose -f docker/compose.yml up -d
-docker compose -f docker/compose.yml exec ollama ollama pull qwen2.5:7b-instruct
-# then open http://localhost:8765 and pick "Ollama (local)"
-```
-
-Both ends publish on `127.0.0.1`, which is what keeps them loopback as far as the browser
-is concerned — see below for why that matters. If you already run Ollama natively, port
-11434 is taken; `IDEAFORGE_OLLAMA_PORT=11435` moves the container's, and you type that
-address into the app's **Server address** field.
 
 **A local model is easiest from a local page.** `npm run serve`, pick Ollama, press
 **Check the connection** and the model box fills with whatever you have actually pulled.
