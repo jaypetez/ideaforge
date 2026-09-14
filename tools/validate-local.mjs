@@ -17,6 +17,9 @@
 // one that cannot be faked by the app's own bookkeeping is the count of POST requests that
 // actually left the browser.
 
+import { connect } from 'node:net';
+import { lookup } from 'node:dns/promises';
+
 import { ROOT, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
 
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
@@ -26,6 +29,19 @@ const TURN_MS = Number(process.env.VALIDATE_TURN_MS || 180000);
 const BOOT_MS = 20000;
 /** How many questions to answer before asking for the wrap-up. */
 const TURNS = Number(process.env.VALIDATE_TURNS || 4);
+/**
+ * The speed floor, expressed as memory bandwidth rather than tokens per second.
+ *
+ * Decode reads essentially the whole weight set once per token, so tok/s x weight bytes
+ * estimates the bandwidth the model is actually being read at. That is a property of the
+ * device, not of the model, so one number covers a 7B and a 14B without being retuned every
+ * time the default changes — which is how a tok/s threshold rots. Dual-channel DDR5 is
+ * ~90 GB/s theoretical and llama.cpp realises about half; a mid-range discrete card is
+ * 300-500. 100 sits in the empty band between the two populations rather than beside either.
+ */
+const MIN_GBPS = Number(process.env.VALIDATE_MIN_GBPS || 100);
+/** For someone who knowingly has no GPU and wants the rest of the run regardless. */
+const ALLOW_CPU = process.env.VALIDATE_ALLOW_CPU === '1';
 /**
  * Where the app itself is served from. Unset, we serve the working tree — what you want
  * while changing it. Set, we drive whatever is already at that origin, which is how the
@@ -209,6 +225,120 @@ async function gpuResidency() {
   return { total, vram, share: total ? vram / total : 0 };
 }
 
+async function ollamaPost(path, body, ms) {
+  const res = await fetch(`${OLLAMA}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(ms),
+  });
+  if (!res.ok) throw new Error(`${path} answered ${res.status}`);
+  return res.json();
+}
+
+const pct = (x) => `${(x * 100).toFixed(0)}%`;
+const gb = (b) => `${(b / 1e9).toFixed(2)}GB`;
+
+/**
+ * Which socket actually answered — printed, never asserted.
+ *
+ * undici and net.connect each run their own Happy Eyeballs race, so on a genuinely split
+ * name they can in principle disagree. The claim that has to be right is the fingerprint,
+ * which is taken over the same fetch path as everything else.
+ */
+function peerOf(url, ms = 3000) {
+  const u = new URL(url);
+  return new Promise((resolve) => {
+    const s = connect({ host: u.hostname, port: Number(u.port || 80) });
+    const done = (v) => { s.destroy(); resolve(v); };
+    s.setTimeout(ms, () => done(null));
+    s.once('error', () => done(null));
+    s.once('connect', () => done(`${s.remoteAddress}:${s.remotePort}`));
+  });
+}
+
+/** What this particular server IS, rather than what we hoped it was. */
+function fingerprint(version, tags) {
+  const models = (tags && tags.models) || [];
+  const mine = models.find((m) => m.name === MODEL || m.model === MODEL);
+  return {
+    version,
+    names: models.map((m) => m.name).sort().join(','),
+    digest: mine ? String(mine.digest || '').slice(0, 12) : '',
+    bytes: mine ? Number(mine.size || 0) : 0,
+  };
+}
+
+const sameServer = (a, b) => !!a && !!b && a.version === b.version && a.names === b.names;
+
+/**
+ * Every address the configured name could mean.
+ *
+ * Two Ollamas on one machine is the normal state, not the exotic one: a native install
+ * answers 127.0.0.1 while a Docker-published one answers [::1], both on 11434, and
+ * `localhost` picks between them per resolver. Node's pick and Chrome's need not agree, so a
+ * run can read /api/ps off one server while the page talks to the other and every claim
+ * still passes. Ask each address separately and compare what comes back.
+ */
+async function everyMeaning(url) {
+  const u = new URL(url);
+  if (!/^[a-z]/i.test(u.hostname)) return [];
+  const addrs = await lookup(u.hostname, { all: true, verbatim: true }).catch(() => []);
+  if (addrs.length < 2) return [];
+  return addrs.map(({ address, family }) =>
+    `${u.protocol}//${family === 6 ? `[${address}]` : address}:${u.port}`);
+}
+
+/**
+ * The cheapest thing that proves a GPU, run before four slow turns prove nothing.
+ *
+ * /api/ps only ever describes a *loaded* model, so it cannot be read cold — which is why
+ * this issues the load itself rather than waiting for the app to. Two independent readings
+ * come out of the one request: size_vram/size is the device answer and contains no timing at
+ * all, and eval_count/eval_duration is the speed answer. Ollama reports load and prompt
+ * evaluation as separate durations, so what is left really is decode.
+ */
+async function deviceProbe(weightBytes) {
+  // Two calls, deliberately.
+  //
+  // The first forces the lazy load, so /api/ps becomes readable and load_duration is honest.
+  // Its own decode is useless as a speed sample and measuring it was a mistake worth
+  // recording: "Say OK." answers in about two tokens, and over two tokens the average is
+  // almost entirely first-token latency and CUDA graph capture. It read 3 tok/s on a card
+  // that sustains 84 — a false CPU verdict on a perfectly healthy GPU.
+  //
+  // The second runs warm and long enough for that overhead to amortise. num_predict is a
+  // ceiling rather than a target, so the prompt has to be one the model will answer at
+  // length; a short answer is caught by the token-count guard at the call site instead of
+  // being quietly averaged.
+  const load = await ollamaPost('/api/generate', {
+    model: MODEL,
+    prompt: 'Say OK.',
+    stream: false,
+    // Explicit, so the default five-minute timer cannot evict the model between a slow turn
+    // and the next one.
+    keep_alive: '15m',
+    options: { num_predict: 8, temperature: 0 },
+  }, TURN_MS);
+  const gen = await ollamaPost('/api/generate', {
+    model: MODEL,
+    prompt: 'Write one paragraph about the sea.',
+    stream: false,
+    keep_alive: '15m',
+    options: { num_predict: 80, temperature: 0 },
+  }, TURN_MS);
+  const toks = Number(gen.eval_count || 0);
+  const secs = Number(gen.eval_duration || 0) / 1e9;
+  const rate = secs > 0 ? toks / secs : 0;
+  return {
+    toks,
+    rate,
+    gbps: (rate * weightBytes) / 1e9,
+    loadS: Number(load.load_duration || 0) / 1e9,
+    residency: await gpuResidency(),
+  };
+}
+
 // ───────────────────────────────────────────────────────────── the run
 
 async function main() {
@@ -222,17 +352,81 @@ async function main() {
 
   console.log('the model');
   let version;
+  let peer;
   try {
     version = (await ollama('/api/version')).version;
-    check('Ollama is reachable', true, `v${version}`);
+    peer = await peerOf(OLLAMA);
+    check('Ollama is reachable', true, `v${version} at ${peer || 'an unnamed socket'}`);
   } catch (err) {
     check('Ollama is reachable', false, `${err.message} — is it running?`);
     return 1;
   }
+
   const tags = await ollama('/api/tags');
-  const names = (tags.models || []).map((m) => m.name);
-  if (!check('the model is pulled', names.includes(MODEL), names.join(', ') || 'none')) {
+  const mine = fingerprint(version, tags);
+
+  const meanings = await everyMeaning(OLLAMA);
+  if (!meanings.length) {
+    check('the address names exactly one server', true,
+      `${new URL(OLLAMA).hostname} — nothing to resolve`);
+  } else {
+    const seen = [];
+    for (const url of meanings) {
+      try {
+        const v = await (await fetch(`${url}/api/version`, { signal: AbortSignal.timeout(3000) })).json();
+        const t = await (await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(5000) })).json();
+        seen.push({ url, fp: fingerprint(v.version, t) });
+      } catch { /* nothing listening on that family, which is the happy case */ }
+    }
+    const split = seen.length > 1 && !seen.every((x) => sameServer(x.fp, seen[0].fp));
+    check('the address names exactly one server', !split,
+      split
+        ? `${seen.map((x) => `${x.url} is v${x.fp.version} with ${x.fp.names.split(',').length} models`).join(' but ')} — set OLLAMA_URL to whichever you meant`
+        : `${seen.map((x) => x.url).join(' and ')} are the same server`);
+    if (split) return 1;
+  }
+
+  if (!check('the model is pulled', !!mine.digest,
+    mine.digest ? `${mine.digest} · ${gb(mine.bytes)}` : (mine.names || 'none'))) {
     console.error(`\n  pull it first:  ollama pull ${MODEL}`);
+    return 1;
+  }
+
+  // Before Chrome, deliberately. A CPU-only server answers every probe above perfectly and
+  // then takes tens of minutes to fail an interview that was never going to mean anything.
+  let probe;
+  try {
+    probe = await deviceProbe(mine.bytes);
+  } catch (err) {
+    check('the model loads onto the GPU', false, `a short generate failed: ${err.message}`);
+    return 1;
+  }
+
+  const r0 = probe.residency;
+  const onGpu = !!r0 && r0.share > 0.9;
+  check('the model loads onto the GPU', onGpu,
+    r0 ? `${pct(r0.share)} of ${gb(r0.total)} in VRAM, loaded in ${probe.loadS.toFixed(1)}s`
+      : 'nothing in /api/ps after a generate that succeeded — this server reports no GPU at all');
+
+  const floor = (MIN_GBPS * 1e9) / (mine.bytes || 1);
+  if (probe.toks < 16) {
+    // Below about sixteen tokens the average is mostly first-token latency, which is a
+    // property of the sample rather than of the machine. Say so instead of failing: the VRAM
+    // claim above is the authoritative one and does not depend on timing at all.
+    console.log(`  note  only ${probe.toks} tokens came back, too short to time — ` +
+                'skipping the speed claim');
+  } else {
+    check('it decodes at GPU speed', probe.rate >= floor,
+      `${probe.rate.toFixed(0)} tok/s ≈ ${probe.gbps.toFixed(0)} GB/s` +
+      (probe.rate >= floor ? ''
+        : ` — want ${floor.toFixed(0)} tok/s (${MIN_GBPS} GB/s); that is CPU memory bandwidth`));
+  }
+
+  if (!onGpu && !ALLOW_CPU) {
+    console.error('\n  This server has no GPU, or CUDA is not reaching it. A four-turn');
+    console.error('  interview here takes tens of minutes and tells you nothing you cannot');
+    console.error('  learn now. Point OLLAMA_URL at the GPU server, or set');
+    console.error('  VALIDATE_ALLOW_CPU=1 to go on anyway.');
     return 1;
   }
 
@@ -295,6 +489,27 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     await cdp.send('Page.navigate', { url: appUrl });
     await app.waitFor(`document.getElementById('version').textContent`, 'the app to boot', BOOT_MS);
 
+    // The browser resolves the base URL for itself. Everything else in this file reads the
+    // server through Node, so a name meaning two things gives a run where the harness
+    // inspects one Ollama's /api/ps while the page talks to another — and every claim still
+    // passes. The digest is the only field the two sides can compare byte for byte. Run
+    // before the CSP listener below, so that if this ever does trip the policy it cannot
+    // contaminate the claim about what the app itself needed.
+    const theirs = await app.eval(`(async () => {
+      try { return await (await fetch(${JSON.stringify(`${OLLAMA}/api/tags`)})).json(); }
+      catch (e) { return { error: String(e) }; }
+    })()`);
+    if (theirs && theirs.error) {
+      console.log(`  note  the page could not read /api/tags itself (${theirs.error}) — ` +
+                  'falling back to the model list for identity');
+    } else {
+      const t = fingerprint(version, theirs);
+      check('the browser reached the same server the harness did',
+        !!t.digest && t.digest === mine.digest && t.names === mine.names,
+        t.digest === mine.digest ? `${t.digest} on both sides`
+          : `harness ${mine.digest || 'absent'} vs browser ${t.digest || 'absent'}`);
+    }
+
     // A CSP refusal never throws; it only fires an event. Without listening, a broken
     // policy looks exactly like a passing run.
     await app.eval(`(() => {
@@ -338,7 +553,7 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     check('turn 1 needs no model call', chatCalls.length === 0, `${chatCalls.length} calls so far`);
 
     let banked = 0;
-    let residency = null;
+    let afterTurn1;
     for (let i = 0; i < TURNS; i++) {
       const before = await app.turn();
       await app.set('answer', ANSWERS[i % ANSWERS.length], 'input');
@@ -359,19 +574,7 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
         break;
       }
 
-      // After the first turn, not before it: Ollama loads a model lazily on the first
-      // request, so /api/ps is legitimately empty until the app has actually asked for
-      // something. Checking too early reports a CPU fallback that has not happened yet.
-      if (residency === null) residency = (await gpuResidency()) || false;
-    }
-
-    if (residency) {
-      check('the model is resident in VRAM, not on the CPU',
-        residency.share > 0.9,
-        `${(residency.share * 100).toFixed(0)}% of ${(residency.total / 1e9).toFixed(1)}GB in VRAM`);
-    } else {
-      check('the model is resident in VRAM, not on the CPU', false,
-        'nothing loaded per /api/ps after a turn — running on CPU, or a different model');
+      if (afterTurn1 === undefined) afterTurn1 = await gpuResidency();
     }
 
     check('every question after the seed came from the model', banked === 0,
@@ -389,6 +592,23 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
       `document.getElementById('output').textContent.includes('Forged with IdeaForge')`,
       'the export', 30000,
     );
+
+    // Not just after turn 1. The synthesis sends the whole transcript, which is where the KV
+    // cache is largest and where Ollama will resize the context and reload — and if anything
+    // else has taken the card meanwhile, that reload lands partly on the CPU and the run
+    // merely gets slow. One sample at the start cannot see it.
+    const end = await gpuResidency();
+    const trail = `${afterTurn1 ? pct(afterTurn1.share) : 'not loaded'} after turn 1 → ` +
+                  `${end ? pct(end.share) : 'not loaded'} after the wrap-up`;
+    if (!end) {
+      // Unloaded is not the same event as moved-to-CPU: an eviction-and-reload leaves a
+      // present entry with a low share, which fails below. A plain keep_alive expiry leaves
+      // nothing, and failing on that would redden a run for something innocent.
+      console.log(`  note  nothing in /api/ps after the wrap-up — unloaded, not moved to the CPU (${trail})`);
+    } else {
+      check('the model stayed in VRAM for the whole run', end.share > 0.9,
+        `${trail}, ${gb(end.total)}`);
+    }
 
     const meta = await app.text('done-meta');
     check('no turn fell back to the checklist', !/built-in checklist/.test(meta), meta);
