@@ -18,7 +18,7 @@
 
 import { ProviderError, withRetry } from './errors.js';
 import { extractJson } from './json.js';
-import { applyAuth, httpError } from './http.js';
+import { applyAuth, httpError, withDeadline, abortError, DEADLINE_MS } from './http.js';
 
 // A root plus a path, rather than one endpoint constant, so that `baseUrl` means the same
 // thing in every adapter. It used to mean "the full URL to POST to" here and "the root to
@@ -61,7 +61,7 @@ export const ANTHROPIC_TIERS = {
  */
 export function createAnthropicProvider(config) {
   const { apiKey, model = null, tiers = ANTHROPIC_TIERS, baseUrl = API_ROOT,
-          maxTokens = 4096 } = config || {};
+          maxTokens = 4096, deadlineMs = DEADLINE_MS } = config || {};
   if (!apiKey) throw new ProviderError('config', 'Anthropic provider needs an API key');
 
   const endpoint = `${String(baseUrl).replace(/\/+$/, '')}${MESSAGES_PATH}`;
@@ -75,7 +75,7 @@ export function createAnthropicProvider(config) {
     const res = await fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
-      signal,
+      signal: withDeadline(signal, deadlineMs),
       headers: applyAuth(endpoint, {
         auth: ANTHROPIC_AUTH, apiKey, headers: { 'content-type': 'application/json' },
       }).headers,
@@ -86,7 +86,8 @@ export function createAnthropicProvider(config) {
         messages: [{ role: 'user', content: [head, { type: 'text', text: tail }] }],
       }),
     }).catch((err) => {
-      if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
+      const aborted = abortError(err, { label: 'Anthropic', ms: deadlineMs });
+      if (aborted) throw aborted;
       throw new ProviderError('network', `could not reach Anthropic: ${err.message}`, { cause: err });
     });
 

@@ -209,6 +209,10 @@ async function refreshModels() {
     // not answer /models.
     els['model-note'].textContent = `${err && err.message ? err.message : err} ` +
       'You can still type the model name yourself.';
+    // And rethrow. This used to be swallowed, so the caller went on to report "That server
+    // answered." over the top of a server that had not answered at all — the reason sitting
+    // in #model-note where nobody was looking.
+    throw err;
   }
 }
 

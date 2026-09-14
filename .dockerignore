@@ -1,0 +1,13 @@
+# The app image is index.html, sw.js, the manifest, the licence and src/. Everything else
+# is either generated, test-only, or history.
+.git
+.github
+.claude
+docs
+test
+tools
+spikes
+node_modules
+docker
+*.md
+!LICENSE

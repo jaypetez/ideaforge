@@ -331,6 +331,30 @@ test('export records deliberate omissions as choices, not failures', () => {
   assert.match(md, /tone does not matter here/);
 });
 
+test('export says so when questions came from the bank rather than the model', () => {
+  // The interview never dead-ends: a failed model call is answered from the static bank and
+  // the run carries on. Live that is right. But this document outlives the session, and a
+  // wrap-up call can succeed while every turn failed — so without a line here an export
+  // stamped "synthesised by Claude" is indistinguishable from one where every question was
+  // actually grounded in the answer before it.
+  let s = withOpening();
+  s = askQuestion(s, { question: 'a real one?', dimension: 'substance', source: 'model' });
+  s = answerQuestion(s, { text: 'a substantive answer about the thing' });
+  s = askQuestion(s, { question: 'a canned one?', dimension: 'bar', source: 'bank' });
+  s = answerQuestion(s, { text: 'another substantive answer about it' });
+
+  const md = buildExport(s, { mode: 'claude' });
+  assert.match(md, /1 of these questions came from the\s+built-in checklist/);
+  assert.match(md, /generic rather than grounded in your answers/);
+});
+
+test('export stays quiet when every question came from the model', () => {
+  let s = withOpening();
+  s = askQuestion(s, { question: 'a real one?', dimension: 'substance', source: 'model' });
+  s = answerQuestion(s, { text: 'a substantive answer about the thing' });
+  assert.doesNotMatch(buildExport(s), /built-in checklist/);
+});
+
 test('export marks a stale synthesis after re-entry', () => {
   let s = withOpening();
   s = { ...s, synthesis: { ...s.synthesis, text: 'old prompt', stale: true } };
