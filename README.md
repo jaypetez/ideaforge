@@ -238,6 +238,20 @@ handing it your main one.
 Do not paste an API key into a **shared** Claude artifact — anyone the artifact is shared
 with can read the page. Inside a Claude viewer, use the built-in `sample` provider.
 
+**The one-command version.** If you have Docker and an NVIDIA GPU, this brings up a model
+and the app together, with nothing to configure and no key anywhere:
+
+```sh
+docker compose -f docker/compose.yml up -d
+docker compose -f docker/compose.yml exec ollama ollama pull qwen2.5:7b-instruct
+# then open http://localhost:8765 and pick "Ollama (local)"
+```
+
+Both ends publish on `127.0.0.1`, which is what keeps them loopback as far as the browser
+is concerned — see below for why that matters. If you already run Ollama natively, port
+11434 is taken; `IDEAFORGE_OLLAMA_PORT=11435` moves the container's, and you type that
+address into the app's **Server address** field.
+
 **A local model is easiest from a local page.** `npm run serve`, pick Ollama, press
 **Check the connection** and the model box fills with whatever you have actually pulled.
 Ollama allows any localhost origin out of the box, so there is nothing to configure.
@@ -288,8 +302,9 @@ engine portable and the turn loop testable without a network — the whole suite
 a second, with no mocking framework and no network access.
 
 ```sh
-npm test             # the purity lint, then 150 tests
+npm test             # the purity lint, then 161 tests
 npm run test:browser # 69 checks in real Chrome, for what Node cannot see
+npm run validate:local # a whole interview against a real local model, no key, no human
 npm run screenshots  # regenerate every image and the worked example above
 ```
 

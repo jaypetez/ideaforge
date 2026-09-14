@@ -26,6 +26,12 @@ const TURN_MS = Number(process.env.VALIDATE_TURN_MS || 180000);
 const BOOT_MS = 20000;
 /** How many questions to answer before asking for the wrap-up. */
 const TURNS = Number(process.env.VALIDATE_TURNS || 4);
+/**
+ * Where the app itself is served from. Unset, we serve the working tree — what you want
+ * while changing it. Set, we drive whatever is already at that origin, which is how the
+ * built container gets validated rather than merely built.
+ */
+const APP_URL = process.env.IDEAFORGE_URL || '';
 
 const ANSWERS = [
   'A tool that helps me remember the names of people I meet at conferences, because I '
@@ -230,8 +236,10 @@ async function main() {
     return 1;
   }
 
-  const server = await serveRepo({ root: ROOT });
-  const port = server.address().port;
+  const server = APP_URL ? null : await serveRepo({ root: ROOT });
+  const appUrl = APP_URL || `http://127.0.0.1:${server.address().port}/`;
+  console.log(`
+app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
   const browser = launchChrome(chrome, {
     url: 'about:blank',
     extraArgs: [
@@ -255,7 +263,7 @@ async function main() {
     check('the run got all the way through', false, err && err.message ? err.message : String(err));
   } finally {
     browser.kill();
-    server.close();
+    if (server) server.close();
   }
 
   const failed = results.filter((r) => !r.ok).length;
@@ -284,7 +292,7 @@ async function main() {
       pageErrors.push(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || 'error');
     });
 
-    await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
+    await cdp.send('Page.navigate', { url: appUrl });
     await app.waitFor(`document.getElementById('version').textContent`, 'the app to boot', BOOT_MS);
 
     // A CSP refusal never throws; it only fires an event. Without listening, a broken

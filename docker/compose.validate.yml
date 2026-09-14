@@ -1,0 +1,33 @@
+# The autonomous validation run, in containers.
+#
+#   docker compose -f docker/compose.yml -f docker/compose.validate.yml run --rm validate
+#
+# The interesting line is `network_mode: "service:ollama"`. IdeaForge refuses to talk to a
+# model endpoint that is not a loopback address — that restriction is what stops an injected
+# script posting a stored API key somewhere else — so a harness reaching Ollama over the
+# Docker network as `http://ollama:11434` would be refused, correctly. Sharing Ollama's
+# network namespace makes `http://localhost:11434` genuinely loopback inside this container,
+# so the run exercises the real rule instead of a hole cut in it for testing.
+#
+# A service using network_mode: service: may not declare its own `ports:` or `networks:`,
+# which is why this file overlays the base compose rather than replacing it.
+
+services:
+  validate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.harness
+    network_mode: "service:ollama"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_URL: http://127.0.0.1:11434
+      IDEAFORGE_MODEL: ${IDEAFORGE_MODEL:-qwen2.5:7b-instruct}
+      # Serving the tree from inside this container, rather than pointing at the ideaforge
+      # service: that one is published on the host, and this container is in Ollama's
+      # namespace where it has no address.
+    # Chromium will not render in 64MB of /dev/shm.
+    shm_size: "1gb"
+    volumes:
+      - ..:/app:ro
