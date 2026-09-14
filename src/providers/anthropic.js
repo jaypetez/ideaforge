@@ -13,14 +13,34 @@
 //     fetch's default is what we want; it is spelled out below so nobody "fixes" it.
 //
 // This header ships in Anthropic's own SDK but is absent from their public docs, so treat
-// it as supported-but-undocumented. If it ever stops working the fix is the proxy in
-// openaiCompat's `proxyBase`, not a rewrite.
+// it as supported-but-undocumented. If it ever stops working, the fix is to point
+// `baseUrl` at a proxy — both adapters take one — not a rewrite.
 
-import { ProviderError, codeForStatus, retryAfterMs, withRetry } from './errors.js';
+import { ProviderError, withRetry } from './errors.js';
 import { extractJson } from './json.js';
+import { applyAuth, httpError } from './http.js';
 
-const ENDPOINT = 'https://api.anthropic.com/v1/messages';
+// A root plus a path, rather than one endpoint constant, so that `baseUrl` means the same
+// thing in every adapter. It used to mean "the full URL to POST to" here and "the root to
+// append /chat/completions to" next door, which is the sort of difference that only shows
+// up once someone tries to point this at a proxy.
+const API_ROOT = 'https://api.anthropic.com/v1';
+const MESSAGES_PATH = '/messages';
 const API_VERSION = '2023-06-01';
+
+/**
+ * The two headers above, expressed as data. They live on the descriptor rather than inside
+ * the request builder so that the reason they exist — the comment at the top of this file —
+ * is one scroll from the thing it explains.
+ */
+export const ANTHROPIC_AUTH = {
+  scheme: 'header',
+  header: 'x-api-key',
+  extraHeaders: {
+    'anthropic-version': API_VERSION,
+    'anthropic-dangerous-direct-browser-access': 'true',
+  },
+};
 
 /**
  * Below Haiku 4.5's 4,096-token minimum a cache breakpoint is silently ignored, so we
@@ -40,9 +60,11 @@ export const ANTHROPIC_TIERS = {
  *          maxTokens?: number}} config
  */
 export function createAnthropicProvider(config) {
-  const { apiKey, model = null, tiers = ANTHROPIC_TIERS, baseUrl = ENDPOINT,
+  const { apiKey, model = null, tiers = ANTHROPIC_TIERS, baseUrl = API_ROOT,
           maxTokens = 4096 } = config || {};
   if (!apiKey) throw new ProviderError('config', 'Anthropic provider needs an API key');
+
+  const endpoint = `${String(baseUrl).replace(/\/+$/, '')}${MESSAGES_PATH}`;
 
   async function call({ system, prefix, tail }, { modelTier = 'default', signal } = {}) {
     const resolved = model || tiers[modelTier] || tiers.default;
@@ -50,16 +72,13 @@ export function createAnthropicProvider(config) {
     const head = { type: 'text', text: prefix };
     if (byteLength(prefix) >= MIN_CACHEABLE_BYTES) head.cache_control = { type: 'ephemeral' };
 
-    const res = await fetch(baseUrl, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
       signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': API_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: applyAuth(endpoint, {
+        auth: ANTHROPIC_AUTH, apiKey, headers: { 'content-type': 'application/json' },
+      }).headers,
       body: JSON.stringify({
         model: resolved,
         max_tokens: maxTokens,
@@ -71,7 +90,7 @@ export function createAnthropicProvider(config) {
       throw new ProviderError('network', `could not reach Anthropic: ${err.message}`, { cause: err });
     });
 
-    if (!res.ok) throw await httpError(res);
+    if (!res.ok) throw await httpError(res, { label: 'Anthropic' });
 
     const body = await res.json();
     const text = (body.content || [])
@@ -94,6 +113,11 @@ export function createAnthropicProvider(config) {
       const out = await withRetry(() => call(parts, opts), { signal: opts.signal });
       return { ...out, json: extractJson(out.text) };
     },
+    /**
+     * Anthropic has no browser-reachable model list, and the tier map is the answer here
+     * anyway. Present and empty rather than absent, so no call site has to feature-detect.
+     */
+    listModels: async () => [],
     /** Cheapest possible round trip that proves the key works. */
     validateKey: async (signal) => {
       await call(
@@ -103,20 +127,6 @@ export function createAnthropicProvider(config) {
       return true;
     },
   };
-}
-
-async function httpError(res) {
-  let detail = '';
-  try {
-    const body = await res.json();
-    detail = (body && body.error && body.error.message) || '';
-  } catch { /* a non-JSON error body is still an error */ }
-  const code = codeForStatus(res.status);
-  const hint = code === 'auth' ? ' — check the API key in Settings' : '';
-  return new ProviderError(code, `Anthropic ${res.status}: ${detail || res.statusText}${hint}`, {
-    status: res.status,
-    retryAfterMs: retryAfterMs(res.headers),
-  });
 }
 
 /** Same counting rule as digest.utf8Length; duplicated to keep core dependency-free. */

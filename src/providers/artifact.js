@@ -46,6 +46,8 @@ export async function createArtifactProvider() {
       const out = await withRetry(() => call(parts, opts), { signal: opts.signal });
       return { ...out, json: extractJson(out.text) };
     },
+    /** No list to read and no key to read it with; empty rather than absent. */
+    listModels: async () => [],
     validateKey: async () => true,
   };
 }

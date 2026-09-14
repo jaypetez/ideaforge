@@ -13,6 +13,7 @@
 //   no-cost slot with none of the risk.
 
 import { ProviderError } from './errors.js';
+import { assertLoopback } from './http.js';
 import { createAnthropicProvider, ANTHROPIC_TIERS } from './anthropic.js';
 import { createOpenAICompatProvider, OPENAI_COMPAT_PRESETS } from './openaiCompat.js';
 import { createArtifactProvider, artifactRuntimeAvailable } from './artifact.js';
@@ -36,11 +37,31 @@ export const PROVIDER_CHOICES = [
   ...Object.entries(OPENAI_COMPAT_PRESETS).map(([id, p]) => ({
     id,
     label: p.label,
-    needsKey: !/localhost/.test(p.baseUrl),
+    // Declared by the preset, not sniffed out of its URL. The old rule here was
+    // `!/localhost/.test(p.baseUrl)`, which called 127.0.0.1 remote and, worse, called
+    // localhost.evil.com local.
+    needsKey: !p.local,
+    local: !!p.local,
+    discoverModels: !!p.discoverModels,
     keyUrl: p.keyUrl || null,
     note: p.note || null,
     models: p.tiers,
   })),
+  {
+    // The escape hatch for a local server we have never heard of — llama.cpp, vLLM, an
+    // Ollama on a second port. Loopback only; createProvider refuses anything else and
+    // says why, because a free-text remote host would hand away the CSP allowlist that
+    // keeps the stored key from being posted somewhere.
+    id: 'custom',
+    label: 'Another local server',
+    needsKey: false,
+    local: true,
+    discoverModels: true,
+    keyUrl: null,
+    note: 'Any OpenAI-compatible server on this machine. Addresses on localhost or ' +
+          '127.0.0.1 only.',
+    models: null,
+  },
 ];
 
 /**
@@ -50,10 +71,17 @@ export const PROVIDER_CHOICES = [
 export async function createProvider(config) {
   const { kind } = config || {};
   if (!kind) throw new ProviderError('config', 'no provider selected');
+  // Policy lives here rather than in the factory. createOpenAICompatProvider is the
+  // mechanism and stays unconstrained so a test or a fork can point it anywhere; the
+  // registry is what decides that a base URL a user typed may only be on their machine,
+  // because that decision is about this page's CSP rather than about HTTP.
+  if (config.baseUrl) assertLoopback(config.baseUrl);
   if (kind === 'artifact') return createArtifactProvider();
   if (kind === 'anthropic') return createAnthropicProvider(config);
   if (OPENAI_COMPAT_PRESETS[kind]) return createOpenAICompatProvider({ ...config, preset: kind });
-  if (kind === 'custom') return createOpenAICompatProvider(config);
+  if (kind === 'custom') {
+    return createOpenAICompatProvider({ ...config, local: true, modelRequired: true });
+  }
   throw new ProviderError('config', `unknown provider: ${kind}`);
 }
 
@@ -66,4 +94,5 @@ export function defaultProviderKind() {
 }
 
 export { ProviderError } from './errors.js';
+export { isLoopback } from './http.js';
 export { extractJson } from './json.js';

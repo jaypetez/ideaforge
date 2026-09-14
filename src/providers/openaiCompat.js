@@ -1,5 +1,7 @@
 // One adapter for every OpenAI-shaped `/chat/completions` endpoint: OpenAI itself, Groq,
-// OpenRouter, and a local Ollama or LM Studio. They differ only in base URL and model id.
+// OpenRouter, and a local Ollama or LM Studio. They differ only in base URL, model id, and
+// how they are authenticated — all three of which are now data on the preset rather than
+// branches in here.
 //
 // The trap worth knowing about, verified live against api.openai.com: a request with an
 // INVALID key is rejected by an auth layer that sends no CORS headers, so in a browser it
@@ -9,23 +11,42 @@
 // diagnosed cleanly at paste time, and an opaque network failure is reported as a probable
 // auth problem rather than "check your internet".
 
-import { ProviderError, codeForStatus, retryAfterMs, withRetry } from './errors.js';
+import { ProviderError, withRetry } from './errors.js';
 import { extractJson } from './json.js';
+import {
+  AUTH_BEARER, applyAuth, isLoopback, localFetchOptions, httpError, trimSlash,
+} from './http.js';
 
 /**
- * Presets are base URL + tier mapping only; anything here also works with a hand-typed
- * base URL, which is how a provider we have never heard of gets supported.
+ * Presets are base URL, tier mapping and auth style; anything here also works with a
+ * hand-typed base URL, which is how a local server we have never heard of gets supported.
+ *
+ * `tokenParam` is per-preset because the name of the output-budget parameter is a
+ * per-vendor fact, not a universal one. `local` is separate from the auth scheme on
+ * purpose: a local server needs no key, but an Ollama behind a reverse proxy that wants a
+ * bearer token still works if you paste one.
  */
 export const OPENAI_COMPAT_PRESETS = {
   openai: {
     label: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
+    auth: AUTH_BEARER,
+    // Every GPT-5-era model rejects `max_tokens` outright: "Unsupported parameter:
+    // 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
+    // This preset defaults to gpt-5-nano, so it was returning a 400 on every turn.
+    tokenParam: 'max_completion_tokens',
+    // And renaming it is only half the fix. A reasoning model spends part of its budget
+    // before writing a character, so the 4k that is plenty for Haiku comes back as an
+    // empty choice with finish_reason 'length' — the same failure wearing a 200 OK.
+    maxTokens: 8192,
     tiers: { quick: 'gpt-5-nano', default: 'gpt-5-nano', complex: 'gpt-5-mini' },
     keyUrl: 'https://platform.openai.com/api-keys',
   },
   groq: {
     label: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1',
+    auth: AUTH_BEARER,
+    tokenParam: 'max_tokens',
     tiers: { quick: 'openai/gpt-oss-20b', default: 'openai/gpt-oss-20b', complex: 'openai/gpt-oss-120b' },
     keyUrl: 'https://console.groq.com/keys',
     note: 'Free tier, no card required.',
@@ -33,28 +54,69 @@ export const OPENAI_COMPAT_PRESETS = {
   openrouter: {
     label: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
+    auth: AUTH_BEARER,
+    // OpenRouter normalises the budget parameter across everything it fronts, so the
+    // OpenAI-shaped name keeps working even for models that would refuse it directly.
+    tokenParam: 'max_tokens',
     tiers: { quick: 'openai/gpt-5-nano', default: 'openai/gpt-5-nano', complex: 'openai/gpt-5-mini' },
     keyUrl: 'https://openrouter.ai/keys',
   },
   ollama: {
     label: 'Ollama (local)',
     baseUrl: 'http://localhost:11434/v1',
-    tiers: { quick: 'llama3.2', default: 'llama3.2', complex: 'llama3.1:8b' },
-    // Ollama only allows localhost page origins by default, so a hosted PWA is blocked
-    // until the user widens it. Surfaced in the UI rather than left to fail mysteriously.
-    note: 'Set OLLAMA_ORIGINS to this app’s origin, or run the app from localhost.',
+    auth: AUTH_BEARER,
+    tokenParam: 'max_tokens',
+    local: true,
+    discoverModels: true,
+    modelRequired: true,
+    // There is deliberately no tier map. It used to say `llama3.2`, which is a guess, and
+    // a guess 404s for everyone who has not pulled exactly that model. The installed list
+    // is one GET /models away, so ask the server instead of guessing on its behalf.
+    tiers: null,
+    note: 'Pick a model below. From a hosted page you must also set OLLAMA_ORIGINS to ' +
+          'this app’s origin and restart Ollama — it only reads that at startup.',
   },
   lmstudio: {
     label: 'LM Studio (local)',
     baseUrl: 'http://localhost:1234/v1',
-    tiers: { quick: 'local-model', default: 'local-model', complex: 'local-model' },
-    note: 'Enable CORS in LM Studio’s server settings first.',
+    auth: AUTH_BEARER,
+    tokenParam: 'max_tokens',
+    local: true,
+    discoverModels: true,
+    modelRequired: true,
+    tiers: null,
+    note: 'Enable CORS in LM Studio’s server settings, then pick a model below.',
   },
 };
 
 /**
+ * Never trust the list. Ollama and LM Studio both answer `/v1/models` with OpenAI's
+ * `{data:[{id}]}` shape, Ollama's native `/api/tags` answers `{models:[{name}]}`, and
+ * whatever a user has proxied in between could answer with anything at all. Same rule as
+ * parseTurnResult: assume it lies about shape, and keep only what survives.
+ */
+export function parseModelList(body) {
+  const rows = Array.isArray(body) ? body
+    : Array.isArray(body && body.data) ? body.data
+    : Array.isArray(body && body.models) ? body.models
+    : [];
+  const names = [];
+  for (const row of rows) {
+    const raw = typeof row === 'string' ? row
+      : row && typeof row.id === 'string' ? row.id
+      : row && typeof row.name === 'string' ? row.name
+      : '';
+    const name = raw.trim();
+    if (name && name.length <= 120 && !names.includes(name)) names.push(name);
+    if (names.length >= 100) break;
+  }
+  return names.sort();
+}
+
+/**
  * @param {{apiKey?: string, baseUrl?: string, preset?: string, model?: string,
- *          tiers?: object, headers?: object, maxTokens?: number}} config
+ *          tiers?: object, headers?: object, maxTokens?: number, auth?: object,
+ *          tokenParam?: string, local?: boolean, modelRequired?: boolean}} config
  */
 export function createOpenAICompatProvider(config) {
   const cfg = config || {};
@@ -63,20 +125,47 @@ export function createOpenAICompatProvider(config) {
 
   const baseUrl = trimSlash(cfg.baseUrl || (preset && preset.baseUrl) || '');
   const tiers = cfg.tiers || (preset && preset.tiers) || {};
-  const { apiKey = '', model = null, headers: extraHeaders = {}, maxTokens = 4096 } = cfg;
+  const {
+    apiKey = '', model = null, headers: extraHeaders = {},
+    auth = (preset && preset.auth) || AUTH_BEARER,
+    tokenParam = (preset && preset.tokenParam) || 'max_tokens',
+    maxTokens = (preset && preset.maxTokens) || 4096,
+    modelRequired = (preset && preset.modelRequired) || false,
+  } = cfg;
   if (!baseUrl) throw new ProviderError('config', 'OpenAI-compatible provider needs a base URL');
 
-  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(baseUrl);
-  if (!apiKey && !isLocal) throw new ProviderError('config', 'this provider needs an API key');
+  const label = (preset && preset.label) || baseUrl;
+  const local = cfg.local !== undefined ? !!cfg.local : isLoopback(baseUrl);
+  if (!apiKey && !local) throw new ProviderError('config', 'this provider needs an API key');
+  if (modelRequired && !model) {
+    throw new ProviderError('config',
+      `${label} needs a model name — pick one in Settings, or press Check the connection ` +
+      'to read the list off the server.');
+  }
 
-  const authHeaders = () => ({
-    'content-type': 'application/json',
-    ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
-    ...extraHeaders,
-  });
+  const head = (extra = {}) => applyAuth(baseUrl, {
+    auth, apiKey, headers: { ...extraHeaders, ...extra },
+  }).headers;
 
   /** True once any request has come back with headers, i.e. CORS is definitely fine. */
   let sawResponse = false;
+
+  /** One code path for both `/models` readers, so they cannot drift apart. */
+  async function getJson(path, signal) {
+    const res = await fetch(`${baseUrl}${path}`, {
+      method: 'GET',
+      credentials: 'omit',
+      signal,
+      headers: head(),
+      ...localFetchOptions(baseUrl),
+    }).catch((err) => {
+      if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
+      throw opaqueFailure(err, sawResponse, local, baseUrl);
+    });
+    sawResponse = true;
+    if (!res.ok) throw await httpError(res, { label: hostLabel(baseUrl) });
+    return res.json().catch(() => ({}));
+  }
 
   async function call({ system, prefix, tail }, { modelTier = 'default', json = false, signal } = {}) {
     const resolved = model || tiers[modelTier] || tiers.default;
@@ -85,26 +174,28 @@ export function createOpenAICompatProvider(config) {
       method: 'POST',
       credentials: 'omit',
       signal,
-      headers: authHeaders(),
+      headers: head({ 'content-type': 'application/json' }),
+      ...localFetchOptions(baseUrl),
       body: JSON.stringify({
         model: resolved,
-        max_tokens: maxTokens,
+        [tokenParam]: maxTokens,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: `${prefix}\n${tail}` },
         ],
         // json_object rather than a strict json_schema: the turn schema keys `coverage` by
         // dimension id, and strict mode would force the model to restate all seven every
-        // turn. parseTurnResult does the real validation anyway.
+        // turn. parseTurnResult does the real validation anyway. Ollama maps this onto its
+        // native `format: json`, so the local path gets the same treatment.
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
     }).catch((err) => {
       if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
-      throw opaqueFailure(err, sawResponse, isLocal, baseUrl);
+      throw opaqueFailure(err, sawResponse, local, baseUrl);
     });
 
     sawResponse = true;
-    if (!res.ok) throw await httpError(res, baseUrl);
+    if (!res.ok) throw await httpError(res, { label: hostLabel(baseUrl) });
 
     const body = await res.json();
     const choice = (body.choices || [])[0];
@@ -117,39 +208,37 @@ export function createOpenAICompatProvider(config) {
 
   return {
     id: cfg.preset || 'openai-compat',
-    label: (preset && preset.label) || baseUrl,
+    label,
     note: preset && preset.note,
     sample: (parts, opts = {}) => withRetry(() => call(parts, opts), { signal: opts.signal }),
     sampleJson: async (parts, opts = {}) => {
       const out = await withRetry(() => call(parts, { ...opts, json: true }), { signal: opts.signal });
       return { ...out, json: extractJson(out.text) };
     },
+    /** What the server will actually answer to, rather than what we guessed it might. */
+    listModels: async (signal) => parseModelList(await getJson('/models', signal)),
     /**
      * `GET /models` is the right probe: unlike `/chat/completions` it answers a bad key
      * with a CORS-visible 401, so we can tell "wrong key" from "unreachable".
      */
-    validateKey: async (signal) => {
-      const res = await fetch(`${baseUrl}/models`, {
-        method: 'GET', credentials: 'omit', signal, headers: authHeaders(),
-      }).catch((err) => {
-        if (err && err.name === 'AbortError') throw new ProviderError('aborted', 'cancelled');
-        throw opaqueFailure(err, false, isLocal, baseUrl);
-      });
-      sawResponse = true;
-      if (!res.ok) throw await httpError(res, baseUrl);
-      return true;
-    },
+    validateKey: async (signal) => { await getJson('/models', signal); return true; },
   };
 }
 
 /**
- * A fetch that rejects without ever producing a response is either a CORS refusal or a
- * dead network, and the browser deliberately refuses to tell us which. Guess usefully.
+ * A fetch that rejects without ever producing a response is either a CORS refusal, a
+ * blocked local-network request or a dead network, and the browser deliberately refuses to
+ * tell us which. Guess usefully, and for a local server name all three causes — the second
+ * one is new, and nobody guesses it unprompted.
  */
-function opaqueFailure(err, sawResponse, isLocal, baseUrl) {
-  if (isLocal) {
+function opaqueFailure(err, sawResponse, local, baseUrl) {
+  if (local) {
     return new ProviderError('network',
-      `could not reach ${baseUrl}. Is the local server running, and is CORS enabled for this origin?`,
+      `could not reach ${baseUrl}. Three things do this: the server is not running; it ` +
+      'has not been told to allow this page’s origin (Ollama wants OLLAMA_ORIGINS set ' +
+      'and then a restart, because it reads that at startup); or the browser refused the ' +
+      'request to your local network, which Chrome asks about the first time and Safari ' +
+      'refuses outright from an https:// page.',
       { cause: err });
   }
   if (!sawResponse) {
@@ -160,19 +249,4 @@ function opaqueFailure(err, sawResponse, isLocal, baseUrl) {
   return new ProviderError('network', `network error talking to ${baseUrl}: ${err.message}`, { cause: err });
 }
 
-async function httpError(res, baseUrl) {
-  let detail = '';
-  try {
-    const body = await res.json();
-    detail = (body && body.error && (body.error.message || body.error.code)) || '';
-  } catch { /* a non-JSON error body is still an error */ }
-  const code = codeForStatus(res.status);
-  const hint = code === 'auth' ? ' — check the API key in Settings' : '';
-  return new ProviderError(code, `${host(baseUrl)} ${res.status}: ${detail || res.statusText}${hint}`, {
-    status: res.status,
-    retryAfterMs: retryAfterMs(res.headers),
-  });
-}
-
-const trimSlash = (s) => String(s || '').replace(/\/+$/, '');
-const host = (u) => { try { return new URL(u).host; } catch { return u; } };
+const hostLabel = (u) => { try { return new URL(u).host; } catch { return u; } };
