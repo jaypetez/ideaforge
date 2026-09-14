@@ -331,6 +331,40 @@ test('export records deliberate omissions as choices, not failures', () => {
   assert.match(md, /tone does not matter here/);
 });
 
+test('a coverage claim keyed by position is read as the dimension we asked about', () => {
+  // Observed against a real Ollama: qwen2.5:7b returns {"1": {...}} every turn rather than
+  // keying by dimension id. Dropping it silently costs far more than the mistake is worth —
+  // coverage never rises, isReadyToWrap never fires, and the interview runs to the hard
+  // ceiling before telling the user it got 0%.
+  const out = parseTurnResult(
+    { question: 'and then?', coverage: { 1: { level: 'partial', gap: 'no numbers yet' } } },
+    { target: 'substance' },
+  );
+  assert.equal(out.coverage.substance.level, 'partial');
+  assert.equal(out.coverage.substance.gap, 'no numbers yet');
+  assert.match(out.warnings.join(' '), /coverage keyed by/);
+});
+
+test('a correctly keyed coverage claim is never second-guessed', () => {
+  const out = parseTurnResult(
+    { question: 'and then?', coverage: { audience: { level: 'partial' } } },
+    { target: 'substance' },
+  );
+  assert.equal(out.coverage.audience.level, 'partial');
+  assert.equal(out.coverage.substance, undefined, 'the target must not be invented');
+  assert.deepEqual(out.warnings, []);
+});
+
+test('more than one mis-keyed claim is dropped rather than guessed at', () => {
+  // One unkeyed claim can only be about the dimension the turn asked for. Two could be
+  // about anything, and picking for the model would be inventing coverage.
+  const out = parseTurnResult(
+    { question: 'and then?', coverage: { 1: { level: 'covered' }, 2: { level: 'covered' } } },
+    { target: 'substance' },
+  );
+  assert.deepEqual(out.coverage, {});
+});
+
 test('export says so when questions came from the bank rather than the model', () => {
   // The interview never dead-ends: a failed model call is answered from the static bank and
   // the run carries on. Live that is right. But this document outlives the session, and a

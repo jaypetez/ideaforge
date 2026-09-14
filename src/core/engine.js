@@ -346,6 +346,15 @@ export function promptHash(str) {
 const RE_GENERIC = /target audience|go.to.market|value prop|at scale|monetiz|user persona|pain point|north star/i;
 const BANNED_BRIDGE = /\b(great|interesting|love|smart|excellent|awesome|perfect|helpful|insightful|good point|makes sense|absolutely|totally)\b/i;
 
+/** One coverage claim, with every field optional and nothing trusted. */
+function readClaim(c) {
+  return {
+    level: ['thin', 'partial', 'covered'].includes(c.level) ? c.level : null,
+    gap: typeof c.gap === 'string' ? c.gap.trim() : null,
+    evidence: typeof c.evidence === 'string' ? c.evidence.trim() : null,
+  };
+}
+
 export function parseTurnResult(raw, { moves = MOVE_IDS, target = null } = {}) {
   const warnings = [];
   const o = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
@@ -380,11 +389,25 @@ export function parseTurnResult(raw, { moves = MOVE_IDS, target = null } = {}) {
     for (const id of DIMENSION_IDS) {
       const c = o.coverage[id];
       if (!c || typeof c !== 'object') continue;
-      coverage[id] = {
-        level: ['thin', 'partial', 'covered'].includes(c.level) ? c.level : null,
-        gap: typeof c.gap === 'string' ? c.gap.trim() : null,
-        evidence: typeof c.evidence === 'string' ? c.evidence.trim() : null,
-      };
+      coverage[id] = readClaim(c);
+    }
+    // A smaller model often gets the KEY wrong while getting the judgement right — keying
+    // the block by position ("1") or by the dimension's label rather than its id. Dropping
+    // that silently is expensive out of proportion to the mistake: coverage never rises, so
+    // isReadyToWrap never fires, so the interview runs to the hard ceiling and the export
+    // reports 0% after twenty-five questions. Observed with qwen2.5:7b against a real
+    // Ollama, which returned {"1": {...}} every turn.
+    //
+    // A single unkeyed claim is only ever about the dimension this turn was asked for, so
+    // that is where it goes — and the ratchet still applies, so a wrong claim cannot do
+    // more damage here than a correctly-keyed wrong claim already could.
+    if (!Object.keys(coverage).length && target) {
+      const claims = Object.entries(o.coverage)
+        .filter(([, c]) => c && typeof c === 'object' && !Array.isArray(c));
+      if (claims.length === 1) {
+        coverage[target] = readClaim(claims[0][1]);
+        warnings.push(`coverage keyed by ${JSON.stringify(claims[0][0])}, read as ${target}`);
+      }
     }
   }
 
