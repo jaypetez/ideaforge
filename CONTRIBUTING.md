@@ -147,7 +147,14 @@ straight from the tagged tree with `git archive`; a container image at
 `ghcr.io/jaypetez/ideaforge`, tagged with the version and — unless the tag is a prerelease —
 `latest`; and a Pages deploy, which happens on the merge rather than the tag.
 
-**The first time a package is published it is private**, even from a public repository, and
-there is no API to change that. Someone has to open the package settings once and switch it
-to public. Every later push then stays public. Worth knowing before you announce a release
-whose notes tell people to `docker pull` something they cannot read.
+**Check the package is publicly pullable after the first release.** Publishing from a public
+repository with `GITHUB_TOKEN` made it public here without anyone touching a setting — an
+anonymous token against `ghcr.io/v2/jaypetez/ideaforge/manifests/<version>` answered 200 —
+but that is a registry default rather than a promise, and if it ever lands private there is
+no API to change it. Someone has to open the package settings and switch it by hand. The
+check is one command, and it is worth running before announcing a release whose notes tell
+people to `docker pull` something they might not be able to read:
+
+```sh
+docker manifest inspect ghcr.io/jaypetez/ideaforge:0.3.0   # after: docker logout ghcr.io
+```
