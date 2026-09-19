@@ -41,9 +41,15 @@
     /** Everything the app has said, in order, with when it said it. */
     spoken: [],
     cancels: 0,
-    /** Was an utterance in flight at this timestamp? The barge-in check. */
+    /**
+     * Was an utterance in flight at this timestamp? The barge-in check.
+     *
+     * Strictly inside the interval: an utterance that ended on the same millisecond a
+     * listening session began did not overlap it, and `>=` here reported every correctly
+     * sequenced speak-then-listen as a barge-in.
+     */
     speakingAt(t) {
-      return synthesis.spoken.some((u) => u.startedAt <= t && (u.endedAt === null || u.endedAt >= t));
+      return synthesis.spoken.some((u) => u.startedAt < t && (u.endedAt === null || u.endedAt > t));
     },
     said(re) {
       return synthesis.spoken.some((u) => (re instanceof RegExp ? re.test(u.text) : u.text.includes(re)));
@@ -200,6 +206,7 @@
       synthesis.spoken.push(record);
       fakeSynthesis.speaking = true;
       fakeSynthesis._live = u;
+      fakeSynthesis._record = record;
 
       // Chrome silently drops an utterance that outlasts its ~15s watchdog and never fires
       // onend. speak.js caps its own wait for exactly this; `dropUtterance` proves the cap
@@ -211,14 +218,21 @@
         record.endedAt = performance.now();
         fakeSynthesis.speaking = false;
         fakeSynthesis._live = null;
+        fakeSynthesis._record = null;
         if (u.onend) u.onend({});
       }, config.speakMs);
     },
     cancel() {
       synthesis.cancels += 1;
       const u = fakeSynthesis._live;
+      const record = fakeSynthesis._record;
       fakeSynthesis.speaking = false;
       fakeSynthesis._live = null;
+      fakeSynthesis._record = null;
+      // A cancelled utterance HAS stopped. Leaving endedAt null left it looking as though
+      // the app were still talking for the rest of the run, which made every later
+      // barge-in check fire — and speak.js cancels on entry to every call.
+      if (record && record.endedAt === null) record.endedAt = performance.now();
       // Chrome's real behaviour: the in-flight utterance errors rather than ending.
       if (u && u.onerror) u.onerror({ error: 'interrupted' });
     },
