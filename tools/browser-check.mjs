@@ -23,7 +23,13 @@ import { join } from 'node:path';
 import { ROOT, MIME, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
 
 const PROBE_DIR = join(ROOT, 'test', 'browser');
-const TIMEOUT_MS = Number(process.env.BROWSER_CHECK_TIMEOUT || 90000);
+/**
+ * Generous, because several probes are deliberately waiting out a real deadline rather than
+ * a simulated one — a behavioural liveness probe, a recording, and speak.js's watchdog cap,
+ * which scales with word count and is the longest single wait here. The suite ran at 90s
+ * against a 90s budget on the machine this was raised on, which is not a margin.
+ */
+const TIMEOUT_MS = Number(process.env.BROWSER_CHECK_TIMEOUT || 180000);
 /** The app is also served here, so probes can verify it works on a GitHub Pages subpath. */
 const SUBPATH = '/subpath-check/';
 
