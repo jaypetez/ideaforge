@@ -114,11 +114,19 @@ export function probeWebSpeech({ lang = 'en-US', force = false } = {}) {
  * is the same installed-iOS failure the file header describes, arriving a few seconds later
  * than the probe can see it.
  *
- * @param {{lang?: string, onInterim?: Function, autoStop?: boolean, deafMs?: number}} opts
+ * `isComplete` is how driving mode ends an answer on a word rather than on a pause. It is a
+ * CALLBACK rather than a trigger string so the rule itself stays in src/core/driving.js,
+ * where it is pure and unit-tested; this file only decides WHEN to consult it. The text it
+ * receives is raw, trigger included, and so is the text resolved — all stripping happens
+ * above, which keeps one definition of the rule and gives the recorder path the same one.
+ *
+ * @param {{lang?: string, onInterim?: Function, autoStop?: boolean, deafMs?: number,
+ *          isComplete?: (text: string) => boolean, settleMs?: number}} opts
  * @returns {{promise: Promise<string>, stop: Function, abort: Function}}
  */
 export function listenViaWebSpeech({
   lang = 'en-US', onInterim, autoStop = false, deafMs = DEAF_MS,
+  isComplete = null, settleMs = 600,
 } = {}) {
   const SR = Impl();
   if (!SR) throw new Error('no speech recognition in this browser');
@@ -131,12 +139,14 @@ export function listenViaWebSpeech({
 
   let settled = false;
   let deaf = null;
+  let settling = null;
 
   /** Resolve or reject exactly once, and stop watching. */
   function settle(fn) {
     if (settled) return;
     settled = true;
     clearTimeout(deaf);
+    clearTimeout(settling);
     fn();
   }
 
@@ -186,8 +196,39 @@ export function listenViaWebSpeech({
     }
     sessionText = finals;
     alive();
-    if (onInterim) onInterim((heard() + ' ' + interim).trim());
+    const full = (heard() + ' ' + interim).trim();
+    if (onInterim) onInterim(full);
+    if (isComplete) judge(full, interim === '');
   };
+
+  /**
+   * Decide whether that was the end of the answer.
+   *
+   * A final that completes it ends the capture immediately. An interim only ARMS a timer,
+   * for two reasons that happen to want the same delay:
+   *
+   *   The word might not be the end. "We went over budget" reads as complete for as long as
+   *   it takes the speaker to reach "budget", and firing on the first terminal-looking
+   *   interim truncates every answer containing the trigger mid-sentence — invisibly, to
+   *   someone watching the road.
+   *
+   *   And `stop()` resolves with settled finals only. Ending the instant a trigger appears
+   *   in an interim throws away the clause it appeared in, because the engine has not
+   *   finalised it yet. The wait is what lets it.
+   */
+  function judge(text, isFinalOnly) {
+    clearTimeout(settling);
+    if (!isComplete(text)) return;
+    if (isFinalOnly) { wantMore = false; finishNow(); return; }
+    settling = setTimeout(() => { wantMore = false; finishNow(); }, settleMs);
+  }
+
+  /** End the capture, keeping whatever the engine has flushed by the time it stops. */
+  function finishNow() {
+    try { rec.stop(); } catch { /* already stopped; onend will settle it */ }
+    // A stop that produces no onend must not strand the answer.
+    setTimeout(() => settle(() => resolve(heard())), 400);
+  }
 
   rec.onerror = (ev) => {
     alive();

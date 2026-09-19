@@ -13,6 +13,8 @@
 
 import { listenViaWebSpeech, forgetVerdict } from '../../src/voice/webspeech.js';
 import { speak, ttsSupported } from '../../src/voice/speak.js';
+import { endsWithTrigger } from '../../src/core/driving.js';
+import { createVoice } from '../../src/voice/index.js';
 
 await import('./fixtures/fake-voice.js');
 const fake = window.__FakeVoice;
@@ -98,6 +100,41 @@ export default async function run(check) {
     check('...and the answer spoken after the restart is still captured',
       resumed === 'and here it finally is', resumed);
 
+    // ── ending on a word instead of on a pause ─────────────────────────────
+    // The rule lives in core/driving.js; this checks WHEN the session consults it. The two
+    // interim cases below sit either side of settleMs on purpose and are the sharpest
+    // tests here: an implementation that fires on the first terminal-looking interim
+    // passes everything else in this file and truncates every real answer containing the
+    // trigger word.
+
+    const done = (t) => endsWithTrigger(t);
+
+    const onFinal = await within(heard([
+      { at: 10, interim: 'a tool for remembering names' },
+      { at: 40, final: 'a tool for remembering names over' },
+    ], { isComplete: done, settleMs: 300 }).promise, 3000, 'trigger on a final');
+    check('a final ending in the trigger ends the answer at once',
+      onFinal === 'a tool for remembering names over', onFinal);
+
+    // 250 -> 600 is 350ms, SHORTER than settleMs: the speaker was mid-sentence.
+    const transient = await within(heard([
+      { at: 10, interim: 'it has to work in a car' },
+      { at: 250, interim: 'it has to work in a car over' },
+      { at: 600, interim: 'it has to work in a car over the noise of the engine' },
+      { at: 900, final: 'it has to work in a car over the noise of the engine over' },
+    ], { isComplete: done, settleMs: 500 }).promise, 4000, 'a transient trigger');
+    check('a trigger that turns out to be mid-sentence does not end the answer',
+      transient === 'it has to work in a car over the noise of the engine over', transient);
+
+    // Nothing extends it, and no final ever arrives: the timer has to carry it.
+    const stalled = await within(heard([
+      { at: 10, interim: 'three seconds one thumb standing up over' },
+    ], { isComplete: done, settleMs: 300 }).promise, 4000, 'a trigger the engine never finalises');
+    check('a trigger the engine never finalises still ends the answer',
+      /three seconds one thumb standing up/.test(stalled), stalled);
+    check('...and the clause it appeared in is not thrown away',
+      /over$/.test(stalled.trim()), stalled);
+
     // ── failure ────────────────────────────────────────────────────────────
 
     // 'no-speech' means "nothing yet", not "give up" — it must not reject, and it must not
@@ -158,6 +195,58 @@ export default async function run(check) {
     setTimeout(() => thrown.abort(), 60);
     const aborted = await within(thrown.promise, 3000, 'abort()');
     check('aborting discards the capture', aborted === '', JSON.stringify(aborted));
+
+    // ── the recorder path, which has no live text ──────────────────────────
+    // A transcript only exists after the HTTP round trip, so the trigger cannot end a
+    // recording the way it ends a Web Speech session. The gate ends a SEGMENT on silence
+    // and the segments accumulate — which is what lets a driver pause to change lane. Real
+    // audio from the synthesised device, real gate, scripted transcriber.
+
+    const SHORT = { silenceMs: 400, minSpeechMs: 150, maxMs: 2500 };
+    const STT = { kind: 'groq', apiKey: 'not-a-real-key' };
+
+    async function withTranscripts(parts, fn) {
+      const real = globalThis.fetch;
+      const calls = [];
+      globalThis.fetch = async (url, init) => {
+        calls.push({ url, init });
+        const text = parts[Math.min(calls.length - 1, parts.length - 1)];
+        return { ok: true, status: 200, statusText: 'OK', headers: { get: () => null },
+          json: async () => ({ text }) };
+      };
+      try { return await fn(calls); } finally { globalThis.fetch = real; }
+    }
+
+    const byRecorder = await createVoice({ stt: STT, preferRecorder: true });
+    check('the recorder path is what is under test here', byRecorder.mode === 'recorder');
+
+    await withTranscripts(['a tool for remembering names', 'and it has to be fast over'],
+      async (calls) => {
+        const text = await byRecorder.listen({
+          isComplete: done, gate: SHORT, maxSegments: 4, prompt: 'what is the idea?',
+        });
+        check('segments accumulate until one of them ends the answer',
+          text === 'a tool for remembering names and it has to be fast over', text);
+        check('...taking exactly as many transcriptions as it needed',
+          calls.length === 2, `${calls.length} calls`);
+        // Later segments are primed with what has already been heard, which is what helps a
+        // transcriber with a name or a piece of jargon it has just met.
+        const primer = calls[1].init.body.get('prompt');
+        check('a later segment is primed with the answer so far',
+          /remembering names/.test(primer || ''), primer);
+      });
+
+    await withTranscripts(['still going'], async (calls) => {
+      const text = await byRecorder.listen({
+        isComplete: done, gate: SHORT, maxSegments: 2,
+      });
+      // A loop around a paid network call needs a ceiling it cannot talk its way past.
+      check('an answer that never finishes stops at the segment budget',
+        calls.length === 2, `${calls.length} calls`);
+      check('...and keeps what it heard rather than discarding it',
+        text === 'still going still going', text);
+    });
+    byRecorder.dispose();
 
     // ── the synthesiser ────────────────────────────────────────────────────
 
