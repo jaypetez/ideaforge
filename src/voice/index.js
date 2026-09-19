@@ -53,6 +53,66 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
 
   let recorder = null;
   let session = null;
+  let aborted = false;
+
+  /** One recording, transcribed. Resolves '' for anything too short to be an answer. */
+  async function recordOnce(opts, gate) {
+    session = { stop: () => recorder.stop(), abort: () => recorder.stop() };
+    let state = null;
+    let blob;
+    try {
+      blob = await recorder.record({
+        autoStop: opts.autoStop !== false,
+        onLevel: (rms, s) => { state = s; if (opts.onLevel) opts.onLevel(rms, s); },
+        ...(gate || {}),
+      });
+    } finally {
+      session = null;
+    }
+    // A quarter-second of nothing is a mis-tap, not an answer worth paying to transcribe.
+    if (!blob || blob.size < 1600) return { text: '', state };
+    const t = createTranscriber({
+      ...stt, language: shortLang(lang), prompt: opts.prompt || undefined,
+    });
+    return { text: await t.transcribe(blob), state };
+  }
+
+  /**
+   * Keep recording until the speaker says they are done.
+   *
+   * The recorder path has no live text — a transcript exists only after the HTTP round
+   * trip — so the trigger word cannot end a recording the way it ends a Web Speech session.
+   * Instead the gate ends a SEGMENT on silence, and the segments accumulate until one of
+   * them completes the answer. That is what lets a driver pause to change lane: the pause
+   * closes a segment, not the answer.
+   *
+   * Three independent ways out, because a loop around a paid network call needs them:
+   * the answer completes, the speaker says nothing at all into a segment, or the segment
+   * budget runs out. `heardSpeech` is checked BEFORE transcribing, so silence is never
+   * paid for.
+   */
+  async function recordUntilComplete(opts) {
+    const gate = opts.gate || {};
+    const maxSegments = opts.maxSegments || 6;
+    let text = '';
+
+    for (let seg = 0; seg < maxSegments; seg++) {
+      // Each later segment is primed with the question plus what has already been heard,
+      // which measurably helps a transcriber with names and jargon it has just met.
+      const { text: part, state } = await recordOnce(
+        { ...opts, autoStop: true, prompt: `${opts.prompt || ''} ${text}`.trim().slice(-800) },
+        gate,
+      );
+      if (aborted) break;
+      if (!state || !state.heardSpeech) break;   // nothing said: do not pay to transcribe it
+      if (!part || !part.trim()) break;          // real audio, no words: the mic is hearing noise
+
+      text = text ? `${text} ${part.trim()}` : part.trim();
+      if (opts.onInterim) opts.onInterim(text);
+      if (opts.isComplete(text)) break;
+    }
+    return text;
+  }
 
   /** Acquire the microphone once, on a user gesture, and keep it. */
   async function ensureMic() {
@@ -79,10 +139,16 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
      */
     async listen(opts = {}) {
       if (mode === 'none') throw new Error('no voice input is available in this browser');
+      aborted = false;
 
       if (mode === 'webspeech') {
         session = listenViaWebSpeech({
-          lang, onInterim: opts.onInterim, autoStop: opts.autoStop !== false,
+          lang,
+          onInterim: opts.onInterim,
+          autoStop: opts.autoStop !== false,
+          isComplete: opts.isComplete || null,
+          ...(opts.settleMs == null ? {} : { settleMs: opts.settleMs }),
+          ...(opts.deafMs == null ? {} : { deafMs: opts.deafMs }),
         });
         try {
           return await session.promise;
@@ -92,25 +158,20 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
       }
 
       await ensureMic();
-      session = { stop: () => recorder.stop(), abort: () => recorder.stop() };
-      let blob;
-      try {
-        blob = await recorder.record({ onLevel: opts.onLevel, autoStop: opts.autoStop !== false });
-      } finally {
-        session = null;
-      }
-      // A quarter-second of nothing is a mis-tap, not an answer worth paying to transcribe.
-      if (!blob || blob.size < 1600) return '';
-      const t = createTranscriber({
-        ...stt, language: shortLang(lang), prompt: opts.prompt || undefined,
-      });
-      return t.transcribe(blob);
+      // Without `isComplete` this is the press-to-talk contract: one recording, one
+      // transcription, whatever the gate decided. Unchanged.
+      if (!opts.isComplete) return recordOnce(opts);
+      return recordUntilComplete(opts);
     },
 
     /** End the current capture early and keep what was heard. */
     stop() { if (session) session.stop(); },
-    /** Throw away the current capture. */
-    abort() { if (session && session.abort) session.abort(); session = null; },
+    /** Throw away the current capture, including any segments still to come. */
+    abort() {
+      aborted = true;
+      if (session && session.abort) session.abort();
+      session = null;
+    },
 
     speak: (text, o) => speak(text, { lang, ...o }),
     cancelSpeech,
