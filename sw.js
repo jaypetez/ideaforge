@@ -42,6 +42,7 @@ const SHELL = [
   './src/providers/openaiCompat.js',
   './src/providers/artifact.js',
   './src/store/db.js',
+  './src/store/prefs.js',
   './src/store/secrets.js',
   './src/store/sessions.js',
   './src/voice/index.js',

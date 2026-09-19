@@ -134,3 +134,63 @@ export function buildExport(session, { mode = 'claude', note = null } = {}) {
 
   return parts.join('\n\n') + '\n';
 }
+
+/**
+ * The same text, said out loud.
+ *
+ * Markdown read by a speech synthesiser is punctuation soup — "hash hash Refined prompt",
+ * "star star Constraints star star" — so the markers come out and the structure is carried
+ * by sentence breaks instead, which is all a listener gets anyway.
+ *
+ * Chunked by the caller, not here: speak.js caps its own wait at thirty seconds to survive
+ * Chrome's utterance watchdog, so one long passage is abandoned mid-sentence rather than
+ * read. `speechChunks` is the other half of this.
+ */
+export function forSpeech(markdown, { maxChars = 3000 } = {}) {
+  let t = String(markdown || '');
+  t = t.replace(/```[\s\S]*?```/g, ' ');            // a code fence read aloud is noise
+  t = t.replace(/`([^`]*)`/g, '$1');
+  t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');
+  t = t.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');    // a URL is unsayable; its label is not
+  t = t.replace(/^\s{0,3}#{1,6}\s+(.*)$/gm, '$1.');  // a heading is a sentence of its own
+  t = t.replace(/^\s{0,3}>\s?/gm, '');
+  t = t.replace(/^\s{0,3}[-*+]\s+/gm, '');           // bullets become sentences
+  t = t.replace(/^\s{0,3}\d+[.)]\s+/gm, '');
+  t = t.replace(/^\s{0,3}([-*_])(\s*\1){2,}\s*$/gm, ' ');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1');
+  t = t.replace(/([*_])([^*_]+)\1/g, '$2');
+  t = t.replace(/[ \t]+/g, ' ');
+  t = t.split('\n').map((l) => l.trim()).filter(Boolean)
+    .map((l) => (/[.!?:]$/.test(l) ? l : `${l}.`))
+    .join(' ');
+  t = t.replace(/\s+([.,!?;:])/g, '$1').replace(/\.{2,}/g, '.').trim();
+
+  if (t.length <= maxChars) return t;
+  // Cut on a sentence boundary: trailing off mid-clause sounds like a crash.
+  const cut = t.slice(0, maxChars);
+  const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  return (stop > maxChars * 0.5 ? cut.slice(0, stop + 1) : cut).trim();
+}
+
+/**
+ * Split spoken text into pieces a synthesiser will actually finish.
+ *
+ * speak.js waits at most `2s + words/2.6` and gives up, because Chrome silently drops an
+ * utterance that outlasts its own watchdog. A six-hundred-word prompt read as one utterance
+ * is therefore abandoned partway through with no error — the failure this exists to avoid.
+ */
+export function speechChunks(text, { maxChars = 350 } = {}) {
+  const out = [];
+  let current = '';
+  for (const piece of String(text || '').split(/(?<=[.!?])\s+/)) {
+    if (!piece) continue;
+    if (current && (current.length + piece.length + 1) > maxChars) {
+      out.push(current);
+      current = piece;
+    } else {
+      current = current ? `${current} ${piece}` : piece;
+    }
+  }
+  if (current) out.push(current);
+  return out;
+}

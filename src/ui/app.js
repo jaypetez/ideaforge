@@ -9,9 +9,13 @@ import {
   createSession, openTurn, waiveDimension, skipQuestion, setWrapOffered,
 } from '../core/session.js';
 import { DIMENSIONS, getDimension } from '../core/dimensions.js';
-import { coveragePercent, buildExport, exportFilename } from '../core/markdown.js';
+import {
+  coveragePercent, buildExport, exportFilename, forSpeech, speechChunks,
+} from '../core/markdown.js';
 import { HARD_TURN_CEILING, wrapAdvisory, shouldOfferWrap } from '../core/engine.js';
-import { DRIVING, parseSpeech, matchAffirmation } from '../core/driving.js';
+import {
+  DRIVING, parseSpeech, matchAffirmation, normalizeTrigger, triggerWarning,
+} from '../core/driving.js';
 import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js';
 import { runSynthesis } from '../runtime/synthesize.js';
 import { createDriveLoop } from '../runtime/drive.js';
@@ -24,6 +28,7 @@ import {
   emptyKeyring, credsFor, withCreds, withStt, hasAnyKey,
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
+import { loadPrefs, savePrefs } from '../store/prefs.js';
 import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
 import { DRIVING_GATE, CONFIRM_GATE } from '../voice/vad.js';
 import { VERSION } from '../version.js';
@@ -36,6 +41,7 @@ for (const id of [
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
   'b-start', 'b-check', 'resume', 'resume-rows',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
+  'field-stopword', 'stopword', 'stopword-note',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
@@ -58,6 +64,8 @@ const state = {
   drive: null,
   /** The word that ends a spoken answer. */
   trigger: DRIVING.trigger,
+  /** Whether hands-free was on last time, restored once the voice is known to work. */
+  wantHandsFree: false,
 };
 
 const now = () => Date.now();
@@ -71,6 +79,23 @@ function show(panel) {
 function say(msg) {
   els.note.textContent = msg || '';
   els.note.hidden = !msg;
+}
+
+/**
+ * Say it and, when nobody is looking at the screen, say it out loud.
+ *
+ * Always awaited. Opening the microphone while the app is still talking means it answers
+ * its own question, and on a device with no echo cancellation the recogniser transcribes
+ * the synthesiser.
+ *
+ * `fail()` deliberately stays silent: raw provider errors read appallingly aloud
+ * ("HTTP 429 rate_limit_exceeded"), so each of those sites pairs it with an announce()
+ * written for an ear instead.
+ */
+async function announce(msg, { display = true } = {}) {
+  if (!msg) return;
+  if (display) say(msg);
+  if (state.handsFree && state.voice) await state.voice.speak(msg);
 }
 
 /**
@@ -418,6 +443,8 @@ async function nextQuestion() {
 
     if (out.error) {
       fail(`${out.error.message} — falling back to the built-in checklist for this question.`);
+      await announce('I lost the connection, so this question comes from the checklist.',
+        { display: false });
     }
     if (!out.turn) {
       await wrapUp(out.wrap === 'exhausted'
@@ -483,7 +510,10 @@ async function setupVoice() {
   }
   const on = state.voice && state.voice.available;
   els['b-mic'].hidden = !on;
-  els['handsfree-wrap'].hidden = !(on && ttsSupported());
+  const canDrive = on && ttsSupported();
+  els['handsfree-wrap'].hidden = !canDrive;
+  // A regular driver should not re-tick this every trip.
+  if (canDrive && state.wantHandsFree && !state.handsFree) setHandsFree(true);
   if (on && state.voice.mode === 'recorder') {
     // Say it once, plainly, rather than surprising anyone with a bill.
     say(`Dictation goes through ${state.voice.transcriberLabel} — roughly a penny for a whole interview.`);
@@ -624,12 +654,24 @@ function setHandsFree(on) {
 
 // ────────────────────────────────────────────────────────────── wrap-up
 
+/**
+ * Write it up, and — if the interview was being driven — read it back.
+ *
+ * The order matters. This used to tear the voice down FIRST, which is why the finished
+ * prompt could never be spoken: by the time there was something to say, there was nothing
+ * left to say it with. Now driving stops, the voice stays alive through the synthesis, and
+ * teardown is the last thing.
+ */
 async function wrapUp(note) {
-  teardownVoice();
+  const wasDriving = state.handsFree;
+  setHandsFree(false);                       // stop driving…
+  if (state.voice) state.voice.abort();      // …but keep the voice for the read-back
+
   show('panel-done');
   els['done-title'].textContent = 'Writing it up…';
   els.output.textContent = '';
   els['done-meta'].textContent = note || '';
+  if (wasDriving) await speakLong('Writing it up.');
 
   const out = await runSynthesis(state.session, { provider: state.provider, now: now() });
   warn(out);
@@ -644,6 +686,35 @@ async function wrapUp(note) {
     // transcript and open questions are never lost to a failed wrap-up.
   }
   renderDone();
+
+  if (wasDriving) await speakLong(spokenResult(out.ok));
+  teardownVoice();
+}
+
+/** What the finished interview sounds like. */
+function spokenResult(ok) {
+  const s = state.session;
+  if (!ok || !s.synthesis.text) {
+    return 'I could not write the prompt, but nothing is lost — your answers are saved '
+      + 'and the document is on screen.';
+  }
+  const title = s.title ? `${s.title}. ` : '';
+  return `Here it is. ${title}${forSpeech(s.synthesis.text)}`;
+}
+
+/**
+ * Read a long passage in pieces.
+ *
+ * Not optional: speak.js caps its own wait at `2s + words/2.6` to survive Chrome's utterance
+ * watchdog, so a six-hundred-word prompt handed over in one go is abandoned partway through
+ * with no error at all.
+ */
+async function speakLong(text) {
+  if (!state.voice || !text) return;
+  for (const chunk of speechChunks(text)) {
+    if (!state.voice) return;
+    await state.voice.speak(chunk);
+  }
 }
 
 function renderDone() {
@@ -741,6 +812,8 @@ async function renderResumeList() {
 function bind() {
   els.provider.onchange = () => { onProviderChange(); onSttChange(); };
   els.stt.onchange = onSttChange;
+  // On change, not on input: normalising every keystroke fights whoever is typing.
+  els.stopword.onchange = () => applyTrigger(els.stopword.value);
   els['b-start'].onclick = startInterview;
   els['b-mic'].onclick = async () => {
     if (!state.voice) return;
@@ -753,7 +826,10 @@ function bind() {
       if (heard.trim()) { els.answer.value = heard; state.answerSource = 'voice'; }
     } catch (e) { fail(e); }
   };
-  els.handsfree.onchange = () => setHandsFree(els.handsfree.checked);
+  els.handsfree.onchange = () => {
+    savePrefs({ handsFree: els.handsfree.checked });
+    setHandsFree(els.handsfree.checked);
+  };
   els.baseurl.oninput = onBaseChange;
   els['b-check'].onclick = async () => {
     fail(null); say('Checking…');
@@ -788,7 +864,12 @@ function bind() {
   };
   els['b-download'].onclick = download;
   els['b-new'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };
-  els['b-reopen'].onclick = async () => { show('panel-interview'); await nextQuestion(); };
+  els['b-reopen'].onclick = async () => {
+    show('panel-interview');
+    // wrapUp tore the voice down, so without this "Ask me more" has no microphone at all.
+    await setupVoice();
+    await nextQuestion();
+  };
 
   // Ctrl/Cmd+Enter sends; a plain Enter must still make a paragraph, because dictated
   // answers are long and people press Enter mid-thought.
@@ -801,8 +882,27 @@ function bind() {
   });
 }
 
+/** Read the trigger word out of the field, clean it up, and say if it looks unwise. */
+function applyTrigger(raw, { persist: write = true } = {}) {
+  state.trigger = normalizeTrigger(raw);
+  els.stopword.value = state.trigger;
+  const warning = triggerWarning(state.trigger);
+  // Advisory, never enforced. Somebody who genuinely wants "right" should be able to
+  // have it; they just deserve to be told first.
+  els['stopword-note'].textContent = warning
+    || 'Say this when you have finished an answer, and the interview moves on by itself. '
+    + 'You can also say “repeat that”, “skip this one”, '
+    + '“scratch that” or “wrap it up”.';
+  if (write) savePrefs({ trigger: state.trigger });
+}
+
 async function boot() {
   bind();
+  const prefs = loadPrefs();
+  // Synchronously, before anything can start an interview: the loop needs the word to
+  // build its matcher, and the keyring below is loaded asynchronously.
+  applyTrigger(prefs.trigger, { persist: false });
+  state.wantHandsFree = prefs.handsFree;
   try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
   if (state.creds && state.creds.stt && state.creds.stt.kind) {
     els.stt.value = state.creds.stt.kind;
