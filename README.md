@@ -297,9 +297,40 @@ running the app locally too is still the path of least resistance.
 ## Talking instead of typing
 
 Tap **Answer out loud** to dictate one answer, or turn on **hands-free** and the app reads
-each question aloud, listens, and moves on when you stop talking. Dictated answers are
-marked as such: the interviewer is told to read them for intent and never to ask you to
-clarify a mis-transcription, and the export records which answers you spoke.
+each question aloud, listens, and moves on. Dictated answers are marked as such: the
+interviewer is told to read them for intent and never to ask you to clarify a
+mis-transcription, and the export records which answers you spoke.
+
+### Doing a whole interview without touching the phone
+
+Hands-free is built for a commute. You say **&ldquo;over&rdquo;** when you have finished an
+answer, and the interview moves on by itself &mdash; a pause does not end it, so you can stop
+mid-sentence to change lane and pick the thought back up. Four other things you can say:
+
+| Say | And it |
+|---|---|
+| &ldquo;repeat that&rdquo; | reads the question again |
+| &ldquo;skip this one&rdquo; | moves on without answering |
+| &ldquo;scratch that&rdquo; | throws away what you just said and listens again |
+| &ldquo;wrap it up&rdquo; | finishes the interview and reads the prompt back to you |
+
+When there is enough material the app asks whether to write it up, and you answer yes or
+&ldquo;keep going&rdquo;. It reads the finished prompt aloud; the markdown is waiting on
+screen when you park.
+
+The finish word is a setting, because how often you say &ldquo;over&rdquo; in the middle of a
+sentence depends entirely on what your ideas are about. Pick something you rarely say; the
+app will warn you if you choose something it thinks will cut you off.
+
+**It will not stop and wait for you.** If it mishears, it says so and listens again; if it
+still cannot hear you it re-reads the question, and after that it moves on to the next one
+rather than stranding the interview. Only after several questions in a row have gone that way
+does it give up, and it tells you when it does.
+
+Two honest limits. &ldquo;Scratch that&rdquo; can only discard an answer you have not
+finished &mdash; once it is submitted the interviewer has already read it, so undoing it
+would be a fiction. And on an installed iPhone app this needs a transcription key, for the
+reason below.
 
 There are two dictation backends — the browser's own recogniser, which is free and shows
 words as you speak, and Whisper via Groq or OpenAI, which costs about a penny an interview

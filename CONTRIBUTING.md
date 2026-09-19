@@ -96,6 +96,11 @@ taken on. Worth ten minutes before a first change of any size.
 - **Voice answers are a distinct provenance.** `source: 'voice'` exempts an answer from the
   terse and dodge thresholds because dictation rambles. Chip and unedited-draft answers are
   capped at `partial` because they are the model's words, not the user's.
+- **Hands-free must never come to rest waiting for a tap.** `src/runtime/drive.js` recovers
+  from an empty capture, a recogniser error and a dead recogniser by talking to the user, and
+  the one test that matters asserts literally that no recovery mentions tapping or typing.
+  A new spoken command is a phrase list in `src/core/driving.js` plus a branch in the loop —
+  and it must yield empty answer text, or `RE_REFUSAL` will record the command as a refusal.
 
 ## Tests
 

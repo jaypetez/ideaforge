@@ -88,6 +88,7 @@ property most worth not breaking: **a failure never dead-ends an interview.**
 | There is no provider at all | `runTurn`'s null-provider branch | Checklist mode, no calls made |
 | A call was interrupted | `resumeTurn` in `src/runtime/turn.js` | The interview picks up where it stopped |
 | The wrap-up call failed | `runSynthesis` in `src/runtime/synthesize.js`, then `buildExport` in `src/core/markdown.js` | The whole document, minus the refined prompt |
+| Nothing usable was heard, hands-free | `createDriveLoop` in `src/runtime/drive.js` | It says so, listens again, and eventually moves on |
 
 Two subtleties inside that table. In `resumeTurn`, the turn id is the *correctness*
 guarantee — it is what stops the same turn being created twice — while the prompt hash is
@@ -120,14 +121,21 @@ you hit all three.
 `index.html` — the select is not data-driven. Read the voice section of
 [CLAUDE.md](../CLAUDE.md) first: this is the subsystem where feature detection lies.
 
+**A spoken command.** A phrase list in `COMMANDS` in `src/core/driving.js`, and a branch in
+`createDriveLoop` in `src/runtime/drive.js`. Nothing else: the loop's `io` is what turns the
+branch into an effect, so a new command is testable in `node --test` before the UI knows it
+exists. The split mirrors `core/synthesis.js` ↔ `runtime/synthesize.js` — pure material in
+`core/`, the orchestration that consumes it in `runtime/`.
+
 ## The costs we have accepted
 
 Each of these is a deliberate debt with a trigger for paying it down, not an oversight.
 
 **`src/ui/app.js` has no seams inside it.** One god `state` object, a flat map of element
 ids, and `show()` enumerating the panels by name. It is well sectioned and holds no
-business logic — every classification, coverage and wrap decision lives in `core/` — but it
-is the one file two people cannot comfortably work in at once.
+business logic — every classification, coverage and wrap decision lives in `core/`, and the
+hands-free sequencing now lives in `src/runtime/drive.js` — but it is still the one file two
+people cannot comfortably work in at once.
 *Trigger: a fourth panel, or a second contributor working in it concurrently.*
 
 **One interview profile is assumed throughout.** `DIMENSIONS`, `SEED_QUESTION` and the two
