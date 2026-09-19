@@ -30,10 +30,6 @@ export const DRIVING = {
    *  the end, and it gives the recogniser time to finalise — `stop()` resolves with the
    *  final text only, so firing instantly would discard the last clause. */
   settleMs: 600,
-  /** No event at all from the recogniser for this long: give up on the capture rather than
-   *  hanging. The engine that reports itself alive and then says nothing is a real platform
-   *  bug, not a hypothetical — see webspeech.js. */
-  deafMs: 6000,
   /** Consecutive captures with nothing usable before the question is re-read aloud. */
   maxMisses: 2,
 };
