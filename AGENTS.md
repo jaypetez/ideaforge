@@ -6,10 +6,13 @@ and the invariants that matter; this file covers *how to iterate on it and prove
 ## The short version
 
 ```sh
-npm test              # ~1s   — purity lint + 126 unit tests. Run constantly.
-npm run test:browser  # ~25s  — 58 checks in headless Chrome. Run before you push.
-npm run test:all      # both
-npm run screenshots   # ~35s  — only when the UI or the README changes
+npm test                            # ~1s  — purity lint + the unit suite. Run constantly.
+BROWSER_CHECK_REQUIRED=1 npm run test:browser
+                                    # ~90s — headless Chrome. Run before you push.
+npm run test:all                    # both
+npm run screenshots                 # ~35s — only when the UI or the README changes
+VALIDATE_MODE=handsfree \
+  npm run validate:local            # a real model, driven by a scripted voice
 ```
 
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or
@@ -137,6 +140,24 @@ than beside either.
 Before trusting a green run, make it fail on purpose. Point `OLLAMA_URL` at a dead port, or
 name a model that is not installed. A validator that cannot fail is not a validator.
 
+**6a · The same run, driven by voice** — `VALIDATE_MODE=handsfree npm run validate:local`
+
+The recogniser and the synthesiser are scripted; the model is still the real one. What is
+faked is how the answers arrive, never what the model does with them. Five extra claims, and
+the one that matters is the hands-free counterpart of the POST count: **the harness never
+wrote to `#answer` and never clicked `#b-send`**, asserted from a counter rather than a
+comment.
+
+Two things worth knowing before trusting it. Only one claim — that the trigger word ended
+the answer rather than joining it — actually fails when the trigger is broken: the deaf
+watchdog rescues the capture either way, so every answer still arrives, just slower and with
+the word left on the end. And `VALIDATE_MODE=both` does not exist; run the command twice.
+
+The fakes reach the page through `Page.addScriptToEvaluateOnNewDocument`, which runs before
+the app's modules and outside the page CSP — the same trick `screenshots.mjs` uses. They are
+read off disk rather than fetched, so this still works against a built container that serves
+no `/test/`.
+
 **6b · Against a paid provider** — costs money and needs a key, so it is the rung after
 that. `npm run serve`, open `http://127.0.0.1:8765`, paste a key. Groq's free tier is the
 cheapest way to exercise a hosted model. A full interview on Haiku with Groq dictation
@@ -145,6 +166,11 @@ not be.
 
 **7 · CI** — six unit legs (Linux/Windows/macOS × Node 22/24) plus the browser job. Windows
 is not decoration: two of this repo's toolchain bugs were Windows-only path handling.
+
+**`BROWSER_CHECK_REQUIRED=1` is not optional for an agent.** Without it a missing Chrome is
+a **skip that exits 0** (`browser-check.mjs`), so an unattended run reports green having
+checked nothing. It is the easiest false green in this repo, and CI sets it for the same
+reason.
 
 ## Traps that will cost you an hour
 
@@ -228,6 +254,20 @@ Every one of these has already bitten someone here.
   dropped them silently, coverage never rose, and the interview ran to the hard ceiling
   before reporting 0%. If you see coverage stuck at zero against a new model, look there
   first.
+- **A fake that is too forgiving passes against broken code.** The scripted recogniser in
+  `test/browser/fixtures/fake-voice.js` reproduces `resultIndex`, a cumulative `results` list
+  and `results[i][0].transcript` exactly, because a flat `{results:[{transcript}]}` would pass
+  happily against an accumulator that was counting clauses twice — which is a bug it found.
+  It also feeds an utterance only when `continuous` is true, so `probeWebSpeech` cannot eat
+  one, and that pins those flag assignments as a side effect.
+- **`window.speechSynthesis` cannot be assigned.** It is a readonly WebIDL attribute and
+  module code is strict, so `win.speechSynthesis = fake` throws `TypeError`. Use
+  `Object.defineProperty(win, 'speechSynthesis', { value, configurable: true })`.
+  `SpeechRecognition` and `SpeechSynthesisUtterance` *are* assignable, and that asymmetry is
+  easy to lose an hour to.
+- **A scripted model that claims no coverage triggers the exhaustion exit.** `zeroGainStreak`
+  reaches two after two turns, the engine offers the wrap-up — correctly — and the offer then
+  consumes the next scripted utterance as its yes/no. It looks exactly like a broken loop.
 - **`AbortSignal.timeout` does not hold Node's event loop open.** A test whose only pending
   work is that timer never sees it fire, and reports "promise resolution is still pending"
   instead of the timeout it was checking for. Hold the loop with an interval. Browsers have

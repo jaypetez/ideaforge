@@ -116,6 +116,41 @@ tested without a microphone. Its noise floor is a running minimum, which works b
 speech has gaps at word boundaries — that is what lets a recording opening mid-sentence
 correct itself rather than staying deaf.
 
+## Driving mode: the rules that fail silently
+
+The hands-free loop lives in `src/runtime/drive.js`, with the matching in
+`src/core/driving.js`. Both are platform-free and lint-enforced to stay that way, because
+the loop's correctness is about *sequencing* and sequencing tested through a browser is slow
+enough that the eighth failure case never gets written.
+
+- **The invariant is that it never comes to rest waiting for a tap.** An empty capture, a
+  recogniser error and a recogniser that died all `continue`. Adding a `break` or a `return`
+  to any catch in `drive.js` is how driving mode starts asking a driver to look at the
+  screen — which is what the loop it replaced did, in two places. The failure mode is a
+  *skipped question*, not a stopped app.
+- **The trigger word is terminal-only, and a command must be the whole utterance.** "Over"
+  is an ordinary word — *over budget*, *over the years* — but almost never the last one.
+  Matched anywhere it truncates answers invisibly. A command matched *inside* a sentence eats
+  the whole answer, so `"I'd skip this one if I could"` has to stay an answer.
+- **`matchCommand` returns empty text for a command**, which is what makes it structurally
+  impossible for one to reach `submitAnswer` — where `RE_REFUSAL` in `engine.js` already
+  matches "skip this" and would cap that dimension's coverage. The command would appear to
+  work and quietly damage the interview.
+- **`settleMs` is doing two jobs.** A trigger seen in an interim only arms a timer: it lets
+  "we went over budget" extend itself and prove it was not the end, *and* it gives the engine
+  time to finalise, because `stop()` resolves with settled finals only and would otherwise
+  discard the clause the trigger appeared in. The two probe cases either side of it in
+  `test/browser/driving.browser.mjs` are the sharpest tests in the suite.
+- **`speak.js` caps its own wait**, so anything long must go through `speechChunks`. A
+  six-hundred-word prompt read as one utterance is abandoned partway through by Chrome with
+  no error at all.
+- **The deaf watchdog in `webspeech.js` resolves, never rejects.** An engine that emits one
+  interim and then goes silent used to leave the promise unsettled for ever. It is the same
+  installed-iOS failure `probeWebSpeech` guards the *start* against, arriving later than the
+  probe can see.
+- **`DRIVING_GATE` numbers are first guesses against an imagined car.** The tests assert the
+  *direction* of each change from `DEFAULTS`, never the value. Only a real drive settles them.
+
 ## Providers: browser CORS facts, verified against the live APIs
 
 - **Anthropic**: the preflight only succeeds if `anthropic-dangerous-direct-browser-access`
