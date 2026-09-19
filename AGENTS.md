@@ -241,13 +241,19 @@ Every one of these has already bitten someone here.
   Nothing is lost when it does (`runSynthesis` returns `ok: false` and the export keeps the
   transcript, the open questions and the coverage table), but a validator that judges a run
   by "did an export appear" will not notice. Check for `_Not generated._`.
-- **A 7B sometimes repeats itself twice running, and one bank question is the result.**
-  `questionTripwire` rejects a question overlapping an earlier one by more than 60% of its
-  content words, `runTurn` regenerates exactly once, and a second repeat is `unfixable
-  repeat` → bank fallback. That is the app behaving correctly — it will not ask you the same
-  thing twice — but it means a four-turn run against qwen2.5:7b is green most times and
-  amber occasionally, on the model's luck rather than the code's. Seen once in two
-  consecutive runs here. Re-run before believing you broke something.
+- **A 7B trips the same tripwire twice running, and one bank question is the result.**
+  `questionTripwire` rejects a question that repeats an earlier one by more than 60% of its
+  content words, *or* that asks two things at once; `runTurn` regenerates exactly once, and a
+  second offence is `unfixable repeat` or `unfixable compound` → bank fallback. Both have
+  been seen. That is the app behaving correctly — it will not ask you the same thing twice,
+  and it will not ask you two things at once — but it means a four-turn run against
+  qwen2.5:7b is green most times and amber occasionally, on the model's luck rather than the
+  code's.
+
+  One bank question fails five claims at once, because four of them are downstream of "no
+  turn fell back to the checklist", so an amber run looks far worse than it is. Roughly one
+  run in six here, across both `VALIDATE_MODE`s. **Re-run before believing you broke
+  something**, and read the `unfixable …` warning to tell model luck from a real regression.
 - **A small model gets the coverage judgement right and the key wrong.** qwen2.5:7b returns
   `{"1": {...}}` rather than keying by dimension id. `parseTurnResult` now reads a single
   unkeyed claim as the turn's target dimension and says so in a warning; before that it
