@@ -13,7 +13,9 @@ import {
   HARD_TURN_CEILING, SOFT_TURN_CEILING,
 } from '../src/core/engine.js';
 import { buildTranscriptBlock, utf8Length, BUDGET_BYTES } from '../src/core/digest.js';
-import { buildExport, coveragePercent, slug, exportFilename } from '../src/core/markdown.js';
+import {
+  buildExport, coveragePercent, slug, exportFilename, forSpeech, speechChunks,
+} from '../src/core/markdown.js';
 
 const seed = (over = {}) => ({ id: 's_test', now: 1000, ...over });
 function withOpening(text = 'a tool that interviews you') {
@@ -477,4 +479,54 @@ test('the app version matches package.json', async () => {
     await (await import('node:fs/promises')).readFile(new URL('../package.json', import.meta.url), 'utf8')
   );
   assert.equal(VERSION, pkg.version, 'bump src/version.js and package.json together');
+});
+
+// ───────────────────────────────────────────── reading it back aloud
+
+test('forSpeech strips the markers a synthesiser would read out as words', () => {
+  const said = forSpeech([
+    '## Refined prompt',
+    '',
+    'Build a **mobile-first** tool. See [the notes](https://example.com/x) for `detail`.',
+    '',
+    '- three seconds',
+    '- one thumb',
+  ].join('\n'));
+
+  for (const marker of ['#', '**', '`', '](', 'http', '- ']) {
+    assert.ok(!said.includes(marker), `"${marker}" would be read aloud: ${said}`);
+  }
+  assert.ok(said.includes('mobile-first'), said);
+  assert.ok(said.includes('the notes'), 'a link keeps its label and loses its URL');
+  assert.ok(said.includes('three seconds.'), `a bullet becomes a sentence: ${said}`);
+});
+
+test('forSpeech drops code fences rather than spelling them out', () => {
+  const said = forSpeech('Do this:\n\n```js\nconst x = 1;\n```\n\nThen stop.');
+  assert.ok(!said.includes('const'), said);
+  assert.ok(said.includes('Then stop.'), said);
+});
+
+test('forSpeech truncates on a sentence boundary, not mid-clause', () => {
+  const long = Array.from({ length: 60 }, (_, i) => `Sentence number ${i} is here.`).join(' ');
+  const said = forSpeech(long, { maxChars: 200 });
+  assert.ok(said.length <= 200, String(said.length));
+  assert.ok(said.endsWith('.'), `trailing off mid-clause sounds like a crash: ${said}`);
+});
+
+test('speechChunks keeps every piece inside the synthesiser watchdog', () => {
+  // Chrome silently abandons an utterance that outlasts its own watchdog, so a 600-word
+  // prompt read in one go stops partway through with no error. That is what this prevents.
+  const text = forSpeech(Array.from({ length: 40 },
+    (_, i) => `This is sentence ${i} of the refined prompt.`).join(' '));
+  const chunks = speechChunks(text, { maxChars: 200 });
+
+  assert.ok(chunks.length > 1, 'it should have split at all');
+  for (const c of chunks) assert.ok(c.length <= 200, `${c.length} chars: ${c}`);
+  assert.equal(chunks.join(' '), text, 'and nothing may be lost in the splitting');
+});
+
+test('speechChunks does not drop the tail of text with no sentence breaks', () => {
+  const runOn = 'word '.repeat(200).trim();
+  assert.equal(speechChunks(runOn, { maxChars: 200 }).join(' '), runOn);
 });
