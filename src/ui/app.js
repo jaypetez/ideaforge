@@ -10,9 +10,11 @@ import {
 } from '../core/session.js';
 import { DIMENSIONS, getDimension } from '../core/dimensions.js';
 import { coveragePercent, buildExport, exportFilename } from '../core/markdown.js';
-import { HARD_TURN_CEILING, wrapAdvisory } from '../core/engine.js';
+import { HARD_TURN_CEILING, wrapAdvisory, shouldOfferWrap } from '../core/engine.js';
+import { DRIVING, parseSpeech, matchAffirmation } from '../core/driving.js';
 import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js';
 import { runSynthesis } from '../runtime/synthesize.js';
+import { createDriveLoop } from '../runtime/drive.js';
 import {
   createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback,
 } from '../providers/index.js';
@@ -23,6 +25,7 @@ import {
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
 import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
+import { DRIVING_GATE, CONFIRM_GATE } from '../voice/vad.js';
 import { VERSION } from '../version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -51,6 +54,10 @@ const state = {
   handsFree: false,
   /** True while a hands-free cycle owns the turn, so nothing else drives it. */
   cycling: false,
+  /** The running drive loop, so switching hands-free off can stop it mid-listen. */
+  drive: null,
+  /** The word that ends a spoken answer. */
+  trigger: DRIVING.trigger,
 };
 
 const now = () => Date.now();
@@ -404,7 +411,8 @@ async function nextQuestion() {
     // Decided before the save, and recorded in the same one, so a settled turn is still
     // exactly one write — and so the advisory survives a reload instead of greeting the
     // user again on resume.
-    const advisory = wrapAdvisory(out.session, out.wrap);
+    // In hands-free the loop asks rather than announces, so it owns this.
+    const advisory = state.handsFree ? null : wrapAdvisory(out.session, out.wrap);
     if (advisory) state.session = setWrapOffered(state.session, true, now());
     await persist();
 
@@ -427,6 +435,16 @@ async function nextQuestion() {
   }
   // Guarded, so the hands-free driver's own call to nextQuestion does not re-enter it.
   if (state.handsFree && !state.cycling) runHandsFree();
+}
+
+/** Give up on the open question. Both the button and the spoken command land here. */
+async function doSkip() {
+  if (!openTurn(state.session)) return;
+  state.session = skipQuestion(state.session, { now: now() });
+  els.answer.value = '';
+  say('');
+  await persist();
+  await nextQuestion();
 }
 
 /** Record an answer and ask the next question. The hands-free loop calls this directly. */
@@ -497,39 +515,79 @@ async function listenOnce({ prompt, autoStop }) {
 }
 
 /**
- * The hands-free cycle: read the question, listen, submit, repeat.
+ * Driving mode: read a question, listen, submit, repeat, without ever needing a tap.
  *
- * A single driver loop rather than a chain of callbacks, because the alternative is
- * mutual recursion between "ask" and "answer" that is one stray await away from running
- * two microphones at once. `state.cycling` is what stops nextQuestion re-entering it.
+ * The sequencing lives in src/runtime/drive.js, where it is drivable from a Node test with
+ * no browser and no microphone — which is the only reason its failure ladder has more than
+ * one case. This is the adapter: every effect the loop needs, expressed in DOM.
  */
 async function runHandsFree() {
   if (state.cycling || !state.handsFree || !state.voice) return;
   state.cycling = true;
+  state.drive = createDriveLoop({
+    speak: (text) => state.voice.speak(text),
+    listen: ({ prompt, confirm }) => listenForDriving(prompt, !!confirm),
+    openTurn: () => openTurn(state.session),
+    submit: (text) => submitAndAdvance(text, 'voice'),
+    skip: () => doSkip(),
+    wrap: () => wrapUp('Wrapped up by voice.'),
+    offerWrap: () => shouldOfferWrap(state.session),
+    // Reading it is also the moment it counts as offered, so a reload does not re-ask.
+    advisory: (reason) => {
+      const text = wrapAdvisory(state.session, reason);
+      if (text) state.session = setWrapOffered(state.session, true, now());
+      return text;
+    },
+    notify: say,
+    running: () => state.handsFree && !!state.voice,
+    config: { trigger: state.trigger },
+  });
   try {
-    while (state.handsFree && !state.busy) {
-      const turn = openTurn(state.session);
-      if (!turn) break;
-
-      await state.voice.speak(spoken(turn));
-      if (!state.handsFree) break;
-
-      let heard = '';
-      try {
-        heard = await listenOnce({ prompt: turn.question, autoStop: true });
-      } catch (e) {
-        fail(e);
-        break;
-      }
-      if (!state.handsFree) break;
-      if (!heard.trim()) {
-        say('I didn’t catch that. Type your answer, or tap the mic to try again.');
-        break;
-      }
-      await submitAndAdvance(heard, 'voice');
-    }
+    await state.drive.run();
+  } catch (e) {
+    fail(e);
   } finally {
     state.cycling = false;
+    state.drive = null;
+  }
+}
+
+/**
+ * One capture, ended by the trigger word rather than by a pause.
+ *
+ * `autoStop` is off: the engine's own endpoint is a pause, and a driver pauses to change
+ * lane. `isComplete` is what ends it instead, and it fires on a command too — someone
+ * saying "skip this one" has finished talking by definition.
+ */
+async function listenForDriving(prompt, confirm) {
+  els.listening.hidden = false;
+  els['listening-label'].textContent = confirm
+    ? 'Listening — yes, or keep going.'
+    : `Listening — say “${state.trigger}” when you’re done.`;
+  els['b-mic'].textContent = 'Stop listening';
+  const isComplete = (text) => {
+    const said = parseSpeech(text, { trigger: state.trigger });
+    if (said.stopped || said.kind !== 'answer') return true;
+    return confirm && matchAffirmation(said.text) !== null;
+  };
+  try {
+    return await state.voice.listen({
+      prompt,
+      autoStop: false,
+      isComplete,
+      settleMs: DRIVING.settleMs,
+      gate: confirm ? CONFIRM_GATE : DRIVING_GATE,
+      maxSegments: confirm ? 1 : 6,
+      onInterim: (t) => { els.answer.value = t; },
+      onLevel: (rms) => {
+        els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
+      },
+    });
+  } finally {
+    els.listening.hidden = true;
+    els['b-mic'].textContent = 'Answer out loud';
+    els.pulse.style.removeProperty('--level');
+    els.answer.value = '';
   }
 }
 
@@ -557,7 +615,8 @@ function setHandsFree(on) {
   state.handsFree = on;
   els.handsfree.checked = on;
   if (!on) {
-    if (state.voice) { state.voice.cancelSpeech(); state.voice.stop(); }
+    if (state.drive) state.drive.stop();
+    if (state.voice) { state.voice.cancelSpeech(); state.voice.abort(); }
     return;
   }
   runHandsFree();
@@ -716,11 +775,8 @@ function bind() {
   els['b-send'].onclick = () => send();
   els['b-skip'].onclick = async () => {
     if (state.busy || !openTurn(state.session)) return;
-    state.session = skipQuestion(state.session, { now: now() });
-    els.answer.value = '';
-    say('');
-    await persist();
-    await nextQuestion();
+    if (state.voice) state.voice.abort();      // a tap takes the wheel back mid-listen
+    await doSkip();
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
   els['b-settings'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };

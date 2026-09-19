@@ -12,7 +12,7 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v2';
+const CACHE = 'ideaforge-v3';
 
 const SHELL = [
   './',
@@ -31,6 +31,7 @@ const SHELL = [
   './src/core/markdown.js',
   './src/core/synthesis.js',
   './src/runtime/turn.js',
+  './src/runtime/drive.js',
   './src/runtime/gain.js',
   './src/runtime/synthesize.js',
   './src/providers/index.js',
