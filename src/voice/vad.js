@@ -11,6 +11,9 @@
 //      or a single "so…" does not count as a complete reply.
 //   3. The threshold is relative to the observed noise floor, not absolute. A phone on a
 //      train and a laptop in a quiet room do not share a number.
+//   4. Silence that never becomes speech can give up early, but only when asked to. Someone
+//      who tapped the microphone gets to think; hands-free cannot afford to, because there
+//      silence means the question was never heard by anyone.
 
 export const DEFAULTS = {
   /** Silence this long after real speech ends the answer. Dictation pauses mid-sentence,
@@ -26,6 +29,42 @@ export const DEFAULTS = {
   minThreshold: 0.008,
   /** Judge nothing until the room has been measured for this long. */
   calibrateMs: 350,
+  /** Give up if this long passes with nothing said at all. 0 disables it, which is the
+   *  press-to-talk contract: someone who opened the mic deliberately gets to think for as
+   *  long as they like. Hands-free needs the opposite — silence there means the question
+   *  was never heard, and waiting out `maxMs` is two minutes of a dead interview. */
+  noSpeechMs: 0,
+};
+
+/**
+ * A car. Broadband road noise instead of a quiet room, and a driver who stops mid-sentence
+ * to change lane.
+ *
+ * Every number is raised from DEFAULTS for the same underlying reason: the noise floor is
+ * both higher and steadier, and the pauses are longer because talking is the second task.
+ * `maxMs` is the exception and goes DOWN, because under segment accumulation one recording
+ * is no longer the whole answer — the trigger word ends the answer, not the gate.
+ *
+ * These are first guesses against an imagined car. Nothing automated can validate them;
+ * one real drive is what tunes them.
+ */
+export const DRIVING_GATE = {
+  silenceMs: 2500,
+  minSpeechMs: 900,
+  maxMs: 45000,
+  speechFactor: 2.8,
+  minThreshold: 0.012,
+  calibrateMs: 500,
+  noSpeechMs: 8000,
+};
+
+/** A yes or a no, nothing longer. Short windows throughout, because the app has just asked
+ *  a closed question and is holding the interview open waiting for one word. */
+export const CONFIRM_GATE = {
+  silenceMs: 1200,
+  minSpeechMs: 300,
+  maxMs: 8000,
+  noSpeechMs: 6000,
 };
 
 /**
@@ -80,7 +119,14 @@ export function createSilenceGate(opts = {}) {
         return 'speech';
       }
 
-      if (!heardSpeech) return 'idle';          // rule 1: nothing said yet
+      if (!heardSpeech) {
+        // rule 4: nobody is going to say anything. Latching `done` with `heardSpeech` still
+        // false is what lets the caller tell "they finished" from "they never started" —
+        // there is deliberately no fifth verdict, because recorder.js branches on 'done'
+        // and a new one would be silently ignored by every existing call site.
+        if (cfg.noSpeechMs && elapsed >= cfg.noSpeechMs) { done = true; return 'done'; }
+        return 'idle';                          // rule 1: nothing said yet
+      }
 
       if (quietSince === null) quietSince = tMs;
       if (speechMs < cfg.minSpeechMs) return 'pause';   // rule 2: too little to be an answer

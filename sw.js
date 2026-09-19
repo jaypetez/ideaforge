@@ -24,6 +24,7 @@ const SHELL = [
   './src/ui/icon.svg',
   './src/ui/icon-maskable.svg',
   './src/core/dimensions.js',
+  './src/core/driving.js',
   './src/core/session.js',
   './src/core/engine.js',
   './src/core/digest.js',

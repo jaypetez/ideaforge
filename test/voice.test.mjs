@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createSilenceGate, rmsOf, DEFAULTS } from '../src/voice/vad.js';
+import {
+  createSilenceGate, rmsOf, DEFAULTS, DRIVING_GATE, CONFIRM_GATE,
+} from '../src/voice/vad.js';
 import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from '../src/voice/transcribe.js';
 
 // ───────────────────────────────────────────────── the silence gate
@@ -95,6 +97,46 @@ test('the gate latches: once done it stays done', () => {
   const gate = createSilenceGate({ maxMs: 100 });
   drive(gate, speech(10));
   assert.equal(gate.push(0.9, 99999), 'done');
+});
+
+// ───────────────────────────────────────────── giving up on silence
+// Hands-free needs an exit the press-to-talk button must not have: there, silence means
+// the driver never heard the question, and waiting out maxMs is two dead minutes.
+
+test('by default the gate waits out silence rather than giving up', () => {
+  // Every existing caller relies on this. A driver-shaped default would make the mic
+  // button hang up on anyone who paused to think.
+  const gate = createSilenceGate();
+  const seen = drive(gate, quiet(200));                          // 10s of nothing
+  assert.ok(!seen.includes('done'), 'silence alone must not end a press-to-talk capture');
+});
+
+test('with noSpeechMs set, silence that never becomes speech gives up', () => {
+  const gate = createSilenceGate({ noSpeechMs: 800 });
+  const seen = drive(gate, quiet(40));                           // 2s of nothing
+  assert.ok(seen.includes('done'), 'the gate should have given up');
+  assert.equal(gate.state().heardSpeech, false,
+    'the caller tells "never started" from "finished" by this flag, not a new verdict');
+});
+
+test('speech before the deadline cancels the giving up', () => {
+  const gate = createSilenceGate({ noSpeechMs: 800, minSpeechMs: 300 });
+  drive(gate, quiet(10));                                        // 0.5s of room
+  drive(gate, speech(20), 50, 500);                              // 1s of talking, past 800ms
+  assert.equal(gate.state().heardSpeech, true);
+  const after = drive(gate, quiet(60), 50, 1500);                // and then a real pause
+  assert.ok(after.includes('done'), 'it ends as a normal answer, not as silence');
+  assert.equal(gate.state().heardSpeech, true, 'and it knows something was said');
+});
+
+test('the car preset is slower to cut in and quicker to give up than the desk one', () => {
+  // The direction of each change is the claim; the numbers themselves need a real drive.
+  assert.ok(DRIVING_GATE.silenceMs > DEFAULTS.silenceMs, 'a lane change is a longer pause');
+  assert.ok(DRIVING_GATE.speechFactor > DEFAULTS.speechFactor, 'road noise lifts the floor');
+  assert.ok(DRIVING_GATE.minThreshold > DEFAULTS.minThreshold);
+  assert.ok(DRIVING_GATE.maxMs < DEFAULTS.maxMs, 'a segment is not the whole answer');
+  assert.ok(DRIVING_GATE.noSpeechMs > 0, 'hands-free must be able to give up');
+  assert.ok(CONFIRM_GATE.maxMs < DRIVING_GATE.maxMs, 'a yes or no is not an answer');
 });
 
 test('rmsOf measures deviation from the 128 midpoint, not raw amplitude', () => {
