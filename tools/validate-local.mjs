@@ -20,7 +20,11 @@
 import { connect } from 'node:net';
 import { lookup } from 'node:dns/promises';
 
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { ROOT, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
+import { spokenAnswers, YES, TRIGGER } from './fixtures/spoken.mjs';
 
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 const MODEL = process.env.IDEAFORGE_MODEL || 'qwen2.5:7b-instruct';
@@ -48,6 +52,15 @@ const ALLOW_CPU = process.env.VALIDATE_ALLOW_CPU === '1';
  * built container gets validated rather than merely built.
  */
 const APP_URL = process.env.IDEAFORGE_URL || '';
+/**
+ * `typed` is the original contract and stays the default. `handsfree` drives the same
+ * interview entirely by voice, with the recogniser and synthesiser scripted and the model
+ * still real — so what is faked is how the answers arrive, never what the model does with
+ * them. Run it twice for both; a single process cannot hold two browser sessions without
+ * restructuring everything around it for no benefit.
+ */
+const MODE = process.env.VALIDATE_MODE || 'typed';
+const HANDS_FREE = MODE === 'handsfree';
 
 const ANSWERS = [
   'A tool that helps me remember the names of people I meet at conferences, because I '
@@ -486,6 +499,20 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
       pageErrors.push(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || 'error');
     });
 
+    if (HANDS_FREE) {
+      // Before the app's modules, and outside the page CSP — the same mechanism
+      // tools/screenshots.mjs uses for window.claude. Read off disk rather than fetched,
+      // so this still works when IDEAFORGE_URL points at a container that serves no /test/.
+      const fake = await readFile(join(ROOT, 'test', 'browser', 'fixtures', 'fake-voice.js'), 'utf8');
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `${fake}
+;window.__FakeVoice.install(window, ${JSON.stringify({
+          script: [...spokenAnswers(TURNS), YES],
+          speakMs: 40,
+        })});`,
+      });
+    }
+
     await cdp.send('Page.navigate', { url: appUrl });
     await app.waitFor(`document.getElementById('version').textContent`, 'the app to boot', BOOT_MS);
 
@@ -529,7 +556,8 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     await app.set('baseurl', `${OLLAMA}/v1`, 'input');
     check('the address is accepted as local', (await app.text('base-note')) === '');
 
-    await app.set('stt', 'off', 'change');
+    // The scripted recogniser IS the browser's, so the browser setting is the one to pick.
+    await app.set('stt', HANDS_FREE ? 'browser' : 'off', 'change');
     await app.click('b-check');
     await app.waitFor(
       `!/Reading the model list/.test(document.getElementById('model-note').textContent)`,
@@ -554,10 +582,30 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
 
     let banked = 0;
     let afterTurn1;
+    // The hands-free analogue of the POST count: a claim the app's own bookkeeping cannot
+    // fake, because it counts what this harness did rather than what the app reports.
+    let keyboardWrites = 0;
+
+    if (HANDS_FREE) {
+      await app.waitFor(`!document.getElementById('handsfree-wrap').hidden`,
+        'hands-free to be offered', 15000);
+      await app.eval(`(() => {
+        const el = document.getElementById('handsfree');
+        el.checked = true;
+        el.dispatchEvent(new Event('change'));
+      })()`);
+    }
+
     for (let i = 0; i < TURNS; i++) {
       const before = await app.turn();
-      await app.set('answer', ANSWERS[i % ANSWERS.length], 'input');
-      await app.click('b-send');
+      if (HANDS_FREE) {
+        // Nothing to do. The loop reads the question, the scripted recogniser answers it,
+        // and the next question arrives without this harness touching the page at all.
+      } else {
+        keyboardWrites += 1;
+        await app.set('answer', ANSWERS[i % ANSWERS.length], 'input');
+        await app.click('b-send');
+      }
       await app.waitFor(
         `document.getElementById('asking').hidden && ${JSON.stringify(before)} !== (
           (document.getElementById('turnline').textContent.match(/question (\\d+)/) || [])[1] | 0
@@ -580,10 +628,53 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     check('every question after the seed came from the model', banked === 0,
       banked ? `${banked} came from the built-in checklist` : `${TURNS} turns`);
 
+    if (HANDS_FREE) {
+      console.log('\ndriven by voice');
+      const heard = await app.eval(`window.__FakeVoice.synthesis.spoken.map((u) => u.text)`);
+      const sessions = await app.eval(`window.__FakeVoice.recognition.startCount`);
+      const stored = await app.session();
+      const answered = (stored ? stored.turns : []).filter((t) => t.answer);
+
+      check('every question was read out loud',
+        answered.every((t) => heard.some((u) => u.includes(t.question))),
+        `${heard.length} utterances for ${answered.length} answers`);
+      check('every answer was captured by voice, not typed',
+        answered.length > 0 && answered.every((t) => t.answerSource === 'voice'),
+        [...new Set(answered.map((t) => t.answerSource))].join(', '));
+      // Compared as a word rather than matched with a regex. The first version built the
+      // pattern in a template literal, where \b is a backspace character and not a word
+      // boundary, so it could never match — and a run with a deliberately wrong trigger
+      // passed this claim while every answer still ended in the trigger word.
+      //
+      // It is also the only claim here that a broken trigger would fail. The deaf watchdog
+      // rescues the capture either way, so the answer still arrives, just slower and with
+      // the word left on the end of it.
+      const lastWord = (t) => (String(t).toLowerCase().match(/[a-z0-9']+/g) || []).pop() || '';
+      check('the trigger word ended the answer rather than joining it',
+        !answered.some((t) => lastWord(t.answer) === TRIGGER.toLowerCase()),
+        JSON.stringify(answered.map((t) => t.answer.slice(-24))));
+      check('the microphone was opened for every answer',
+        sessions > answered.length, `${sessions} sessions for ${answered.length} answers`);
+    }
+
     // ── the wrap-up ─────────────────────────────────────────────────
     console.log('\nthe wrap-up');
-    await app.waitFor(`!document.getElementById('b-wrap').hidden`, 'the wrap-up button', 10000);
-    await app.click('b-wrap');
+    if (HANDS_FREE) {
+      // Said, not clicked. The loop is still listening, so the next scripted utterance is
+      // "wrap it up" arriving as an answer — which is exactly how a driver ends an
+      // interview.
+      // "wrap it up" below the four-turn floor is refused, which is the point of the floor;
+      // TURNS is 4 by default, so by here it is honoured. YES follows in case the engine
+      // offers the wrap-up itself first and the command lands on the confirm instead.
+      await app.eval(`window.__FakeVoice.script(${JSON.stringify([
+        [{ at: 120, interim: 'wrap it up' }, { at: 300, final: 'wrap it up' }],
+        YES,
+      ])})`);
+    } else {
+      keyboardWrites += 1;
+      await app.waitFor(`!document.getElementById('b-wrap').hidden`, 'the wrap-up button', 10000);
+      await app.click('b-wrap');
+    }
     await app.waitFor(
       `document.getElementById('done-title').textContent !== 'Writing it up…'`,
       'the synthesis', TURN_MS,
@@ -628,6 +719,15 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     check('the stored session records every question as the model’s',
       sources.length > 1 && sources[0] === 'seed' && sources.slice(1).every((x) => x === 'model'),
       sources.join(','));
+
+    // The hands-free counterpart of the POST count, and the same kind of claim: it counts
+    // what this harness did rather than what the app says happened. Asserted from a counter
+    // rather than from a comment, because a future edit that quietly types one answer would
+    // leave a comment saying "no keyboard" perfectly intact.
+    if (HANDS_FREE) {
+      check('the harness never touched the keyboard', keyboardWrites === 0,
+        `${keyboardWrites} writes to #answer or clicks on #b-send`);
+    }
 
     // The claim that cannot be faked by the app's own bookkeeping: what left the browser.
     // At least one call per model-sourced question plus the synthesis — more is fine and
