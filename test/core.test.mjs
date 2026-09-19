@@ -5,10 +5,12 @@ import { DIMENSION_IDS, SEED_QUESTION } from '../src/core/dimensions.js';
 import {
   createSession, askQuestion, answerQuestion, applyCoverage, addFacts,
   waiveDimension, deferDimension, migrate, openTurn, isLowConfidence, setDraftText,
+  setWrapOffered,
 } from '../src/core/session.js';
 import {
   classifyAnswer, selectNextDimension, legalMoves, buildTurnPrompt, promptHash,
-  parseTurnResult, questionTripwire, isReadyToWrap, shouldOfferWrap, HARD_TURN_CEILING,
+  parseTurnResult, questionTripwire, isReadyToWrap, shouldOfferWrap, wrapAdvisory,
+  HARD_TURN_CEILING, SOFT_TURN_CEILING,
 } from '../src/core/engine.js';
 import { buildTranscriptBlock, utf8Length, BUDGET_BYTES } from '../src/core/digest.js';
 import { buildExport, coveragePercent, slug, exportFilename } from '../src/core/markdown.js';
@@ -290,6 +292,40 @@ test('the interview always terminates at the hard ceiling', () => {
 test('two zero-gain turns offer the exit', () => {
   const s = { ...withOpening(), zeroGainStreak: 2 };
   assert.equal(shouldOfferWrap(s), 'exhausted');
+});
+
+test('the wrap advisory is given once and then never again', () => {
+  // It used to repeat on every remaining turn, because `setWrapOffered` was exported and
+  // called from nowhere, so the caller's `!session.wrapOffered` guard always passed. On
+  // screen that is a line nobody notices; read aloud it announces the interview is over
+  // after every single answer.
+  const s = withOpening();
+  assert.ok(wrapAdvisory(s, 'coverage'), 'the first time, it should say so');
+
+  const told = setWrapOffered(s, true, 1);
+  assert.equal(wrapAdvisory(told, 'coverage'), null, 'the second time, silence');
+  // Not even as the reason escalates — the hard ceiling ends the interview by itself.
+  assert.equal(wrapAdvisory(told, 'soft_ceiling'), null);
+  assert.equal(wrapAdvisory(told, 'hard_ceiling'), null);
+});
+
+test('the wrap advisory says nothing when there is no reason to', () => {
+  const s = withOpening();
+  assert.equal(wrapAdvisory(s, null), null);
+  assert.equal(wrapAdvisory(s, 'not_a_reason'), null);
+});
+
+test('the wrap advisory quotes the ceiling rather than restating it', () => {
+  // The number lives in engine.js. A hardcoded 18 in the sentence is a lie waiting to
+  // happen, which is why the UI used to import SOFT_TURN_CEILING just to format this.
+  assert.match(wrapAdvisory(withOpening(), 'soft_ceiling'), new RegExp(`${SOFT_TURN_CEILING}`));
+});
+
+test('a reopened session is told once more, because it is a new decision', () => {
+  // `reopen` clears the flag: after "Ask me more", reaching coverage again is news.
+  const told = setWrapOffered(withOpening(), true, 1);
+  assert.equal(wrapAdvisory(migrate(JSON.parse(JSON.stringify(told))), 'coverage'), null,
+    'and it survives a round trip through storage, so a reload does not re-announce');
 });
 
 test('isReadyToWrap needs every probing dimension at least partial', () => {

@@ -5,10 +5,12 @@
 // changes in a standalone home-screen app (bug 215884), and phase 3 puts a live mic in
 // this page — so panels are toggled with `hidden` and the URL never moves.
 
-import { createSession, openTurn, waiveDimension, skipQuestion } from '../core/session.js';
+import {
+  createSession, openTurn, waiveDimension, skipQuestion, setWrapOffered,
+} from '../core/session.js';
 import { DIMENSIONS, getDimension } from '../core/dimensions.js';
 import { coveragePercent, buildExport, exportFilename } from '../core/markdown.js';
-import { SOFT_TURN_CEILING, HARD_TURN_CEILING } from '../core/engine.js';
+import { HARD_TURN_CEILING, wrapAdvisory } from '../core/engine.js';
 import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js';
 import { runSynthesis } from '../runtime/synthesize.js';
 import {
@@ -399,6 +401,11 @@ async function nextQuestion() {
     const out = await runTurn(state.session, { provider: state.provider, now: now() });
     warn(out);
     state.session = out.session;
+    // Decided before the save, and recorded in the same one, so a settled turn is still
+    // exactly one write — and so the advisory survives a reload instead of greeting the
+    // user again on resume.
+    const advisory = wrapAdvisory(out.session, out.wrap);
+    if (advisory) state.session = setWrapOffered(state.session, true, now());
     await persist();
 
     if (out.error) {
@@ -411,9 +418,7 @@ async function nextQuestion() {
       return;
     }
     render();
-    if (out.wrap && !state.session.wrapOffered) {
-      say(wrapMessage(out.wrap));
-    }
+    if (advisory) say(advisory);
     els.answer.focus();
   } catch (e) {
     fail(e);
@@ -422,14 +427,6 @@ async function nextQuestion() {
   }
   // Guarded, so the hands-free driver's own call to nextQuestion does not re-enter it.
   if (state.handsFree && !state.cycling) runHandsFree();
-}
-
-function wrapMessage(reason) {
-  if (reason === 'coverage') return 'There is enough here to write it up whenever you like.';
-  if (reason === 'exhausted') return 'The last couple of answers did not add much — worth wrapping up.';
-  if (reason === 'soft_ceiling') return `That is ${SOFT_TURN_CEILING} questions. Wrap up whenever you like.`;
-  if (reason === 'hard_ceiling') return 'That is the last question.';
-  return '';
 }
 
 /** Record an answer and ask the next question. The hands-free loop calls this directly. */

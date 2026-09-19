@@ -107,6 +107,31 @@ export function shouldOfferWrap(session) {
   return null;
 }
 
+const WRAP_ADVISORY = {
+  coverage:     'There is enough here to write it up whenever you like.',
+  exhausted:    'The last couple of answers did not add much — worth wrapping up.',
+  soft_ceiling: `That is ${SOFT_TURN_CEILING} questions. Wrap up whenever you like.`,
+  hard_ceiling: 'That is the last question.',
+};
+
+/**
+ * What to say when the interview is ready to end — or null, if it has been said already.
+ *
+ * The sentence and the "have we said it" check live together on purpose. They were apart,
+ * with `setWrapOffered` exported and called from nowhere, so the flag was never set, the
+ * caller's guard always passed, and the advisory repeated on every remaining turn. On
+ * screen that is a line nobody notices; read aloud it is the app announcing the interview
+ * is finished after every single answer.
+ *
+ * A single flag means it is never re-offered as the reason escalates coverage →
+ * soft_ceiling → hard_ceiling. That is deliberate: at HARD_TURN_CEILING `runTurn` returns
+ * no turn at all and the caller wraps up unconditionally, so nothing can run forever.
+ */
+export function wrapAdvisory(session, reason) {
+  if (!reason || (session && session.wrapOffered)) return null;
+  return WRAP_ADVISORY[reason] || null;
+}
+
 // ──────────────────────────────────────────────────────── move policy
 // The engine narrows to a legal set; the model picks one and names it.
 // Left to itself a model collapses onto two comfortable moves within ~4 turns.
