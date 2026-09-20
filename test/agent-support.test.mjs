@@ -266,7 +266,7 @@ function checkDeliveryGates(md, label) {
         `${label}: delivery must push the tested HEAD: ${push}`);
     }
     const browser = lines.findIndex((line) => /\bnpm run test:(?:browser|all)\b/.test(line));
-    if (browser < 0) continue;
+    assert.ok(browser >= 0, `${label}: delivery block has no full-suite command`);
     const push = lines.findIndex((line) => /^git push\b/.test(line));
     assert.ok(browser < push, `${label}: delivery pushes before validation`);
     checked++;
@@ -527,6 +527,9 @@ test('agent guidance never permits a missing browser to look green', () => {
   assert.throws(() => checkDeliveryGates(
     '```sh\ngit push -u origin HEAD &&\nnpm run test:all\n```\n',
     'fixture'), /pushes before validation/);
+  assert.throws(() => checkDeliveryGates(
+    '```sh\ngit push -u origin HEAD\n```\n',
+    'fixture'), /no full-suite command/);
 });
 
 test('personal assistant settings stay out of the repository', () => {
