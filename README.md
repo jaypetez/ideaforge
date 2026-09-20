@@ -361,15 +361,19 @@ engine portable and the turn loop testable without a network — the whole suite
 a second, with no mocking framework and no network access.
 
 ```sh
-npm test             # the purity lint, then 161 tests
-npm run test:browser # 69 checks in real Chrome, for what Node cannot see
-npm run validate:local # a whole interview against a real local model, no key, no human
-npm run screenshots  # regenerate every image and the worked example above
+npm test              # the purity lint, then 229 tests
+npm run test:graph    # syntax-check the source and import every platform-free module
+npm run test:browser  # 123 checks in real Chrome, for what Node cannot see
+npm run test:all      # all three gates above
+npm run validate:local  # a whole interview against a real local model, no key, no human
+npm run screenshots   # regenerate every image and the worked example above
 ```
 
 The browser checks exist because IndexedDB, non-extractable WebCrypto keys, MediaRecorder,
 the Web Speech API, service workers and the CSP have no Node equivalent, and code that
-touches them can be perfectly green in `npm test` and broken in a browser.
+touches them can be perfectly green in `npm test` and broken in a browser. They assemble the
+same publishable tree Pages receives before opening it, so a missing shipped file cannot hide
+behind the fuller repository checkout.
 
 ## What it does when things break
 

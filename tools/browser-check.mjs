@@ -2,8 +2,8 @@
 //
 // IndexedDB, WebCrypto non-extractable keys, MediaRecorder, the Web Speech API, service
 // workers and the Content-Security-Policy only exist in a browser. `npm test` cannot see
-// any of them, so this harness serves the repo, runs every probe under test/browser/ in
-// headless Chrome, and collects the results.
+// any of them, so this harness serves the assembled site tree, keeps the probes on the repo
+// tree, runs every probe under test/browser/ in headless Chrome, and collects the results.
 //
 // Two deliberate choices, both learned the hard way:
 //
@@ -18,9 +18,11 @@
 // Chrome discovery, the static server and the temp profile are shared with
 // tools/screenshots.mjs and live in tools/lib/harness.mjs.
 
-import { readdir } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { ROOT, MIME, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
+import { assembleSite } from './assemble-site.mjs';
 
 const PROBE_DIR = join(ROOT, 'test', 'browser');
 /**
@@ -30,6 +32,7 @@ const PROBE_DIR = join(ROOT, 'test', 'browser');
  * against a 90s budget on the machine this was raised on, which is not a margin.
  */
 const TIMEOUT_MS = Number(process.env.BROWSER_CHECK_TIMEOUT || 180000);
+const REQUIRED = process.argv.includes('--required') || Boolean(process.env.BROWSER_CHECK_REQUIRED);
 /** The app is also served here, so probes can verify it works on a GitHub Pages subpath. */
 const SUBPATH = '/subpath-check/';
 
@@ -72,8 +75,9 @@ function runnerHtml(probes) {
   ].join('\n');
 }
 
-async function serve(probes, onResults) {
+async function serve(probes, siteRoot, onResults) {
   return serveRepo({
+    root: siteRoot,
     async before(req, res, url) {
       let path = decodeURIComponent(url.pathname);
 
@@ -85,10 +89,14 @@ async function serve(probes, onResults) {
         return { handled: true };
       }
 
+      if (path.startsWith('/test/browser/')) return { path, root: ROOT };
+
       const onSubpath = path.startsWith(SUBPATH);
       if (onSubpath) path = path.slice(SUBPATH.length - 1);
       if (path === '/__run.html') {
-        res.writeHead(200, { 'content-type': MIME['.html'] }).end(runnerHtml(probes));
+        const only = url.searchParams.get('probe');
+        const selected = only ? probes.filter((name) => name === only) : probes;
+        res.writeHead(200, { 'content-type': MIME['.html'] }).end(runnerHtml(selected));
         return { handled: true };
       }
       return { path, swScope: onSubpath ? SUBPATH : '/' };
@@ -108,49 +116,73 @@ async function main() {
     // Locally this is a skip, so a contributor without Chrome can still run everything
     // else. In CI it is a failure: a check that silently skips is a false green, which is
     // worse than having no check at all.
-    if (process.env.BROWSER_CHECK_REQUIRED) {
-      console.error('no Chrome found, and BROWSER_CHECK_REQUIRED is set');
+    if (REQUIRED) {
+      console.error('no Chrome found, and browser checks are required');
       return 1;
     }
     console.log('SKIP browser checks - no Chrome found. Set CHROME_PATH to run them.');
     return 0;
   }
 
-  let resolveResults;
-  const results = new Promise((r) => { resolveResults = r; });
-  const server = await serve(probes, (payload) => resolveResults(payload));
-  const { port } = server.address();
+  let server = null;
+  let siteDir = null;
+  let postResults = null;
+  /** @type {Array<{probe: string, name: string, ok: boolean, detail: string}>} */
+  const allResults = [];
 
-  const browser = launchChrome(chrome, {
-    url: 'http://127.0.0.1:' + port + '/__run.html',
-    // Grant and synthesise a microphone so the recorder and the silence gate run for real.
-    extraArgs: [
-      '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
-      '--autoplay-policy=no-user-gesture-required',
-    ],
-  });
+  try {
+    siteDir = await mkdtemp(join(tmpdir(), 'ideaforge-browser-site-'));
+    await assembleSite({ outDir: siteDir, clean: false });
+    server = await serve(probes, siteDir, (posted) => postResults?.(posted));
+    const { port } = server.address();
 
-  const payload = await Promise.race([
-    results,
-    new Promise((r) => setTimeout(() => r(null), TIMEOUT_MS)),
-  ]);
+    for (const probe of probes) {
+      let resolveResults;
+      const results = new Promise((r) => { resolveResults = r; });
+      let browser = null;
+      postResults = resolveResults;
 
-  browser.kill();
-  server.close();
+      try {
+        browser = launchChrome(chrome, {
+          url: 'http://127.0.0.1:' + port + '/__run.html?probe=' + encodeURIComponent(probe),
+          // Grant and synthesise a microphone so the recorder and the silence gate run for real.
+          extraArgs: [
+            '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
+            '--autoplay-policy=no-user-gesture-required',
+          ],
+        });
 
-  if (!payload) {
-    console.error('browser checks TIMED OUT after ' + TIMEOUT_MS + 'ms - nothing was posted');
-    return 1;
+        const payload = await Promise.race([
+          results,
+          new Promise((r) => setTimeout(() => r(null), TIMEOUT_MS)),
+        ]);
+
+        if (!payload) {
+          console.error('browser checks TIMED OUT after ' + TIMEOUT_MS + 'ms while running ' + probe);
+          return 1;
+        }
+        allResults.push(...payload.results);
+      } finally {
+        postResults = null;
+        browser?.kill();
+      }
+    }
+  } finally {
+    await new Promise((resolve) => {
+      if (!server) return resolve();
+      server.close(() => resolve());
+    });
+    if (siteDir) await rm(siteDir, { recursive: true, force: true });
   }
 
   let failed = 0;
   let lastProbe = '';
-  for (const r of payload.results) {
+  for (const r of allResults) {
     if (r.probe !== lastProbe) { console.log('\n' + r.probe); lastProbe = r.probe; }
     if (r.ok) console.log('  ok    ' + r.name + (r.detail ? '  (' + r.detail + ')' : ''));
     else { failed++; console.log('  FAIL  ' + r.name + '  ' + r.detail); }
   }
-  console.log('\n' + payload.results.length + ' checks, ' + failed + ' failed');
+  console.log('\n' + allResults.length + ' checks, ' + failed + ' failed');
   return failed ? 1 : 0;
 }
 

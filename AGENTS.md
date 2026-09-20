@@ -7,9 +7,10 @@ and the invariants that matter; this file covers *how to iterate on it and prove
 
 ```sh
 npm test                            # ~1s  — purity lint + the unit suite. Run constantly.
+npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
 BROWSER_CHECK_REQUIRED=1 npm run test:browser
-                                    # ~90s — headless Chrome. Run before you push.
-npm run test:all                    # both
+                                    # ~90s — headless Chrome on the assembled site tree.
+npm run test:all                    # unit + graph + browser; missing Chrome is a failure.
 npm run screenshots                 # ~35s — only when the UI or the README changes
 VALIDATE_MODE=handsfree \
   npm run validate:local            # a real model, driven by a scripted voice
@@ -42,13 +43,12 @@ Everything here runs with no network and no real timers: HTTP goes through an in
 seems to need a real clock or a real socket to test, that is a design signal — the thing
 under test probably wants its dependency injected instead.
 
-**3 · Module graph** — catches a broken import that no test happens to cover:
+**3 · Module graph — `npm run test:graph`**
 ```sh
-for f in $(find src -name '*.js'); do node --check "$f" || echo "FAIL $f"; done
-node --input-type=module -e "await import('./src/providers/index.js'); \
-  await import('./src/runtime/turn.js'); await import('./src/store/db.js'); \
-  console.log('graph resolves')"
+npm run test:graph
 ```
+This runs `tools/check-module-graph.mjs`: `node --check` over every file under `src/`,
+plus `sw.js`, then live imports every JavaScript module except `src/ui/app.js`.
 `src/ui/app.js` cannot be imported in Node — it touches the DOM at module scope. Rung 5
 covers it.
 
@@ -72,9 +72,11 @@ fake's `coverage` claims to exercise the ratchet; give it repetitive question wo
 exercise the tripwires.
 
 **5 · Browser checks — `npm run test:browser`**
-The rung that covers everything Node cannot see. `tools/browser-check.mjs` serves the repo,
-runs every `test/browser/*.browser.mjs` probe in headless Chrome with a synthesised
-microphone, and reports back over HTTP.
+The rung that covers everything Node cannot see. `tools/browser-check.mjs` first calls
+`assembleSite` in `tools/assemble-site.mjs`, which copies the canonical publishable tree
+into a scratch directory — packaging only, not a build step — then serves that tree while
+loading every `test/browser/*.browser.mjs` probe from the repository in headless Chrome
+with a synthesised microphone and reporting back over HTTP.
 
 Add a probe by dropping a file in `test/browser/`:
 ```js
@@ -164,8 +166,9 @@ cheapest way to exercise a hosted model. A full interview on Haiku with Groq dic
 should land around 10–20 cents; wildly more means something is re-sending context it should
 not be.
 
-**7 · CI** — six unit legs (Linux/Windows/macOS × Node 22/24) plus the browser job. Windows
-is not decoration: two of this repo's toolchain bugs were Windows-only path handling.
+**7 · CI** — six Node legs (Linux/Windows/macOS × Node 22/24), each running `npm test`
+and `npm run test:graph`, plus the browser job. Windows is not decoration: two of this
+repo's toolchain bugs were Windows-only path handling.
 
 **`BROWSER_CHECK_REQUIRED=1` is not optional for an agent.** Without it a missing Chrome is
 a **skip that exits 0** (`browser-check.mjs`), so an unattended run reports green having
@@ -317,9 +320,14 @@ gh pr checks --watch
 gh pr merge --squash --delete-branch
 ```
 
-Releases are tag-driven: `v*.*.*` builds archives with `git archive`, plus `SHA256SUMS`. The
-workflow refuses to publish if the tag, `package.json` and `src/version.js` disagree, so bump
-all three together.
+Pages deployment is separate and stricter than "a merge happened". `.github/workflows/pages.yml`
+only runs after a successful `CI` workflow run for a push to `main`, then refuses to publish
+unless that tested SHA is still the exact tip of `main`.
+
+Releases are tag-driven. A `v*.*.*` tag first runs a read-only `verify` job that checks the
+version triplet, proves the tag is contained in `main`, and reruns the full ladder with
+`npm run test:all`. Only then does the write-enabled release job build the archives with
+`git archive`, plus `SHA256SUMS`.
 
 ## What a good change looks like here
 

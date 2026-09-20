@@ -451,6 +451,7 @@ test('migrate round-trips a stored session and rejects future schemas', () => {
   assert.equal(restored.coverage.outcome.gap, 'no length given');
   assert.equal(migrate({ schema: 99 }), null);
   assert.equal(migrate(null), null);
+  assert.equal(migrate([]), null);
 });
 
 test('migrate backfills dimensions added since the session was stored', () => {
@@ -459,6 +460,39 @@ test('migrate backfills dimensions added since the session was stored', () => {
   assert.ok(DIMENSION_IDS.every((id) => m.coverage[id]), 'every dimension must be present');
   assert.equal(m.coverage.outcome.level, 'partial');
   assert.equal(m.coverage.voice.level, 'thin');
+});
+
+test('migrate repairs malformed persisted containers before the session is used', () => {
+  const m = migrate({
+    schema: 1,
+    id: 's_damaged',
+    turns: [null, 'not a turn', {
+      id: 't1', n: 1, question: 'What is the idea?', dimension: 'outcome',
+      answer: '', skipped: false, chips: 'not an array',
+    }],
+    facts: [null, { dimension: 'outcome', fact: 'It runs in a browser.' }],
+    moveHistory: { bad: true },
+    openQuestions: 'not an array',
+    pending: ['not', 'an', 'object'],
+    coverage: { outcome: 'not an object' },
+    synthesis: { text: '', assumptions: 'not an array' },
+    meta: 'not an object',
+  });
+
+  assert.equal(m.turns.length, 1);
+  assert.deepEqual(m.turns[0].chips, []);
+  assert.deepEqual(m.facts, [{ dimension: 'outcome', fact: 'It runs in a browser.' }]);
+  assert.deepEqual(m.moveHistory, []);
+  assert.deepEqual(m.openQuestions, []);
+  assert.equal(m.pending, null);
+  assert.equal(m.coverage.outcome.level, 'thin');
+  assert.deepEqual(m.synthesis.assumptions, []);
+  assert.deepEqual(m.meta, { device: 'desktop' });
+  assert.equal(openTurn(m).question, 'What is the idea?');
+
+  const answered = answerQuestion(m, { text: 'A browser tool that refines an idea.', now: 5 });
+  assert.doesNotThrow(() => buildExport(answered));
+  assert.ok(selectNextDimension(answered));
 });
 
 test('tripwire catches short compound questions, but not legitimate "and" clauses', () => {

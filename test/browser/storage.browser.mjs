@@ -9,20 +9,55 @@ import { seedTurn, submitAnswer, runTurn } from '../../src/runtime/turn.js';
 import { runSynthesis } from '../../src/runtime/synthesize.js';
 import { buildExport } from '../../src/core/markdown.js';
 import { loadPrefs, savePrefs } from '../../src/store/prefs.js';
+import { openDb } from '../../src/store/db.js';
 
 const SECRET = 'gsk_this_value_must_never_appear_at_rest';
+const DB_NAME = 'ideaforge';
+const DB_DEADLINE_MS = 4000;
+
+function within(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`timed out: ${label}`)), ms)),
+  ]);
+}
 
 /** Read a raw record straight out of IndexedDB, behind the store module's back. */
 function rawRecord(key) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('ideaforge');
     req.onsuccess = () => {
-      const tx = req.result.transaction('secrets', 'readonly');
+      const db = req.result;
+      const tx = db.transaction('secrets', 'readonly');
       const get = tx.objectStore('secrets').get(key);
       get.onsuccess = () => resolve(get.result);
       get.onerror = () => reject(get.error);
+      // This helper peeks behind the store module's back. Closing the throwaway connection
+      // here is what keeps the later upgrade probe deterministic rather than depending on
+      // when the browser happens to GC an unreachable IDBDatabase.
+      tx.oncomplete = () => db.close();
+      tx.onabort = tx.onerror = () => db.close();
     };
     req.onerror = () => reject(req.error);
+  });
+}
+
+function deleteDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('database delete stayed blocked'));
+  });
+}
+
+function openRaw(version) {
+  return new Promise((resolve, reject) => {
+    let blocked = false;
+    const req = indexedDB.open(DB_NAME, version);
+    req.onsuccess = () => resolve({ db: req.result, blocked });
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => { blocked = true; };
   });
 }
 
@@ -131,6 +166,29 @@ export default async function run(check) {
   check('forgetting the API key leaves the finish word alone',
     loadPrefs().trigger === 'finished', loadPrefs().trigger);
 
+  // ── upgrades and recovery ────────────────────────────────────────────────
+  let sawVersionchange = false;
+  const live = await openDb();
+  live.addEventListener('versionchange', () => { sawVersionchange = true; }, { once: true });
+
+  const upgraded = await within(openRaw(2), DB_DEADLINE_MS, 'database upgrade');
+  check('an upgrade request makes the memoized connection close itself',
+    sawVersionchange && upgraded.db.version === 2,
+    `versionchange=${sawVersionchange}, blocked=${upgraded.blocked}, v${upgraded.db.version}`);
+  upgraded.db.close();
+
+  let failed = null;
+  await within(openDb().catch((err) => { failed = err; }), DB_DEADLINE_MS, 'failed reopen after upgrade');
+  check('a failed open is surfaced instead of poisoning future retries',
+    failed && failed.name === 'VersionError', failed && `${failed.name}: ${failed.message}`);
+
+  await within(deleteDb(), DB_DEADLINE_MS, 'delete upgraded database');
+  const reopened = await within(openDb(), DB_DEADLINE_MS, 'reopen after delete');
+  check('after that failure, openDb can recover once the database is recreated',
+    reopened.version === 1, `v${reopened.version}`);
+
+  await clearCredentials();
+  await within(deleteDb(), DB_DEADLINE_MS, 'final database cleanup');
   try { localStorage.removeItem('ideaforge.prefs'); } catch { /* nothing to clean */ }
   check('an unset preference falls back rather than coming back undefined',
     loadPrefs().trigger === '' && loadPrefs().handsFree === false);

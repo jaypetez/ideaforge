@@ -46,10 +46,23 @@ accident:
   keeps a supply chain out of an app holding the user's API key. `.github/workflows/ci.yml`
   has no install step for the same reason: the npm registry is not in this pipeline's
   trust boundary.
-- **No build step.** The tree that ships is the tree in git, which is what lets
+- **No build step.** The tree that ships is the tree in git. `assembleSite` in
+  `tools/assemble-site.mjs` only copies the publishable files into a directory for browser
+  tests and Pages; it does not compile, bundle or rewrite anything. That is what lets
   `.github/workflows/release.yml` produce a byte-stable archive anyone can reproduce.
 - **No `CHANGELOG.md`.** Release notes are generated from PR labels via
   `.github/release.yml`, so an unlabelled PR lands under "Everything else" for good.
+
+That split is deliberate in the delivery pipeline too. `serve` in `tools/browser-check.mjs`
+mounts the assembled site as the app under test and serves `test/browser/` from the
+repository root, so probes stay test-only while the browser sees the same tree Pages will
+publish.
+
+The publishing workflows defend against shipping the wrong tree. `.github/workflows/pages.yml`
+only runs after a successful `CI` workflow run for a push to `main`, then re-checks that the
+tested SHA is still the exact tip of `main` before deploying. `.github/workflows/release.yml`
+puts a read-only `verify` job — version triplet, `main` ancestry, full `npm run test:all`
+ladder — in front of the write-enabled release job.
 
 ## What owns the session
 

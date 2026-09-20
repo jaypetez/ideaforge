@@ -16,19 +16,22 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { OPENAI_COMPAT_PRESETS } from '../src/providers/openaiCompat.js';
 import { STT_PRESETS } from '../src/voice/transcribe.js';
 import { isLoopback } from '../src/providers/http.js';
+import { assembleSite, ROOT_DIRS, ROOT_FILES } from '../tools/assemble-site.mjs';
 
 // fileURLToPath, not .pathname: on Windows the latter yields /C:/... and readdirSync then
 // resolves it to C:\C:\... and throws. The purity linter learned this the hard way.
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SW = readFileSync(join(ROOT, 'sw.js'), 'utf8');
 const INDEX = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const DOCKERFILE = readFileSync(join(ROOT, 'docker', 'Dockerfile.app'), 'utf8');
 
 /** Every file under src/ the browser would actually load. */
 function sourceFiles(dir = 'src') {
@@ -92,4 +95,54 @@ test('the CSP permits a local server on any port, not two hardcoded ones', () =>
   // thing standing between a stored API key and a script that wants to post it away.
   assert.ok(!/https:\/\/\*/.test(directive), 'connect-src must not wildcard remote hosts');
   assert.ok(!/\s\*[\s;]/.test(directive), 'connect-src must not contain a bare wildcard');
+});
+
+function tree(dir, base = dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const file = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...tree(file, base));
+    else out.push(file.slice(base.length + 1).replace(/\\/g, '/'));
+  }
+  return out.sort();
+}
+
+test('the assembled site contains exactly the publishable tree', async () => {
+  const expected = [
+    ...ROOT_FILES,
+    ...ROOT_DIRS.flatMap((dir) => tree(join(ROOT, dir)).map((file) => `${dir}/${file}`)),
+  ].sort();
+  const outDir = mkdtempSync(join(tmpdir(), 'ideaforge-site-test-'));
+
+  try {
+    const written = await assembleSite({ root: ROOT, outDir, clean: false });
+    const actual = tree(outDir);
+
+    assert.deepEqual(written, expected);
+    assert.deepEqual(actual, expected);
+    assert.ok(actual.includes('index.html'));
+    assert.ok(actual.includes('manifest.webmanifest'));
+    assert.ok(actual.includes('sw.js'));
+    assert.ok(actual.includes('LICENSE'));
+    assert.ok(actual.includes('src/ui/app.js'));
+    assert.ok(actual.includes('src/version.js'));
+    assert.ok(!actual.some((file) => file.startsWith('test/')), 'test files must not ship');
+    assert.ok(!actual.some((file) => file.startsWith('docs/')), 'docs must not ship');
+    assert.ok(!actual.some((file) => /\.test\.mjs$/.test(file)), 'test modules must not ship');
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test('the container copies the same publishable roots as the site assembler', () => {
+  const copyLines = DOCKERFILE.split(/\r?\n/).filter((line) => /^COPY\s+/.test(line));
+  const sources = copyLines.flatMap((line) => line.trim().split(/\s+/).slice(1, -1));
+
+  for (const file of ROOT_FILES) {
+    assert.ok(sources.includes(file), `docker/Dockerfile.app does not copy ${file}`);
+  }
+  for (const dir of ROOT_DIRS) {
+    assert.ok(sources.includes(`${dir}/`), `docker/Dockerfile.app does not copy ${dir}/`);
+  }
+  assert.ok(!sources.includes('.'), 'the container must not copy the whole repository');
 });
