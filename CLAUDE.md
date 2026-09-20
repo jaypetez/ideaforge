@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+The shared implementation reference for Claude Code and GitHub Copilot. The historical
+filename is also Claude Code's entry point. Load the shared working loop alongside it:
+
+@AGENTS.md
 
 ## What this is
 
@@ -12,7 +15,7 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the full suite (150 tests)
+npm test                 # lint:purity, then the full suite (226 tests)
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
 npm run screenshots      # regenerate docs/ — the README's images and worked example
