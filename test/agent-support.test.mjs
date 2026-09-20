@@ -259,6 +259,11 @@ function checkDeliveryGates(md, label) {
     const lines = body.split(/\r?\n/).map((line) => line.trim())
       .filter((line) => line && !line.startsWith('#'));
     if (!lines.some((line) => /^git push\b|^gh pr\b/.test(line))) continue;
+    const pushes = lines.filter((line) => /^git push\b/.test(line));
+    for (const push of pushes) {
+      assert.match(push, /^git push -u origin HEAD(?: &&)?$/,
+        `${label}: delivery must push the tested HEAD: ${push}`);
+    }
     const browser = lines.findIndex((line) => /\bnpm run test:(?:browser|all)\b/.test(line));
     if (browser < 0) continue;
     checked++;
@@ -484,8 +489,11 @@ test('agent guidance never permits a missing browser to look green', () => {
     "```powershell\n$env:BROWSER_CHECK_REQUIRED = '1'\n" +
     'npm run test:browser; exit 0\n```\n', 'fixture'), /unguarded browser command/);
   assert.throws(() => checkDeliveryGates(
-    '```sh\nBROWSER_CHECK_REQUIRED=1 npm run test:all\ngit push origin branch\n```\n',
+    '```sh\nnpm run test:all\ngit push -u origin HEAD\n```\n',
     'fixture'), /not failure-chained/);
+  assert.throws(() => checkDeliveryGates(
+    '```sh\nnpm run test:all &&\ngit push -u origin other-branch\n```\n',
+    'fixture'), /push the tested HEAD/);
 });
 
 test('personal assistant settings stay out of the repository', () => {

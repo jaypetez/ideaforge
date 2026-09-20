@@ -333,10 +333,9 @@ explicitly requested; approval and a passing check are not instructions to merge
 In a POSIX shell (use the PowerShell pre-push check above on Windows):
 
 ```sh
-git checkout -b some-branch
 # Test before pushing, not after CI tells you:
 npm run test:all &&
-git push -u origin some-branch &&
+git push -u origin HEAD &&
 gh pr create --base main --fill &&
 gh pr checks --watch
 ```
@@ -346,7 +345,7 @@ In PowerShell:
 ```powershell
 npm run test:all
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-git push -u origin some-branch
+git push -u origin HEAD
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 gh pr create --base main --fill
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
