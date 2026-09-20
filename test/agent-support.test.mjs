@@ -202,8 +202,9 @@ function agentDefinitions() {
 }
 
 function safeBrowserCommand(line, { language = '' } = {}) {
-  const match = line.match(
-    /^(?:BROWSER_CHECK_REQUIRED=1[ \t]+)?npm run (test:all|test:browser(?::required)?)(?:[ \t]+&&)?(?:[ \t]+#.*)?$/);
+  const command = '^(?:BROWSER_CHECK_REQUIRED=1[ \\t]+)?npm run ' +
+    '(test:all|test:browser(?::required)?)(?:[ \\t]+&&)?(?:[ \\t]+#.*)?$';
+  const match = line.match(new RegExp(command));
   if (!match) return false;
   if (match[1] === 'test:all') {
     return PACKAGE.scripts['test:all'] === ALL_TESTS_SCRIPT;
