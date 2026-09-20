@@ -4,8 +4,9 @@ The shared working loop for Claude Code and GitHub Copilot (CLI and VS Code).
 [CLAUDE.md](CLAUDE.md) covers *what the code is* and the invariants that matter; this file
 covers *how to iterate on it and prove it works*. Read both before changing the code.
 
-The [update-readme skill](.claude/skills/update-readme/SKILL.md) is shared too. Keep one
-definition in `.claude/skills`, not copies for each assistant. See
+Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
+`change-voice-and-driving`, `validate-local-model`, `update-readme`, and
+`review-ideaforge-change`. Keep one definition of each, not client-specific copies. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
@@ -15,19 +16,17 @@ In a POSIX shell:
 ```sh
 npm test                            # ~1s  — purity lint + the unit suite. Run constantly.
 npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
-BROWSER_CHECK_REQUIRED=1 npm run test:browser
+npm run test:browser:required
                                     # ~90s — headless Chrome on the assembled site tree.
-BROWSER_CHECK_REQUIRED=1 npm run test:all
-                                    # unit + graph + browser, with no silent browser skip.
+npm run test:all                    # unit + graph + required browser checks.
 npm run screenshots                 # ~35s — only when the UI or the README changes
 VALIDATE_MODE=handsfree \
   npm run validate:local            # a real model, driven by a scripted voice
 ```
 
-In PowerShell, set the environment variable before running the same script:
+In PowerShell, the all-up script is already fail-closed:
 
 ```powershell
-$env:BROWSER_CHECK_REQUIRED = '1'
 npm run test:all
 ```
 
@@ -36,7 +35,7 @@ use `$env:VALIDATE_MODE = 'handsfree'` before `npm run validate:local` in PowerS
 
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or
 `manifest.webmanifest`, **`npm test` cannot see your change at all.** Those live in browser
-APIs that do not exist in Node. Use `npm run test:browser`.
+APIs that do not exist in Node. Use `npm run test:browser:required`.
 
 ## The ladder
 
@@ -53,8 +52,8 @@ the identifier to the allowlist.
 **2 · Unit tests — `npm test`**
 ```sh
 node --test test/voice.test.mjs                 # one file
-node --test --test-name-pattern="zero gain"     # one test, by JS regex
-node --test                                     # default discovery, no glob needed
+node --test --test-name-pattern="zero gain" "test/**/*.test.mjs"
+node --test "test/**/*.test.mjs"                # unit files, not browser probes
 ```
 Everything here runs with no network and no real timers: HTTP goes through an injected
 `fetch`, time through injected values, the provider through a scripted fake. If a change
@@ -89,7 +88,7 @@ A healthy run stops at `wrap: 'coverage'` around turn 12 with coverage in the 80
 fake's `coverage` claims to exercise the ratchet; give it repetitive question wording to
 exercise the tripwires.
 
-**5 · Browser checks — `npm run test:browser`**
+**5 · Browser checks — `npm run test:browser:required`**
 The rung that covers everything Node cannot see. `tools/browser-check.mjs` first calls
 `assembleSite` in `tools/assemble-site.mjs`, which copies the canonical publishable tree
 into a scratch directory — packaging only, not a build step — then serves that tree while
@@ -114,6 +113,8 @@ a Pages-style subpath with no CSP violations.
 The rung that costs nothing, needs no key, and needs nobody watching. It drives the real UI
 in headless Chrome against a real Ollama: real HTTP, real CSP, real IndexedDB, no stubs
 anywhere. One line per claim, non-zero exit on any failure.
+
+Use the `validate-local-model` skill for the full run and troubleshooting procedure.
 
 ```sh
 docker compose -f docker/compose.yml up -d ollama
@@ -188,10 +189,9 @@ not be.
 and `npm run test:graph`, plus the browser job. Windows is not decoration: two of this
 repo's toolchain bugs were Windows-only path handling.
 
-**`BROWSER_CHECK_REQUIRED=1` is not optional for an agent.** Without it a missing Chrome is
-a **skip that exits 0** (`browser-check.mjs`), so an unattended run reports green having
-checked nothing. It is the easiest false green in this repo, and CI sets it for the same
-reason.
+**Use `npm run test:browser:required` or `npm run test:all` as an agent.** The plain
+`test:browser` script deliberately allows a missing Chrome to skip with exit 0 for humans
+who are running the rest of the suite locally.
 
 ## Traps that will cost you an hour
 
@@ -217,9 +217,9 @@ Every one of these has already bitten someone here.
   binds `[::1]:11434`, both are "up", and which one you get depends on whose resolver is
   asking — Node's and Chrome's need not agree. So the harness can read `/api/ps` off a
   healthy GPU server while the browser interviews a CPU-only container, and every claim
-  still passes. Use `127.0.0.1` explicitly, never the name, and identify a server by the
-  model digest from `/api/tags` rather than by the fact that something answered.
-  `validate:local` now asks every address the name resolves to and fails if they disagree.
+  still passes. Use `127.0.0.1` explicitly, never the name. `validate:local` compares what
+  each address returns, but identical version, model-list and digest metadata is not a unique
+  server identity. Set `OLLAMA_URL` to the numeric loopback address you mean.
 - **A CPU-only Ollama answers every probe perfectly.** A container started without `--gpus`
   has `HostConfig.DeviceRequests: null`, logs `inference compute id=cpu library=cpu` and
   `total_vram="0 B"`, and then loads 8 GiB of weights into system RAM. Nothing errors. The
@@ -334,9 +334,22 @@ In a POSIX shell (use the PowerShell pre-push check above on Windows):
 
 ```sh
 git checkout -b some-branch
-BROWSER_CHECK_REQUIRED=1 npm run test:all # before pushing, not after CI tells you
+# Test before pushing, not after CI tells you:
+npm run test:all &&
+git push -u origin some-branch &&
+gh pr create --base main --fill &&
+gh pr checks --watch
+```
+
+In PowerShell:
+
+```powershell
+npm run test:all
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 git push -u origin some-branch
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 gh pr create --base main --fill
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 gh pr checks --watch
 ```
 

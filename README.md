@@ -361,9 +361,9 @@ engine portable and the turn loop testable without a network — the whole suite
 a second, with no mocking framework and no network access.
 
 ```sh
-npm test              # the purity lint, then 233 tests
+npm test              # the purity lint, then 236 tests
 npm run test:graph    # syntax-check the source and import every platform-free module
-npm run test:browser  # 123 checks in real Chrome, for what Node cannot see
+npm run test:browser:required # 123 checks in real Chrome, with no missing-browser skip
 npm run test:all      # all three gates above
 npm run validate:local  # a whole interview against a real local model, no key, no human
 npm run screenshots   # regenerate every image and the worked example above
@@ -391,9 +391,9 @@ taken on. [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) record the invariant
 silently when broken, which is most of them. Security policy and the honest threat model are in
 [SECURITY.md](SECURITY.md).
 
-Claude Code and GitHub Copilot (CLI and VS Code) share the same instructions and
-`update-readme` skill. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
-how to discover and use them without maintaining separate copies.
+Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
+local-model, README, and review work, plus client-specific read-only review agents.
+[Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains discovery and use.
 
 ## Licence
 

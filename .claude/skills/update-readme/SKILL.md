@@ -1,9 +1,6 @@
 ---
 name: update-readme
-description: Regenerate and fact-check the IdeaForge README — rebuild the screenshots and the
-  worked example from the real app, re-derive every number from source, and check the prose
-  still matches the code. Use when the README looks stale, after a change to src/core,
-  src/ui, src/providers or the dimension set, or when asked to update the README.
+description: Refresh and verify the README after UI, provider, core, dimension, or README changes.
 ---
 
 # Updating the README
@@ -12,6 +9,7 @@ This is the single shared skill for Claude Code and GitHub Copilot (CLI and VS C
 Run every command from the repository root, not this skill's directory. Use the current
 client's native file and terminal tools with its normal permissions; this skill does not
 pre-approve tools or require a particular shell.
+Never use a live provider key or a paid provider to generate the committed walkthrough.
 
 The README makes claims about code that moves. This skill re-derives them instead of
 re-wording them.
@@ -72,7 +70,7 @@ Check each of these against source and fix the README where they disagree:
 | the soft and hard ceilings | `SOFT_TURN_CEILING` / `HARD_TURN_CEILING`, `src/core/engine.js` |
 | the provider table | `PROVIDER_CHOICES` in `src/providers/index.js` |
 | the unit test count | the tail of `npm test` |
-| the browser check count | the tail of `npm run test:browser` |
+| the browser check count | the tail of `npm run test:browser:required` |
 | the ratchet rules | `applyCoverage` in `src/core/session.js` |
 | the walkthrough's question count and coverage | the meta line of the generated example |
 | every `npm run …` shown | `scripts` in `package.json` |
@@ -116,19 +114,11 @@ The README is prose that explains *why*, not a feature list. Match what is alrea
 
 ```sh
 npm test
-BROWSER_CHECK_REQUIRED=1 npm run test:browser
+npm run test:all
 ```
 
-In PowerShell:
-
-```powershell
-npm test
-$env:BROWSER_CHECK_REQUIRED = '1'
-npm run test:browser
-```
-
-The environment variable is required: without it, a missing Chrome is a successful skip,
-not evidence that the browser checks passed.
+`npm run test:all` includes the module graph and the required-browser variant; a missing
+Chrome is a failure rather than a successful skip.
 
 `test/docs.test.mjs` checks that every image and relative link the README references exists,
 and that the dimension count and hard ceiling it states match source. It does not check the

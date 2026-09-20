@@ -14,22 +14,22 @@ npm run serve   # then open http://127.0.0.1:8765
 
 Node 22 or newer. There is no build step, no bundler, and no dependencies — not even dev
 dependencies. `npm test` runs the purity lint and then Node's built-in test runner.
-`npm run test:graph` checks the import graph, `BROWSER_CHECK_REQUIRED=1 npm run test:browser`
-covers the browser-only surfaces, and `npm run test:all` runs all three with Chrome required.
+`npm run test:graph` checks the import graph, `npm run test:browser:required` covers the
+browser-only surfaces, and `npm run test:all` runs all three with Chrome required.
 
 `file://` will not work: ES modules, IndexedDB and the service worker all need an origin.
 
 ## Coding assistants
 
-Claude Code and GitHub Copilot (CLI and VS Code) use the same working rules and README
-skill. Open the repository root, not just `src/`, so the clients can discover them.
+Claude Code and GitHub Copilot CLI/VS Code use the same working rules and project skills.
+Open the repository root, not just `src/`, so the clients can discover them.
 There is nothing to install into the project to enable this support.
 
-| Client | Repository instructions | Shared skill |
-|---|---|---|
-| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` | `.claude/skills/update-readme/SKILL.md` |
-| Copilot CLI | `.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` | The same file |
-| Copilot in VS Code | `.github/copilot-instructions.md`; root `AGENTS.md` and `CLAUDE.md` with their instruction support enabled | The same file |
+| Client | Repository instructions | Shared skills | Review agent |
+|---|---|---|---|
+| Claude Code | `CLAUDE.md`, importing `AGENTS.md` | `.claude/skills/` | `ideaforge-review-claude` |
+| Copilot CLI | Copilot + model instructions | the same directory | `ideaforge-review-copilot` |
+| Copilot in VS Code | Copilot + model instructions | the same directory | both adapters |
 
 [AGENTS.md](AGENTS.md) owns the working loop, including the required browser checks and
 PowerShell equivalents. [CLAUDE.md](CLAUDE.md) owns the implementation invariants.
@@ -37,12 +37,18 @@ The Copilot entry point directs the agent to both; it does not maintain a compet
 rulebook. A link is also useful for navigation, but is not a guarantee that a client has
 automatically loaded the linked file.
 
-The [update-readme skill](.claude/skills/update-readme/SKILL.md) regenerates the real
-screenshots and worked example, checks the README against source, and verifies the result.
-Invoke `/update-readme` in any of the three clients when updating the README, or let the
-agent select it for a task matching its description. It writes documentation artifacts;
-it is not a read-only discovery command. The skill uses your client's normal permissions,
-without per-skill pre-approval of shell commands.
+The shared skills are:
+
+- `add-provider` for inference and transcription endpoints;
+- `change-voice-and-driving` for microphone, speech, and hands-free behavior;
+- `validate-local-model` for the real Ollama/GPU harness;
+- `update-readme` for generated screenshots, the worked example, and source-derived claims;
+- `review-ideaforge-change` for a high-confidence read-only review.
+
+The review agents are thin client adapters around the shared review skill. They deliberately
+have no shell or edit tool, so supply an attached/pasted diff or readable PR/source-control
+context. Their product-qualified names avoid relying on undocumented precedence where VS Code
+discovers both agent directories.
 
 **Check what was discovered before relying on it.** In a terminal at the repository root:
 
@@ -52,15 +58,14 @@ copilot skill list --json
 ```
 
 The instruction listing should include the three Copilot entry points above. The skill
-listing should show one enabled project `update-readme` from this repository's `.claude`
-directory, not an unrelated personal or plugin skill with the same name. In an interactive
-Copilot CLI session, `/instructions` and `/skills list` inspect the loaded configuration.
+listing should show all five enabled project skills from this repository's `.claude`
+directory, not unrelated personal or plugin skills with the same names. Start a fresh
+session after changing instructions or agents. In Copilot CLI, `/env`, `/instructions`,
+`/skills`, and `/agent` inspect the loaded configuration.
 
 In VS Code, open the Chat customization view or its Diagnostics view and inspect the
-instruction and skill sources. `/skills` opens the skill configuration menu; confirm
-`update-readme` is available before invoking it. In Claude Code, `/memory` shows loaded
-instructions and imports; confirm the shared workflow is included and `/update-readme`
-appears in the command picker.
+instruction, skill, and agent sources. In Claude Code, `/memory` and `/skills` show the
+loaded instructions and skills; project agents live in `.claude/agents`.
 
 If something is missing, check the workspace root and whether customizations have been
 disabled, then check the client's own documentation and version. Respect workspace trust
@@ -80,6 +85,10 @@ and [Claude's import documentation](https://code.claude.com/docs/en/memory).
 This covers local development with the two assistants, not Copilot cloud-agent setup or
 an additional model provider in the app. Open a PR for review and leave merging to the
 reviewer unless you were explicitly asked to merge.
+
+There is no repository plugin, hook, extension, or MCP server. Auto-discovered files meet
+the current need without adding an executable installation surface. Package a plugin only
+when there is a real second repository or external audience to version it for.
 
 ## The one rule that is enforced mechanically
 
@@ -197,7 +206,7 @@ commit:
 ```sh
 # package.json      "version": "0.3.0"
 # src/version.js    export const VERSION = '0.3.0';
-npm test            # 233 tests in a fresh run; one of them asserts the two agree
+npm test            # the suite asserts the two agree
 ```
 
 Then merge, and push a tag matching them:
