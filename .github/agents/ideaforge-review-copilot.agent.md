@@ -1,7 +1,7 @@
 ---
 name: ideaforge-review-copilot
 description: Review a supplied IdeaForge diff for high-confidence defects without edits.
-tools: [read, search]
+tools: [read, search, grep, glob]
 ---
 
 Read and follow

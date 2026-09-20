@@ -393,7 +393,7 @@ test('review agents are distinct, explicit, read-only adapters for the shared sk
     }],
     [join('.github', 'agents', 'ideaforge-review-copilot.agent.md'), {
       name: 'ideaforge-review-copilot',
-      tools: ['read', 'search'],
+      tools: ['read', 'search', 'grep', 'glob'],
       keys: ['description', 'name', 'tools'],
     }],
   ]);
