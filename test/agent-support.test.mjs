@@ -260,14 +260,28 @@ function checkDeliveryGates(md, label) {
       .filter((line) => line && !line.startsWith('#'));
     if (!lines.some((line) => /^git push\b|^gh pr\b/.test(line))) continue;
     const pushes = lines.filter((line) => /^git push\b/.test(line));
+    assert.equal(pushes.length, 1, `${label}: expected exactly one push command`);
     for (const push of pushes) {
       assert.match(push, /^git push -u origin HEAD(?: &&)?$/,
         `${label}: delivery must push the tested HEAD: ${push}`);
     }
     const browser = lines.findIndex((line) => /\bnpm run test:(?:browser|all)\b/.test(line));
     if (browser < 0) continue;
+    const push = lines.findIndex((line) => /^git push\b/.test(line));
+    assert.ok(browser < push, `${label}: delivery pushes before validation`);
     checked++;
     if (['sh', 'bash'].includes(language)) {
+      const clean = lines
+        .map((line, index) => ({ line, index }))
+        .filter(({ line }) => /^test -z "\$\(git status --porcelain\)" &&$/.test(line));
+      const capture = lines.findIndex((line) => /^tested=\$\(git rev-parse HEAD\) &&$/.test(line));
+      const verify = lines.findIndex((line) =>
+        /^test "\$\(git rev-parse HEAD\)" = "\$tested" &&$/.test(line));
+      assert.equal(clean.length, 2, `${label}: expected clean-tree checks before and after tests`);
+      assert.ok(clean[0].index < capture && capture < browser,
+        `${label}: HEAD was not captured from a clean tree before validation`);
+      assert.ok(browser < verify && verify < clean[1].index && clean[1].index < push,
+        `${label}: tested HEAD was not rechecked before push`);
       for (let i = browser; i < lines.length - 1; i++) {
         assert.match(lines[i], /&&$/,
           `${label}: delivery command is not failure-chained: ${lines[i]}`);
@@ -275,6 +289,15 @@ function checkDeliveryGates(md, label) {
       continue;
     }
     assert.equal(language, 'powershell', `${label}: unsupported delivery shell ${language}`);
+    const cleanBefore = lines.findIndex((line) =>
+      /^if \(git status --porcelain\) \{ throw '[^']+' \}$/.test(line));
+    const capture = lines.findIndex((line) => /^\$tested = git rev-parse HEAD$/.test(line));
+    const verify = lines.findIndex((line) =>
+      /^if \(\(git rev-parse HEAD\) -ne \$tested -or \(git status --porcelain\)\) \{$/.test(line));
+    assert.ok(cleanBefore >= 0 && cleanBefore < capture && capture < browser,
+      `${label}: HEAD was not captured from a clean tree before validation`);
+    assert.ok(browser < verify && verify < push,
+      `${label}: tested HEAD was not rechecked before push`);
     for (let i = browser; i < lines.length - 1; i++) {
       if (!/^(?:npm|git|gh)\b/.test(lines[i])) continue;
       assert.equal(lines[i + 1], 'if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }',
@@ -489,11 +512,21 @@ test('agent guidance never permits a missing browser to look green', () => {
     "```powershell\n$env:BROWSER_CHECK_REQUIRED = '1'\n" +
     'npm run test:browser; exit 0\n```\n', 'fixture'), /unguarded browser command/);
   assert.throws(() => checkDeliveryGates(
-    '```sh\nnpm run test:all\ngit push -u origin HEAD\n```\n',
+    '```sh\n' +
+    'test -z "$(git status --porcelain)" &&\n' +
+    'tested=$(git rev-parse HEAD) &&\n' +
+    'npm run test:all\n' +
+    'test "$(git rev-parse HEAD)" = "$tested" &&\n' +
+    'test -z "$(git status --porcelain)" &&\n' +
+    'git push -u origin HEAD\n' +
+    '```\n',
     'fixture'), /not failure-chained/);
   assert.throws(() => checkDeliveryGates(
     '```sh\nnpm run test:all &&\ngit push -u origin other-branch\n```\n',
     'fixture'), /push the tested HEAD/);
+  assert.throws(() => checkDeliveryGates(
+    '```sh\ngit push -u origin HEAD &&\nnpm run test:all\n```\n',
+    'fixture'), /pushes before validation/);
 });
 
 test('personal assistant settings stay out of the repository', () => {

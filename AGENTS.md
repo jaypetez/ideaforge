@@ -334,7 +334,11 @@ In a POSIX shell (use the PowerShell pre-push check above on Windows):
 
 ```sh
 # Test before pushing, not after CI tells you:
+test -z "$(git status --porcelain)" &&
+tested=$(git rev-parse HEAD) &&
 npm run test:all &&
+test "$(git rev-parse HEAD)" = "$tested" &&
+test -z "$(git status --porcelain)" &&
 git push -u origin HEAD &&
 gh pr create --base main --fill &&
 gh pr checks --watch
@@ -343,8 +347,13 @@ gh pr checks --watch
 In PowerShell:
 
 ```powershell
+if (git status --porcelain) { throw 'working tree must be clean before validation' }
+$tested = git rev-parse HEAD
 npm run test:all
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ((git rev-parse HEAD) -ne $tested -or (git status --porcelain)) {
+  throw 'HEAD or the working tree changed during validation'
+}
 git push -u origin HEAD
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 gh pr create --base main --fill
