@@ -16,10 +16,12 @@ this file is an entry point, not a second copy of their rules.
   respect the required `ci` check, and do not merge unless explicitly asked.
 
 Use the shared [update-readme skill](../.claude/skills/update-readme/SKILL.md) for
-README maintenance and the changes named in its description. Keep its single
-definition in `.claude/skills`; both Copilot CLI and VS Code discover it there.
-Use the current client's normal tools and permissions, not a second skill copy or
-blanket tool pre-approvals.
+README maintenance and the changes named in its description. The shared
+[release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
+publish, or verify a release; do not select publication automatically or act in place
+of a designated maintainer. Keep one definition of each skill in `.claude/skills`;
+both Copilot CLI and VS Code discover them there. Use the current client's normal tools
+and permissions, not duplicate skill copies or blanket tool pre-approvals.
 
 See [coding assistant setup](../CONTRIBUTING.md#coding-assistants) for discovery
 commands and troubleshooting. Copilot support here is for developing the repository,

@@ -6,22 +6,29 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SKILL_PATH = join(ROOT, '.claude', 'skills', 'update-readme', 'SKILL.md');
+const SKILL_NAMES = ['update-readme', 'release'];
+const skillPath = (name) => join(ROOT, '.claude', 'skills', name, 'SKILL.md');
 const read = (...parts) => readFileSync(join(ROOT, ...parts), 'utf8');
 const FENCES = /^(`{3,}|~{3,})([\w-]*)[ \t]*\r?\n([\s\S]*?)^\1[ \t]*\r?$/gm;
 
-function checkCopilotLinks(md) {
+function checkLinks(md, from, required) {
   const targets = [...md.matchAll(/\]\(([^)\s]+)\)/g)]
     .map((m) => m[1].split('#')[0])
     .filter((p) => p && !/^[a-z][a-z\d+.-]*:/i.test(p))
-    .map((p) => resolve(ROOT, '.github', p));
+    .map((p) => resolve(ROOT, from, p));
   for (const target of targets) {
-    assert.ok(existsSync(target), `broken instruction reference: ${target}`);
+    assert.ok(existsSync(target), `broken local reference: ${target}`);
     assert.ok(lstatSync(target).isFile(), `reference is not a regular file: ${target}`);
   }
-  for (const target of [join(ROOT, 'AGENTS.md'), join(ROOT, 'CLAUDE.md'), SKILL_PATH]) {
-    assert.ok(targets.includes(target), `missing shared instruction link: ${target}`);
+  for (const target of required) {
+    assert.ok(targets.includes(target), `missing required link: ${target}`);
   }
+}
+
+function checkCopilotLinks(md) {
+  checkLinks(md, '.github', [
+    join(ROOT, 'AGENTS.md'), join(ROOT, 'CLAUDE.md'), ...SKILL_NAMES.map(skillPath),
+  ]);
 }
 
 function checkClaudeImport(md) {
@@ -59,10 +66,18 @@ function skillDefinitions() {
   return definitions;
 }
 
-function checkSingleSkill(definitions) {
-  const matches = definitions.filter((d) => d.name === 'update-readme');
-  assert.equal(matches.length, 1, 'expected one shared update-readme definition');
-  assert.equal(matches[0].file, SKILL_PATH);
+function checkSingleSkill(definitions, name) {
+  const matches = definitions.filter((d) => d.name === name);
+  assert.equal(matches.length, 1, `expected one shared ${name} definition`);
+  assert.equal(matches[0].file, skillPath(name));
+}
+
+function checkReleaseInvocation(md) {
+  const header = frontmatter(md);
+  assert.match(header, /^disable-model-invocation:[ \t]*true[ \t]*\r?$/m,
+    'release must require explicit invocation');
+  assert.doesNotMatch(header, /^user-invocable:[ \t]*false[ \t]*\r?$/m,
+    'release must remain user-invocable');
 }
 
 function checkBrowserCommands(md) {
@@ -91,9 +106,9 @@ test('the Copilot entry point links to the real shared instructions and skill', 
   const md = read('.github', 'copilot-instructions.md');
   checkCopilotLinks(md);
   assert.throws(() => checkCopilotLinks(md.replace('../AGENTS.md', '../missing-agent-file.md')),
-    /broken instruction reference/);
+    /broken local reference/);
   assert.throws(() => checkCopilotLinks(
-    md.replace(/\[[^\]]+\]\(\.\.\/AGENTS\.md\)/, 'AGENTS.md')), /missing shared instruction link/);
+    md.replace(/\[[^\]]+\]\(\.\.\/AGENTS\.md\)/, 'AGENTS.md')), /missing required link/);
 });
 
 test('Claude imports the shared workflow rather than only describing it', () => {
@@ -108,26 +123,63 @@ test('Claude imports the shared workflow rather than only describing it', () => 
   checkClaudeImport('@AGENTS.md\r\n');
 });
 
-test('update-readme has discoverable metadata and a single regular-file definition', () => {
-  assert.ok(lstatSync(SKILL_PATH).isFile(), 'the shared skill must not depend on a symlink');
-  const header = frontmatter(readFileSync(SKILL_PATH, 'utf8'));
-  assert.equal(skillName(header), 'update-readme');
-  assert.match(header, /^description:[ \t]*\S/m);
-  assert.doesNotMatch(header, /^allowed-tools:/m, 'use normal client permissions');
+for (const name of SKILL_NAMES) {
+  test(`${name} has discoverable metadata and a single regular-file definition`, () => {
+    const file = skillPath(name);
+    assert.ok(lstatSync(file).isFile(), 'the shared skill must not depend on a symlink');
+    const header = frontmatter(readFileSync(file, 'utf8'));
+    assert.equal(skillName(header), name);
+    assert.match(header, /^description:[ \t]*\S/m);
+    assert.doesNotMatch(header, /^allowed-tools:/m, 'use normal client permissions');
 
-  const definitions = skillDefinitions();
-  checkSingleSkill(definitions);
-  assert.throws(() => checkSingleSkill([]), /one shared update-readme/);
-  for (const name of ['update-readme', "'update-readme'", '"update-readme" # shared']) {
-    assert.throws(() => checkSingleSkill([...definitions, {
-      name: skillName(`name: ${name}\r\n`),
-      file: join(ROOT, '.github', 'skills', 'update-readme', 'SKILL.md'),
-    }]), /one shared update-readme/);
-  }
+    const definitions = skillDefinitions();
+    checkSingleSkill(definitions, name);
+    assert.throws(() => checkSingleSkill([], name), /one shared/);
+    for (const scalar of [name, `'${name}'`, `"${name}" # shared`]) {
+      assert.throws(() => checkSingleSkill([...definitions, {
+        name: skillName(`name: ${scalar}\r\n`),
+        file: join(ROOT, '.github', 'skills', name, 'SKILL.md'),
+      }], name), /one shared/);
+    }
+  });
+}
+
+test('release remains explicitly invoked rather than selected automatically', () => {
+  const md = readFileSync(skillPath('release'), 'utf8');
+  checkReleaseInvocation(md);
+  const without = md.replace(/^disable-model-invocation:[^\r\n]*\r?\n/m, '');
+  assert.throws(() => checkReleaseInvocation(without), /must require explicit invocation/);
+  assert.throws(() => checkReleaseInvocation(
+    `${without}\n\`\`\`yaml\ndisable-model-invocation: true\n\`\`\`\n`),
+    /must require explicit invocation/);
+  assert.throws(() => checkReleaseInvocation(md.replace(
+    'disable-model-invocation: true', 'disable-model-invocation: false')),
+    /must require explicit invocation/);
+  assert.throws(() => checkReleaseInvocation(md.replace(
+    /^---\r?\n/, '---\nuser-invocable: false\n')), /must remain user-invocable/);
+});
+
+test('release references the existing version files and delivery workflows', () => {
+  const md = readFileSync(skillPath('release'), 'utf8');
+  const required = [
+    join(ROOT, 'AGENTS.md'), join(ROOT, 'CONTRIBUTING.md'), join(ROOT, 'package.json'),
+    join(ROOT, 'src', 'version.js'), join(ROOT, '.github', 'release.yml'),
+    join(ROOT, '.github', 'workflows', 'ci.yml'),
+    join(ROOT, '.github', 'workflows', 'release.yml'),
+    join(ROOT, '.github', 'workflows', 'pages.yml'), skillPath('update-readme'),
+  ];
+  const check = (text) => checkLinks(text, join('.claude', 'skills', 'release'), required);
+  check(md);
+  assert.throws(() => check(md.replace(
+    '../../../.github/workflows/release.yml', '../../../.github/workflows/missing-release.yml')),
+    /broken local reference/);
+  assert.throws(() => check(md.replace(
+    /\[[^\]]+\]\(\.\.\/\.\.\/\.\.\/src\/version\.js\)/, 'src/version.js')), /missing required link/);
 });
 
 test('agent browser-check examples cannot silently skip a missing browser', () => {
-  for (const md of [read('AGENTS.md'), readFileSync(SKILL_PATH, 'utf8')]) {
+  const skills = SKILL_NAMES.map((name) => readFileSync(skillPath(name), 'utf8'));
+  for (const md of [read('AGENTS.md'), ...skills]) {
     checkBrowserCommands(md);
     assert.throws(() => checkBrowserCommands(md.replace(
       /^BROWSER_CHECK_REQUIRED=1[ \t]+/m, '')), /unguarded browser command/);

@@ -4,4 +4,4 @@
 // ES module in a browser needs an import attribute that is not universally supported yet,
 // and this app has no build step to inline it. A test asserts the two never drift.
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';

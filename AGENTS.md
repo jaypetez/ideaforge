@@ -4,8 +4,10 @@ The shared working loop for Claude Code and GitHub Copilot (CLI and VS Code).
 [CLAUDE.md](CLAUDE.md) covers *what the code is* and the invariants that matter; this file
 covers *how to iterate on it and prove it works*. Read both before changing the code.
 
-The [update-readme skill](.claude/skills/update-readme/SKILL.md) is shared too. Keep one
-definition in `.claude/skills`, not copies for each assistant. See
+The [update-readme](.claude/skills/update-readme/SKILL.md) and
+[release](.claude/skills/release/SKILL.md) skills are shared too. Keep one definition of
+each in `.claude/skills`, not copies for each assistant. The release skill is explicitly
+invoked; preparing its PR is not permission to merge or publish. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
