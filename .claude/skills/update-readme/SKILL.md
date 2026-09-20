@@ -4,16 +4,14 @@ description: Regenerate and fact-check the IdeaForge README — rebuild the scre
   worked example from the real app, re-derive every number from source, and check the prose
   still matches the code. Use when the README looks stale, after a change to src/core,
   src/ui, src/providers or the dimension set, or when asked to update the README.
-allowed-tools:
-  - Read
-  - Edit
-  - Write
-  - Grep
-  - Glob
-  - Bash
 ---
 
 # Updating the README
+
+This is the single shared skill for Claude Code and GitHub Copilot (CLI and VS Code).
+Run every command from the repository root, not this skill's directory. Use the current
+client's native file and terminal tools with its normal permissions; this skill does not
+pre-approve tools or require a particular shell.
 
 The README makes claims about code that moves. This skill re-derives them instead of
 re-wording them.
@@ -118,8 +116,19 @@ The README is prose that explains *why*, not a feature list. Match what is alrea
 
 ```sh
 npm test
+BROWSER_CHECK_REQUIRED=1 npm run test:browser
+```
+
+In PowerShell:
+
+```powershell
+npm test
+$env:BROWSER_CHECK_REQUIRED = '1'
 npm run test:browser
 ```
+
+The environment variable is required: without it, a missing Chrome is a successful skip,
+not evidence that the browser checks passed.
 
 `test/docs.test.mjs` checks that every image and relative link the README references exists,
 and that the dimension count and hard ceiling it states match source. It does not check the

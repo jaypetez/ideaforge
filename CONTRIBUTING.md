@@ -17,6 +17,68 @@ dependencies. `npm test` runs the purity lint and then Node's built-in test runn
 
 `file://` will not work: ES modules, IndexedDB and the service worker all need an origin.
 
+## Coding assistants
+
+Claude Code and GitHub Copilot (CLI and VS Code) use the same working rules and README
+skill. Open the repository root, not just `src/`, so the clients can discover them.
+There is nothing to install into the project to enable this support.
+
+| Client | Repository instructions | Shared skill |
+|---|---|---|
+| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` | `.claude/skills/update-readme/SKILL.md` |
+| Copilot CLI | `.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` | The same file |
+| Copilot in VS Code | `.github/copilot-instructions.md`; root `AGENTS.md` and `CLAUDE.md` with their instruction support enabled | The same file |
+
+[AGENTS.md](AGENTS.md) owns the working loop, including the required browser checks and
+PowerShell equivalents. [CLAUDE.md](CLAUDE.md) owns the implementation invariants.
+The Copilot entry point directs the agent to both; it does not maintain a competing
+rulebook. A link is also useful for navigation, but is not a guarantee that a client has
+automatically loaded the linked file.
+
+The [update-readme skill](.claude/skills/update-readme/SKILL.md) regenerates the real
+screenshots and worked example, checks the README against source, and verifies the result.
+Invoke `/update-readme` in any of the three clients when updating the README, or let the
+agent select it for a task matching its description. It writes documentation artifacts;
+it is not a read-only discovery command. The skill uses your client's normal permissions,
+without per-skill pre-approval of shell commands.
+
+**Check what was discovered before relying on it.** In a terminal at the repository root:
+
+```sh
+copilot instruction list --json
+copilot skill list --json
+```
+
+The instruction listing should include the three Copilot entry points above. The skill
+listing should show one enabled project `update-readme` from this repository's `.claude`
+directory, not an unrelated personal or plugin skill with the same name. In an interactive
+Copilot CLI session, `/instructions` and `/skills list` inspect the loaded configuration.
+
+In VS Code, open the Chat customization view or its Diagnostics view and inspect the
+instruction and skill sources. `/skills` opens the skill configuration menu; confirm
+`update-readme` is available before invoking it. In Claude Code, `/memory` shows loaded
+instructions and imports; confirm the shared workflow is included and `/update-readme`
+appears in the command picker.
+
+If something is missing, check the workspace root and whether customizations have been
+disabled, then check the client's own documentation and version. Respect workspace trust
+and tool-approval prompts; do not fix discovery by disabling those controls or overwriting
+someone's global settings. File checks in `npm test` catch broken references and duplicate
+skills, but only the client can prove what it actually loaded.
+
+The shared location is deliberate: both
+[Copilot CLI](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference)
+and [VS Code](https://code.visualstudio.com/docs/agent-customization/agent-skills) support
+`.claude/skills`, which is [Claude Code's native project location](https://code.claude.com/docs/en/skills).
+Do not create a second copy, a symlink, or a synchronisation script in `.github/skills`.
+For instruction discovery, see the
+[VS Code guidance](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
+and [Claude's import documentation](https://code.claude.com/docs/en/memory).
+
+This covers local development with the two assistants, not Copilot cloud-agent setup or
+an additional model provider in the app. Open a PR for review and leave merging to the
+reviewer unless you were explicitly asked to merge.
+
 ## The one rule that is enforced mechanically
 
 ```
@@ -133,7 +195,7 @@ commit:
 ```sh
 # package.json      "version": "0.3.0"
 # src/version.js    export const VERSION = '0.3.0';
-npm test            # one of the 161 asserts the two agree
+npm test            # one of the 226 asserts the two agree
 ```
 
 Then merge, and push a tag matching them:
