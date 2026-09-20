@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+The shared implementation reference for Claude Code and GitHub Copilot. The historical
+filename is also Claude Code's entry point. Load the shared working loop alongside it:
+
+@AGENTS.md
 
 ## What this is
 
@@ -12,7 +15,7 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the unit suite (229 tests in a fresh run)
+npm test                 # lint:purity, then the unit suite (233 tests in a fresh run)
 npm run test:graph       # syntax + import-graph checks over the shipped modules
 BROWSER_CHECK_REQUIRED=1 npm run test:browser
                          # headless Chrome on the assembled publishable tree

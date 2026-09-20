@@ -1,20 +1,38 @@
 # AGENTS.md
 
-The working loop for an agent changing this codebase. `CLAUDE.md` covers *what the code is*
-and the invariants that matter; this file covers *how to iterate on it and prove it works*.
+The shared working loop for Claude Code and GitHub Copilot (CLI and VS Code).
+[CLAUDE.md](CLAUDE.md) covers *what the code is* and the invariants that matter; this file
+covers *how to iterate on it and prove it works*. Read both before changing the code.
+
+The [update-readme skill](.claude/skills/update-readme/SKILL.md) is shared too. Keep one
+definition in `.claude/skills`, not copies for each assistant. See
+[coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
+
+In a POSIX shell:
 
 ```sh
 npm test                            # ~1s  — purity lint + the unit suite. Run constantly.
 npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
 BROWSER_CHECK_REQUIRED=1 npm run test:browser
                                     # ~90s — headless Chrome on the assembled site tree.
-npm run test:all                    # unit + graph + browser; missing Chrome is a failure.
+BROWSER_CHECK_REQUIRED=1 npm run test:all
+                                    # unit + graph + browser, with no silent browser skip.
 npm run screenshots                 # ~35s — only when the UI or the README changes
 VALIDATE_MODE=handsfree \
   npm run validate:local            # a real model, driven by a scripted voice
 ```
+
+In PowerShell, set the environment variable before running the same script:
+
+```powershell
+$env:BROWSER_CHECK_REQUIRED = '1'
+npm run test:all
+```
+
+The same rule applies to other environment assignments: for the hands-free validator,
+use `$env:VALIDATE_MODE = 'handsfree'` before `npm run validate:local` in PowerShell.
 
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or
 `manifest.webmanifest`, **`npm test` cannot see your change at all.** Those live in browser
@@ -309,15 +327,17 @@ Every one of these has already bitten someone here.
 ## Landing a change
 
 `main` requires a PR and a green `ci` check. Do not merge around it — a check that was
-skipped rather than passed tells you nothing.
+skipped rather than passed tells you nothing. Stop at the PR unless merging was
+explicitly requested; approval and a passing check are not instructions to merge.
+
+In a POSIX shell (use the PowerShell pre-push check above on Windows):
 
 ```sh
 git checkout -b some-branch
-npm run test:all                       # before pushing, not after CI tells you
+BROWSER_CHECK_REQUIRED=1 npm run test:all # before pushing, not after CI tells you
 git push -u origin some-branch
 gh pr create --base main --fill
 gh pr checks --watch
-gh pr merge --squash --delete-branch
 ```
 
 Pages deployment is separate and stricter than "a merge happened". `.github/workflows/pages.yml`
