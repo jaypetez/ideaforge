@@ -14,6 +14,8 @@ npm run serve   # then open http://127.0.0.1:8765
 
 Node 22 or newer. There is no build step, no bundler, and no dependencies — not even dev
 dependencies. `npm test` runs the purity lint and then Node's built-in test runner.
+`npm run test:graph` checks the import graph, `BROWSER_CHECK_REQUIRED=1 npm run test:browser`
+covers the browser-only surfaces, and `npm run test:all` runs all three with Chrome required.
 
 `file://` will not work: ES modules, IndexedDB and the service worker all need an origin.
 
@@ -195,7 +197,7 @@ commit:
 ```sh
 # package.json      "version": "0.3.0"
 # src/version.js    export const VERSION = '0.3.0';
-npm test            # one of the 226 asserts the two agree
+npm test            # 233 tests in a fresh run; one of them asserts the two agree
 ```
 
 Then merge, and push a tag matching them:
@@ -205,14 +207,21 @@ git tag v0.3.0 && git push origin v0.3.0
 ```
 
 The tag is the whole trigger — there is no manual release button, deliberately.
-`.github/workflows/release.yml` re-checks that the tag, `package.json` and `src/version.js`
-all say the same thing and refuses to publish if they do not, because a release whose archive
-reports a different version than its tag is a support problem forever afterwards.
+`.github/workflows/release.yml` is split in two on purpose: a read-only `verify` job checks
+that the tag, `package.json` and `src/version.js` agree, proves the tag points into `main`,
+and reruns the full ladder with `npm run test:all`. Only then does the write-enabled
+`release` job publish anything, because a release whose archive reports a different version
+than its tag is a support problem forever afterwards.
 
-The tag produces three things: a GitHub release with `.tar.gz`, `.zip` and `SHA256SUMS` built
-straight from the tagged tree with `git archive`; a container image at
+The tag produces two things: a GitHub release with `.tar.gz`, `.zip` and `SHA256SUMS` built
+straight from the tagged tree with `git archive`; and a container image at
 `ghcr.io/jaypetez/ideaforge`, tagged with the version and — unless the tag is a prerelease —
-`latest`; and a Pages deploy, which happens on the merge rather than the tag.
+`latest`.
+
+Pages deploy is a different pipeline. `.github/workflows/pages.yml` runs only after a
+successful `CI` workflow run for a push to `main`, checks that the `ci` aggregator succeeded
+for that SHA, refuses to deploy if that SHA is no longer the exact tip of `main`, and uploads
+the output of `node tools/assemble-site.mjs dist` — copied publishable files, not a build.
 
 **Check the package is publicly pullable after the first release.** Publishing from a public
 repository with `GITHUB_TOKEN` made it public here without anyone touching a setting — an

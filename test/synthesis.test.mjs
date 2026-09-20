@@ -2,13 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DIMENSIONS } from '../src/core/dimensions.js';
-import { createSession, askQuestion, answerQuestion, setSynthesis, waiveDimension } from '../src/core/session.js';
+import {
+  createSession, askQuestion, answerQuestion, setPending, setSynthesis, waiveDimension,
+} from '../src/core/session.js';
 import { SEED_QUESTION } from '../src/core/dimensions.js';
 import {
   buildSynthesisPrompt, buildSynthesisPromptParts, parseSynthesisResult,
   MAX_ASSUMPTIONS, MAX_TITLE_WORDS,
 } from '../src/core/synthesis.js';
 import { buildExport } from '../src/core/markdown.js';
+import { runSynthesis, resumeSynthesis } from '../src/runtime/synthesize.js';
 
 function opened(text = 'a tool that interviews you about an idea') {
   let s = createSession({ id: 's_syn', now: 1 });
@@ -113,4 +116,107 @@ test('a parsed synthesis renders through buildExport with its open questions int
   assert.match(md, /\*\*Tone & form\*\* — How formal\?/);
   assert.match(md, /_Why it matters: sets the register_/);
   assert.equal(s.status, 'done');
+});
+
+// ─────────────────────────────────────────────── runtime orchestration
+test('runSynthesis stores a successful result and preserves an existing title', async () => {
+  const seen = [];
+  const provider = {
+    async sampleJson(parts, opts) {
+      seen.push({ parts, opts });
+      return {
+        json: {
+          title: 'A replacement title',
+          prompt: '## Task\nWrite the refined result.',
+          assumptions: ['the reader has five minutes'],
+          open_questions: [{ dimension: 'voice', question: 'How formal?' }],
+        },
+        modelTierApplied: 'applied-tier',
+      };
+    },
+  };
+  const session = { ...opened(), title: 'Keep this title' };
+
+  const out = await runSynthesis(session, { provider, now: 20, modelTier: 'complex' });
+
+  assert.equal(out.ok, true);
+  assert.equal(out.calls, 1);
+  assert.equal(out.session.status, 'done');
+  assert.equal(out.session.pending, null);
+  assert.equal(out.session.title, 'Keep this title');
+  assert.equal(out.session.synthesis.text, '## Task\nWrite the refined result.');
+  assert.equal(out.session.synthesis.tier, 'applied-tier');
+  assert.deepEqual(out.session.synthesis.assumptions, ['the reader has five minutes']);
+  assert.equal(out.session.openQuestions[0].question, 'How formal?');
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].opts.cache, true);
+});
+
+test('runSynthesis degrades cleanly without a provider or usable model output', async () => {
+  const session = opened();
+  const local = await runSynthesis(session);
+  assert.equal(local.session, session);
+  assert.equal(local.ok, false);
+  assert.equal(local.calls, 0);
+  assert.match(local.warnings[0], /no provider/);
+
+  const unusable = await runSynthesis(session, {
+    provider: { async sampleJson() { return { json: { title: 'No prompt' } }; } },
+    now: 30,
+  });
+  assert.equal(unusable.ok, false);
+  assert.equal(unusable.calls, 1);
+  assert.equal(unusable.session.status, session.status);
+  assert.equal(unusable.session.pending, null);
+  assert.ok(unusable.warnings.some((warning) => /no usable prompt/.test(warning)));
+});
+
+test('runSynthesis restores status and pending state after errors and aborts', async () => {
+  const session = opened();
+  const failure = new Error('provider unavailable');
+  const failed = await runSynthesis(session, {
+    provider: { async sampleJson() { throw failure; } },
+    now: 40,
+  });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.error, failure);
+  assert.equal(failed.aborted, false);
+  assert.equal(failed.session.status, session.status);
+  assert.equal(failed.session.pending, null);
+
+  const abortedError = Object.assign(new Error('cancelled'), { code: 'aborted' });
+  const aborted = await runSynthesis(session, {
+    provider: { async sampleJson() { throw abortedError; } },
+    now: 41,
+  });
+  assert.equal(aborted.ok, false);
+  assert.equal(aborted.error, null);
+  assert.equal(aborted.aborted, true);
+  assert.equal(aborted.session.status, session.status);
+  assert.equal(aborted.session.pending, null);
+});
+
+test('resumeSynthesis reruns only an interrupted synthesis', async () => {
+  let calls = 0;
+  const provider = {
+    async sampleJson() {
+      calls++;
+      return { json: { prompt: '## Task\nResume the wrap-up.' } };
+    },
+  };
+  const session = opened();
+  const idle = await resumeSynthesis(session, { provider, now: 50 });
+  assert.equal(idle.session, session);
+  assert.equal(idle.calls, 0);
+  assert.equal(calls, 0);
+
+  const pending = setPending(session, {
+    kind: 'synthesis', promptHash: 'old-hash', startedAt: 49,
+  }, 49);
+  const resumed = await resumeSynthesis(pending, { provider, now: 50 });
+  assert.equal(resumed.ok, true);
+  assert.equal(resumed.calls, 1);
+  assert.equal(calls, 1);
+  assert.equal(resumed.session.pending, null);
+  assert.equal(resumed.session.synthesis.text, '## Task\nResume the wrap-up.');
 });

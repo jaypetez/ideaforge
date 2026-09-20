@@ -46,6 +46,10 @@ jobs:
         shell: bash
         run: npm test
 
+      - name: Module graph
+        shell: bash
+        run: npm run test:graph
+
   # IndexedDB, WebCrypto non-extractable keys, MediaRecorder, the Web Speech API, service
   # workers and the CSP do not exist in Node, so `npm test` is blind to all of them. Chrome
   # is preinstalled on the runners; one OS is enough, since this covers app behaviour rather

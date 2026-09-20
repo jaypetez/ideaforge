@@ -8,7 +8,51 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Guard against a version mismatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          SRC="$(node -p "/'([^']+)'/.exec(require('fs').readFileSync('src/version.js','utf8'))[1]")"
+          echo "tag=$TAG package.json=$PKG src/version.js=$SRC"
+          # A release whose archive reports a different version than its tag is a support
+          # problem forever after, so fail here rather than publish it.
+          [ "$TAG" = "$PKG" ] && [ "$TAG" = "$SRC" ] || {
+            echo "::error::tag, package.json and src/version.js disagree"; exit 1; }
+
+      - name: Verify the tag points into main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main || {
+            echo "::error::${GITHUB_REF_NAME} does not point at a commit contained in main"
+            exit 1
+          }
+
+      # Release artifacts are immutable and public, so re-run the same unit, graph and browser
+      # checks here rather than assuming a tag was only ever cut from a green main.
+      - name: Verify the shipped tree
+        shell: bash
+        env:
+          BROWSER_CHECK_REQUIRED: '1'
+        run: npm run test:all
+
   release:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write        # create the release and upload its assets
@@ -35,19 +79,6 @@ jobs:
           sha256sum "${NAME}.tar.gz" "${NAME}.zip" > SHA256SUMS
           cat SHA256SUMS
 
-      - name: Guard against a version mismatch
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME#v}"
-          PKG="$(node -p "require('./package.json').version")"
-          SRC="$(node -p "/'([^']+)'/.exec(require('fs').readFileSync('src/version.js','utf8'))[1]")"
-          echo "tag=$TAG package.json=$PKG src/version.js=$SRC"
-          # A release whose archive reports a different version than its tag is a support
-          # problem forever after, so fail here rather than publish it.
-          [ "$TAG" = "$PKG" ] && [ "$TAG" = "$SRC" ] || {
-            echo "::error::tag, package.json and src/version.js disagree"; exit 1; }
-
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,11 +94,11 @@ jobs:
   # one `docker compose up` for someone who has never cloned this repo.
   #
   # `needs: release` rather than running alongside it, for two reasons. It inherits the
-  # version guard above instead of carrying a second copy that someone has to remember to
-  # keep in step. And the failure modes are asymmetric: if this job fails the release still
-  # stands and this job alone can be re-run, whereas the other order could leave a public
-  # image — and a moved `latest` — pointing at a release that does not exist. A GitHub
-  # release deletes in two clicks; a published package version is effectively permanent.
+  # verified tag instead of carrying a second copy of those checks. And the failure modes are
+  # asymmetric: if this job fails the release still stands and this job alone can be re-run,
+  # whereas the other order could leave a public image — and a moved `latest` — pointing at a
+  # release that does not exist. A GitHub release deletes in two clicks; a published package
+  # version is effectively permanent.
   image:
     name: image
     needs: release

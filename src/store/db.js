@@ -17,18 +17,38 @@ let dbPromise = null;
 
 export function openDb() {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve, reject) => {
+    let settled = false;
     const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      if (dbPromise === promise) dbPromise = null;
+      reject(err);
+    };
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(SESSIONS)) db.createObjectStore(SESSIONS, { keyPath: 'id' });
       if (!db.objectStoreNames.contains(SECRETS)) db.createObjectStore(SECRETS);
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error('another tab is holding an older version of the database'));
+    req.onsuccess = () => {
+      const db = req.result;
+      // An upgrader elsewhere is waiting for this connection to go away. Close it, and
+      // forget the memoized handle too: returning a dead connection on the next call is
+      // worse than re-opening.
+      db.onversionchange = () => {
+        db.close();
+        if (dbPromise === promise) dbPromise = null;
+      };
+      if (settled) { db.close(); return; }
+      settled = true;
+      resolve(db);
+    };
+    req.onerror = () => fail(req.error);
+    req.onblocked = () => fail(new Error('another tab is holding an older version of the database'));
   });
-  return dbPromise;
+  dbPromise = promise;
+  return promise;
 }
 
 async function tx(store, mode, run) {

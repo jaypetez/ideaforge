@@ -246,6 +246,17 @@ export default async function run(check) {
       check('...and keeps what it heard rather than discarding it',
         text === 'still going still going', text);
     });
+
+    await withTranscripts(['manual stop still returns words'], async (calls) => {
+      const heard = byRecorder.listen({ autoStop: false });
+      setTimeout(() => byRecorder.stop(), 900);
+      const text = await within(heard, 4000, 'manual recorder stop');
+      check('a manual recorder stop still resolves to a plain transcript string',
+        typeof text === 'string' && text === 'manual stop still returns words',
+        JSON.stringify(text));
+      check('...and it transcribes exactly one manual capture',
+        calls.length === 1, `${calls.length} calls`);
+    });
     byRecorder.dispose();
 
     // ── the synthesiser ────────────────────────────────────────────────────

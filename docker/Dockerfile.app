@@ -2,8 +2,8 @@
 #
 # There is no build step anywhere in this project, so there is nothing to compile and no
 # toolchain to install: the tree that ships is the tree in git. The file list below is the
-# same one .github/workflows/pages.yml publishes, kept deliberately in step with it — if
-# you add a file to one, add it to the other.
+# same publishable tree tools/assemble-site.mjs writes for Pages, kept deliberately in step
+# with it — if you add a shipped file to one, add it to the other.
 #
 # nginx only has to serve bytes over a real origin. The Content-Security-Policy lives in a
 # meta tag inside index.html, so there is no server config to get wrong, and ES modules,

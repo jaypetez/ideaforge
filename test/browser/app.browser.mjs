@@ -52,6 +52,16 @@ export default async function run(check, { subpath }) {
   check('no key stored, so Forget my key is hidden', $('b-forget').hidden === true);
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
   check('the mic button is hidden until an interview starts', $('b-mic').hidden === true);
+  check('#note is a polite atomic status region',
+    $('note').getAttribute('role') === 'status'
+      && $('note').getAttribute('aria-live') === 'polite'
+      && $('note').getAttribute('aria-atomic') === 'true',
+    `${$('note').getAttribute('role')} / ${$('note').getAttribute('aria-live')} / ${$('note').getAttribute('aria-atomic')}`);
+  check('#err is an assertive atomic alert region',
+    $('err').getAttribute('role') === 'alert'
+      && $('err').getAttribute('aria-live') === 'assertive'
+      && $('err').getAttribute('aria-atomic') === 'true',
+    `${$('err').getAttribute('role')} / ${$('err').getAttribute('aria-live')} / ${$('err').getAttribute('aria-atomic')}`);
 
   // `hidden` is a property, not a guarantee. app.css gives section, .field, .meter, .btns,
   // .listening and .toggle an explicit `display`, and an author display beats the UA

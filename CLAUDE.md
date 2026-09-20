@@ -15,7 +15,11 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the full suite (226 tests)
+npm test                 # lint:purity, then the unit suite (233 tests in a fresh run)
+npm run test:graph       # syntax + import-graph checks over the shipped modules
+BROWSER_CHECK_REQUIRED=1 npm run test:browser
+                         # headless Chrome on the assembled publishable tree
+npm run test:all         # unit + graph + browser
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
 npm run screenshots      # regenerate docs/ — the README's images and worked example
@@ -30,11 +34,18 @@ There is **no install step** — zero dependencies, not even dev dependencies. N
 `npm run serve` needs `python` on PATH. Any static server works; ES modules, IndexedDB and
 the service worker all need a real origin.
 
+`npm run test:graph` is `tools/check-module-graph.mjs`. `npm run test:all` is exactly
+`npm test`, then `npm run test:graph`, then the required-browser variant of
+`npm run test:browser`; a machine without Chrome fails rather than reporting a skip.
+
 `npm run screenshots` needs Chrome. It drives the real app against the scripted interview in
 `tools/fixtures/walkthrough.mjs` and rewrites every image in `docs/` plus
 `docs/examples/remember-names.md`, so the README shows the app rather than a drawing of it.
 `.claude/skills/update-readme/SKILL.md` is the full procedure for updating the README,
 including which constants have to be re-derived from source.
+
+`tools/assemble-site.mjs` is packaging, not a build step: it copies the publishable tree for
+browser checks and Pages, and leaves the probes on the repository tree.
 
 ## The seam, and why it is enforced
 
@@ -206,10 +217,14 @@ Several tests exist because the behaviour was wrong the first time, and the comm
   standalone home-screen app; panels are toggled with `hidden` instead.
 - **The version lives in two places** — `package.json` and `src/version.js` — because a
   browser ES module can't import JSON without an import attribute and there is no build
-  step. A test asserts they match, and `release.yml` refuses to publish if the tag disagrees.
+  step. A test asserts they match, and `release.yml`'s read-only `verify` job also checks the
+  tag, `main` ancestry and `npm run test:all` before the write-enabled release job can
+  publish.
 - **`ci` is the one required status check**, an aggregating gate job in
   `.github/workflows/ci.yml`. Never add `paths:` filters to that workflow: a required check
-  that gets skipped never reports, and every PR then hangs at "Expected" forever.
+  that gets skipped never reports, and every PR then hangs at "Expected" forever. Pages
+  deployment keys off that `CI` workflow run and refuses a stale `main` tip for the same
+  reason.
 - Line endings are forced to LF by `.gitattributes`. `lint-purity.mjs` splits on `/\r?\n/`
   because `.` does not match `\r` — a CRLF checkout otherwise made it report every banned
   word appearing in a comment.

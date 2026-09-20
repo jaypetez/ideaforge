@@ -1,11 +1,12 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write        # deploy-pages authenticates to the Pages service over OIDC
@@ -17,6 +18,10 @@ concurrency:
 
 jobs:
   deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -24,27 +29,61 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
-      # Publish only what the app actually needs. Everything is relative-path already, so
-      # this works unchanged at localhost:8765/ and at jaypetez.github.io/ideaforge/.
-      - name: Assemble the site
+      - name: Verify this run still represents the tip of main
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          cp index.html manifest.webmanifest sw.js LICENSE dist/
-          cp -r src dist/
-          # The tests, the purity linter and the day-0 spikes are not part of the site.
-          find dist -name '*.test.mjs' -delete
-          echo "published files:"
-          find dist -type f | sort
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          CURRENT_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$TESTED_SHA" != "$CURRENT_SHA" ]; then
+            echo "::error::refusing to redeploy stale commit ${TESTED_SHA}; main is ${CURRENT_SHA}"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Verify the ci aggregator for this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          json="$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs?per_page=100")"
+          JSON="$json" node -e 'const data = JSON.parse(process.env.JSON); const jobs = data.jobs.filter((job) => job.name === "ci"); if (jobs.length !== 1) { console.error(`expected 1 ci job for ${process.env.SHA}, saw ${jobs.length}`); process.exit(1); } if (jobs[0].conclusion !== "success") { console.error(`ci concluded ${jobs[0].conclusion} for ${process.env.SHA}`); process.exit(1); } console.log(`verified ci success for ${process.env.SHA}`);'
+
+      - name: Assemble the site
+        shell: bash
+        run: node tools/assemble-site.mjs dist
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist
+
+      # Main may move while the artifact is being assembled. Check again at the last point
+      # before deployment, so a newer untested push cannot be overwritten by this older SHA.
+      - name: Reconfirm main has not moved
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          CURRENT_SHA="$(git rev-parse refs/remotes/origin/main)"
+          if [ "$TESTED_SHA" != "$CURRENT_SHA" ]; then
+            echo "::error::refusing to deploy stale commit ${TESTED_SHA}; main is ${CURRENT_SHA}"
+            exit 1
+          fi
 
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

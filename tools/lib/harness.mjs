@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -51,27 +51,32 @@ export function findChrome() {
  * Serve the repo over a real origin on an ephemeral port.
  *
  * `before(req, res, url)` runs first and may either handle the request itself (return
- * `{ handled: true }`) or rewrite what gets served (`{ path, swScope }`). Everything else
- * falls through to static file serving rooted at ROOT, and anything escaping ROOT is refused.
+ * `{ handled: true }`) or rewrite what gets served (`{ path, root, swScope }`). Everything
+ * else falls through to static file serving rooted at ROOT, and anything escaping that root
+ * is refused.
  *
  * @returns {Promise<import('node:http').Server>} already listening; `.address().port` is live.
  */
 export async function serveRepo({ root = ROOT, before } = {}) {
+  const defaultRoot = resolve(root);
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     let path = decodeURIComponent(url.pathname);
+    let servedRoot = defaultRoot;
     let swScope = '/';
 
     if (before) {
       const out = await before(req, res, url);
       if (out && out.handled) return;
       if (out && out.path) path = out.path;
+      if (out && out.root) servedRoot = resolve(out.root);
       if (out && out.swScope) swScope = out.swScope;
     }
     if (path === '/' || path === '') path = '/index.html';
 
-    const file = join(root, path);
-    if (!file.startsWith(root)) {
+    const relativePath = path.replace(/^\/+/, '').split('/').join(sep);
+    const file = resolve(servedRoot, relativePath);
+    if (file !== servedRoot && !file.startsWith(servedRoot + sep)) {
       res.writeHead(403).end('forbidden');
       return;
     }

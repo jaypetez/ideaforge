@@ -160,7 +160,7 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
       await ensureMic();
       // Without `isComplete` this is the press-to-talk contract: one recording, one
       // transcription, whatever the gate decided. Unchanged.
-      if (!opts.isComplete) return recordOnce(opts);
+      if (!opts.isComplete) return (await recordOnce(opts)).text;
       return recordUntilComplete(opts);
     },
 

@@ -7,8 +7,10 @@
   "license": "MIT",
   "scripts": {
     "test": "npm run lint:purity && node --test \"test/**/*.test.mjs\"",
+    "test:graph": "node tools/check-module-graph.mjs",
     "test:browser": "node tools/browser-check.mjs",
-    "test:all": "npm test && npm run test:browser",
+    "test:browser:required": "node tools/browser-check.mjs --required",
+    "test:all": "npm test && npm run test:graph && npm run test:browser:required",
     "lint:purity": "node tools/lint-purity.mjs",
     "serve": "python -m http.server 8765 --bind 127.0.0.1",
     "screenshots": "node tools/screenshots.mjs",
