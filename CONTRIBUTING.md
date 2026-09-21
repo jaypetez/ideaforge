@@ -21,15 +21,15 @@ covers the browser-only surfaces, and `npm run test:all` runs all three with Chr
 
 ## Coding assistants
 
-Claude Code and GitHub Copilot (CLI and VS Code) use the same working rules and README
-skill. Open the repository root, not just `src/`, so the clients can discover them.
+Claude Code and GitHub Copilot (CLI and VS Code) use the same working rules and skills.
+Open the repository root, not just `src/`, so the clients can discover them.
 There is nothing to install into the project to enable this support.
 
-| Client | Repository instructions | Shared skill |
+| Client | Repository instructions | Shared skills |
 |---|---|---|
-| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` | `.claude/skills/update-readme/SKILL.md` |
-| Copilot CLI | `.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` | The same file |
-| Copilot in VS Code | `.github/copilot-instructions.md`; root `AGENTS.md` and `CLAUDE.md` with their instruction support enabled | The same file |
+| Claude Code | `CLAUDE.md`, which imports `AGENTS.md` | `.claude/skills/<name>/SKILL.md` |
+| Copilot CLI | `.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` | The same files |
+| Copilot in VS Code | `.github/copilot-instructions.md`; root `AGENTS.md` and `CLAUDE.md` with their instruction support enabled | The same files |
 
 [AGENTS.md](AGENTS.md) owns the working loop, including the required browser checks and
 PowerShell equivalents. [CLAUDE.md](CLAUDE.md) owns the implementation invariants.
@@ -44,6 +44,11 @@ agent select it for a task matching its description. It writes documentation art
 it is not a read-only discovery command. The skill uses your client's normal permissions,
 without per-skill pre-approval of shell commands.
 
+The [release skill](.claude/skills/release/SKILL.md) is explicitly invoked, not selected
+automatically. It separates release preparation from publication and verification; see
+[cutting a release](#cutting-a-release). Preparing a PR is not permission to merge it
+or push a production tag.
+
 **Check what was discovered before relying on it.** In a terminal at the repository root:
 
 ```sh
@@ -52,15 +57,16 @@ copilot skill list --json
 ```
 
 The instruction listing should include the three Copilot entry points above. The skill
-listing should show one enabled project `update-readme` from this repository's `.claude`
-directory, not an unrelated personal or plugin skill with the same name. In an interactive
-Copilot CLI session, `/instructions` and `/skills list` inspect the loaded configuration.
+listing should show one project definition each of `update-readme` and `release` from this
+repository's `.claude` directory, not personal or plugin skills with the same names. In an
+interactive Copilot CLI session, `/instructions` and `/skills list` inspect the loaded
+configuration.
 
 In VS Code, open the Chat customization view or its Diagnostics view and inspect the
 instruction and skill sources. `/skills` opens the skill configuration menu; confirm
-`update-readme` is available before invoking it. In Claude Code, `/memory` shows loaded
-instructions and imports; confirm the shared workflow is included and `/update-readme`
-appears in the command picker.
+both project skills are available before invoking them. In Claude Code, `/memory` shows
+loaded instructions and imports; confirm the shared workflow is included and both
+`/update-readme` and `/release` appear in the command picker.
 
 If something is missing, check the workspace root and whether customizations have been
 disabled, then check the client's own documentation and version. Respect workspace trust
@@ -190,21 +196,25 @@ Label the PR before it merges. Release notes are generated from labels — `prov
 
 ## Cutting a release
 
-The version lives in **two** files, because a browser ES module cannot import JSON without an
-import attribute and this project has no build step to inline it. Bump both, in the same
-commit:
+Use the shared [release skill](.claude/skills/release/SKILL.md). It owns the detailed
+preflight, publication and verification procedure; do not maintain a second checklist here.
 
-```sh
-# package.json      "version": "0.3.0"
-# src/version.js    export const VERSION = '0.3.0';
-npm test            # 233 tests in a fresh run; one of them asserts the two agree
-```
+| Explicit invocation | What it does |
+|---|---|
+| `/release prepare <version>` | Updates both version files, validates the change, and opens a new PR. It does not publish. |
+| `/release publish <version> <merged-pr>` | For an authorised upstream writer, verifies the merged commit and green CI before pushing its tag. |
+| `/release verify <version>` | Checks the actual workflow, release assets, checksums, archive versions and public image. |
 
-Then merge, and push a tag matching them:
+Use a confirmed stable version without `v`; the Git tag adds that prefix, the container
+tag does not. The version lives in **two** files, `package.json` and `src/version.js`,
+because a browser ES module cannot import JSON without an import attribute and this project
+has no build step to inline it. They must change together.
 
-```sh
-git tag v0.3.0 && git push origin v0.3.0
-```
+If a maintainer owns publication, hand them the preparation PR and leave review, merge
+and tagging to them. The tag must point to the PR's actual merged commit, with successful
+upstream CI, never to an unvalidated `HEAD` or the pre-merge branch. Then invoke verification.
+Do not move an existing tag, overwrite assets, publish from the fork, or claim a ready PR
+is a released version.
 
 The tag is the whole trigger — there is no manual release button, deliberately.
 `.github/workflows/release.yml` is split in two on purpose: a read-only `verify` job checks
@@ -226,11 +236,8 @@ the output of `node tools/assemble-site.mjs dist` — copied publishable files, 
 **Check the package is publicly pullable after the first release.** Publishing from a public
 repository with `GITHUB_TOKEN` made it public here without anyone touching a setting — an
 anonymous token against `ghcr.io/v2/jaypetez/ideaforge/manifests/<version>` answered 200 —
-but that is a registry default rather than a promise, and if it ever lands private there is
-no API to change it. Someone has to open the package settings and switch it by hand. The
-check is one command, and it is worth running before announcing a release whose notes tell
-people to `docker pull` something they might not be able to read:
-
-```sh
-docker manifest inspect ghcr.io/jaypetez/ideaforge:0.3.0   # after: docker logout ghcr.io
-```
+but that is a registry default rather than a promise. If it is private, a maintainer must
+correct the package visibility before announcing a public image. The skill verifies it
+with anonymous Registry HTTP requests, or an empty, isolated Docker configuration when
+Docker is available. Never log out of the user's normal registry session to perform this
+check. Verify the expected platforms, version and source revision, not merely an HTTP 200.

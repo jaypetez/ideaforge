@@ -15,7 +15,7 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the unit suite (233 tests in a fresh run)
+npm test                 # lint:purity, then the unit suite (236 tests in a fresh run)
 npm run test:graph       # syntax + import-graph checks over the shipped modules
 BROWSER_CHECK_REQUIRED=1 npm run test:browser
                          # headless Chrome on the assembled publishable tree
