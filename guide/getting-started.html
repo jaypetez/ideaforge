@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting started · IdeaForge guide</title>
+  <meta name="description"
+        content="Set up IdeaForge, start an interview, answer the first questions, and create your first Markdown prompt.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html" aria-current="page">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">First run</p>
+      <h1>Start with the idea, not a perfect prompt.</h1>
+      <p class="lede">
+        Choose where the questions should come from, give IdeaForge a rough opening
+        statement, and answer one focused question at a time. The app saves the conversation
+        on this device and writes the result as portable Markdown.
+      </p>
+      <div class="hero-actions">
+        <a class="button-link primary" href="../">Open IdeaForge</a>
+        <a class="button-link" href="./providers.html">Choose a provider</a>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/02-first-question.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/02-first-question.light.png"
+             alt="The first IdeaForge question, asking for the idea in a sentence or two,
+                  with an answer box, Send and Skip controls, and coverage at zero percent.">
+      </picture>
+
+      <div class="callout">
+        <strong>You do not need to prepare a brief first.</strong>
+        The opening question is always the same and does not call a model:
+        <q>In a sentence or two &mdash; what&rsquo;s the idea?</q>
+        A rough statement is enough to begin.
+      </div>
+
+      <h2 id="before-you-start">Before you start</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>What the first interview needs</caption>
+          <thead>
+            <tr>
+              <th scope="col">Item</th>
+              <th scope="col">What to prepare</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">The app</th>
+              <td>
+                Open the hosted app, an installed copy, or a locally served copy. Do not
+                open <code>index.html</code> with <code>file://</code>; modules, IndexedDB,
+                and the service worker need a real web origin.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">A question provider</th>
+              <td>
+                Choose a hosted provider, a supported local model server, or the built-in
+                Claude viewer option when it is available. See
+                <a href="./providers.html">Providers</a> for the differences.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Credentials or a local model</th>
+              <td>
+                Hosted providers normally need an API key. Local providers need a loopback
+                server address and a model name. Use a scoped, expiring API key rather than
+                a primary account key.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Voice, if wanted</th>
+              <td>
+                Dictation is optional. You can use a working browser recogniser, configure
+                hosted transcription, or choose keyboard only.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warning">
+        <strong>On a shared device, treat saved interviews as personal files.</strong>
+        Ideas and credentials are stored for this browser profile. Use
+        <strong>Forget my key</strong> when the key should no longer remain on the device,
+        and export or delete conversations as appropriate.
+      </div>
+
+      <h2 id="configure">Configure the setup screen</h2>
+      <ol class="steps">
+        <li>
+          <strong>Choose where the questions come from.</strong>
+          Pick an inference provider from the first list. The fields below change to match:
+          hosted providers show an API-key field; local providers show a server address and
+          model field.
+        </li>
+        <li>
+          <strong>Enter the required connection details.</strong>
+          Paste the provider key, or enter the local server and model. A local address must
+          use <code>localhost</code> or <code>127.0.0.1</code>. On a phone, those names mean
+          the phone itself, not a computer on the same network.
+        </li>
+        <li>
+          <strong>Choose dictation behaviour.</strong>
+          Leave the browser recogniser selected, choose one of the hosted transcription
+          services and supply its key, or select <strong>Off &mdash; keyboard only</strong>.
+          The hands-free finish word can also be changed here.
+        </li>
+        <li>
+          <strong>Test the connection.</strong>
+          Use <strong>Check the key</strong> for a hosted provider. For a local provider,
+          <strong>Check the connection</strong> asks the server for its installed models;
+          if the list endpoint is unavailable, you can still type a known model name.
+        </li>
+        <li>
+          <strong>Start the interview.</strong>
+          IdeaForge stores the selected provider settings on this device, creates a new
+          local session, and opens the seed question immediately.
+        </li>
+      </ol>
+
+      <p>
+        Provider credentials are kept separately from interview records. API keys are
+        encrypted at rest in this browser, while non-secret preferences such as the
+        hands-free finish word are stored as device preferences. For the threat model and
+        exact limits of browser storage, read
+        <a href="./privacy-and-security.html">Privacy and security</a>.
+      </p>
+
+      <h2 id="answer-first-question">Answer the first question</h2>
+      <p>
+        Describe the idea in your own words. It can be incomplete: the point of the
+        interview is to find the missing specifics. Press <strong>Send</strong>, or use
+        <kbd>Ctrl</kbd>+<kbd>Enter</kbd> on Windows and Linux or
+        <kbd>Command</kbd>+<kbd>Enter</kbd> on macOS. A plain Enter remains available for
+        paragraphs.
+      </p>
+      <p>
+        After the opening answer, IdeaForge asks a follow-up grounded in the conversation.
+        Each screen contains one question, an optional short bridge from the previous
+        answer, and sometimes suggestion chips that show possible answer shapes.
+      </p>
+
+      <h3 id="suggestion-chips">Use suggestion chips as starting points</h3>
+      <p>
+        Selecting a chip copies its text into the answer box; it does not submit it. Edit
+        the wording until it reflects what you mean, then send it. An unedited chip is
+        treated as model-supplied wording and cannot by itself move a coverage area all the
+        way to <strong>covered</strong>.
+      </p>
+
+      <h3 id="skip">Skip rather than invent</h3>
+      <p>
+        Use <strong>Skip this one</strong> when you cannot or do not want to answer. The
+        transcript records a real skip rather than pretending you supplied an answer, and
+        the interviewer moves on.
+      </p>
+
+      <h3 id="draft-saving">Leave an unfinished answer safely</h3>
+      <p>
+        Text in the answer box is saved after a short pause and is flushed before IdeaForge
+        opens Settings or the Ideas library. Returning to the conversation restores that
+        draft. If browser storage fails, the app reports that the session could not be saved
+        and tells you to export before closing the tab.
+      </p>
+
+      <h2 id="follow-the-interview">Follow the interview without managing it</h2>
+      <ul class="checklist">
+        <li>The progress meter shows coverage, not a countdown or a quality score.</li>
+        <li>The line below the controls shows the question number and current dimension.</li>
+        <li><strong>Coverage</strong> expands to show what is thin, partial, or covered.</li>
+        <li><strong>not relevant</strong> removes a dimension from later questions.</li>
+        <li>The write-up button appears after the early part of the interview, so you can stop by choice.</li>
+      </ul>
+      <p>
+        You can write the idea up as soon as the button appears, or continue until the app
+        says there is enough material. The engine also has exhaustion and turn limits so an
+        interview cannot circle for ever. See
+        <a href="./interviews-and-coverage.html">Interviews and coverage</a> for the full
+        stopping rules.
+      </p>
+
+      <h2 id="finish">Create and use the result</h2>
+      <ol class="steps">
+        <li>
+          Select <strong>That&rsquo;s enough &mdash; write it up</strong>, or accept the
+          spoken wrap offer in hands-free mode.
+        </li>
+        <li>
+          IdeaForge makes one final model request for a refined prompt, a short title,
+          explicit assumptions, and unresolved questions.
+        </li>
+        <li>
+          Review the Markdown. It also contains a coverage table and the full transcript,
+          including skipped and dictated answers.
+        </li>
+        <li>
+          Use <strong>Share .md</strong>, <strong>Copy markdown</strong>, or
+          <strong>Download .md</strong>. Choose <strong>Ask me more</strong> to reopen the
+          same idea, or <strong>New idea</strong> to return to setup.
+        </li>
+      </ol>
+
+      <div class="callout success">
+        <strong>A failed wrap-up does not erase the interview.</strong>
+        The downloadable document still contains the coverage and transcript, and clearly
+        marks the refined prompt as not generated. You can keep the record, fix the provider
+        problem, and reopen the idea later.
+      </div>
+
+      <h2 id="what-is-saved">Know what is saved where</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>First-run data locations</caption>
+          <thead>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">Location and behaviour</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Interviews and answer drafts</th>
+              <td>IndexedDB in the current browser profile; visible through <strong>Ideas</strong>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Provider and transcription credentials</th>
+              <td>Encrypted in IndexedDB; removed by <strong>Forget my key</strong>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Finish word and hands-free preference</th>
+              <td>Local device preferences; forgetting a key does not reset them.</td>
+            </tr>
+            <tr>
+              <th scope="row">Downloaded Markdown or JSON backups</th>
+              <td>Ordinary files outside the app, wherever your browser saves or shares them.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        There is no IdeaForge account and no automatic cross-device sync. Before clearing
+        site data or changing devices, use the procedures in
+        <a href="./ideas-library.html">Ideas library</a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

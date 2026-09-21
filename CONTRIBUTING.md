@@ -25,11 +25,11 @@ Claude Code and GitHub Copilot CLI/VS Code use the same working rules and projec
 Open the repository root, not just `src/`, so the clients can discover them.
 There is nothing to install into the project to enable this support.
 
-| Client | Repository instructions | Shared skills | Review agent |
+| Client | Repository instructions | Shared skills | Review agents |
 |---|---|---|---|
-| Claude Code | `CLAUDE.md`, importing `AGENTS.md` | `.claude/skills/` | `ideaforge-review-claude` |
-| Copilot CLI | Copilot + model instructions | the same directory | `ideaforge-review-copilot` |
-| Copilot in VS Code | Copilot + model instructions | the same directory | both adapters |
+| Claude Code | `CLAUDE.md`, importing `AGENTS.md` | `.claude/skills/` | `ideaforge-review-claude`, `ideaforge-docs-review-claude` |
+| Copilot CLI | Copilot + model instructions | the same directory | `ideaforge-review-copilot`, `ideaforge-docs-review-copilot` |
+| Copilot in VS Code | Copilot + model instructions | the same directory | all repository adapters |
 
 [AGENTS.md](AGENTS.md) owns the working loop, including the required browser checks and
 PowerShell equivalents. [CLAUDE.md](CLAUDE.md) owns the implementation invariants.
@@ -42,14 +42,16 @@ The shared skills are:
 - `add-provider` for inference and transcription endpoints;
 - `change-voice-and-driving` for microphone, speech, and hands-free behavior;
 - `validate-local-model` for the real Ollama/GPU harness;
+- `update-documentation` for the public guide and every source-derived documentation surface;
 - `update-readme` for generated screenshots, the worked example, and source-derived claims;
+- `review-ideaforge-documentation` for a high-confidence read-only documentation review;
 - `review-ideaforge-change` for a high-confidence read-only review.
 - `release` for explicitly requested preparation, publication, or verification.
 
-The review agents are thin client adapters around the shared review skill. They deliberately
-have no shell or edit tool, so supply an attached/pasted diff or readable PR/source-control
-context. Their product-qualified names avoid relying on undocumented precedence where VS Code
-discovers both agent directories.
+The review agents are thin client adapters around the two shared review skills. They
+deliberately have no shell or edit tool, so supply an attached/pasted diff or readable
+PR/source-control context. Their product-qualified names avoid relying on undocumented
+precedence where VS Code discovers both agent directories.
 
 The [release skill](.claude/skills/release/SKILL.md) is explicitly invoked, not selected
 automatically. It separates release preparation from publication and verification; see
@@ -64,7 +66,7 @@ copilot skill list --json
 ```
 
 The instruction listing should include the three Copilot entry points above. The skill
-listing should show all six enabled project skills from this repository's `.claude`
+listing should show all eight enabled project skills from this repository's `.claude`
 directory, not unrelated personal or plugin skills with the same names. Start a fresh
 session after changing instructions or agents. In Copilot CLI, `/env`, `/instructions`,
 `/skills`, and `/agent` inspect the loaded configuration.
@@ -161,6 +163,12 @@ a real browser. `npm run serve`, paste a key, and name the browser in the PR.
 where to cut in for a new dimension or panel, and which costs this codebase has knowingly
 taken on. Worth ten minutes before a first change of any size.
 
+`guide/` is the public documentation site published beside the app. Use the shared
+`update-documentation` skill for public behavior, provider, mobile, storage, privacy,
+security, packaging, command or workflow changes. Run `npm run test:docs` while editing;
+new pages must update the guide navigation, docs inventory and Pages/container packaging
+together. The README remains the landing page, not a second copy of the full guide.
+
 ## Things worth knowing before you change them
 
 - **The turn prompt must stay a pure function of session state.** No timestamps, no
@@ -190,6 +198,10 @@ detector is clock-injected precisely so it can be tested without a microphone.
 Prefer a test that would have caught a real bug over one that restates the implementation.
 Several tests here exist because the behaviour they check was wrong the first time; the
 comments say which.
+
+For public documentation work, run `npm run test:docs` while editing. Guide routing,
+service-worker, screenshot or app-link changes also need `npm run test:browser:required`;
+the all-up pre-push gate remains `npm run test:all`.
 
 ## Pull requests
 

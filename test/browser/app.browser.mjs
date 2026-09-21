@@ -48,6 +48,8 @@ export default async function run(check, { subpath }) {
     $('provider').options.length + ' providers');
   check('the version is shown', /^IdeaForge v\d+\.\d+\.\d+$/.test($('version').textContent),
     $('version').textContent);
+  const guideLink = doc.querySelector('#panel-setup a[href="./guide/"]');
+  check('the setup screen links to the public guide', Boolean(guideLink));
   check('the dictation note is rendered', $('stt-note').textContent.trim().length > 0);
   check('no key stored, so Forget my key is hidden', $('b-forget').hidden === true);
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
@@ -152,6 +154,10 @@ export default async function run(check, { subpath }) {
   check('the app boots on a subpath too',
     sub.contentDocument.getElementById('provider').options.length >= 6);
   check('no CSP violations on the subpath', subViolations.length === 0, subViolations.join('; '));
+  const subGuideLink = sub.contentDocument.querySelector('#panel-setup a[href="./guide/"]');
+  check('the guide link stays below the Pages-style subpath',
+    subGuideLink && new URL(subGuideLink.href).pathname === `${subpath}guide/`,
+    subGuideLink && new URL(subGuideLink.href).pathname);
 
   // The manifest's start_url, scope and icons are resolved against the manifest URL, so a
   // root-absolute value would break the installed app on Pages while looking fine locally.

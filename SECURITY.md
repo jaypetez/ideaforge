@@ -10,12 +10,17 @@ Include what an attacker gains and how to reproduce it. I'll acknowledge within 
 This is a personal project with no security team and no bounty, but I would much rather
 know.
 
+For user-facing storage, backup, key and cleanup guidance, see the
+[privacy and security guide](https://jaypetez.github.io/ideaforge/guide/privacy-and-security.html).
+
 ## What this app is, security-wise
 
 IdeaForge is a static page with **no server and no dependencies**. It runs entirely in
-your browser, and the only network requests it makes are to the inference and
-transcription provider you choose. There is no analytics or telemetry. A prompt or backup
-only leaves the app when you explicitly share or export it.
+your browser. The only requests carrying an API key, transcript or idea content go to the
+inference and transcription provider you choose. The app shell also loads the IBM Plex
+stylesheet and font files from Google Fonts; those requests carry ordinary browser request
+metadata, not IdeaForge content. There is no analytics or telemetry. A prompt or backup only
+leaves the app when you explicitly share or export it.
 
 ## Your interviews and backups
 
@@ -47,7 +52,9 @@ prevents this, in any application, and any product that claims otherwise is wron
 The mitigations that actually matter here are structural:
 
 - A strict Content-Security-Policy whose `connect-src` lists only the provider hosts, with
-  no `unsafe-inline`, no `unsafe-eval` and no third-party script origins.
+  no `unsafe-inline` or `unsafe-eval` in `script-src` and no third-party script origins.
+  `style-src` permits inline style and permits only Google Fonts as a remote stylesheet
+  origin.
 - **Zero dependencies.** No npm packages, no CDN scripts, no analytics. A supply-chain
   compromise is the realistic way a script ends up on a page like this one, and this
   project has no supply chain to compromise.

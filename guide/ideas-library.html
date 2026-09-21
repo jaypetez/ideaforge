@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ideas library · IdeaForge guide</title>
+  <meta name="description"
+        content="Find, resume, organise, back up, import, share, archive, and delete IdeaForge conversations.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html" aria-current="page">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">On-device conversations</p>
+      <h1>Your ideas stay attached to their interviews.</h1>
+      <p class="lede">
+        The Ideas library holds active conversations, completed prompts, archived work, and
+        unfinished answer drafts in this browser. Search and organise them locally, then use
+        Markdown for a single result or JSON to move the whole library.
+      </p>
+      <div class="hero-actions">
+        <a class="button-link primary" href="../">Open IdeaForge</a>
+        <a class="button-link" href="#move-devices">Move to another device</a>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/07-ideas-library.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/07-ideas-library.light.png"
+             alt="The IdeaForge Ideas library with search, status and tag filters, backup
+                  and import controls, and actions for a completed idea.">
+      </picture>
+
+      <div class="callout warning">
+        <strong>The library is local, not synced.</strong>
+        There is no IdeaForge account or application server. Back up before clearing site
+        data, resetting the browser profile, or moving to another phone or computer.
+      </div>
+
+      <h2 id="open-and-find">Open and find an idea</h2>
+      <p>
+        Use <strong>Ideas</strong> in the app header to open the whole library. The setup
+        screen also shows a short recent list for quick continuation, but
+        <strong>View all ideas</strong> opens the same complete library.
+      </p>
+      <ol class="steps">
+        <li>
+          <strong>Search conversations.</strong>
+          Search matches the idea name, tags, opening statement, unfinished answer draft,
+          questions, answers, recorded facts, and refined prompt text.
+        </li>
+        <li>
+          <strong>Filter by status.</strong>
+          Choose all, active, completed, or archived ideas.
+        </li>
+        <li>
+          <strong>Filter by tag.</strong>
+          The tag list is built from the tags currently present in the library.
+        </li>
+        <li>
+          <strong>Open the card.</strong>
+          Active ideas offer <strong>Continue</strong>; completed ideas offer
+          <strong>View result</strong>.
+        </li>
+      </ol>
+
+      <p>
+        Cards show the display title, status, answered-question count, coverage percentage,
+        last update date, and tags. The display title uses your chosen name first, then a
+        generated title, then the opening statement.
+      </p>
+
+      <h2 id="statuses">Understand library status</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Idea states and available actions</caption>
+          <thead>
+            <tr>
+              <th scope="col">Status</th>
+              <th scope="col">Meaning</th>
+              <th scope="col">Typical next action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Active</th>
+              <td>The interview is open, interrupted, or waiting for more answers.</td>
+              <td>Continue the interview; any saved answer draft is restored.</td>
+            </tr>
+            <tr>
+              <th scope="row">Completed</th>
+              <td>
+                The interview has reached the result screen. It may contain a refined
+                synthesis or a clearly marked degraded export if the final call failed.
+              </td>
+              <td>View, share, download, or choose <strong>Ask me more</strong>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Archived</th>
+              <td>The idea is deliberately hidden from the normal active/completed views, not deleted.</td>
+              <td>Restore it whenever it becomes relevant again.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="organise">Rename, tag, archive, or delete</h2>
+      <p>
+        Expand <strong>Rename or tag</strong> on a card to give the idea a stable name and
+        comma-separated tags. Saving the details updates the card, search index, export
+        filename, and result title without changing the transcript.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption>Library actions</caption>
+          <thead>
+            <tr>
+              <th scope="col">Action</th>
+              <th scope="col">Result</th>
+              <th scope="col">Reversible?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Archive</th>
+              <td>Keeps the full idea in local storage and in future backups, but gives it archived status.</td>
+              <td>Yes, with <strong>Restore</strong>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Delete</th>
+              <td>Removes that session record from this device after confirmation.</td>
+              <td>No in-app undo. Restore only from a backup you already made.</td>
+            </tr>
+            <tr>
+              <th scope="row">Ask me more</th>
+              <td>Reopens a completed idea, restores it if archived, and marks the old synthesis as stale.</td>
+              <td>Yes; wrap again to replace the stale result.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="drafts">How unfinished answers are protected</h2>
+      <p>
+        While a question is open, IdeaForge saves the answer box after a short pause. It
+        also attempts to flush the latest text when the document becomes hidden and before
+        moving to Settings or Ideas. Opening the saved conversation restores the draft in
+        the answer box.
+      </p>
+      <div class="callout">
+        <strong>A draft is not a submitted answer.</strong>
+        It remains editable and does not enter the transcript or affect coverage until you
+        press <strong>Send</strong>. Starting a different idea does not merge the two
+        conversations.
+      </div>
+      <p>
+        Settled answers, skips, generated questions, coverage, and synthesis are each saved
+        after their operation completes. If a storage write fails, IdeaForge reports the
+        failure instead of pretending the session is safe.
+      </p>
+
+      <h2 id="backup">Back up the whole library</h2>
+      <ol class="steps">
+        <li>Open <strong>Ideas</strong>.</li>
+        <li>Select <strong>Back up ideas</strong>.</li>
+        <li>Store the downloaded, date-stamped JSON file somewhere you control.</li>
+      </ol>
+      <p>
+        A library backup includes every stored session, including active, completed, and
+        archived ideas, along with tags, drafts, coverage, and transcripts. It does not
+        contain provider or transcription API keys.
+      </p>
+      <div class="callout danger">
+        <strong>The backup is not encrypted.</strong>
+        It contains the full text of your interviews in readable JSON. Protect it like any
+        other personal document and do not upload it to a service you would not trust with
+        the conversation.
+      </div>
+
+      <h2 id="import">Import without overwriting local work</h2>
+      <ol class="steps">
+        <li>Open <strong>Ideas</strong> on the destination browser.</li>
+        <li>Select <strong>Import backup</strong> and choose an IdeaForge JSON backup.</li>
+        <li>Read the status message for imported, copied, duplicate, or invalid records.</li>
+      </ol>
+
+      <div class="table-wrap">
+        <table>
+          <caption>How import conflicts are handled</caption>
+          <thead>
+            <tr>
+              <th scope="col">Imported record</th>
+              <th scope="col">IdeaForge behaviour</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">ID not present locally</th>
+              <td>Imports it with its existing state.</td>
+            </tr>
+            <tr>
+              <th scope="row">Exact duplicate</th>
+              <td>Skips it instead of creating another copy.</td>
+            </tr>
+            <tr>
+              <th scope="row">Same ID, different content</th>
+              <td>Keeps both by assigning the imported version a new ID and adding <q>(imported)</q> to its visible name.</td>
+            </tr>
+            <tr>
+              <th scope="row">Invalid or unsupported row</th>
+              <td>Skips the unusable row and reports it; a malformed backup file is rejected.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="move-devices">Move ideas to another device</h2>
+      <ol class="steps">
+        <li>Create a fresh backup on the source device.</li>
+        <li>Transfer the JSON file using a method you trust.</li>
+        <li>Open IdeaForge on the destination device and import the backup.</li>
+        <li>Confirm the expected active, completed, and archived ideas are present.</li>
+        <li>Configure provider and transcription keys separately; they are intentionally absent from the backup.</li>
+      </ol>
+
+      <p>
+        Import merges into the destination library. It does not replace the whole
+        destination database, so work already on that device remains available.
+      </p>
+
+      <h2 id="share">Share or export one idea</h2>
+      <p>
+        A library card offers <strong>Share .md</strong> and
+        <strong>Download .md</strong> once the conversation has a recorded answer or skip.
+        The completed result screen also offers <strong>Copy markdown</strong>.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption>Single-idea export behaviour</caption>
+          <thead>
+            <tr>
+              <th scope="col">Control</th>
+              <th scope="col">What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Share .md</th>
+              <td>
+                Prefers a Markdown file through the operating system share sheet. If file
+                sharing is unavailable, it shares the Markdown as text. If the browser has
+                no share sheet or sharing fails, IdeaForge downloads the file instead.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Download .md</th>
+              <td>Saves a Markdown file named from the idea title and last-update date.</td>
+            </tr>
+            <tr>
+              <th scope="row">Copy markdown</th>
+              <td>Copies the rendered export text; if clipboard access fails, the text remains selectable on screen.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        A single Markdown export is designed for reading and reuse: refined prompt first,
+        followed by assumptions, open questions, coverage, and transcript. A JSON library
+        backup is designed for restoring IdeaForge sessions. They are not interchangeable.
+      </p>
+
+      <h2 id="data-lifecycle">Data lifecycle at a glance</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>What creates, moves, and removes local data</caption>
+          <thead>
+            <tr>
+              <th scope="col">Event</th>
+              <th scope="col">Effect on this device</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Start an interview</th>
+              <td>Creates and saves a new session with the seed question.</td>
+            </tr>
+            <tr>
+              <th scope="row">Type an answer</th>
+              <td>Saves an unfinished draft after a short pause; sending records the answer in the transcript.</td>
+            </tr>
+            <tr>
+              <th scope="row">Wrap up</th>
+              <td>Stores the synthesis in the same session and marks it completed.</td>
+            </tr>
+            <tr>
+              <th scope="row">Archive</th>
+              <td>Keeps the session but changes how it is filtered.</td>
+            </tr>
+            <tr>
+              <th scope="row">Delete</th>
+              <td>Removes one session; it does not delete saved keys or device preferences.</td>
+            </tr>
+            <tr>
+              <th scope="row">Forget my key</th>
+              <td>Deletes the encrypted credential payload and wrapping key; interviews and finish-word preferences remain.</td>
+            </tr>
+            <tr>
+              <th scope="row">Clear browser site data</th>
+              <td>Removes browser-managed IdeaForge storage, including sessions and credentials.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        IdeaForge asks the browser for persistent storage when starting an interview or
+        importing a backup, but the browser still controls retention. Installing the app
+        can improve durability on some mobile platforms; it is not a substitute for a
+        backup.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
