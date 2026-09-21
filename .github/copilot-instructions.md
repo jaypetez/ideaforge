@@ -9,19 +9,20 @@ this file is an entry point, not a second copy of their rules.
   Node scripts rather than adding tooling.
 - Keep `src/core/` and `src/runtime/` platform-free. Inject providers and time;
   do not weaken the purity lint to accommodate a platform API.
-- Run focused tests while editing and the full suite before pushing. Browser checks
-  must have `BROWSER_CHECK_REQUIRED=1` set; use the shell-specific examples in
-  `AGENTS.md` so a missing browser cannot silently pass.
+- Run focused tests while editing and `npm run test:all` before pushing. Use
+  `npm run test:browser:required` for a focused browser run so missing Chrome cannot
+  silently pass.
 - Preserve unrelated working-tree changes. Deliver requested changes through a PR,
   respect the required `ci` check, and do not merge unless explicitly asked.
 
-Use the shared [update-readme skill](../.claude/skills/update-readme/SKILL.md) for
-README maintenance and the changes named in its description. The shared
+Use the shared [project skills](../.claude/skills/) for provider, voice, local-model,
+README, review, and release workflows. The
 [release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
 publish, or verify a release; do not select publication automatically or act in place
 of a designated maintainer. Keep one definition of each skill in `.claude/skills`;
-both Copilot CLI and VS Code discover them there. Use the current client's normal tools
-and permissions, not duplicate skill copies or blanket tool pre-approvals.
+Claude Code, Copilot CLI, and VS Code all discover that location. Use the current
+client's normal tools and permissions, not duplicate skill copies or blanket tool
+pre-approvals.
 
 See [coding assistant setup](../CONTRIBUTING.md#coding-assistants) for discovery
 commands and troubleshooting. Copilot support here is for developing the repository,

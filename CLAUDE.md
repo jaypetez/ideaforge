@@ -15,18 +15,18 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the unit suite (250 tests in a fresh run)
+npm test                 # lint:purity, then the unit suite (251 tests in a fresh run)
 npm run test:graph       # syntax + import-graph checks over the shipped modules
-BROWSER_CHECK_REQUIRED=1 npm run test:browser
-                         # headless Chrome on the assembled publishable tree
+npm run test:browser:required
+                         # headless Chrome on the assembled publishable tree, fail-closed
 npm run test:all         # unit + graph + browser
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
 npm run screenshots      # regenerate docs/ — the README's images and worked example
 
 node --test test/voice.test.mjs                        # one file
-node --test --test-name-pattern="zero gain"            # one test, by name (a JS regex)
-node --test                                            # default discovery, no glob needed
+node --test --test-name-pattern="zero gain" "test/**/*.test.mjs"
+node --test "test/**/*.test.mjs"                       # unit files, not browser probes
 ```
 
 There is **no install step** — zero dependencies, not even dev dependencies. Node 22+.
@@ -36,7 +36,7 @@ the service worker all need a real origin.
 
 `npm run test:graph` is `tools/check-module-graph.mjs`. `npm run test:all` is exactly
 `npm test`, then `npm run test:graph`, then the required-browser variant of
-`npm run test:browser`; a machine without Chrome fails rather than reporting a skip.
+`npm run test:browser:required`; a machine without Chrome fails rather than reporting a skip.
 
 `npm run screenshots` needs Chrome. It drives the real app against the scripted interview in
 `tools/fixtures/walkthrough.mjs` and rewrites every image in `docs/` plus
@@ -142,6 +142,8 @@ tested without a microphone. Its noise floor is a running minimum, which works b
 speech has gaps at word boundaries — that is what lets a recording opening mid-sentence
 correct itself rather than staying deaf.
 
+Use the `change-voice-and-driving` skill for the complete change and validation procedure.
+
 ## Driving mode: the rules that fail silently
 
 The hands-free loop lives in `src/runtime/drive.js`, with the matching in
@@ -211,6 +213,8 @@ enough that the eighth failure case never gets written.
   a general-purpose inference API** — its only sanctioned route was sunset in Nov 2025 and
   GitHub's terms name proxy usage as grounds for disabling Copilot access. Groq's free tier
   fills that slot. The reasoning is recorded in `src/providers/index.js`; don't re-add them.
+
+Use the `add-provider` skill when changing an inference or transcription provider.
 
 ## Tests
 
