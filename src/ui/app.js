@@ -6,7 +6,9 @@
 // this page — so panels are toggled with `hidden` and the URL never moves.
 
 import {
-  createSession, openTurn, waiveDimension, skipQuestion, setWrapOffered,
+  archiveSession, createSession, openTurn, renameSession, reopen, restoreSession,
+  sessionDisplayTitle, setDraftAnswer, setSessionTags, setStatusField,
+  waiveDimension, skipQuestion, setWrapOffered,
 } from '../core/session.js';
 import { DIMENSIONS, getDimension } from '../core/dimensions.js';
 import {
@@ -17,12 +19,14 @@ import {
   DRIVING, parseSpeech, matchAffirmation, normalizeTrigger, triggerWarning,
 } from '../core/driving.js';
 import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js';
-import { runSynthesis } from '../runtime/synthesize.js';
+import { resumeSynthesis, runSynthesis } from '../runtime/synthesize.js';
 import { createDriveLoop } from '../runtime/drive.js';
 import {
   createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback,
 } from '../providers/index.js';
-import { saveSession, loadSession, listSessions, newSessionId } from '../store/sessions.js';
+import {
+  deleteSession, importSessions, saveSession, loadSession, listSessions, newSessionId,
+} from '../store/sessions.js';
 import {
   saveCredentials, loadCredentials, clearCredentials, maskKey,
   emptyKeyring, credsFor, withCreds, withStt, hasAnyKey,
@@ -31,22 +35,32 @@ import { requestPersistence } from '../store/db.js';
 import { loadPrefs, savePrefs } from '../store/prefs.js';
 import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
 import { DRIVING_GATE, CONFIRM_GATE } from '../voice/vad.js';
+import {
+  backupFilename, buildBackup, MAX_BACKUP_BYTES, parseBackup,
+} from '../core/backup.js';
+import { createInstallController } from './install.js';
+import { createLibraryView } from './library.js';
+import { downloadText, shareTextFile } from './share.js';
 import { VERSION } from '../version.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of [
-  'meter', 'meter-fill', 'meter-label', 'b-settings',
+  'meter', 'meter-fill', 'meter-label', 'b-library', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
-  'b-start', 'b-check', 'resume', 'resume-rows',
+  'install-card', 'install-title', 'install-note', 'b-install',
+  'b-start', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
   'field-stopword', 'stopword', 'stopword-note',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
+  'panel-library', 'library-search', 'library-status', 'library-tag',
+  'library-rows', 'library-empty', 'library-count',
+  'b-library-new', 'b-backup', 'b-import', 'backup-file',
   'panel-done', 'done-title', 'done-meta', 'output',
-  'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
+  'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
 ]) els[id] = $(id);
 
 const state = {
@@ -66,6 +80,10 @@ const state = {
   trigger: DRIVING.trigger,
   /** Whether hands-free was on last time, restored once the voice is known to work. */
   wantHandsFree: false,
+  /** Debounced write of the unfinished answer box. */
+  draftTimer: null,
+  library: null,
+  install: null,
 };
 
 const now = () => Date.now();
@@ -73,7 +91,10 @@ const now = () => Date.now();
 // ─────────────────────────────────────────────────────────────── plumbing
 
 function show(panel) {
-  for (const p of ['panel-setup', 'panel-interview', 'panel-done']) els[p].hidden = p !== panel;
+  for (const p of ['panel-setup', 'panel-interview', 'panel-library', 'panel-done']) {
+    els[p].hidden = p !== panel;
+  }
+  if (panel === 'panel-setup' || panel === 'panel-library') els.meter.hidden = true;
 }
 
 function say(msg) {
@@ -133,8 +154,70 @@ function busy(on, label) {
 async function persist() {
   try {
     await saveSession(state.session);
+    return true;
   } catch (e) {
     say(`This session could not be saved to this device (${e.message}). Export before you close the tab.`);
+    return false;
+  }
+}
+
+function cancelDraftSave() {
+  if (state.draftTimer) clearTimeout(state.draftTimer);
+  state.draftTimer = null;
+}
+
+async function flushDraft() {
+  cancelDraftSave();
+  if (!state.session || !openTurn(state.session)) return true;
+  const draft = els.answer.value;
+  if (draft === state.session.draftAnswer) return true;
+  const previous = state.session;
+  state.session = setDraftAnswer(previous, draft, now());
+  if (await persist()) return true;
+  state.session = previous;
+  return false;
+}
+
+function queueDraftSave() {
+  cancelDraftSave();
+  if (!state.session || !openTurn(state.session)) return;
+  state.draftTimer = setTimeout(() => {
+    flushDraft().catch((error) => fail(error));
+  }, 600);
+}
+
+function exportFor(session) {
+  return buildExport(session, {
+    mode: session.synthesis.text ? 'claude' : 'checklist',
+    note: session.synthesis.text
+      ? null
+      : 'The refined prompt could not be generated, but nothing else was lost.',
+  });
+}
+
+function downloadSession(session) {
+  downloadText(exportFor(session), exportFilename(session), { type: 'text/markdown' });
+}
+
+async function shareSession(session) {
+  try {
+    const result = await shareTextFile({
+      text: exportFor(session),
+      filename: exportFilename(session),
+      title: sessionDisplayTitle(session),
+      type: 'text/markdown',
+    });
+    if (result.kind === 'unsupported') {
+      downloadSession(session);
+      say('This browser has no share sheet, so the markdown was downloaded instead.');
+    } else if (result.kind === 'text') {
+      say('This share target received the markdown as text.');
+    } else if (result.kind === 'file') {
+      say('Shared.');
+    }
+  } catch (error) {
+    downloadSession(session);
+    say(`The share sheet failed (${error.message}). The markdown was downloaded instead.`);
   }
 }
 
@@ -166,7 +249,10 @@ function onProviderChange() {
   // so the field could never appear at all.
   els['field-base'].hidden = !c.local;
   els['field-model'].hidden = !c.discoverModels;
-  els['provider-note'].textContent = c.note || '';
+  const onPhone = state.install && ['android', 'ios'].includes(state.install.state().platform);
+  els['provider-note'].textContent = (c.note || '') + (c.local && onPhone
+    ? ' On a phone, localhost means this phone, not a computer running Ollama.'
+    : '');
   els.keylink.href = c.keyUrl || '#';
   els.keylink.hidden = !c.keyUrl;
 
@@ -421,6 +507,7 @@ function renderChips(chips) {
       els.answer.value = text;
       state.answerSource = 'chip';
       els.answer.focus();
+      queueDraftSave();
     };
     els.chips.append(b);
   }
@@ -467,6 +554,7 @@ async function nextQuestion() {
 /** Give up on the open question. Both the button and the spoken command land here. */
 async function doSkip() {
   if (!openTurn(state.session)) return;
+  cancelDraftSave();
   state.session = skipQuestion(state.session, { now: now() });
   els.answer.value = '';
   say('');
@@ -476,6 +564,7 @@ async function doSkip() {
 
 /** Record an answer and ask the next question. The hands-free loop calls this directly. */
 async function submitAndAdvance(text, source) {
+  cancelDraftSave();
   state.session = submitAnswer(state.session, { text, source, now: now() });
   els.answer.value = '';
   state.answerSource = 'typed';
@@ -675,7 +764,7 @@ async function wrapUp(note) {
 
   const out = await runSynthesis(state.session, { provider: state.provider, now: now() });
   warn(out);
-  state.session = out.session;
+  state.session = out.ok ? out.session : setStatusField(out.session, 'done', now());
   await persist();
 
   if (!out.ok) {
@@ -698,7 +787,7 @@ function spokenResult(ok) {
     return 'I could not write the prompt, but nothing is lost — your answers are saved '
       + 'and the document is on screen.';
   }
-  const title = s.title ? `${s.title}. ` : '';
+  const title = sessionDisplayTitle(s, '') ? `${sessionDisplayTitle(s, '')}. ` : '';
   return `Here it is. ${title}${forSpeech(s.synthesis.text)}`;
 }
 
@@ -719,38 +808,182 @@ async function speakLong(text) {
 
 function renderDone() {
   const s = state.session;
-  els['done-title'].textContent = s.title || 'Your refined prompt';
+  els['done-title'].textContent = sessionDisplayTitle(s, 'Your refined prompt');
   const degraded = s.turns.some((t) => t.questionSource === 'bank');
   els['done-meta'].textContent =
     `${s.turns.filter((t) => t.answer || t.skipped).length} questions · coverage ${coveragePercent(s)}%` +
     (degraded ? ' · some questions came from the built-in checklist' : '');
-  els.output.textContent = buildExport(s, {
-    mode: s.synthesis.text ? 'claude' : 'checklist',
-    note: s.synthesis.text ? null : 'The refined prompt could not be generated, but nothing else was lost.',
-  });
+  els.output.textContent = exportFor(s);
 }
 
 function download() {
-  const blob = new Blob([els.output.textContent], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = exportFilename(state.session);
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadSession(state.session);
+}
+
+async function refreshLibrary() {
+  try {
+    state.library.render(await listSessions());
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function openLibrary() {
+  say('');
+  fail(null);
+  if (!(await flushDraft())) return;
+  teardownVoice();
+  show('panel-library');
+  await refreshLibrary();
+  state.library.focus();
+}
+
+async function editLibrarySession(session, { name, tags }) {
+  try {
+    const changedAt = now();
+    let updated = renameSession(session, name, changedAt);
+    updated = setSessionTags(updated, tags, changedAt);
+    await saveSession(updated);
+    if (state.session && state.session.id === updated.id) state.session = updated;
+    say('Idea details saved.');
+    await refreshLibrary();
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function setArchived(session, archived) {
+  try {
+    const updated = archived ? archiveSession(session, now()) : restoreSession(session, now());
+    await saveSession(updated);
+    if (state.session && state.session.id === updated.id) state.session = updated;
+    say(archived ? 'Idea archived.' : 'Idea restored.');
+    await refreshLibrary();
+    await renderResumeList();
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function removeLibrarySession(session) {
+  try {
+    await deleteSession(session.id);
+    if (state.session && state.session.id === session.id) state.session = null;
+    say('Idea deleted from this device.');
+    await refreshLibrary();
+    await renderResumeList();
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function exportLibraryBackup() {
+  try {
+    const sessions = await listSessions();
+    downloadText(buildBackup(sessions, { now: now() }), backupFilename(now()), {
+      type: 'application/json',
+    });
+    say(`Backed up ${sessions.length} idea${sessions.length === 1 ? '' : 's'}.`);
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function importLibraryBackup(file) {
+  try {
+    if (file.size > MAX_BACKUP_BYTES) {
+      throw new Error(`The backup is larger than ${Math.round(MAX_BACKUP_BYTES / 1024 / 1024)} MB.`);
+    }
+    requestPersistence();
+    const parsed = parseBackup(await file.text());
+    const summary = await importSessions(parsed.sessions, { now: now() });
+    const parts = [
+      `${summary.imported} imported`,
+      `${summary.copied} kept as copies`,
+      `${summary.duplicates} duplicates skipped`,
+    ];
+    if (parsed.skipped) parts.push(`${parsed.skipped} invalid rows skipped`);
+    say(parts.join(' · '));
+    await refreshLibrary();
+    await renderResumeList();
+  } catch (error) {
+    fail(error);
+  }
+}
+
+function setupLibrary() {
+  state.library = createLibraryView({
+    elements: {
+      search: els['library-search'],
+      status: els['library-status'],
+      tag: els['library-tag'],
+      rows: els['library-rows'],
+      empty: els['library-empty'],
+      count: els['library-count'],
+      backup: els['b-backup'],
+      importButton: els['b-import'],
+      importFile: els['backup-file'],
+      newButton: els['b-library-new'],
+    },
+    onOpen: resumeInterview,
+    onEdit: editLibrarySession,
+    onArchive: (session) => setArchived(session, true),
+    onRestore: (session) => setArchived(session, false),
+    onDelete: removeLibrarySession,
+    onShare: shareSession,
+    onDownload: downloadSession,
+    onBackup: exportLibraryBackup,
+    onImport: importLibraryBackup,
+    onError: fail,
+    onNew: async () => {
+      say('');
+      fail(null);
+      if (!(await flushDraft())) return;
+      teardownVoice();
+      show('panel-setup');
+      await renderResumeList();
+    },
+  });
+}
+
+function renderInstall(info = state.install && state.install.state()) {
+  if (!info || info.installed || info.platform === 'other') {
+    els['install-card'].hidden = true;
+    return;
+  }
+
+  els['install-card'].hidden = false;
+  els['b-install'].hidden = !(info.platform === 'android' && info.canPrompt);
+  if (info.platform === 'ios') {
+    els['install-title'].textContent = 'Install on this iPhone';
+    els['install-note'].textContent =
+      'In Safari, tap Share, Add to Home Screen, leave Open as Web App on if shown, then tap Add. '
+      + 'For dictation in the installed app, choose Groq or OpenAI Whisper below.';
+  } else {
+    els['install-title'].textContent = 'Install on this Android phone';
+    els['install-note'].textContent = info.canPrompt
+      ? 'Install it for a full-screen home-screen app and more durable offline storage.'
+      : 'In Chrome, open the menu and choose Install app or Add to Home screen.';
+  }
 }
 
 // ──────────────────────────────────────────────────────────────── boot
 
 async function startInterview() {
   fail(null);
+  requestPersistence();
   try {
     await buildProvider();
   } catch (e) {
     fail(e);
     return;
   }
-  state.session = seedTurn(createSession({ id: newSessionId(), now: now() }), { now: now() });
+  const platform = state.install ? state.install.state().platform : 'other';
+  state.session = seedTurn(createSession({
+    id: newSessionId(),
+    now: now(),
+    device: platform === 'other' ? 'desktop' : platform,
+  }), { now: now() });
   await persist();
   show('panel-interview');
   render();
@@ -759,19 +992,49 @@ async function startInterview() {
 }
 
 async function resumeInterview(id) {
+  say('');
+  fail(null);
+  if (!(await flushDraft())) return;
+  teardownVoice();
   const s = await loadSession(id);
   if (!s) { fail('That session was written by a newer version of IdeaForge.'); return; }
+  state.session = s;
+
+  if (s.status === 'done' && !s.pending && !openTurn(s)) {
+    renderDone();
+    show('panel-done');
+    return;
+  }
+
   try {
     await buildProvider();
   } catch (e) {
     say(`Continuing without a model (${e.message}). Questions will come from the built-in checklist.`);
     state.provider = null;
   }
-  state.session = s;
+
+  if (s.pending && s.pending.kind === 'synthesis') {
+    show('panel-done');
+    els['done-title'].textContent = 'Picking up the write-up…';
+    els.output.textContent = '';
+    els['done-meta'].textContent = '';
+    const out = await resumeSynthesis(s, { provider: state.provider, now: now() });
+    warn(out);
+    state.session = out.ok ? out.session : setStatusField(out.session, 'done', now());
+    await persist();
+    if (!out.ok) {
+      fail(out.error
+        ? `The wrap-up call failed: ${out.error.message}`
+        : 'The refined prompt could not be regenerated, but the interview is intact.');
+    }
+    renderDone();
+    return;
+  }
+
   show('panel-interview');
   await setupVoice();
 
-  if (s.pending) {
+  if (s.pending && s.pending.kind === 'turn') {
     busy(true, 'picking up where the last question left off…');
     try {
       const out = await resumeTurn(s, { provider: state.provider, now: now() });
@@ -780,30 +1043,37 @@ async function resumeInterview(id) {
       await persist();
     } catch (e) { fail(e); } finally { busy(false); }
   }
-  if (s.status === 'done' && !openTurn(state.session)) { renderDone(); show('panel-done'); return; }
+  if (state.session.status === 'done' && !openTurn(state.session)) {
+    renderDone();
+    show('panel-done');
+    return;
+  }
   if (!openTurn(state.session)) { await nextQuestion(); return; }
   render();
+  els.answer.value = state.session.draftAnswer || '';
+  els.answer.focus();
 }
 
 async function renderResumeList() {
   let rows;
   try { rows = await listSessions(); } catch { return; }
-  const open = rows.filter((s) => s.turns.length > 1).slice(0, 5);
+  const open = rows.filter((s) => !s.archivedAt && s.turns.length > 0).slice(0, 3);
   els.resume.hidden = open.length === 0;
   els['resume-rows'].innerHTML = '';
   for (const s of open) {
     const row = document.createElement('div');
     row.className = 'row';
     const name = document.createElement('span');
-    name.textContent = s.title || s.opening || '(no opening statement yet)';
+    name.textContent = sessionDisplayTitle(s, '(no opening statement yet)');
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'ghost small';
-    b.textContent = s.status === 'done' ? 'reopen' : 'continue';
-    b.onclick = () => resumeInterview(s.id);
+    b.textContent = s.status === 'done' ? 'view' : 'continue';
+    b.onclick = () => resumeInterview(s.id).catch((error) => fail(error));
     const meta = document.createElement('span');
     meta.className = 'gap';
-    meta.textContent = `${s.turns.length} questions · coverage ${coveragePercent(s)}%`;
+    const answered = s.turns.filter((turn) => turn.answer || turn.skipped).length;
+    meta.textContent = `${answered} questions · coverage ${coveragePercent(s)}%`;
     row.append(name, b, meta);
     els['resume-rows'].append(row);
   }
@@ -815,6 +1085,15 @@ function bind() {
   // On change, not on input: normalising every keystroke fights whoever is typing.
   els.stopword.onchange = () => applyTrigger(els.stopword.value);
   els['b-start'].onclick = startInterview;
+  els['b-install'].onclick = async () => {
+    if (!state.install) return;
+    try {
+      const choice = await state.install.install();
+      if (choice.outcome === 'dismissed') say('Installation was cancelled.');
+    } catch (error) {
+      fail(error);
+    }
+  };
   els['b-mic'].onclick = async () => {
     if (!state.voice) return;
     if (!els.listening.hidden) { state.voice.stop(); return; }
@@ -823,7 +1102,11 @@ function bind() {
       // autoStop false: the button is press-to-talk, so the user decides when they are
       // done. Whatever came back lands in the box for them to edit before sending.
       const heard = await listenOnce({ prompt: currentQuestion(), autoStop: false });
-      if (heard.trim()) { els.answer.value = heard; state.answerSource = 'voice'; }
+      if (heard.trim()) {
+        els.answer.value = heard;
+        state.answerSource = 'voice';
+        queueDraftSave();
+      }
     } catch (e) { fail(e); }
   };
   els.handsfree.onchange = () => {
@@ -855,7 +1138,17 @@ function bind() {
     await doSkip();
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
-  els['b-settings'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };
+  els['b-library'].onclick = openLibrary;
+  els['b-view-all'].onclick = openLibrary;
+  els['b-settings'].onclick = async () => {
+    say('');
+    fail(null);
+    if (!(await flushDraft())) return;
+    teardownVoice();
+    show('panel-setup');
+    await renderResumeList();
+  };
+  els['b-share'].onclick = () => shareSession(state.session);
   els['b-copy'].onclick = async () => {
     try {
       await navigator.clipboard.writeText(els.output.textContent);
@@ -863,8 +1156,24 @@ function bind() {
     } catch { say('Could not reach the clipboard — select the text above instead.'); }
   };
   els['b-download'].onclick = download;
-  els['b-new'].onclick = () => { teardownVoice(); show('panel-setup'); renderResumeList(); };
+  els['b-new'].onclick = async () => {
+    teardownVoice();
+    say('');
+    fail(null);
+    show('panel-setup');
+    await renderResumeList();
+  };
   els['b-reopen'].onclick = async () => {
+    try {
+      await buildProvider();
+    } catch (error) {
+      say(`Continuing without a model (${error.message}). Questions will come from the built-in checklist.`);
+      state.provider = null;
+    }
+    const reopenedAt = now();
+    state.session = reopen(state.session, reopenedAt);
+    if (state.session.archivedAt) state.session = restoreSession(state.session, reopenedAt);
+    await persist();
     show('panel-interview');
     // wrapUp tore the voice down, so without this "Ask me more" has no microphone at all.
     await setupVoice();
@@ -879,6 +1188,10 @@ function bind() {
   // Editing a chip makes the words theirs again, which un-caps the coverage grade.
   els.answer.addEventListener('input', () => {
     if (state.answerSource === 'chip') state.answerSource = 'typed';
+    queueDraftSave();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushDraft();
   });
 }
 
@@ -898,6 +1211,11 @@ function applyTrigger(raw, { persist: write = true } = {}) {
 
 async function boot() {
   bind();
+  setupLibrary();
+  state.install = createInstallController({
+    onChange: renderInstall,
+  });
+  renderInstall();
   const prefs = loadPrefs();
   // Synchronously, before anything can start an interview: the loop needs the word to
   // build its matcher, and the keyring below is loaded asynchronously.
@@ -911,7 +1229,6 @@ async function boot() {
   onSttChange();
   els.version.textContent = `IdeaForge v${VERSION}`;
   await renderResumeList();
-  requestPersistence();
   show('panel-setup');
 
   // Installability and an offline cold start. Needs a secure context, so it simply does

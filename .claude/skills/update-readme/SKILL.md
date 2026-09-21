@@ -25,7 +25,7 @@ npm run screenshots
 ```
 
 This drives the real app in headless Chrome against `tools/fixtures/walkthrough.mjs` and
-rewrites all twelve PNGs in `docs/screenshots/` plus `docs/examples/remember-names.md`. It
+rewrites all fourteen PNGs in `docs/screenshots/` plus `docs/examples/remember-names.md`. It
 needs Chrome (`CHROME_PATH` overrides discovery) and a network connection — the app's CSP
 loads IBM Plex from Google Fonts, and the harness prints a loud warning if the shots came out
 in fallback faces. **A run that warns about fonts is a run to throw away.**

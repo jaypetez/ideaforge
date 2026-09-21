@@ -14,8 +14,21 @@ know.
 
 IdeaForge is a static page with **no server and no dependencies**. It runs entirely in
 your browser, and the only network requests it makes are to the inference and
-transcription provider you choose. There is no analytics, no telemetry, and nothing is
-sent anywhere else.
+transcription provider you choose. There is no analytics or telemetry. A prompt or backup
+only leaves the app when you explicitly share or export it.
+
+## Your interviews and backups
+
+Sessions are stored in IndexedDB on the device. They are not encrypted: the transcript has
+to be available to the app for search, resume and export, and there is no account password
+or server-held key in this browser-only design.
+
+**Back up ideas** writes the full active and archived library to an unencrypted JSON file.
+It deliberately excludes API keys and device preferences. Anyone who can read the backup
+can read the interviews, so store and share it like any other personal document.
+
+**Share .md** hands one finished export to the operating system share sheet after an
+explicit button press. The destination the user chooses then owns that copy.
 
 ## Your API key: what is and is not protected
 

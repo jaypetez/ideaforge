@@ -326,6 +326,14 @@ async function run(theme, chrome, port) {
     await app.shot('06-refined-prompt');
 
     const markdown = await app.eval(`document.getElementById('output').textContent`);
+    await app.eval(`document.getElementById('b-library').click()`);
+    await app.waitFor(
+      `!document.getElementById('panel-library').hidden
+       && document.querySelectorAll('#library-rows .idea-card').length === 1`,
+      'the ideas library',
+    );
+    await app.shot('07-ideas-library');
+
     const trace = await app.eval('window.__trace');
     const err = await app.eval(
       `document.getElementById('err').hidden ? '' : document.getElementById('err').textContent`,

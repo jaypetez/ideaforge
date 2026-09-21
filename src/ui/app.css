@@ -38,6 +38,10 @@ body {
 .wrap {
   max-width: 720px; margin: 0 auto;
   padding-inline: 20px; padding-block: 20px 72px;
+  padding-left:max(20px,env(safe-area-inset-left));
+  padding-right:max(20px,env(safe-area-inset-right));
+  padding-top:max(20px,env(safe-area-inset-top));
+  padding-bottom:max(72px,calc(env(safe-area-inset-bottom) + 24px));
   display: flex; flex-direction: column; gap: 24px;
 }
 .sr-only {
@@ -70,6 +74,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .hint { margin:0; font-size:13px; color:var(--ink-dim); }
 .hint a { color:var(--accent); }
+.install-card {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--surface);
+}
+.install-card h2 { margin:0 0 4px; font-size:16px; }
 
 .btns { display:flex; flex-wrap:wrap; gap:8px; }
 button {
@@ -131,12 +140,49 @@ button:disabled { opacity:.45; cursor:default; }
 .lvl.partial { background:color-mix(in srgb,var(--pend) 18%,transparent); color:var(--pend); }
 .lvl.covered { background:color-mix(in srgb,var(--ok) 16%,transparent); color:var(--ok); }
 
+/* ─────────────────────────────────────────────────────────────── library */
+.section-head, .library-summary {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+}
+.section-head h2 { margin:0 0 4px; font-size:24px; }
+.library-tools { display:flex; flex-direction:column; gap:12px; }
+.library-filters { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.idea-list { display:flex; flex-direction:column; gap:12px; }
+.idea-card {
+  display:flex; flex-direction:column; gap:11px; padding:15px;
+  background:var(--surface); border:1px solid var(--line); border-radius:8px;
+}
+.idea-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.idea-head h3 { margin:0; font-size:18px; line-height:1.3; overflow-wrap:anywhere; }
+.idea-status {
+  flex:none; font-family:var(--mono); font-size:10px; font-weight:600;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--ink-dim);
+  background:var(--surface-2); border-radius:4px; padding:3px 7px;
+}
+.idea-status.completed { color:var(--ok); }
+.idea-status.archived { opacity:.7; }
+.idea-meta { margin:0; color:var(--ink-dim); font-size:13px; }
+.idea-tags { display:flex; flex-wrap:wrap; gap:6px; }
+.idea-tags:empty { display:none; }
+.idea-tags span {
+  padding:3px 8px; border-radius:999px; background:var(--surface-2);
+  color:var(--ink-dim); font-family:var(--mono); font-size:11px;
+}
+.idea-edit { border-top:1px solid var(--line); padding-top:10px; }
+.idea-edit summary {
+  cursor:pointer; color:var(--accent); font-size:13px; font-weight:600;
+}
+.idea-edit[open] { display:grid; gap:8px; }
+.idea-edit[open] summary { margin-bottom:2px; }
+.backup-warning { border-left:3px solid var(--line); padding-left:10px; }
+
 /* ──────────────────────────────────────────────────────────────── done */
 .output {
   font-family:var(--mono); font-size:13px; line-height:1.65;
   white-space:pre-wrap; word-break:break-word; margin:0;
   background:var(--surface); border:1px solid var(--line); border-radius:6px;
   padding:16px; max-height:60vh; overflow:auto;
+  max-height:60dvh;
 }
 
 /* ───────────────────────────────────────────────────────────── banners */
@@ -144,5 +190,20 @@ button:disabled { opacity:.45; cursor:default; }
 .note { background:color-mix(in srgb,var(--pend) 14%,transparent); color:var(--ink); }
 .err  { background:color-mix(in srgb,var(--fail) 14%,transparent); color:var(--ink);
         border:1px solid color-mix(in srgb,var(--fail) 45%,transparent); }
+
+@media (max-width:520px) {
+  .wrap { gap:20px; }
+  .bar { flex-wrap:nowrap; }
+  .bar-right { gap:7px; }
+  .install-card, .section-head, .library-summary { align-items:stretch; flex-direction:column; }
+  .library-filters { grid-template-columns:1fr; }
+  .idea-actions button { flex:1 1 130px; }
+  .question { font-size:23px; }
+}
+
+@media (pointer:coarse) {
+  button, input, select { min-height:44px; }
+  .row button, button.small { min-height:40px; }
+}
 
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }

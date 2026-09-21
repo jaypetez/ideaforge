@@ -15,7 +15,7 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the unit suite
+npm test                 # lint:purity, then the unit suite (251 tests in a fresh run)
 npm run test:graph       # syntax + import-graph checks over the shipped modules
 npm run test:browser:required
                          # headless Chrome on the assembled publishable tree, fail-closed
@@ -65,7 +65,7 @@ enforces that, and the CSP allowlist with it.
 mentions `window`, `document`, `localStorage`, `sessionStorage`, `navigator`, `fetch`,
 `alert` or `claude`. It runs as part of `npm test`.
 
-This is why the whole suite runs in under a second with no mocking framework and no
+This is why the whole suite runs in a couple of seconds with no mocking framework and no
 network. If new code needs a platform API, it belongs in one of the other directories and
 the thing that needs it takes it as an argument.
 
@@ -114,6 +114,18 @@ These are load-bearing and most of them fail *silently* if broken.
   dictation rambles. Chip and unedited-draft answers are capped at `partial` — those are
   Claude's words, not the user's.
 - **`runTurn` bumps `rev` five or six times.** Persist the object it returns, once.
+- **The answer-box draft is the exception to settled-turn persistence.** Debounce
+  `setDraftAnswer`; never persist each keystroke, and clear the queued write before submit
+  or skip so an old timer cannot put answered text back into the next question.
+- **One session is one library idea.** `name` is the user's override, `title` is the model's
+  suggestion, and display/export order is `name → title → opening`. Tags and archive state
+  migrate with the session; they are not a second store.
+- **Backups contain sessions and nothing else.** Never add the credential keyring or device
+  preferences to `buildBackup`. An imported id collision becomes a named copy; silently
+  overwriting the local row is data loss.
+- **Call `navigator.share` before yielding the click gesture.** File construction and
+  `canShare` checks are synchronous; adding an unrelated `await` before the call makes the
+  mobile share sheet fail with `NotAllowedError`.
 
 ## Voice: probe by behaviour, never by feature detection
 

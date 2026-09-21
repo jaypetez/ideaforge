@@ -27,9 +27,9 @@ becomes a tax on every PR and gets deleted.
 src/core/       pure interview logic — no DOM, no network, no clock, no randomness
 src/runtime/    the turn loop — provider and clock are injected
 src/providers/  the only directory allowed to touch the network
-src/store/      IndexedDB sessions and the encrypted keyring
+src/store/      IndexedDB sessions, backup import and the encrypted keyring
 src/voice/      microphone, transcription, speech synthesis
-src/ui/         the app shell — the only place that touches the DOM
+src/ui/         the app shell and browser adapters — the only place that touches the DOM
 ```
 
 Dependencies run one way: `ui → runtime → core`, and `ui → providers | store | voice`.
@@ -78,7 +78,9 @@ Three consequences worth knowing before you touch any of it:
 - **Persist once per settled turn.** `runTurn` in `src/runtime/turn.js` bumps `rev` five or
   six times internally as it applies coverage, adds facts and asks the question. Saving
   each intermediate object is wasted writes and a torn session if one fails. `persist()` in
-  `src/ui/app.js` is called once, on the object `runTurn` returns.
+  `src/ui/app.js` is called once, on the object `runTurn` returns. The answer box is a
+  separate user-editing path: it debounces `setDraftAnswer` so unfinished prose survives a
+  reload without turning every keystroke into an IndexedDB write.
 - **`rev` is a mutation counter, not a mechanism.** It exists so accidental in-place
   mutation is detectable and so a future reconciliation has something to compare. Nothing
   reads it: `saveSession` in `src/store/sessions.js` does an unconditional put, and two
@@ -87,6 +89,14 @@ Three consequences worth knowing before you touch any of it:
   is applied by `src/store/sessions.js` as rows come back, and it **refuses** a session
   whose `schema` is newer than this build rather than guessing at it. The credential
   keyring in `src/store/secrets.js` follows the same pattern for the same reason.
+
+The library is still made of sessions rather than a second database model. One interview is
+one idea; `name`, `tags` and `archivedAt` are ordinary versioned session fields.
+`src/core/library.js` owns search/filter semantics, while `src/ui/library.js` owns the DOM.
+
+`src/core/backup.js` is the portability boundary. It serializes sessions only, never the
+encrypted keyring or device preferences, and validates every imported row through `migrate`.
+An id collision is kept as a visibly named copy rather than overwriting local work.
 
 ## When a turn fails
 
@@ -100,6 +110,7 @@ property most worth not breaking: **a failure never dead-ends an interview.**
 | The question tripped a tripwire | `questionTripwire` in `src/core/engine.js`; one regeneration, then the bank | Nothing |
 | There is no provider at all | `runTurn`'s null-provider branch | Checklist mode, no calls made |
 | A call was interrupted | `resumeTurn` in `src/runtime/turn.js` | The interview picks up where it stopped |
+| The wrap-up was interrupted | `resumeSynthesis` in `src/runtime/synthesize.js` | The write-up resumes, or the intact transcript is shown |
 | The wrap-up call failed | `runSynthesis` in `src/runtime/synthesize.js`, then `buildExport` in `src/core/markdown.js` | The whole document, minus the refined prompt |
 | Nothing usable was heard, hands-free | `createDriveLoop` in `src/runtime/drive.js` | It says so, listens again, and eventually moves on |
 
@@ -127,8 +138,8 @@ hardcodes the seven labels, and `test/docs.test.mjs` will fail on the README sti
 "seven dimensions" — which is the system working.
 
 **A UI panel.** A `<section>` in `index.html`, its ids added to the `els` list in
-`src/ui/app.js`, and the panel id added to `show()`. Three sites, and nothing enforces that
-you hit all three.
+`src/ui/app.js`, and the panel id added to `show()`. Panel-specific DOM belongs in a module
+such as `src/ui/library.js`; `app.js` keeps ownership of the active session and navigation.
 
 **A dictation backend.** `STT_PRESETS` in `src/voice/transcribe.js`, plus an `<option>` in
 `index.html` — the select is not data-driven. Read the voice section of
@@ -144,12 +155,11 @@ exists. The split mirrors `core/synthesis.js` ↔ `runtime/synthesize.js` — pu
 
 Each of these is a deliberate debt with a trigger for paying it down, not an oversight.
 
-**`src/ui/app.js` has no seams inside it.** One god `state` object, a flat map of element
-ids, and `show()` enumerating the panels by name. It is well sectioned and holds no
-business logic — every classification, coverage and wrap decision lives in `core/`, and the
-hands-free sequencing now lives in `src/runtime/drive.js` — but it is still the one file two
-people cannot comfortably work in at once.
-*Trigger: a fourth panel, or a second contributor working in it concurrently.*
+**`src/ui/app.js` still owns navigation and the active session.** The fourth panel paid down
+the old all-in-one rendering cost: the library DOM lives in `src/ui/library.js`, installation
+events in `src/ui/install.js`, and outbound files in `src/ui/share.js`. The coordinator is
+still a shared edit point, but a new panel no longer has to put its rendering logic there.
+*Trigger: navigation itself needs history, deep links or independently mounted screens.*
 
 **One interview profile is assumed throughout.** `DIMENSIONS`, `SEED_QUESTION` and the two
 prompt rule blocks in `src/core/engine.js` and `src/core/synthesis.js` are module-level

@@ -3,11 +3,14 @@
 // primitive with no Node equivalent that behaves the same way.
 
 import { saveCredentials, loadCredentials, clearCredentials, maskKey } from '../../src/store/secrets.js';
-import { saveSession, loadSession, listSessions, newSessionId } from '../../src/store/sessions.js';
-import { createSession } from '../../src/core/session.js';
+import {
+  importSessions, saveSession, loadSession, listSessions, newSessionId,
+} from '../../src/store/sessions.js';
+import { createSession, renameSession } from '../../src/core/session.js';
 import { seedTurn, submitAnswer, runTurn } from '../../src/runtime/turn.js';
 import { runSynthesis } from '../../src/runtime/synthesize.js';
 import { buildExport } from '../../src/core/markdown.js';
+import { buildBackup, parseBackup } from '../../src/core/backup.js';
 import { loadPrefs, savePrefs } from '../../src/store/prefs.js';
 import { openDb } from '../../src/store/db.js';
 
@@ -133,6 +136,21 @@ export default async function run(check) {
   check('migrate() rehydrates every dimension',
     reloaded && Object.keys(reloaded.coverage).length === 7);
   check('listSessions returns the session', (await listSessions()).some((r) => r.id === id));
+
+  const backup = buildBackup(await listSessions(), { now: Date.now() });
+  check('a library backup never includes the stored API key', !backup.includes(SECRET));
+  const parsedBackup = parseBackup(backup);
+  const duplicate = await importSessions(parsedBackup.sessions, { now: Date.now() });
+  check('importing the same backup does not duplicate a session',
+    duplicate.duplicates === 1 && duplicate.imported === 0 && duplicate.copied === 0);
+
+  const changedImport = renameSession(parsedBackup.sessions[0], 'Imported variant', Date.now());
+  const conflict = await importSessions([changedImport], { now: Date.now() });
+  const afterConflict = await listSessions();
+  check('an imported id collision is kept as a copy, never overwritten',
+    conflict.copied === 1 && afterConflict.length === 2);
+  check('the copied collision is visibly named',
+    afterConflict.some((row) => row.name === 'Imported variant (imported)'));
 
   const syn = await runSynthesis(s, { provider, now: Date.now() });
   check('synthesis writes session.synthesis', syn.ok && !!syn.session.synthesis.text);

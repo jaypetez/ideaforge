@@ -15,7 +15,8 @@
 An interviewer that forges a half-formed idea into a usable LLM prompt.
 
 **→ [Try it](https://jaypetez.github.io/ideaforge/)** — it runs entirely in your browser
-with your own API key. Nothing is sent anywhere but the provider you pick.
+with your own API key. Nothing leaves except model requests and the files or text you
+explicitly share or export.
 
 You have a vague idea. You know things about it you would never think to type — the real
 numbers, the case you have in mind, the thing that would make you throw the output away.
@@ -137,10 +138,41 @@ the full verbatim transcript.
             srcset="docs/screenshots/06-refined-prompt.dark.png">
     <img src="docs/screenshots/06-refined-prompt.light.png" width="760"
          alt="The finished document on screen, titled ‘Conference name recall app’, showing
-              eight questions and 86% coverage, with buttons to copy the markdown, download
-              it, ask more questions, or start a new idea.">
+              eight questions and 86% coverage, with buttons to share, copy or download the
+              markdown, ask more questions, or start a new idea.">
   </picture>
 </p>
+
+## The conversations stay with the idea
+
+Every interview is saved on the device as soon as a turn settles. The answer you are still
+typing is saved after a short pause too, so closing the app halfway through a paragraph does
+not throw it away.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/screenshots/07-ideas-library.dark.png">
+    <img src="docs/screenshots/07-ideas-library.light.png" width="760"
+         alt="The Ideas library with conversation search, status and tag filters, backup and
+              import controls, and a completed idea card offering view, share, download,
+              archive, delete, rename and tag actions.">
+  </picture>
+</p>
+
+**Ideas** is the whole local library, not only a recent list. Search reaches names, tags,
+questions, answers and the refined prompt. An idea can be renamed, tagged, archived,
+restored or permanently deleted.
+
+Nothing is synced to an IdeaForge account because there is no account or server. **Back up
+ideas** downloads one JSON file containing every active and archived interview; **Import
+backup** restores it on another device without silently overwriting a different local copy.
+The backup never contains API keys, but its interview text is deliberately unencrypted, so
+treat it like any other personal document.
+
+On a finished idea, **Share .md** opens the phone's native share sheet with the complete
+markdown file. If a browser cannot share files it shares the markdown as text; copy and
+download remain available either way.
 
 ## Why it stops on its own
 
@@ -202,10 +234,39 @@ well.)
 Install it to your home screen or desktop from the browser menu and it runs offline, from
 the built-in question bank, until a model is reachable again.
 
+### Android
+
+Open [the hosted app](https://jaypetez.github.io/ideaforge/) in Chrome. Use
+**Install IdeaForge** when the app offers it; if Chrome does not show that button, open its
+menu and choose **Install app** or **Add to Home screen**. Google's
+[web-app instructions](https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid&hl=en)
+show the same browser flow.
+
+Chrome's recogniser is the free dictation path on Android. It ends long speech sessions
+every few seconds even when asked not to, so IdeaForge joins those pieces back together
+rather than truncating the answer.
+
+### iPhone
+
+Open [the hosted app](https://jaypetez.github.io/ideaforge/) in Safari, tap **Share**, choose
+**Add to Home Screen**, leave **Open as Web App** enabled if Safari shows it, then tap
+**Add**. Apple's
+[iPhone guide](https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios)
+shows the current controls.
+
+For dictation in the installed app, choose Groq Whisper or OpenAI and provide a transcription
+key. The browser recogniser can exist in a home-screen app without ever producing an event;
+IdeaForge tests it and withholds the microphone button rather than letting it hang.
+
+On either phone, use a hosted provider such as Groq, Anthropic, OpenAI or OpenRouter.
+`localhost` and `127.0.0.1` mean the phone itself, not an Ollama or LM Studio server on your
+computer, and IdeaForge deliberately refuses arbitrary LAN model endpoints rather than
+weakening its key-exfiltration boundary.
+
 ## Run it with Docker
 
 Published on every release as `ghcr.io/jaypetez/ideaforge`, for `linux/amd64` and
-`linux/arm64`. It is nginx over about 35 static files — no build step, nothing server-side,
+`linux/arm64`. It is nginx over 46 static files — no build step, nothing server-side,
 and the container never talks to a model. Your browser does that directly, which is why your
 API key never passes through anything of ours.
 
@@ -357,13 +418,12 @@ src/ui/         the app shell
 
 `tools/lint-purity.mjs` fails the build if anything under `src/core/` or `src/runtime/` so
 much as mentions `window`, `fetch` or `document`. That boundary is what keeps the interview
-engine portable and the turn loop testable without a network — the whole suite runs in under
-a second, with no mocking framework and no network access.
+engine portable and the turn loop testable with no mocking framework and no network access.
 
 ```sh
-npm test              # the purity lint, then 237 tests
+npm test              # the purity lint, then 251 tests
 npm run test:graph    # syntax-check the source and import every platform-free module
-npm run test:browser:required # 123 checks in real Chrome, with no missing-browser skip
+npm run test:browser:required  # 150 checks in real Chrome, with no missing-browser skip
 npm run test:all      # all three gates above
 npm run validate:local  # a whole interview against a real local model, no key, no human
 npm run screenshots   # regenerate every image and the worked example above
