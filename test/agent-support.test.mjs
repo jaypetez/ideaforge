@@ -12,6 +12,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const read = (...parts) => readFileSync(join(ROOT, ...parts), 'utf8');
 const PACKAGE = JSON.parse(read('package.json'));
 const BROWSER_CHECK_SOURCE = read('tools', 'browser-check.mjs');
+const RELEASE_WORKFLOW = read('.github', 'workflows', 'release.yml');
 const REQUIRED_BROWSER_SCRIPT = 'node tools/browser-check.mjs --required';
 const ALL_TESTS_SCRIPT = 'npm test && npm run test:graph && npm run test:browser:required';
 const EXPECTED_SKILLS = new Set([
@@ -268,6 +269,7 @@ function checkDeliveryGates(md, label) {
   for (const { language, body } of fencedBlocks(md)) {
     const lines = body.split(/\r?\n/).map((line) => line.trim())
       .filter((line) => line && !line.startsWith('#'));
+    if (lines.some((line) => /refs\/tags\//.test(line))) continue;
     const pushes = lines.filter((line) =>
       /^git push\b/.test(line) && !/refs\/tags\//.test(line));
     if (!pushes.length) continue;
@@ -419,6 +421,15 @@ test('release remains explicit and references the existing delivery workflow', (
   ]) {
     assert.ok(links.includes(expected), `release is missing reference: ${expected}`);
   }
+  assert.match(RELEASE_WORKFLOW, /merge-base --is-ancestor/);
+  assert.match(release.md, /exact current\s+tip/i);
+  assert.match(release.md, /pages\.yml[\s\S]*src\/version\.js/i);
+  assert.match(release.md, /git ls-remote "\$UPSTREAM" refs\/heads\/main/);
+  assert.match(release.md, /\[ "\$CURRENT_SHA" = "\$SHA" \]/);
+  assert.match(release.md, /no-merge release window/);
+  assert.match(release.md, /git push "\$UPSTREAM" "\$SHA:refs\/tags\/\$TAG"/);
+  assert.doesNotMatch(release.md, /git push --atomic/);
+  assert.doesNotMatch(release.md, /git tag "\$TAG"/);
 });
 
 test('review agents are distinct, explicit, read-only adapters for the shared skill', () => {

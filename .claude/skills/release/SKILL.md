@@ -117,10 +117,10 @@ Require `state == MERGED`, `baseRefName == main`, and a non-empty, 40-character 
 merge commit id. Set `SHA` from that id only. **Never let a missing SHA fall back to
 `HEAD`.** Before constructing tag commands, validate the stable version and tag again.
 
-Fetch `main` from the verified upstream remote and prove `SHA` is a commit contained in
-that branch. Read both version files at **that SHA**, not from the working directory;
-both must equal `VERSION`. Recheck upstream write access and that the tag/release has not
-appeared or been superseded while the PR was under review.
+Fetch `main` from the verified upstream remote and require `SHA` to be its exact current
+tip, not merely an ancestor. Read both version files at **that SHA**, not from the working
+directory; both must equal `VERSION`. Recheck upstream write access and that the tag/release
+has not appeared or been superseded while the PR was under review.
 
 Find the upstream CI push run for that exact merged SHA:
 
@@ -133,9 +133,30 @@ Use the latest matching run, not an unrelated successful run or a fork/PR-head c
 Require the run and its single `ci` aggregator job to be completed successfully. Missing,
 pending, skipped, cancelled and failed are all stop conditions.
 
+Find the Pages workflow for that same SHA:
+
+```sh
+gh run list --repo jaypetez/ideaforge --workflow pages.yml \
+  --commit "$SHA" --event workflow_run \
+  --json databaseId,headSha,status,conclusion
+gh run view "$PAGES_RUN_ID" --repo jaypetez/ideaforge \
+  --json headSha,event,headBranch,status,conclusion,jobs
+curl -fsSL https://jaypetez.github.io/ideaforge/src/version.js
+```
+
+Require a completed successful `deploy` job whose `headSha` is `SHA`, and require the live
+module to report `VERSION`. Re-fetch upstream `main` immediately before tagging and stop if
+its tip moved. A newer main commit means another release preparation is required; do not tag
+the older tree merely because it is still an ancestor.
+
 Only after those checks, with a clean worktree and `UPSTREAM` verified to target
-`jaypetez/ideaforge`, create and push the one tag at the explicit commit. Keep the
-input guard with the commands; an empty SHA must never become an implicit `HEAD`.
+`jaypetez/ideaforge`, create and push the one tag at the explicit commit. Keep the input
+guard with the commands; an empty SHA must never become an implicit `HEAD`.
+
+Git cannot atomically compare `main` and create an unrelated tag in this workflow. The
+maintainer must hold a short no-merge release window, recheck the remote `main` tip
+immediately before the push, and stop if another merge is possible. The workflow's ancestry
+check is a backstop, not exact-tip serialization.
 In a POSIX shell:
 
 ```sh
@@ -148,9 +169,13 @@ In a POSIX shell:
     ''|*[!0-9a-fA-F]*) printf '%s\n' 'Expected the approved merge SHA' >&2; exit 1 ;;
   esac
   [ "${#SHA}" -eq 40 ] || { printf '%s\n' 'Expected a 40-character merge SHA' >&2; exit 1; }
+  CURRENT_SHA="$(git ls-remote "$UPSTREAM" refs/heads/main | awk 'NR == 1 { print $1 }')"
+  [ "$CURRENT_SHA" = "$SHA" ] || {
+    printf '%s\n' "main moved to ${CURRENT_SHA:-an unknown SHA}; expected $SHA" >&2
+    exit 1
+  }
   TAG="v$VERSION"
-  git tag "$TAG" "$SHA" &&
-  git push "$UPSTREAM" "refs/tags/$TAG"
+  git push "$UPSTREAM" "$SHA:refs/tags/$TAG"
 )
 ```
 
@@ -162,11 +187,15 @@ if ($VERSION -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' -or
     [string]::IsNullOrWhiteSpace($UPSTREAM)) {
   throw 'Expected a stable version, approved merge SHA, and verified upstream remote'
 }
+$ref = git ls-remote $UPSTREAM refs/heads/main
+if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the current upstream main tip' }
+$CURRENT_SHA = ($ref -split '\s+')[0]
+if ($CURRENT_SHA -ne $SHA) { throw "main moved to $CURRENT_SHA; expected $SHA" }
 $TAG = "v$VERSION"
-git tag $TAG $SHA
-if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed; nothing was pushed' }
-git push $UPSTREAM "refs/tags/$TAG"
-if ($LASTEXITCODE -ne 0) { throw 'Tag push failed; inspect the remote before retrying' }
+git push $UPSTREAM "$($SHA):refs/tags/$TAG"
+if ($LASTEXITCODE -ne 0) {
+  throw 'Tag push failed; inspect upstream main and the tag before retrying'
+}
 ```
 
 Check each command's exit status before the next action. Do not use `--force`, push all
@@ -221,9 +250,10 @@ normal configuration. Docker is not required: use the anonymous Registry HTTP fl
 Do not claim a container was started unless it actually was. Registry inspection is a
 different check and needs no local daemon or dependency installation.
 
-Pages is independent: inspect its CI-gated deployment for the relevant main commit, and
-respect the current-main check if main has advanced. Do not claim the tag deployed Pages
-or redeploy an older SHA to manufacture a matching result.
+Pages is independently triggered by the merge, but coordinated verification still requires
+its successful deployment to the same `SHA` and a live `src/version.js` equal to `VERSION`.
+Do not claim the tag deployed Pages or redeploy an older SHA to manufacture a matching
+result.
 
 ## 5. Recovery and completion
 
