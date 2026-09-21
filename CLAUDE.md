@@ -203,6 +203,24 @@ enough that the eighth failure case never gets written.
   no error, no violation event, a directive that permits less than it reads as. Verified by
   probe in `test/browser/app.browser.mjs`. Loopback is wildcarded as `http://localhost:*`
   and `http://127.0.0.1:*`, and the settings screen steers anyone typing the bracket form.
+- **A question-model override must never reach the `complex` tier.** `resolveTiers`
+  (`src/providers/index.js`) folds the user's two model choices into a preset's tier map,
+  and prefers the preset's strong tier over the question model on purpose. Invert those two
+  and every wrap-up quietly runs on whatever cheap model was picked for the dozen turns — a
+  worse export, with nothing anywhere reporting that anything happened. `createProvider`
+  also stops forwarding the `model` scalar once it has resolved tiers, because the adapters
+  read `model || tiers[modelTier]` and would otherwise hand the override straight back.
+- **A hidden settings field still holds a value, and `readRingFromForm` still reads it.**
+  Two shipped bugs came from that single fact. `#baseurl` is filled with the preset's own
+  address for every OpenAI-compatible provider, hosted included, so reading it back sent
+  `https://api.openai.com/v1` to `assertLoopback` and made OpenAI, Groq and OpenRouter
+  unusable — an error about an address the user never typed and could not see. The form now
+  reads each field only when the chosen provider declares it (`local`, `picksModel`).
+- **An own property holding `undefined` still wins a spread.** `buildProvider` sends
+  `modelRequired: requireModel ? undefined : false`, which overwrote the `true` that used to
+  sit ahead of `...config` in `createProvider` — so "Another local server" with an empty
+  model box built happily and POSTed a body with no `model` key. It is `?? true` after the
+  spread now, which still honours the deliberate `false` the model-list read passes.
 - **Auth is a descriptor, not a branch.** `src/providers/http.js` owns `applyAuth`,
   `isLoopback` and one `httpError`; a preset says how it signs requests. It also owns the
   only definition of "local" — there were three, and two of them called

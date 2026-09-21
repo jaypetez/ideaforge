@@ -278,9 +278,10 @@ curl http://127.0.0.1:11434/v1/models</code></pre>
 
       <h3>8. If the list fails but the server is compatible, type the model</h3>
       <p>
-        The model field is an editable input, not a locked select. A custom server may omit
-        <code>/models</code> yet still implement chat completions. Type the exact identifier
-        and start only after proving that the chat endpoint is compatible.
+        Both model fields are editable inputs, not locked selects, for every provider. A
+        custom server may omit <code>/models</code> yet still implement chat completions,
+        and a hosted catalogue may not list a model your account can actually reach. Type
+        the exact identifier and start only after proving that the chat endpoint answers.
       </p>
 
       <p>
@@ -523,7 +524,7 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
       <ul>
         <li>the exact app origin and whether it was hosted, local, or containerised;</li>
         <li>browser and operating-system versions;</li>
-        <li>the selected provider and, for local models, the base URL and model identifier;</li>
+        <li>the selected provider, both model choices, and for local models the base URL;</li>
         <li>the complete visible error and relevant console warning;</li>
         <li>whether Check the key or Check the connection passed;</li>
         <li>the smallest safe reproduction, with all API keys and sensitive transcript text removed.</li>

@@ -26,6 +26,13 @@ import {
  * per-vendor fact, not a universal one. `local` is separate from the auth scheme on
  * purpose: a local server needs no key, but an Ollama behind a reverse proxy that wants a
  * bearer token still works if you paste one.
+ *
+ * `discoverModels` is not a local-only flag. Every hosted preset here answers `GET /models`
+ * with CORS headers — that is precisely why `validateKey` probes it — so the settings
+ * screen can offer the real catalogue rather than the two ids this file happens to default
+ * to. The list arrives raw, embeddings and speech models included; it is a suggestion for a
+ * free-text box, not a validated set, which is the same contract it has always had locally.
+ * Anthropic is the exception and says so in its own adapter.
  */
 export const OPENAI_COMPAT_PRESETS = {
   openai: {
@@ -36,6 +43,7 @@ export const OPENAI_COMPAT_PRESETS = {
     // 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
     // This preset defaults to gpt-5-nano, so it was returning a 400 on every turn.
     tokenParam: 'max_completion_tokens',
+    discoverModels: true,
     // And renaming it is only half the fix. A reasoning model spends part of its budget
     // before writing a character, so the 4k that is plenty for Haiku comes back as an
     // empty choice with finish_reason 'length' — the same failure wearing a 200 OK.
@@ -48,6 +56,7 @@ export const OPENAI_COMPAT_PRESETS = {
     baseUrl: 'https://api.groq.com/openai/v1',
     auth: AUTH_BEARER,
     tokenParam: 'max_tokens',
+    discoverModels: true,
     tiers: { quick: 'openai/gpt-oss-20b', default: 'openai/gpt-oss-20b', complex: 'openai/gpt-oss-120b' },
     keyUrl: 'https://console.groq.com/keys',
     note: 'Free tier, no card required.',
@@ -59,6 +68,7 @@ export const OPENAI_COMPAT_PRESETS = {
     // OpenRouter normalises the budget parameter across everything it fronts, so the
     // OpenAI-shaped name keeps working even for models that would refuse it directly.
     tokenParam: 'max_tokens',
+    discoverModels: true,
     tiers: { quick: 'openai/gpt-5-nano', default: 'openai/gpt-5-nano', complex: 'openai/gpt-5-mini' },
     keyUrl: 'https://openrouter.ai/keys',
   },
@@ -149,7 +159,10 @@ export function createOpenAICompatProvider(config) {
   const label = (preset && preset.label) || baseUrl;
   const local = cfg.local !== undefined ? !!cfg.local : isLoopback(baseUrl);
   if (!apiKey && !local) throw new ProviderError('config', 'this provider needs an API key');
-  if (modelRequired && !model) {
+  // `tiers.default` and not just `model`: createProvider resolves the user's choices into a
+  // tier map and stops forwarding the scalar, so for a local server the model they typed
+  // arrives here as the default tier. A direct caller passing `model` still satisfies it.
+  if (modelRequired && !(model || tiers.default)) {
     throw new ProviderError('config',
       `${label} needs a model name — pick one in Settings, or press Check the connection ` +
       'to read the list off the server.');

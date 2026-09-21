@@ -105,7 +105,8 @@
               <td>
                 Hosted providers normally need an API key. Local providers need a loopback
                 server address and a model name. Use a scoped, expiring API key rather than
-                a primary account key.
+                a primary account key. Which models run is yours to choose on the same
+                screen, and every provider starts with a working default.
               </td>
             </tr>
             <tr>
@@ -131,14 +132,22 @@
         <li>
           <strong>Choose where the questions come from.</strong>
           Pick an inference provider from the first list. The fields below change to match:
-          hosted providers show an API-key field; local providers show a server address and
-          model field.
+          hosted providers show an API-key field, local providers show a server address, and
+          both show the two model fields.
         </li>
         <li>
           <strong>Enter the required connection details.</strong>
           Paste the provider key, or enter the local server and model. A local address must
           use <code>localhost</code> or <code>127.0.0.1</code>. On a phone, those names mean
           the phone itself, not a computer on the same network.
+        </li>
+        <li>
+          <strong>Choose the models, or leave them blank.</strong>
+          <strong>Model for the questions</strong> runs every interview turn and is where
+          the cost is; <strong>Model for the wrap-up</strong> runs once at the end and is
+          the call that suffers most on a small model. A blank field uses the provider's
+          own default, which the field shows as placeholder text. See
+          <a href="./providers.html#choosing-models">Providers</a> for the detail.
         </li>
         <li>
           <strong>Choose dictation behaviour.</strong>
@@ -148,9 +157,11 @@
         </li>
         <li>
           <strong>Test the connection.</strong>
-          Use <strong>Check the key</strong> for a hosted provider. For a local provider,
-          <strong>Check the connection</strong> asks the server for its installed models;
-          if the list endpoint is unavailable, you can still type a known model name.
+          Use <strong>Check the key</strong> for a hosted provider or
+          <strong>Check the connection</strong> for a local one. Either makes a real request,
+          and wherever the provider publishes a browser-reachable model list the same request
+          fills the model suggestions. If that list is unavailable, you can still type a
+          known model name.
         </li>
         <li>
           <strong>Start the interview.</strong>

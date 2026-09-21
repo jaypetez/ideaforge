@@ -22,7 +22,7 @@ import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js'
 import { resumeSynthesis, runSynthesis } from '../runtime/synthesize.js';
 import { createDriveLoop } from '../runtime/drive.js';
 import {
-  createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback,
+  createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback, presetModels,
 } from '../providers/index.js';
 import {
   deleteSession, importSessions, saveSession, loadSession, listSessions, newSessionId,
@@ -49,6 +49,7 @@ for (const id of [
   'meter', 'meter-fill', 'meter-label', 'b-library', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
+  'field-wrapmodel', 'wrapmodel',
   'install-card', 'install-title', 'install-note', 'b-install',
   'b-start', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
@@ -244,11 +245,15 @@ function onProviderChange() {
   const saved = credsFor(state.creds, c.id);
 
   els['field-key'].hidden = !c.needsKey;
-  // A local server is the case where the address and the model are worth asking about.
-  // This used to read `c.id !== 'custom'` against a registry that offered no such choice,
-  // so the field could never appear at all.
+  // A local server is the case where the address is worth asking about. This used to read
+  // `c.id !== 'custom'` against a registry that offered no such choice, so the field could
+  // never appear at all.
   els['field-base'].hidden = !c.local;
-  els['field-model'].hidden = !c.discoverModels;
+  // The model boxes used to be gated on `discoverModels`, which meant every hosted provider
+  // ran on a tier map nobody could see, let alone change. The real question is whether this
+  // provider has a model id at all — only the Claude viewer does not.
+  els['field-model'].hidden = !c.picksModel;
+  els['field-wrapmodel'].hidden = !c.picksModel;
   const onPhone = state.install && ['android', 'ios'].includes(state.install.state().platform);
   els['provider-note'].textContent = (c.note || '') + (c.local && onPhone
     ? ' On a phone, localhost means this phone, not a computer running Ollama.'
@@ -258,8 +263,19 @@ function onProviderChange() {
 
   els.baseurl.value = saved.baseUrl || (c.id === 'custom' ? '' : defaultBaseUrl(c.id));
   els.model.value = saved.model || '';
-  // A model list read off a different server is a lie about this one.
-  els['model-list'].innerHTML = '';
+  els.wrapmodel.value = saved.wrapModel || '';
+
+  // The placeholders are this provider's own tier map, which is the whole answer to "which
+  // model is this actually using?" — a question that had no answer anywhere in the UI
+  // before. Blank means the placeholder is what runs.
+  const tiers = c.models || null;
+  els.model.placeholder = (tiers && tiers.default)
+    || 'press Check the connection to list what is available';
+  els.wrapmodel.placeholder = (tiers && tiers.complex) || 'same as the questions model';
+
+  // A model list read off a different server is a lie about this one. The provider's own
+  // defaults are not: seed with those, and let a successful Check replace them.
+  fillModelList(presetModels(c));
   els['model-note'].textContent = '';
 
   els.apikey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste your key';
@@ -321,9 +337,18 @@ async function refreshModels() {
     const provider = await buildProvider({ requireModel: false });
     const names = await provider.listModels();
     fillModelList(names);
+    // One installed model is not a choice, so make it for them. Only ever after a real
+    // read: doing this from the seeded preset list would write a value into a box where
+    // blank — "use whatever the provider defaults to" — is the right answer.
+    if (!els.model.value.trim() && names.length === 1) els.model.value = names[0];
+    // "installed" for a local server, "available" for a hosted account: different claims
+    // about different things. tools/validate-local.mjs matches on the local wording.
+    const word = c.local ? 'installed' : 'available';
     els['model-note'].textContent = names.length
-      ? `${names.length} model${names.length === 1 ? '' : 's'} installed.`
-      : 'That server answered, but it has no models. Pull one first.';
+      ? `${names.length} model${names.length === 1 ? '' : 's'} ${word}.`
+      : c.local
+        ? 'That server answered, but it has no models. Pull one first.'
+        : 'That account answered, but it lists no models.';
   } catch (err) {
     // Leave whatever they typed alone — it may well be right, and the server may simply
     // not answer /models.
@@ -336,6 +361,7 @@ async function refreshModels() {
   }
 }
 
+/** Shared by both model boxes: the candidates are the same, only the job differs. */
 function fillModelList(names) {
   els['model-list'].innerHTML = '';
   for (const name of names) {
@@ -343,8 +369,6 @@ function fillModelList(names) {
     o.value = name;
     els['model-list'].append(o);
   }
-  // One installed model is not a choice, so make it for them.
-  if (!els.model.value.trim() && names.length === 1) els.model.value = names[0];
 }
 
 /**
@@ -357,6 +381,7 @@ async function forgetKey() {
   els.apikey.value = '';
   els.sttkey.value = '';
   els.model.value = '';
+  els.wrapmodel.value = '';
   els['model-list'].innerHTML = '';
   fail(null);
   onProviderChange();
@@ -374,10 +399,17 @@ function readRingFromForm() {
   const apiKey = els.apikey.value.trim() || saved.apiKey || '';
   const sttKind = els.stt.value;
 
+  // Only the fields this choice actually declares. A hidden field is not an empty one:
+  // onProviderChange fills #baseurl with the preset's own address for every OpenAI-compatible
+  // provider, hosted ones included, and reading it back unconditionally handed
+  // `https://api.openai.com/v1` to the loopback assertion in createProvider. OpenAI, Groq
+  // and OpenRouter were therefore unusable — every Check and every Start died with "that
+  // address is not on this machine", about an address the user never typed and could not see.
   let ring = withCreds(state.creds || emptyKeyring(), c.id, {
     apiKey,
-    baseUrl: els.baseurl.value.trim(),
-    model: els.model.value.trim(),
+    baseUrl: c.local ? els.baseurl.value.trim() : '',
+    model: c.picksModel ? els.model.value.trim() : '',
+    wrapModel: c.picksModel ? els.wrapmodel.value.trim() : '',
   });
   ring = withStt(ring, {
     kind: sttKind,
@@ -414,6 +446,7 @@ async function buildProvider({ requireModel = true } = {}) {
     apiKey: creds.apiKey,
     baseUrl: creds.baseUrl || undefined,
     model: creds.model || undefined,
+    wrapModel: creds.wrapModel || undefined,
     // Reading the model list is how you find out what to put in the model box, so that
     // one call cannot be the thing that insists the box is already filled.
     modelRequired: requireModel ? undefined : false,
@@ -1120,9 +1153,12 @@ function bind() {
     try {
       if (c.discoverModels) {
         // For a local server "does the key work" is the wrong question — it has no key.
-        // What you actually want to know is whether it answers, and what it can run.
+        // What you actually want to know is whether it answers, and what it can run. For a
+        // hosted one the list read IS the key check: listModels and validateKey probe the
+        // same /models endpoint, so one call answers both and the catalogue arrives in the
+        // model boxes as a side effect of asking.
         await refreshModels();
-        say('That server answered.');
+        say(c.needsKey ? 'That key works.' : 'That server answered.');
       } else {
         const p = await buildProvider();
         await p.validateKey();

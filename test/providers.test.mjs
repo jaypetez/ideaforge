@@ -12,7 +12,9 @@ import { createAnthropicProvider, ANTHROPIC_TIERS } from '../src/providers/anthr
 import {
   AUTH_BEARER, AUTH_NONE, applyAuth, isLoopback, withDeadline, abortError, DEADLINE_MS,
 } from '../src/providers/http.js';
-import { PROVIDER_CHOICES, createProvider } from '../src/providers/index.js';
+import {
+  PROVIDER_CHOICES, createProvider, resolveTiers, presetModels,
+} from '../src/providers/index.js';
 
 // ──────────────────────────────────────────────── getting an object back
 test('extractJson reads a bare object, a fenced one, and one buried in prose', () => {
@@ -319,6 +321,111 @@ test('a local provider will not be built without a model, because guessing one 4
     () => createProvider({ kind: 'custom', baseUrl: 'http://localhost:11434/v1' }),
     (e) => e.code === 'config' && /needs a model name/.test(e.message)
   );
+});
+
+// ───────────────────────────────────────────────── choosing the models
+
+// The whole reason the settings screen asks twice. An interview spends a dozen calls on
+// questions and exactly one on the wrap-up, so the cheap choice and the careful choice are
+// different choices — and someone making the first must not silently make the second.
+test('a question model does not reach the wrap-up tier', () => {
+  const tiers = resolveTiers(ANTHROPIC_TIERS, { model: 'claude-haiku-4-5' });
+  assert.equal(tiers.default, 'claude-haiku-4-5');
+  assert.equal(tiers.complex, ANTHROPIC_TIERS.complex, 'the wrap-up was downgraded');
+});
+
+test('a wrap-up model does not reach the per-turn tier', () => {
+  const tiers = resolveTiers(ANTHROPIC_TIERS, { wrapModel: 'claude-sonnet-5' });
+  assert.equal(tiers.default, ANTHROPIC_TIERS.default);
+  assert.equal(tiers.complex, 'claude-sonnet-5');
+});
+
+// A local preset has no strong tier to protect, so one filled box is still enough there.
+test('a local server runs the wrap-up on the question model when nothing else is set', () => {
+  const tiers = resolveTiers(null, { model: 'qwen3:8b' });
+  assert.equal(tiers.default, 'qwen3:8b');
+  assert.equal(tiers.complex, 'qwen3:8b');
+});
+
+test('an unset tier is undefined rather than empty string', () => {
+  // '' survives `??` and `in`, so it would read as "configured, to nothing".
+  assert.deepEqual(resolveTiers(null, {}), {
+    quick: undefined, default: undefined, complex: undefined,
+  });
+});
+
+// The end of the chain, not just the pure function: the tier map has to survive
+// createProvider and land in the request body.
+test('a cheap question model still posts the strong model for the wrap-up', async () => {
+  await withFetch(
+    () => jsonResponse({ content: [{ type: 'text', text: '{}' }] }),
+    async (seen) => {
+      const p = await createProvider({
+        kind: 'anthropic', apiKey: 'sk-test', model: 'claude-haiku-4-5',
+      });
+      const parts = { system: 'S', prefix: 'P', tail: 'T' };
+      await p.sample(parts, { modelTier: 'default' });
+      await p.sample(parts, { modelTier: 'complex' });
+      assert.deepEqual(
+        seen.map((r) => r.body.model),
+        ['claude-haiku-4-5', ANTHROPIC_TIERS.complex],
+      );
+    }
+  );
+});
+
+test('presetModels dedupes the tier map and offers nothing for a local choice', () => {
+  const byId = Object.fromEntries(PROVIDER_CHOICES.map((c) => [c.id, c]));
+  // quick and default are the same model for Anthropic, so the list is two, not three.
+  assert.deepEqual(presetModels(byId.anthropic), ['claude-haiku-4-5', 'claude-sonnet-5']);
+  assert.deepEqual(presetModels(byId.ollama), []);
+  assert.deepEqual(presetModels(byId.artifact), []);
+});
+
+test('only the Claude viewer declines to pick a model', () => {
+  for (const c of PROVIDER_CHOICES) {
+    assert.equal(c.picksModel, c.id !== 'artifact', `${c.id} picksModel`);
+  }
+});
+
+// Every hosted OpenAI-compatible provider answers GET /models with CORS headers — the
+// same reason validateKey probes it — so the settings screen can offer the real list.
+test('every hosted OpenAI-compatible preset can read its own model list', () => {
+  for (const [name, preset] of Object.entries(OPENAI_COMPAT_PRESETS)) {
+    assert.ok(preset.discoverModels, `${name} should be able to list its models`);
+  }
+});
+
+// ── two bugs that shipped, both from a config field nobody meant to send ──
+
+// `defaultBaseUrl` is set for every OpenAI-compatible preset, hosted included, and
+// onProviderChange writes it into #baseurl even while that field is hidden. Reading it
+// back sent https://api.openai.com/v1 to the loopback assertion, so OpenAI, Groq and
+// OpenRouter could not be used at all: every Check and every Start died complaining about
+// an address the user had never typed and could not see.
+test('a hosted preset is built from its own base URL, not refused as remote', async () => {
+  for (const kind of ['openai', 'groq', 'openrouter']) {
+    await assert.doesNotReject(
+      () => createProvider({ kind, apiKey: 'k' }), `${kind} should build`);
+  }
+});
+
+// app.js sends `modelRequired: requireModel ? undefined : false`. An own property holding
+// undefined still wins a spread, so it overwrote the default and a local server with an
+// empty model box built happily and POSTed a body with no `model` key at all.
+test('an explicit undefined does not defeat the model requirement', async () => {
+  await assert.rejects(
+    () => createProvider({
+      kind: 'custom', apiKey: '', baseUrl: 'http://127.0.0.1:11434/v1',
+      model: undefined, modelRequired: undefined,
+    }),
+    (e) => e.code === 'config' && /needs a model name/.test(e.message)
+  );
+  // …but the model-list read still gets to build without one, which is how you find out
+  // what to put in the box in the first place.
+  await assert.doesNotReject(() => createProvider({
+    kind: 'custom', baseUrl: 'http://127.0.0.1:11434/v1', modelRequired: false,
+  }));
 });
 
 test('needsKey is false for exactly the local choices', () => {

@@ -77,6 +77,35 @@ export default async function run(check, { subpath }) {
   check('the hidden done panel is not rendered', !rendered('panel-done'));
   check('phone installation help stays out of the desktop setup', !rendered('install-card'));
   check('the Base URL field is not rendered for a hosted provider', !rendered('field-base'));
+
+  // ── the model boxes, for a HOSTED provider ───────────────────────────────
+  //
+  // These used to be gated on `discoverModels`, which is true only for the local choices.
+  // So Anthropic, OpenAI, Groq and OpenRouter all ran on a tier map with no representation
+  // anywhere on screen: no way to see which model was being used, and no way to change it.
+  check('a hosted provider offers a model for the questions', rendered('field-model'));
+  check('…and a separate one for the wrap-up', rendered('field-wrapmodel'));
+
+  // The placeholders are the answer to "which model is this actually using?", which is the
+  // question that had nowhere to be asked. Blank box means the placeholder is what runs.
+  check('…each showing that provider’s own default as its placeholder',
+    $('model').placeholder === 'claude-haiku-4-5'
+      && $('wrapmodel').placeholder === 'claude-sonnet-5',
+    `${$('model').placeholder} / ${$('wrapmodel').placeholder}`);
+
+  // Seeded from the registry the moment the provider changes, so there are suggestions
+  // before anyone presses Check — which matters most for Anthropic, the one provider here
+  // with no browser-reachable list to read.
+  const seeded = [...$('model-list').options].map((o) => o.value).join();
+  check('…and suggestions with no network call at all',
+    seeded === 'claude-haiku-4-5,claude-sonnet-5', seeded || '(empty)');
+
+  // The Claude viewer is handed a tier name and picks for itself — createArtifactProvider
+  // takes no config at all — so a model typed here would be accepted and silently dropped.
+  $('provider').value = 'artifact';
+  $('provider').dispatchEvent(new win.Event('change'));
+  check('the Claude viewer offers no model choice, because it has none to offer',
+    !rendered('field-model') && !rendered('field-wrapmodel'));
   check('the hidden listening indicator is not rendered', !rendered('listening'));
   check('the hidden coverage meter is not rendered', !rendered('meter'));
 
@@ -90,6 +119,7 @@ export default async function run(check, { subpath }) {
 
   check('choosing a local server reveals the address field', rendered('field-base'));
   check('…and the model picker', rendered('field-model'));
+  check('…and a wrap-up model alongside it', rendered('field-wrapmodel'));
   check('…and asks for no API key', !rendered('field-key'));
 
   const typeBase = (value) => {
@@ -107,6 +137,37 @@ export default async function run(check, { subpath }) {
   typeBase('http://127.0.0.1:11435/v1');
   check('a loopback address on a non-default port is accepted', $('b-start').disabled === false);
   check('…with nothing to complain about', $('base-note').textContent === '');
+
+  // ── a hidden field is not an empty one ───────────────────────────────────
+  //
+  // onProviderChange writes the preset's own address into #baseurl for every
+  // OpenAI-compatible provider, hosted ones included, and readRingFromForm used to read
+  // that box whether or not it was on screen. So picking OpenAI, Groq or OpenRouter and
+  // pressing anything handed https://api.openai.com/v1 to the loopback assertion, and the
+  // app refused its own provider over an address the user had never typed and could not
+  // see. None of those three could be used at all.
+  //
+  // fetch is stubbed to reject so this proves the fix without leaving the machine: the
+  // request has to get far enough to fail as a network problem rather than a config one.
+  const realFetch = win.fetch;
+  win.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+  try {
+    $('provider').value = 'openai';
+    $('provider').dispatchEvent(new win.Event('change'));
+    $('apikey').value = 'sk-probe-not-a-real-key';
+    $('b-check').click();
+    await settle(1200);
+    check('a hosted provider is not refused over its own base URL',
+      !/not on this machine/.test($('err').textContent), $('err').textContent);
+    check('…it fails at the network instead, which is as far as it can get here',
+      $('err').textContent.trim().length > 0, $('err').textContent);
+  } finally {
+    win.fetch = realFetch;
+  }
+
+  $('provider').value = 'custom';
+  $('provider').dispatchEvent(new win.Event('change'));
+  typeBase('http://127.0.0.1:11435/v1');
 
   // ── what the widened connect-src actually parses ─────────────────────────
   //
