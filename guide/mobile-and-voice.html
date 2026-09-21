@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mobile and voice · IdeaForge guide</title>
+  <meta name="description"
+        content="Install IdeaForge on Android or iPhone, configure dictation, and run a resilient hands-free interview.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html" aria-current="page">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Phone installation and spoken answers</p>
+      <h1>Take the interview with you.</h1>
+      <p class="lede">
+        IdeaForge can be installed as a home-screen web app, accept one dictated answer at
+        a time, or run a continuous hands-free loop that reads each question aloud and
+        listens for a finish word.
+      </p>
+      <div class="hero-actions">
+        <a class="button-link primary" href="../">Open IdeaForge</a>
+        <a class="button-link" href="#support">Check voice support</a>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/01-setup.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/01-setup.light.png"
+             alt="The IdeaForge setup screen with provider, API key, dictation, hands-free
+                  finish word, connection check, and start controls.">
+      </picture>
+
+      <div class="callout">
+        <strong>Installation changes presentation and storage durability, not the data model.</strong>
+        The installed app still stores ideas in that browser&rsquo;s local site data and
+        still needs a provider connection for grounded questions and synthesis. There is no
+        account-based sync.
+      </div>
+
+      <h2 id="android">Install on Android</h2>
+      <ol class="steps">
+        <li>Open IdeaForge in Chrome on the Android phone.</li>
+        <li>
+          If the setup screen offers <strong>Install IdeaForge</strong>, select it and
+          accept the browser prompt.
+        </li>
+        <li>
+          If no in-app install button appears, open Chrome&rsquo;s menu and choose
+          <strong>Install app</strong> or <strong>Add to Home screen</strong>.
+        </li>
+        <li>Launch IdeaForge from its home-screen icon.</li>
+      </ol>
+      <p>
+        Chrome&rsquo;s browser recogniser is the preferred no-key dictation path when its
+        behavioural probe succeeds. Android may end long recognition sessions even when
+        continuous listening was requested; IdeaForge restarts the recogniser and joins the
+        pieces so one answer is not silently truncated.
+      </p>
+
+      <h2 id="iphone">Install on iPhone or iPad</h2>
+      <ol class="steps">
+        <li>Open IdeaForge in Safari.</li>
+        <li>Tap <strong>Share</strong>, then choose <strong>Add to Home Screen</strong>.</li>
+        <li>Leave <strong>Open as Web App</strong> enabled if Safari offers it.</li>
+        <li>Tap <strong>Add</strong>, then launch IdeaForge from the new icon.</li>
+      </ol>
+      <div class="callout warning">
+        <strong>Use hosted transcription for dictation in the installed iPhone app.</strong>
+        The browser recogniser can exist, start without an error, and then produce no
+        events. IdeaForge tests for proof of life and hides the microphone rather than
+        leaving a capture hanging. Choose Groq Whisper or OpenAI transcription in Settings
+        and supply the corresponding key.
+      </div>
+
+      <h2 id="offline">What installation does offline</h2>
+      <p>
+        The service worker caches the application shell for a later launch. If the provider
+        is unavailable, the interview can continue from the built-in question bank instead
+        of failing to open. Provider requests are never placed in that cache, and a refined
+        prompt still needs a working provider at wrap-up.
+      </p>
+      <p>
+        Back up the Ideas library before removing site data or moving devices. An installed
+        icon does not turn local browser storage into cloud storage. See
+        <a href="./ideas-library.html">Ideas library</a> for transfer and recovery.
+      </p>
+
+      <h2 id="phone-providers">Choose a provider a phone can reach</h2>
+      <p>
+        On a phone, <code>localhost</code> and <code>127.0.0.1</code> refer to that phone.
+        They do not reach Ollama or LM Studio running on a laptop elsewhere on the network.
+        IdeaForge also refuses arbitrary LAN addresses rather than opening a route that
+        would weaken its provider allowlist.
+      </p>
+      <p>
+        A hosted provider is therefore the normal phone setup. If you need a local model,
+        follow the browser, CORS, and local-network constraints in
+        <a href="./local-models-and-docker.html">Local models and Docker</a>. Safari cannot
+        make an insecure HTTP request from a hosted HTTPS page to a loopback model server;
+        running the app locally as well is the practical route.
+      </p>
+
+      <h2 id="support">Voice support matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Voice paths offered by the current app</caption>
+          <thead>
+            <tr>
+              <th scope="col">Environment</th>
+              <th scope="col">Browser recogniser</th>
+              <th scope="col">Hosted transcription</th>
+              <th scope="col">Hands-free</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Android Chrome, tab or installed</th>
+              <td>Used when the live probe succeeds; long answers are joined across recogniser restarts.</td>
+              <td>Available with a supported microphone, recorder, and transcription key.</td>
+              <td>Shown when voice input and speech synthesis are both available.</td>
+            </tr>
+            <tr>
+              <th scope="row">iPhone or iPad in Safari</th>
+              <td>Offered only if the recogniser proves it is alive in that context.</td>
+              <td>Available with a transcription key and microphone permission.</td>
+              <td>Conditional on the selected input path and speech synthesis.</td>
+            </tr>
+            <tr>
+              <th scope="row">Installed iPhone web app</th>
+              <td>Do not rely on it; the known silent recogniser is treated as unavailable.</td>
+              <td>The supported dictation route: choose Groq Whisper or OpenAI.</td>
+              <td>Available when hosted transcription and speech synthesis initialise successfully.</td>
+            </tr>
+            <tr>
+              <th scope="row">Edge or Firefox</th>
+              <td>The current app treats known dead or network-failing recognisers as unavailable.</td>
+              <td>Fallback is available where microphone recording is supported.</td>
+              <td>Conditional; the checkbox stays hidden if either input or speech output is missing.</td>
+            </tr>
+            <tr>
+              <th scope="row">Any supported browser, keyboard only</th>
+              <td>Not used.</td>
+              <td>Not used.</td>
+              <td>Not available, but the full typed interview remains available.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The app probes behaviour rather than trusting the presence of a speech API. It
+        requires the recogniser to emit evidence that it started; otherwise it selects the
+        configured recorder-and-transcription fallback or withholds voice controls.
+      </p>
+
+      <h2 id="configure-voice">Configure dictation</h2>
+      <ol class="steps">
+        <li>Open <strong>Settings</strong>.</li>
+        <li>
+          Under <strong>Dictation</strong>, choose the browser recogniser, Groq Whisper,
+          OpenAI, or keyboard only.
+        </li>
+        <li>
+          If the transcription provider differs from the question provider, enter its key
+          in the separate transcription field. When the same supported provider supplies
+          both, IdeaForge reuses that provider key.
+        </li>
+        <li>
+          Choose an uncommon <strong>Hands-free finish word</strong>. The default is
+          <q>over</q>; the app warns when a very short or common word is likely to cut an
+          answer off.
+        </li>
+        <li>Start or resume the interview and allow microphone access when the browser asks.</li>
+      </ol>
+
+      <div class="callout">
+        <strong>Hosted transcription sends recorded audio to the service you selected.</strong>
+        Its key is stored with the other encrypted credentials. Choose keyboard only if you
+        do not want to send recorded audio for transcription.
+      </div>
+
+      <h2 id="one-answer">Dictate one answer</h2>
+      <ol class="steps">
+        <li>Select <strong>Answer out loud</strong>.</li>
+        <li>Speak your answer. Live words appear when the browser recogniser supplies them.</li>
+        <li>Select <strong>Stop listening</strong> when you are finished.</li>
+        <li>Review and edit the transcript in the answer box.</li>
+        <li>Select <strong>Send</strong>.</li>
+      </ol>
+      <p>
+        A manual microphone tap takes control away from hands-free mode. The transcript is
+        not submitted automatically, so you can correct names or technical terms first.
+        Dictated answers are marked in the exported transcript.
+      </p>
+
+      <h2 id="hands-free">Run a hands-free interview</h2>
+      <p>
+        The hands-free checkbox appears only when IdeaForge has a working voice-input path
+        and the browser can speak text. Once enabled, the loop reads the bridge and question
+        aloud, listens, submits the answer, and continues without waiting for a tap.
+        Suggestion chips are not read aloud.
+      </p>
+      <ol class="steps">
+        <li>Enable <strong>Hands-free &mdash; read each question aloud and listen for the answer</strong>.</li>
+        <li>Wait until the question has finished playing before speaking.</li>
+        <li>Say your answer naturally; a pause does not finish it.</li>
+        <li>End the answer with the configured finish word, for example <q>over</q>.</li>
+        <li>Listen for the next question or a spoken wrap-up offer.</li>
+      </ol>
+
+      <h3 id="commands">Spoken commands</h3>
+      <div class="table-wrap">
+        <table>
+          <caption>Commands recognised when they are the whole utterance</caption>
+          <thead>
+            <tr>
+              <th scope="col">Say</th>
+              <th scope="col">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><q>repeat that</q></th>
+              <td>Reads the current question again without recording an answer.</td>
+            </tr>
+            <tr>
+              <th scope="row"><q>skip this one</q></th>
+              <td>Records the turn as skipped and moves to the next question.</td>
+            </tr>
+            <tr>
+              <th scope="row"><q>scratch that</q></th>
+              <td>Discards the current, not-yet-submitted capture and listens again.</td>
+            </tr>
+            <tr>
+              <th scope="row"><q>wrap it up</q></th>
+              <td>Finishes once the interview has enough recorded answers; very early requests are refused.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Commands must be the whole utterance. A sentence such as
+        <q>I&rsquo;d skip this one if I could</q> remains an answer. The finish word is
+        terminal-only, so <q>we went over budget</q> does not end a response unless the
+        configured word is actually at the end.
+      </p>
+
+      <h3 id="spoken-wrap">Spoken wrap-up</h3>
+      <p>
+        When coverage, exhaustion, or a turn limit suggests stopping, IdeaForge asks
+        whether it should write the idea up. Say a clear yes to wrap, or say
+        <q>keep going</q>. Unclear replies are not treated as consent. After synthesis, the
+        app reads a successful refined prompt aloud in manageable chunks and leaves the
+        Markdown on screen. If synthesis fails, it says that the answers are saved and the
+        degraded document is available on screen.
+      </p>
+
+      <h2 id="permissions">Permissions and browser controls</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Permissions you may encounter</caption>
+          <thead>
+            <tr>
+              <th scope="col">Permission or capability</th>
+              <th scope="col">Why it is needed</th>
+              <th scope="col">If unavailable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Microphone</th>
+              <td>Captures dictated answers for browser recognition or hosted transcription.</td>
+              <td>Voice is withheld or an explicit denial error is shown; typing remains available and hands-free stands down.</td>
+            </tr>
+            <tr>
+              <th scope="row">Speech synthesis</th>
+              <td>Reads questions, recovery prompts, and the final result in hands-free mode.</td>
+              <td>Single-answer dictation may still work, but the hands-free checkbox is hidden.</td>
+            </tr>
+            <tr>
+              <th scope="row">Local-network access in Chrome</th>
+              <td>A hosted page may need browser approval before it can contact a loopback model server.</td>
+              <td>Use a hosted provider or run the app locally with the model server.</td>
+            </tr>
+            <tr>
+              <th scope="row">Local storage</th>
+              <td>Keeps sessions, encrypted credentials, and device preferences.</td>
+              <td>IdeaForge reports failed session saves; export before closing the tab.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        With recorder-based transcription, IdeaForge keeps the microphone stream for the
+        current interview after it is first opened, avoiding a new permission prompt for
+        every answer. It releases the stream when the voice controller is torn down, such
+        as when you leave the interview or complete the wrap-up.
+      </p>
+
+      <h2 id="recovery">What hands-free does when it cannot hear you</h2>
+      <ul>
+        <li>After the first empty capture, it prompts you to try again without repeating the whole question.</li>
+        <li>After another miss, it reads the question again.</li>
+        <li>After a further miss, it skips that question and continues rather than waiting for a tap.</li>
+        <li>After repeated questions fail, it announces that hands-free has switched off.</li>
+        <li>A denied or unavailable microphone is treated as fatal and stops hands-free immediately.</li>
+        <li>A recogniser that goes silent mid-answer settles with what it heard instead of hanging for ever.</li>
+      </ul>
+
+      <div class="callout danger">
+        <strong>Do not rely on hands-free controls in a situation where a missed question
+        or transcription could create a safety risk.</strong>
+        The recovery loop is designed not to strand the interface waiting for a tap, but
+        speech recognition and network transcription can still mishear, skip, or fail.
+      </div>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

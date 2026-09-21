@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interviews and coverage · IdeaForge guide</title>
+  <meta name="description"
+        content="Understand IdeaForge questions, coverage levels, wrap-up rules, degraded interviews, and Markdown exports.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html" aria-current="page">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">The interview engine</p>
+      <h1>Coverage means there is enough evidence to write.</h1>
+      <p class="lede">
+        IdeaForge does not ask a fixed questionnaire or stop after an arbitrary number of
+        turns. It tracks seven writing dimensions, asks for missing specifics, and only
+        counts progress that survives a conservative coverage ratchet.
+      </p>
+      <div class="hero-actions">
+        <a class="button-link primary" href="../">Start an interview</a>
+        <a class="button-link" href="#wrap-up">How wrapping works</a>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/04-coverage.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/04-coverage.light.png"
+             alt="An expanded IdeaForge coverage panel showing seven dimensions, their
+                  thin, partial, or covered levels, remaining gaps, and not relevant controls.">
+      </picture>
+
+      <div class="callout">
+        <strong>The percentage is not a score for the idea.</strong>
+        It measures how much usable material the interview has for the prompt sections that
+        are still in scope. A low percentage means more specifics are needed, not that the
+        idea is bad.
+      </div>
+
+      <h2 id="one-turn">What happens in one turn</h2>
+      <ol class="steps">
+        <li>
+          The engine selects the least-covered important dimension and restricts the model
+          to a suitable questioning move, such as asking for a concrete instance, a hard
+          boundary, a trade-off, or a failure case.
+        </li>
+        <li>
+          The provider writes one short question using the facts and vocabulary already in
+          the conversation. IdeaForge rejects or retries malformed, repeated, or compound
+          questions before showing one.
+        </li>
+        <li>
+          You answer in text or by voice, select and edit a suggestion chip, or skip the
+          question. The app saves the settled turn on this device.
+        </li>
+        <li>
+          The provider may claim new facts and coverage from the answer. IdeaForge validates
+          those claims, applies its ratchet, then selects the next gap.
+        </li>
+      </ol>
+
+      <p>
+        Questions are intentionally specific: an instance, a preference under pressure, a
+        boundary, or an example of right and wrong. The interviewer is instructed not to
+        praise, advise, summarise your answer back to you, or ask several questions at once.
+      </p>
+
+      <h3 id="answer-provenance">Your own wording matters</h3>
+      <p>
+        A suggestion chip is only a draft shape. If you submit it unchanged, its source is
+        recorded as a chip and the related dimension is capped at
+        <strong>partial</strong>. Editing the text makes it your answer again. Dictated
+        answers are recorded as voice, and the interviewer is told to read them for intent
+        rather than treating ordinary transcription noise as a new gap.
+      </p>
+
+      <h2 id="dimensions">The seven coverage dimensions</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>What IdeaForge is trying to establish</caption>
+          <thead>
+            <tr>
+              <th scope="col">Dimension</th>
+              <th scope="col">What covered means in practice</th>
+              <th scope="col">Export section</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">What we’re making</th>
+              <td>The output type, rough shape or length, and what happens when it is done.</td>
+              <td>Task</td>
+            </tr>
+            <tr>
+              <th scope="row">What’s actually in it</th>
+              <td>The names, numbers, mechanics, steps, and awkward cases only you know.</td>
+              <td>What it needs to cover</td>
+            </tr>
+            <tr>
+              <th scope="row">What good looks like</th>
+              <td>How you will judge the result quickly, plus a concrete failure that rejects it.</td>
+              <td>What good looks like</td>
+            </tr>
+            <tr>
+              <th scope="row">Hard limits</th>
+              <td>Non-negotiable format, length, platform, deadline, budget, and banned moves.</td>
+              <td>Constraints</td>
+            </tr>
+            <tr>
+              <th scope="row">Who it’s for</th>
+              <td>The real reader or user, what they know, what they will do, and what annoys them.</td>
+              <td>Context</td>
+            </tr>
+            <tr>
+              <th scope="row">Tone & form</th>
+              <td>The register and structure, ideally demonstrated by a sample line or clear contrast.</td>
+              <td>Voice and form</td>
+            </tr>
+            <tr>
+              <th scope="row">Like / not like</th>
+              <td>A concrete reference point and the place where the resemblance must stop.</td>
+              <td>Reference points</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="levels">How levels and percentages work</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Coverage levels shown in the interview</caption>
+          <thead>
+            <tr>
+              <th scope="col">Level</th>
+              <th scope="col">Meaning</th>
+              <th scope="col">What usually helps next</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Thin</th>
+              <td>The section could not be written without inventing material.</td>
+              <td>A concrete example, number, name, format, boundary, or decision.</td>
+            </tr>
+            <tr>
+              <th scope="row">Partial</th>
+              <td>The section could be written, but it would still sound generic or under-specified.</td>
+              <td>The detail that distinguishes your answer from many similar ideas.</td>
+            </tr>
+            <tr>
+              <th scope="row">Covered</th>
+              <td>Your own specifics are sufficient for a stranger to make the same choices you would.</td>
+              <td>No more questions unless later answers expose a new gap.</td>
+            </tr>
+            <tr>
+              <th scope="row">Waived</th>
+              <td>You selected <strong>not relevant</strong>, so the area leaves the interview.</td>
+              <td>Nothing; it no longer counts in the coverage percentage.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="ratchet">The ratchet prevents optimistic scoring</h3>
+      <ul>
+        <li>Coverage never silently falls.</li>
+        <li>A dimension can rise by only one level in a turn.</li>
+        <li>No more than two dimensions can rise from one answer.</li>
+        <li>
+          A claim of <strong>covered</strong> is reduced to <strong>partial</strong> unless
+          it includes a short verbatim quote from one of your answers.
+        </li>
+        <li>
+          A skipped, evasive, unknown, or unedited model-supplied answer cannot create
+          unsupported coverage.
+        </li>
+      </ul>
+      <p>
+        The percentage gives thin no credit, partial half credit, and covered full credit
+        across the dimensions still being probed. Marking something not relevant removes it
+        from both later questions and the denominator.
+      </p>
+
+      <h2 id="skip-or-waive">Skip a question or remove a dimension?</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Two different ways to decline</caption>
+          <thead>
+            <tr>
+              <th scope="col">Action</th>
+              <th scope="col">Use it when</th>
+              <th scope="col">Effect</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Skip this one</th>
+              <td>This particular question is awkward, premature, or not worth answering.</td>
+              <td>The turn is recorded as skipped; the dimension remains available for a different question.</td>
+            </tr>
+            <tr>
+              <th scope="row">not relevant</th>
+              <td>The entire coverage dimension does not belong in this idea.</td>
+              <td>The dimension is waived, stops being asked about, and appears as deliberately left out in the export.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="wrap-up">When the interview offers to wrap up</h2>
+      <p>
+        The write-up button becomes available after four questions, so you can stop early
+        by choice. Separately, the engine watches for conditions that mean continuing is
+        unlikely to help.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption>Wrap-up triggers</caption>
+          <thead>
+            <tr>
+              <th scope="col">Trigger</th>
+              <th scope="col">What happens</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Coverage readiness</th>
+              <td>
+                Every remaining dimension is at least partial, and five are covered
+                (or every remaining dimension when fewer than five are still in scope).
+                The app says there is enough and leaves the decision to you.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">No useful gain</th>
+              <td>Two consecutive scored turns add no coverage after the ratchet, so the app suggests stopping.</td>
+            </tr>
+            <tr>
+              <th scope="row">Soft ceiling</th>
+              <td>At 18 questions, the app recommends wrapping rather than letting the interview sprawl.</td>
+            </tr>
+            <tr>
+              <th scope="row">Hard ceiling</th>
+              <td>At 25 questions, no further question is asked and the app writes up the session.</td>
+            </tr>
+            <tr>
+              <th scope="row">Question bank exhausted</th>
+              <td>A fully degraded interview stops when no unused built-in question remains.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/05-ready-to-wrap.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/05-ready-to-wrap.light.png"
+             alt="An IdeaForge interview at high coverage with a message that there is
+                  enough material to write up whenever the user chooses.">
+      </picture>
+
+      <p>
+        The readiness advisory is shown once. If you keep going, IdeaForge does not repeat
+        it after every answer. In hands-free mode, the app asks whether to write it up and
+        only wraps on a clear yes; <q>keep going</q> continues the interview.
+      </p>
+
+      <h2 id="write-up-output">What the write-up contains</h2>
+      <p>
+        Wrapping makes one final provider call. The synthesiser is instructed to use your
+        vocabulary and specifics, omit sections with no real material, and put unresolved
+        decisions into open questions instead of guessing.
+      </p>
+      <ul class="checklist">
+        <li>A short title, unless you have already renamed the idea yourself.</li>
+        <li>A refined second-person prompt organised by the covered dimensions.</li>
+        <li>Any assumptions the synthesiser had to make.</li>
+        <li>Open questions, including deliberately waived areas.</li>
+        <li>A coverage table with the remaining gap for each dimension.</li>
+        <li>The full transcript, with skips and dictated answers marked.</li>
+      </ul>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/06-refined-prompt.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/06-refined-prompt.light.png"
+             alt="A completed IdeaForge result showing the Markdown prompt and controls to
+                  share, copy, download, ask more questions, or start a new idea.">
+      </picture>
+
+      <p>
+        <strong>Ask me more</strong> reopens the same session and marks the existing
+        synthesis as stale. If you export before wrapping again, the Markdown warns that
+        the refined prompt predates the newest answers.
+      </p>
+
+      <h2 id="degraded-mode">When the provider cannot answer</h2>
+      <p>
+        A model failure does not dead-end the interview. IdeaForge chooses an unused
+        question from its built-in bank of 21 questions and keeps the session moving.
+      </p>
+      <div class="callout warning">
+        <strong>A checklist question is generic by design.</strong>
+        The question line says <q>from the built-in checklist</q>, the live error explains
+        that the connection was lost, and the final Markdown records how many questions
+        were not grounded by the model in the preceding answers.
+      </div>
+      <ul>
+        <li>
+          A failed provider call degrades that turn only. A later successful call can return
+          to model-written questions.
+        </li>
+        <li>
+          If a saved interview is resumed without a usable provider, it can continue from
+          the question bank.
+        </li>
+        <li>
+          In a fully checklist-only run, the coverage percentage may remain flat because
+          coverage scoring is also model-supplied and cannot be applied without a provider.
+        </li>
+        <li>
+          Checklist turns do not create a false no-gain streak; a network problem is not
+          treated as evidence that the idea is exhausted.
+        </li>
+      </ul>
+
+      <h3 id="failed-synthesis">If the final synthesis fails</h3>
+      <p>
+        The done screen still renders exportable Markdown. The refined prompt is marked
+        <em>Not generated</em>, while the document retains its metadata, Open questions
+        section, coverage table, and full transcript. Share, copy, and download remain
+        available. Fix the provider and choose <strong>Ask me more</strong> if you want to
+        continue before trying another wrap-up.
+      </p>
+
+      <h3 id="interrupted-work">If the tab closes during a request</h3>
+      <p>
+        IdeaForge records a pending turn or synthesis before starting the provider call. On
+        resume it clears already-completed bookkeeping without duplicating a question, or
+        safely reissues the deterministic request when the work did not finish.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

@@ -12,7 +12,9 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v4';
+const CACHE = 'ideaforge-v5';
+const GUIDE_PATH = new URL('./guide/', self.location.href).pathname;
+const GUIDE_SCREENSHOTS_PATH = new URL('./docs/screenshots/', self.location.href).pathname;
 
 const SHELL = [
   './',
@@ -81,10 +83,15 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url);
   // Only ever touch our own GETs. Provider calls carry the user's API key and must not
   // pass through a cache, an inspectable one least of all.
   if (request.method !== 'GET') return;
-  if (new URL(request.url).origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) return;
+  // The public guide is a separate static surface under this worker's root scope. Let the
+  // browser fetch it normally so a failed guide navigation can never turn into the app shell.
+  if (url.pathname.startsWith(GUIDE_PATH)
+      || url.pathname.startsWith(GUIDE_SCREENSHOTS_PATH)) return;
 
   event.respondWith((async () => {
     const cached = await caches.match(request);

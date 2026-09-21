@@ -16,7 +16,8 @@ this file is an entry point, not a second copy of their rules.
   respect the required `ci` check, and do not merge unless explicitly asked.
 
 Use the shared [project skills](../.claude/skills/) for provider, voice, local-model,
-README, review, and release workflows. The
+documentation, README artifacts, implementation review, documentation review, and release
+workflows. The
 [release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
 publish, or verify a release; do not select publication automatically or act in place
 of a designated maintainer. Keep one definition of each skill in `.claude/skills`;

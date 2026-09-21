@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy and security | IdeaForge guide</title>
+  <meta name="description"
+        content="Understand IdeaForge storage, encryption, network boundaries, offline cache, backups, and the limits of browser-held secrets.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html" aria-current="page">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Data, credentials, and trust boundaries</p>
+      <h1>Know what stays local and what does not.</h1>
+      <p class="lede">
+        IdeaForge is a static browser application with no account, sync service, analytics,
+        or application backend. Sessions stay in browser storage. Model context and optional
+        audio go directly to the provider you choose. Exports and backups leave only when
+        you explicitly create, copy, download, or share them.
+      </p>
+
+      <div class="callout">
+        <strong>Encrypted credentials are not the same as encrypted interviews.</strong>
+        API keys are encrypted at rest. Sessions, backups, and Markdown exports are readable
+        documents by design so the app can search, resume, import, and share them.
+      </div>
+
+      <h2 id="data-map">Data map</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Where IdeaForge keeps it</th>
+              <th>When it leaves</th>
+              <th>How to remove it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Sessions</strong><br>
+                Opening statement, questions, answers, draft text, coverage, facts, tags,
+                status, and synthesis
+              </td>
+              <td>Plain structured records in this origin's IndexedDB.</td>
+              <td>
+                Relevant context is sent to the selected model provider for each generated
+                question; the wrap-up sends the material needed to synthesise the final
+                document. Export, copy, share, and backup create user-controlled copies.
+              </td>
+              <td>
+                Delete an idea in the library, or clear this site's browser data. Deleting
+                an exported file is a separate operating-system action.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Inference and transcription keys</strong></td>
+              <td>
+                One AES-GCM encrypted credential payload in IndexedDB, with a
+                non-extractable wrapping <code>CryptoKey</code> stored beside it.
+              </td>
+              <td>
+                Attached only to requests for the selected inference or transcription
+                provider. Keys are excluded from session backups and Markdown exports.
+              </td>
+              <td>
+                Use <strong>Forget my key</strong>, clear site data, and revoke the key at
+                the provider when compromise or reuse is a concern.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Local provider address and model</strong></td>
+              <td>
+                In the encrypted credential payload, although these values are not secret.
+              </td>
+              <td>Used only to address the loopback model server.</td>
+              <td><strong>Forget my key</strong> clears the whole saved keyring.</td>
+            </tr>
+            <tr>
+              <td><strong>Device preferences</strong></td>
+              <td>
+                Plain localStorage. This includes the hands-free finish word and whether
+                hands-free mode was enabled.
+              </td>
+              <td>Not sent by IdeaForge as interview data.</td>
+              <td>Change the setting, or clear this site's browser data.</td>
+            </tr>
+            <tr>
+              <td><strong>Recorded audio</strong></td>
+              <td>
+                Held temporarily in browser memory when record-and-transcribe is used; it is
+                not added to the session database.
+              </td>
+              <td>
+                Sent directly to the selected Groq or OpenAI transcription endpoint. With
+                browser recognition, processing behaviour is controlled by the browser.
+              </td>
+              <td>
+                The app releases the recording after transcription. Provider-side retention
+                is governed by that provider's account and policy.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Static application shell</strong></td>
+              <td>
+                Same-origin JavaScript, CSS, icons, manifest, and HTML in Cache Storage for
+                installation and offline use.
+              </td>
+              <td>
+                Cache entries are public application files, not sessions, keys, provider
+                requests, or responses.
+              </td>
+              <td>
+                Browser site-data controls can remove the service worker and Cache Storage.
+                A new cache version also removes the previous IdeaForge shell cache.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Backups and exports</strong></td>
+              <td>
+                Files or clipboard/share-sheet content outside browser storage after you
+                create them.
+              </td>
+              <td>
+                A backup contains all active and archived sessions. A Markdown export
+                contains one idea's generated document and transcript. Neither contains API
+                keys.
+              </td>
+              <td>Delete or secure the resulting file or shared copy wherever it was sent.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="network-boundary">Network boundary</h2>
+      <p>
+        Model and transcription traffic travels from the browser to the configured provider;
+        it does not transit an IdeaForge server. Hosted inference is allowlisted to Anthropic,
+        OpenAI, Groq, and OpenRouter. Local inference is allowed only on
+        <code>localhost</code> and <code>127.0.0.1</code>, on any port. A typed arbitrary
+        remote model URL is rejected before a request is made.
+      </p>
+      <p>
+        The current application HTML also loads its stylesheet and font files from Google
+        Fonts. Those asset requests do not contain an IdeaForge API key or interview
+        payload. There are no remote scripts, analytics libraries, or package dependencies.
+        The guide pages use only the repository's local stylesheet and system fonts.
+      </p>
+      <p>
+        Provider requests use <code>credentials: "omit"</code>, so browser cookies are not
+        included. The provider still receives the API credential and the prompt or audio
+        required to perform the selected operation. Provider logging, retention, training,
+        abuse monitoring, and account controls are outside IdeaForge's control; evaluate
+        them before submitting sensitive material.
+      </p>
+
+      <div class="callout warning">
+        <strong>A local chat model does not automatically make dictation local.</strong>
+        If Ollama is selected for inference but Groq or OpenAI is selected for dictation,
+        interview text stays with the local model while recorded audio is sent to the hosted
+        transcription provider. Choose browser recognition or turn dictation off if that
+        distinction matters.
+      </div>
+
+      <h2 id="credential-protection">What credential encryption protects</h2>
+      <p>
+        On first save, IdeaForge generates a 256-bit AES-GCM key with Web Crypto. The key is
+        marked non-extractable and stored as a <code>CryptoKey</code> in IndexedDB. The
+        credential keyring is serialised, encrypted with a fresh IV, and stored as
+        ciphertext. The raw API key is not written to disk as plaintext.
+      </p>
+      <p>
+        A non-extractable key can be used for encryption and decryption by this origin, but
+        Web Crypto will not export its raw bytes. This improves the result of device theft,
+        profile-directory inspection, or a copied disk: the credential payload is not a
+        readable API key file.
+      </p>
+      <p>
+        MDN documents
+        <a href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto">storing <code>CryptoKey</code> objects in IndexedDB</a>
+        and the meaning of the
+        <a href="https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey/extractable"><code>extractable</code> property</a>.
+      </p>
+
+      <h2 id="credential-limit">What it cannot protect</h2>
+      <p>
+        A malicious script already running as the IdeaForge origin could call the same
+        decryption and request functions as the legitimate app. Browser-side encryption
+        cannot make a secret unavailable to code that must legitimately use it. It also
+        does not protect an unlocked browser from a person who can operate the page, a
+        compromised browser or operating system, or the provider account after a key is
+        sent.
+      </p>
+      <p>
+        The controls that address that risk are structural:
+      </p>
+      <ul class="checklist">
+        <li>
+          The application has no runtime package dependencies, no third-party scripts, and
+          no build pipeline that injects code into the browser bundle.
+        </li>
+        <li>
+          Its Content Security Policy defaults to denying resources, allows scripts and
+          workers only from the app's own origin, and tightly limits
+          <code>connect-src</code> to known providers and loopback.
+        </li>
+        <li>
+          Images are restricted to the app origin and data URLs, and HTML form submission is
+          disabled.
+        </li>
+        <li>
+          Custom model addresses are loopback-only, so a free-text field cannot silently
+          create a new remote exfiltration destination.
+        </li>
+        <li>
+          The service worker ignores cross-origin requests and every non-GET request, so
+          provider calls carrying credentials never enter Cache Storage.
+        </li>
+      </ul>
+      <p>
+        The browser behaviour behind these controls is documented by MDN's
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP">Content Security Policy guide</a>
+        and
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/connect-src"><code>connect-src</code> reference</a>.
+      </p>
+
+      <h2 id="cache">What the offline cache contains</h2>
+      <p>
+        The service worker pre-caches the application shell and uses
+        stale-while-revalidate for same-origin GET requests. This lets a previously loaded
+        app open without a network connection. When no model is reachable, the interview
+        can continue with built-in questions and records that degraded source in the
+        session.
+      </p>
+      <ul>
+        <li>Only same-origin GET requests are considered for caching.</li>
+        <li>Provider and transcription requests are cross-origin POSTs and are ignored.</li>
+        <li>The public guide is explicitly excluded from the app-shell fetch handler.</li>
+        <li>
+          A navigation can fall back to cached <code>index.html</code>; a missing non-page
+          resource returns an offline response rather than a provider-shaped success.
+        </li>
+        <li>
+          Cache names are versioned. Activating a new shell removes older IdeaForge caches
+          together, reducing mixed-version module graphs.
+        </li>
+      </ul>
+      <p>
+        Cache Storage is separate from IndexedDB. Removing a stale app-shell cache need not
+        delete sessions, while clearing all site data normally removes both. Back up before
+        using broad browser reset controls. MDN's
+        <a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers">service-worker guide</a>
+        explains the underlying lifecycle.
+      </p>
+
+      <h2 id="session-retention">Session retention, deletion, and recovery</h2>
+      <p>
+        Sessions are stored only on the current browser profile and origin. There is no
+        cloud copy to restore after site data is cleared, the profile is reset, or the
+        browser evicts storage. IdeaForge requests persistent storage when an interview
+        starts or a backup is imported, but the browser makes the final decision.
+      </p>
+      <ul>
+        <li>
+          Install the app when practical; browsers often give installed applications more
+          durable storage treatment.
+        </li>
+        <li>Use <strong>Back up ideas</strong> before moving devices or clearing site data.</li>
+        <li>
+          Treat the JSON backup as sensitive. It excludes keys and preferences, but contains
+          the full interview library in plaintext.
+        </li>
+        <li>
+          Treat every Markdown download, clipboard copy, and share-sheet destination as a
+          new copy outside IdeaForge's control.
+        </li>
+        <li>
+          Avoid editing the same idea in two tabs. There is no multi-tab reconciliation;
+          the last saved version wins.
+        </li>
+      </ul>
+      <p>
+        IndexedDB's persistence model is described in MDN's
+        <a href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API">IndexedDB reference</a>.
+        For backup and library operation, see <a href="./ideas-library.html">Ideas library</a>.
+      </p>
+
+      <h2 id="safe-key-practice">Safe key practice</h2>
+      <ol class="steps">
+        <li>
+          Create a separate, scoped key for IdeaForge rather than using a broad personal or
+          production credential.
+        </li>
+        <li>
+          Prefer an expiry, usage cap, project boundary, or provider-side budget limit where
+          the provider offers one.
+        </li>
+        <li>
+          Never paste a key into a shared Claude artifact. Inside a Claude viewer, select
+          <strong>Claude (this viewer)</strong>, which needs no key.
+        </li>
+        <li>
+          On a borrowed or shared device, use <strong>Forget my key</strong> before leaving,
+          then revoke the credential at the provider if another person may have used it.
+        </li>
+        <li>
+          Never include an API key, session backup, or sensitive transcript in a public bug
+          report. Revoke first if a key has been exposed.
+        </li>
+      </ol>
+
+      <h2 id="reporting">Report a security problem privately</h2>
+      <p>
+        Use
+        <a href="https://github.com/jaypetez/ideaforge/security/advisories/new">GitHub private vulnerability reporting</a>
+        for anything that can exfiltrate a stored key, execute script in the page, alter what
+        is sent to a provider, or cross an origin's storage boundary. Include the browser,
+        exact origin, impact, and reproduction steps, but never include a live credential.
+      </p>
+
+      <h2 id="implementation-references">Implementation references</h2>
+      <p>
+        IndexedDB stores and persistence are defined in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/db.js"><code>src/store/db.js</code></a>.
+        Credential encryption, migration, masking, and deletion are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/secrets.js"><code>src/store/secrets.js</code></a>.
+        Session persistence is in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/sessions.js"><code>src/store/sessions.js</code></a>,
+        and key-free backup serialisation is in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/core/backup.js"><code>src/core/backup.js</code></a>.
+      </p>
+      <p>
+        The application CSP and outbound host list are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/index.html"><code>index.html</code></a>.
+        Cache scope and exclusions are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/sw.js"><code>sw.js</code></a>.
+        The repository's maintained threat model and disclosure route are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md"><code>SECURITY.md</code></a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

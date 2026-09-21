@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IdeaForge guide</title>
+  <meta name="description"
+        content="Use, install, self-host, troubleshoot, and contribute to IdeaForge.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./" aria-current="page">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">From a rough thought to a usable prompt</p>
+      <h1>Ask the questions the idea still needs.</h1>
+      <p class="lede">
+        IdeaForge interviews you one question at a time, tracks what is still thin, and
+        writes a Markdown prompt that carries your examples, constraints, preferences, open
+        questions, and full transcript.
+      </p>
+      <div class="hero-actions">
+        <a class="button-link primary" href="../">Open IdeaForge</a>
+        <a class="button-link" href="./getting-started.html">Read the quick start</a>
+      </div>
+
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="../docs/screenshots/03-mid-interview.dark.png">
+        <img class="hero-shot"
+             src="../docs/screenshots/03-mid-interview.light.png"
+             alt="An IdeaForge interview showing a grounded follow-up question, answer chips,
+                  a text box, and a coverage meter.">
+      </picture>
+
+      <div class="callout">
+        <strong>Private by design.</strong>
+        IdeaForge has no account, analytics, or application server. Model requests go
+        directly from your browser to the provider you choose. Sessions stay in your
+        browser until you export, share, or delete them.
+      </div>
+
+      <h2 id="choose-a-path">Choose a path</h2>
+      <div class="card-grid">
+        <a class="card" href="./getting-started.html">
+          <strong>Start your first interview</strong>
+          <span>Pick a provider, answer the seed question, and understand the result.</span>
+        </a>
+        <a class="card" href="./mobile-and-voice.html">
+          <strong>Use it on a phone</strong>
+          <span>Install the web app, dictate answers, or run a hands-free interview.</span>
+        </a>
+        <a class="card" href="./ideas-library.html">
+          <strong>Keep and move your ideas</strong>
+          <span>Search, tag, back up, import, download, and share saved conversations.</span>
+        </a>
+        <a class="card" href="./providers.html">
+          <strong>Choose a model provider</strong>
+          <span>Compare hosted, local, and Claude-viewer paths without weakening privacy.</span>
+        </a>
+        <a class="card" href="./local-models-and-docker.html">
+          <strong>Run locally</strong>
+          <span>Serve the static app, use Docker, connect Ollama, and validate real inference.</span>
+        </a>
+        <a class="card" href="./development-and-delivery.html">
+          <strong>Contribute or operate it</strong>
+          <span>Learn the architecture, tests, CI, Pages, release, and assistant workflows.</span>
+        </a>
+      </div>
+
+      <h2 id="what-you-get">What the interview produces</h2>
+      <ul class="checklist">
+        <li>A refined prompt ready to paste into another model.</li>
+        <li>The assumptions synthesis had to make.</li>
+        <li>The decisions that remain open.</li>
+        <li>A coverage table showing what is thin, partial, covered, waived, or deferred.</li>
+        <li>The full verbatim transcript, including which answers were dictated.</li>
+      </ul>
+
+      <h2 id="documentation-map">What is documented here</h2>
+      <p>
+        This guide covers ordinary use, mobile installation, voice and hands-free mode, the
+        Ideas library, providers, local models, Docker, privacy, troubleshooting, development,
+        testing, Pages deployment, and releases. Deep implementation invariants remain in
+        the repository references linked from
+        <a href="./development-and-delivery.html">Development and delivery</a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

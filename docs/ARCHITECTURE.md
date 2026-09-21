@@ -30,6 +30,7 @@ src/providers/  the only directory allowed to touch the network
 src/store/      IndexedDB sessions, backup import and the encrypted keyring
 src/voice/      microphone, transcription, speech synthesis
 src/ui/         the app shell and browser adapters — the only place that touches the DOM
+guide/          dependency-free public documentation published beside the app
 ```
 
 Dependencies run one way: `ui → runtime → core`, and `ui → providers | store | voice`.
@@ -50,6 +51,9 @@ accident:
   `tools/assemble-site.mjs` only copies the publishable files into a directory for browser
   tests and Pages; it does not compile, bundle or rewrite anything. That is what lets
   `.github/workflows/release.yml` produce a byte-stable archive anyone can reproduce.
+  - **No documentation build.** `guide/` is committed semantic HTML and CSS. The Pages
+    artifact places it at `/guide/` and publishes the generated app screenshots it references;
+    there is no Markdown renderer, template engine or runtime CDN.
 - **No `CHANGELOG.md`.** Release notes are generated from PR labels via
   `.github/release.yml`, so an unlabelled PR lands under "Everything else" for good.
 
@@ -63,6 +67,11 @@ only runs after a successful `CI` workflow run for a push to `main`, then re-che
 tested SHA is still the exact tip of `main` before deploying. `.github/workflows/release.yml`
 puts a read-only `verify` job — version triplet, `main` ancestry, full `npm run test:all`
 ladder — in front of the write-enabled release job.
+
+The Pages artifact has two static surfaces: the app at its root and the public guide under
+`guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests.
+Without that boundary, a failed guide navigation could fall through to cached `index.html`
+and render the app where documentation was requested.
 
 ## What owns the session
 

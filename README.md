@@ -15,8 +15,12 @@
 An interviewer that forges a half-formed idea into a usable LLM prompt.
 
 **→ [Try it](https://jaypetez.github.io/ideaforge/)** — it runs entirely in your browser
-with your own API key. Nothing leaves except model requests and the files or text you
-explicitly share or export.
+with your own API key. No idea text, transcript or key leaves except in model requests and
+the files or text you explicitly share or export.
+
+**→ [Read the guide](https://jaypetez.github.io/ideaforge/guide/)** — installation,
+interviews, mobile and voice, the Ideas library, providers, local models, privacy,
+troubleshooting, development and delivery.
 
 You have a vague idea. You know things about it you would never think to type — the real
 numbers, the case you have in mind, the thing that would make you throw the output away.
@@ -266,7 +270,7 @@ weakening its key-exfiltration boundary.
 ## Run it with Docker
 
 Published on every release as `ghcr.io/jaypetez/ideaforge`, for `linux/amd64` and
-`linux/arm64`. It is nginx over 46 static files — no build step, nothing server-side,
+`linux/arm64`. It is nginx over the committed static site — no build step, nothing server-side,
 and the container never talks to a model. Your browser does that directly, which is why your
 API key never passes through anything of ours.
 
@@ -313,8 +317,8 @@ depends on whose resolver is asking.
             srcset="docs/screenshots/01-setup.dark.png">
     <img src="docs/screenshots/01-setup.light.png" width="760"
          alt="The setup screen: a provider dropdown set to Anthropic, an API key field noting
-              the key is stored encrypted on this device, a dictation dropdown, and a ‘Start
-              an interview’ button.">
+              the key is stored encrypted on this device, a dictation dropdown, a ‘Start an
+              interview’ button, and a Guide link in the footer.">
   </picture>
 </p>
 
@@ -414,6 +418,7 @@ src/providers/  the only directory allowed to touch the network
 src/store/      IndexedDB sessions and the encrypted key
 src/voice/      dictation, transcription and reading questions aloud
 src/ui/         the app shell
+guide/          dependency-free public documentation published beside the app
 ```
 
 `tools/lint-purity.mjs` fails the build if anything under `src/core/` or `src/runtime/` so
@@ -421,9 +426,10 @@ much as mentions `window`, `fetch` or `document`. That boundary is what keeps th
 engine portable and the turn loop testable with no mocking framework and no network access.
 
 ```sh
-npm test              # the purity lint, then 251 tests
+npm test              # the purity lint, then the unit suite
+npm run test:docs     # public guide/README facts, links and assistant wiring
 npm run test:graph    # syntax-check the source and import every platform-free module
-npm run test:browser:required  # 150 checks in real Chrome, with no missing-browser skip
+npm run test:browser:required  # real Chrome, with no missing-browser skip
 npm run test:all      # all three gates above
 npm run validate:local  # a whole interview against a real local model, no key, no human
 npm run screenshots   # regenerate every image and the worked example above

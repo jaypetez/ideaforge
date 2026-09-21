@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local models and Docker | IdeaForge guide</title>
+  <meta name="description"
+        content="Run IdeaForge with Ollama, LM Studio, Docker, and the real-model validation harness.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html" aria-current="page">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Local inference and operations</p>
+      <h1>Keep the app and model on your machine.</h1>
+      <p class="lede">
+        IdeaForge can use Ollama, LM Studio, or another OpenAI-compatible server on
+        loopback. The simplest and most reliable arrangement serves the static app locally
+        too, so the browser never has to cross from a public HTTPS page into a local HTTP
+        service.
+      </p>
+
+      <div class="callout">
+        <strong>The browser talks to the model.</strong>
+        The IdeaForge container is only an nginx static-file server. It never receives an
+        API key, transcript, model request, or model response.
+      </div>
+
+      <h2 id="choose-a-topology">Choose a topology</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Topology</th>
+              <th>Use it when</th>
+              <th>Important consequence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Local static server + native model server</strong></td>
+              <td>You already run Ollama or LM Studio on the host.</td>
+              <td>
+                Easiest browser path. Both page and model are local, so Chrome's public-page
+                local-network permission is not involved.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Source Compose stack</strong></td>
+              <td>You have a clone and want the app image built from the working tree.</td>
+              <td>
+                Runs nginx and Ollama, publishes both on <code>127.0.0.1</code>, and keeps
+                models in a named volume.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Release Compose stack</strong></td>
+              <td>You want published images without cloning or building.</td>
+              <td>
+                Uses the released IdeaForge image and Ollama image. The supplied GPU block
+                targets NVIDIA container support.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>App-only container + native model server</strong></td>
+              <td>
+                Ollama already uses the host GPU, especially on Apple Silicon or a setup not
+                covered by the repository's NVIDIA Compose block.
+              </td>
+              <td>
+                Containerises only the static app. The browser still reaches the native
+                model at a host loopback address.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Hosted app + local model</strong></td>
+              <td>You cannot or do not want to serve the app locally.</td>
+              <td>
+                Requires server CORS plus Chrome local-network permission. The shipped app
+                treats this path as unsupported in Safari; serve the app locally instead.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="local-static-server">Run from a clone without Docker</h2>
+      <p>
+        There are no dependencies and no build step. Node is used for the repository tools;
+        the app itself only needs a static server over a real origin.
+      </p>
+      <pre><code>npm run serve
+# open http://127.0.0.1:8765</code></pre>
+      <p>
+        Do not open <code>index.html</code> with <code>file://</code>. ES modules,
+        IndexedDB, installability, and the service worker all depend on an origin.
+      </p>
+      <ol class="steps">
+        <li>Start Ollama, LM Studio, or another OpenAI-compatible server.</li>
+        <li>Open <code>http://127.0.0.1:8765</code>.</li>
+        <li>Select the matching local provider.</li>
+        <li>
+          Prefer a server address such as <code>http://127.0.0.1:11434/v1</code>. Press
+          <strong>Check the connection</strong>.
+        </li>
+        <li>Choose an installed model from the suggestions, or type its exact identifier.</li>
+      </ol>
+
+      <h2 id="source-compose">Run the source Compose stack</h2>
+      <pre><code>docker compose -f docker/compose.yml up -d
+docker compose -f docker/compose.yml exec ollama ollama pull &lt;model-name&gt;
+# open http://127.0.0.1:8765</code></pre>
+      <p>
+        The app is built from the current tree with
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/Dockerfile.app"><code>docker/Dockerfile.app</code></a>.
+        The image copies only the publishable static tree into nginx. Ollama's model store
+        is a named volume, so an ordinary <code>docker compose down</code> does not discard
+        downloaded model data. Do not add <code>-v</code> unless removing that volume is
+        intentional.
+      </p>
+
+      <p>
+        If port <code>11434</code> is already occupied, publish the container on a different
+        host port and put that same address in IdeaForge:
+      </p>
+      <pre><code>IDEAFORGE_OLLAMA_PORT=11435 docker compose -f docker/compose.yml up -d
+# Server address: http://127.0.0.1:11435/v1</code></pre>
+      <p>
+        In PowerShell, set the variable first:
+      </p>
+      <pre><code>$env:IDEAFORGE_OLLAMA_PORT = '11435'
+docker compose -f docker/compose.yml up -d</code></pre>
+
+      <h2 id="release-compose">Run published images</h2>
+      <p>
+        The standalone release Compose file needs no clone and no local app build:
+      </p>
+      <pre><code>curl -fsSLO https://raw.githubusercontent.com/jaypetez/ideaforge/main/docker/compose.release.yml
+docker compose -f compose.release.yml up -d
+docker compose -f compose.release.yml exec ollama ollama pull &lt;model-name&gt;
+# open http://127.0.0.1:8765</code></pre>
+      <p>
+        To refresh an existing installation, pull before recreating the services:
+      </p>
+      <pre><code>docker compose -f compose.release.yml pull
+docker compose -f compose.release.yml up -d</code></pre>
+      <p>
+        The release file shares the same Compose project and model-volume name as the source
+        stack. This avoids downloading the model again when switching between a released app
+        and a locally built one, but it also means the two stacks should not run at the same
+        time.
+      </p>
+
+      <h2 id="app-only">Containerise only the static app</h2>
+      <pre><code>docker run -d --name ideaforge \
+  -p 127.0.0.1:8765:80 \
+  ghcr.io/jaypetez/ideaforge:latest</code></pre>
+      <p>
+        Run Ollama or LM Studio natively, then point IdeaForge at its loopback API. This is
+        the practical route when the host's native model runtime has the right GPU support
+        and a Linux container does not, including the normal Apple Silicon arrangement.
+      </p>
+
+      <h2 id="gpu-and-cpu">GPU and CPU behaviour</h2>
+      <p>
+        Both repository Compose definitions reserve NVIDIA GPU devices. Docker does not
+        silently ignore a missing NVIDIA device driver: service creation fails with a clear
+        device-driver error. That is intentional, because an unnoticed CPU fallback looks
+        like an extremely slow application rather than a deployment fault.
+      </p>
+      <ul>
+        <li>
+          For the release file, follow the marked <strong>GPU BLOCK</strong> instructions
+          in the file if you deliberately want CPU-only Ollama.
+        </li>
+        <li>
+          For other GPU stacks, prefer native Ollama plus the app-only container, or maintain
+          a local Compose override appropriate to that host. The repository file does not
+          claim to configure every GPU runtime.
+        </li>
+        <li>
+          A CPU model can still answer correctly, but cold loads and long prompts may take
+          much longer. Use a model that fits available memory rather than treating repeated
+          request deadlines as a browser problem.
+        </li>
+      </ul>
+      <p>
+        See Ollama's
+        <a href="https://docs.ollama.com/docker">Docker guidance</a> and Docker's
+        <a href="https://docs.docker.com/compose/how-tos/gpu-support/">Compose GPU guidance</a>
+        for host prerequisites.
+      </p>
+
+      <h2 id="address-rules">Use an address IdeaForge can safely reach</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Result</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>http://127.0.0.1:&lt;port&gt;/v1</code></td>
+              <td>Recommended</td>
+              <td>
+                Explicit IPv4 loopback avoids a host name resolving to a different local
+                server in Node and the browser.
+              </td>
+            </tr>
+            <tr>
+              <td><code>http://localhost:&lt;port&gt;/v1</code></td>
+              <td>Accepted, but can be ambiguous</td>
+              <td>
+                On a machine with native and containerised servers, IPv4 and IPv6 resolution
+                can select different processes.
+              </td>
+            </tr>
+            <tr>
+              <td><code>http://[::1]:&lt;port&gt;/v1</code></td>
+              <td>Refused by the UI</td>
+              <td>
+                The address is loopback, but the page's CSP cannot express an IPv6 literal
+                host source reliably. Use <code>127.0.0.1</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>http://0.0.0.0:&lt;port&gt;/v1</code></td>
+              <td>Refused</td>
+              <td>
+                <code>0.0.0.0</code> is a bind address, not a loopback destination.
+              </td>
+            </tr>
+            <tr>
+              <td><code>http://192.168.x.x:&lt;port&gt;/v1</code></td>
+              <td>Refused</td>
+              <td>
+                Arbitrary LAN hosts are outside the app's key-exfiltration boundary.
+              </td>
+            </tr>
+            <tr>
+              <td><code>http://localhost.evil.example/v1</code></td>
+              <td>Refused</td>
+              <td>
+                IdeaForge parses the URL hostname; a string that merely starts with
+                <code>localhost</code> is not trusted.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warning">
+        <strong>On a phone, localhost is the phone.</strong>
+        It never means a laptop on the same Wi-Fi. IdeaForge deliberately refuses the
+        laptop's LAN address. Use a hosted provider on the phone, or run the interview on
+        the same computer as the local model.
+      </div>
+
+      <h2 id="cors-and-local-network-access">CORS, local-network permission, and Safari</h2>
+      <h3>When the app is local</h3>
+      <p>
+        A page at <code>http://127.0.0.1:8765</code> calling a loopback model stays within
+        the local address space. Ollama's normal localhost origins cover this route. LM
+        Studio still needs CORS enabled for browser access.
+      </p>
+
+      <h3>When the app is hosted over HTTPS</h3>
+      <p>
+        Two independent gates must pass:
+      </p>
+      <ol class="steps">
+        <li>
+          <strong>The model server must allow the page's origin.</strong>
+          For Ollama, set <code>OLLAMA_ORIGINS</code> to the exact origin that hosts
+          IdeaForge and restart Ollama. The origin has a scheme and host, but no path; for
+          the public Pages deployment it is <code>https://jaypetez.github.io</code>.
+          Ollama reads the environment when it starts, so changing another shell without
+          restarting the running service has no effect.
+        </li>
+        <li>
+          <strong>Chrome must grant Local Network Access.</strong>
+          IdeaForge marks the fetch with <code>targetAddressSpace: "local"</code>. Chrome
+          shows its permission prompt only after you explicitly press
+          <strong>Check the connection</strong>; allow it for the site.
+        </li>
+      </ol>
+      <p>
+        LM Studio exposes CORS in its server settings and through the
+        <a href="https://lmstudio.ai/docs/cli/serve/server-start"><code>lms server start</code> options</a>.
+        Ollama documents allowed origins in its
+        <a href="https://docs.ollama.com/faq">official FAQ</a>. Chrome documents the current
+        permission model in
+        <a href="https://developer.chrome.com/blog/local-network-access">Local Network Access</a>.
+      </p>
+
+      <div class="callout danger">
+        <strong>Use a locally served app with Safari.</strong>
+        The shipped hosted-HTTPS to local-HTTP path is not supported there. Safari does not
+        provide the Chrome permission route that IdeaForge uses to make this request. Moving
+        the app to <code>http://127.0.0.1:8765</code> keeps both ends local and avoids that
+        mixed-content boundary. See the general
+        <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content">mixed-content model</a>
+        and the long-running
+        <a href="https://bugs.webkit.org/show_bug.cgi?id=171934">WebKit loopback issue</a>.
+      </div>
+
+      <h2 id="real-model-validation">Validate a real model, not a graceful fallback</h2>
+      <p>
+        IdeaForge is designed to continue from its built-in question bank when inference
+        fails. That resilience makes a superficial end-to-end check unsafe: an interview can
+        finish and export even if no model request succeeded. The repository's
+        <code>validate:local</code> harness therefore checks both application state and what
+        actually left the browser.
+      </p>
+
+      <h3>Run against a native or already-running Ollama</h3>
+      <p>In a POSIX shell:</p>
+      <pre><code>OLLAMA_URL=http://127.0.0.1:11434 \
+IDEAFORGE_MODEL=&lt;model-name&gt; \
+npm run validate:local</code></pre>
+      <p>In PowerShell:</p>
+      <pre><code>$env:OLLAMA_URL = 'http://127.0.0.1:11434'
+$env:IDEAFORGE_MODEL = '&lt;model-name&gt;'
+npm run validate:local</code></pre>
+
+      <h3>Validate a running app container</h3>
+      <p>
+        Set <code>IDEAFORGE_URL</code> so the harness drives that origin instead of serving
+        the working tree:
+      </p>
+      <pre><code>$env:IDEAFORGE_URL = 'http://127.0.0.1:8765'
+$env:OLLAMA_URL = 'http://127.0.0.1:11434'
+$env:IDEAFORGE_MODEL = '&lt;model-name&gt;'
+npm run validate:local</code></pre>
+
+      <h3>Run the containerised validator</h3>
+      <pre><code>docker compose -f docker/compose.yml -f docker/compose.validate.yml run --rm validate</code></pre>
+      <p>
+        The validation container shares Ollama's network namespace. That makes
+        <code>127.0.0.1:11434</code> genuinely point to Ollama inside the container while
+        preserving IdeaForge's loopback-only policy. It does not create a special
+        test-only remote-server exception.
+      </p>
+
+      <h3>What the validator proves</h3>
+      <ul class="checklist">
+        <li>Ollama answers, and the requested model is actually pulled.</li>
+        <li>
+          A host name does not resolve to two different Ollama servers with different model
+          fingerprints.
+        </li>
+        <li>
+          The model loads before the browser run, and its reported model size is resident in
+          GPU memory when GPU validation is required.
+        </li>
+        <li>
+          A warm decode sample is fast enough for the configured memory-bandwidth floor,
+          without misclassifying a two-token first response as a speed test.
+        </li>
+        <li>The real app boots with no uncaught error or CSP violation.</li>
+        <li>The browser reaches the same Ollama instance as the Node harness.</li>
+        <li>The app reads the real model list and sees the selected model.</li>
+        <li>
+          Every model-sourced question and the final synthesis produce actual browser POST
+          requests; saved <code>questionSource</code> values agree.
+        </li>
+        <li>
+          No turn silently falls back to the checklist, the refined prompt is generated,
+          and the model remains in VRAM through the wrap-up when still loaded.
+        </li>
+      </ul>
+
+      <h3>Useful validation controls</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>OLLAMA_URL</code></td>
+              <td>Names the exact Ollama server to inspect and use.</td>
+            </tr>
+            <tr>
+              <td><code>IDEAFORGE_MODEL</code></td>
+              <td>Selects the already-pulled model to validate.</td>
+            </tr>
+            <tr>
+              <td><code>IDEAFORGE_URL</code></td>
+              <td>Drives an already-served app or container instead of the working tree.</td>
+            </tr>
+            <tr>
+              <td><code>VALIDATE_TURNS</code></td>
+              <td>Changes the interview length before the requested wrap-up.</td>
+            </tr>
+            <tr>
+              <td><code>VALIDATE_TURN_MS</code></td>
+              <td>Changes the per-turn allowance for unusually slow local hardware.</td>
+            </tr>
+            <tr>
+              <td><code>VALIDATE_MIN_GBPS</code></td>
+              <td>Overrides the decode memory-bandwidth floor.</td>
+            </tr>
+            <tr>
+              <td><code>VALIDATE_ALLOW_CPU=1</code></td>
+              <td>
+                Continues the application checks after an intentional CPU-only result.
+                It does not pretend that CPU execution passed the GPU claim.
+              </td>
+            </tr>
+            <tr>
+              <td><code>VALIDATE_MODE=handsfree</code></td>
+              <td>
+                Drives the same real model through scripted speech input and output. Run
+                typed and hands-free as separate commands.
+              </td>
+            </tr>
+            <tr>
+              <td><code>CHROME_PATH</code></td>
+              <td>Points the harness at Chrome or Chromium when automatic discovery fails.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        For the containerised run, pass controls that are not declared in the Compose file
+        with <code>docker compose run -e</code>, for example
+        <code>-e VALIDATE_MODE=handsfree</code> or
+        <code>-e VALIDATE_ALLOW_CPU=1</code>.
+      </p>
+
+      <h2 id="implementation-references">Implementation references</h2>
+      <p>
+        The development stack is
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/compose.yml"><code>docker/compose.yml</code></a>,
+        the standalone release stack is
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/compose.release.yml"><code>docker/compose.release.yml</code></a>,
+        and the validation overlay is
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/compose.validate.yml"><code>docker/compose.validate.yml</code></a>.
+        The real-model checks themselves are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/tools/validate-local.mjs"><code>tools/validate-local.mjs</code></a>.
+      </p>
+      <p>
+        Loopback parsing and Chrome's fetch option are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/http.js"><code>src/providers/http.js</code></a>,
+        while local presets, model discovery, CORS diagnostics, and Safari guidance are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/openaiCompat.js"><code>src/providers/openaiCompat.js</code></a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

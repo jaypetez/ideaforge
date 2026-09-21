@@ -5,10 +5,10 @@ The shared working loop for Claude Code and GitHub Copilot (CLI and VS Code).
 covers *how to iterate on it and prove it works*. Read both before changing the code.
 
 Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
-`change-voice-and-driving`, `validate-local-model`, `update-readme`, and
-`review-ideaforge-change`. The `release` skill is explicitly invoked; preparing its PR is
-not permission to merge or publish. Keep one definition of each skill, not client-specific
-copies. See
+`change-voice-and-driving`, `validate-local-model`, `update-documentation`,
+`update-readme`, `review-ideaforge-documentation`, and `review-ideaforge-change`. The
+`release` skill is explicitly invoked; preparing its PR is not permission to merge or
+publish. Keep one definition of each skill, not client-specific copies. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
@@ -17,6 +17,7 @@ In a POSIX shell:
 
 ```sh
 npm test                            # ~1s  — purity lint + the unit suite. Run constantly.
+npm run test:docs                   # public docs, links, facts and agent wiring.
 npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
 npm run test:browser:required
                                     # ~90s — headless Chrome on the assembled site tree.
@@ -38,6 +39,37 @@ use `$env:VALIDATE_MODE = 'handsfree'` before `npm run validate:local` in PowerS
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or
 `manifest.webmanifest`, **`npm test` cannot see your change at all.** Those live in browser
 APIs that do not exist in Node. Use `npm run test:browser:required`.
+
+## Documentation is one synchronized surface
+
+Public documentation is the guide under `guide/`, the README, generated screenshots and
+worked example, plus the public architecture, security and contribution entry points. A
+change is incomplete when one of those surfaces still describes the old behavior.
+
+Use the shared `update-documentation` skill when a change affects public behavior, commands,
+providers, mobile/voice support, storage, privacy, security, packaging, Pages, Docker, CI or
+release behavior. That procedure invokes the narrower `update-readme` skill when README
+screenshots or the generated walkthrough are involved.
+
+The rule is the same as for code: **read facts from their owner, never from the previous
+document.** Dimension labels and bank size come from `src/core/dimensions.js`; ceilings from
+`src/core/engine.js`; providers and transcription choices from their registries; commands
+from `package.json`; the publishable tree from `tools/assemble-site.mjs`; CI, Pages and
+release gates from their workflows. Remove volatile counts and prices when they do not help
+the reader. If they remain, add a check that fails when they drift.
+
+A new guide page must update all of these together:
+
+- the navigation on every guide page;
+- the explicit inventory in `test/docs.test.mjs`;
+- Pages/container packaging when it introduces a new public asset;
+- browser coverage for routing, CSP, subpath behavior or layout;
+- the documentation source map used by `update-documentation`.
+
+Run `npm run test:docs` while editing. Guide, screenshot, app-link, service-worker or Pages
+changes also require `npm run test:browser:required`; run `npm run test:all` before delivery.
+Use the read-only documentation review agent for an exact diff or PR, never as a substitute
+for source checks. Stop at a green PR unless merge/publication was explicitly requested.
 
 ## The ladder
 

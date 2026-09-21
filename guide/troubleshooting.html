@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting | IdeaForge guide</title>
+  <meta name="description"
+        content="Diagnose IdeaForge startup, provider, local model, Docker, storage, voice, fallback, and validation failures.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html" aria-current="page">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Symptom-first diagnosis</p>
+      <h1>Find the first boundary that failed.</h1>
+      <p class="lede">
+        Start with the Check button, preserve local data before resetting anything, and
+        distinguish a provider failure from IdeaForge's deliberate checklist fallback. Most
+        local-model problems are one of four boundaries: process, address, CORS, or browser
+        permission.
+      </p>
+
+      <div class="callout danger">
+        <strong>Do not clear all site data as a first step.</strong>
+        Sessions and saved credentials live only in this browser profile. Back up the Ideas
+        library and export anything important before using a broad browser reset.
+      </div>
+
+      <h2 id="decision-tree">The short decision tree</h2>
+      <ol class="steps">
+        <li>
+          <strong>Does the page boot?</strong>
+          If not, use a real <code>http://</code> or <code>https://</code> origin, check the
+          browser console for a missing static file or CSP violation, and use the
+          <a href="#page-does-not-load">page-startup branch</a>.
+        </li>
+        <li>
+          <strong>Does Check the key or Check the connection pass?</strong>
+          If not, do not start an interview yet. Follow the
+          <a href="#hosted-provider-fails">hosted-provider</a> or
+          <a href="#local-provider-fails">local-provider</a> branch.
+        </li>
+        <li>
+          <strong>Does the turnline say built-in checklist?</strong>
+          The app is alive, but the model call or model output failed for that turn. Follow
+          <a href="#checklist-fallback">checklist fallback</a>.
+        </li>
+        <li>
+          <strong>Is the problem limited to saving, voice, Docker, or validation?</strong>
+          Skip directly to the matching branch below; those subsystems have separate
+          permissions and failure modes.
+        </li>
+      </ol>
+
+      <h2 id="page-does-not-load">The page does not load or stays blank</h2>
+      <h3>1. Confirm the URL is an origin</h3>
+      <p>
+        <code>file://</code> is unsupported. From a clone, run:
+      </p>
+      <pre><code>npm run serve
+# open http://127.0.0.1:8765</code></pre>
+      <p>
+        If another static server is used, verify that it serves JavaScript modules with
+        normal browser-readable MIME types and preserves the repository's relative paths.
+      </p>
+
+      <h3>2. Check the first failed resource</h3>
+      <p>
+        Open developer tools, reload, and inspect Console and Network. A missing module,
+        blocked stylesheet, wrong subpath, or CSP violation is more useful than a later
+        cascade of <code>undefined</code> errors. The application must work both at an origin
+        root and under a Pages-style subpath; do not rewrite its relative URLs to root
+        absolute paths.
+      </p>
+
+      <h3>3. Refresh a stale service worker without deleting sessions</h3>
+      <ol>
+        <li>Reload once, wait for the service worker update, then reload again.</li>
+        <li>Close other tabs for the same origin if an old page remains open.</li>
+        <li>
+          If the shell is still stale, remove the IdeaForge service worker and its Cache
+          Storage entry in developer tools, then reload.
+        </li>
+        <li>
+          Leave IndexedDB alone unless you have already backed up the library. Cache Storage
+          and IndexedDB are different stores.
+        </li>
+      </ol>
+      <p>
+        The service worker never handles the <code>guide/</code> path, so a stale guide page
+        is an ordinary HTTP or browser-cache issue rather than the app-shell cache.
+      </p>
+
+      <h2 id="hosted-provider-fails">A hosted key check fails</h2>
+      <ol class="steps">
+        <li>
+          <strong>Confirm the provider selection matches the key issuer.</strong>
+          A key from one provider cannot be used through another provider's preset.
+        </li>
+        <li>
+          <strong>Create a new scoped key in the provider console.</strong>
+          Paste it directly, avoid copying surrounding quotes, and press
+          <strong>Check the key</strong> again.
+        </li>
+        <li>
+          <strong>Read the error class.</strong>
+          Authentication needs a key change; rate limiting needs time or a provider-side
+          limit change; overload is usually transient; a deadline suggests an unreachable
+          or stalled service; a bad response points to incompatible model output.
+        </li>
+        <li>
+          <strong>Check browser interference.</strong>
+          A privacy extension, enterprise filter, VPN, DNS filter, or network proxy can block
+          the provider origin before the browser exposes an HTTP response.
+        </li>
+        <li>
+          <strong>Use the provider status and account pages.</strong>
+          Confirm the project is active and the key has permission and remaining quota. Do
+          not paste the key into an issue or screenshot.
+        </li>
+      </ol>
+
+      <div class="callout warning">
+        <strong>An OpenAI invalid key can look like a network error in browser fetch.</strong>
+        The chat endpoint may reject an invalid credential without CORS headers, leaving the
+        page only an opaque failure. IdeaForge validates OpenAI-compatible keys through
+        <code>/models</code> first so the setup screen can give a more useful result.
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>Likely class</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>This provider needs an API key</code></td>
+              <td>Configuration</td>
+              <td>Paste or restore the key for the currently selected provider.</td>
+            </tr>
+            <tr>
+              <td>HTTP 401 or 403</td>
+              <td>Authentication or authorisation</td>
+              <td>Replace or re-scope the key; verify the provider project.</td>
+            </tr>
+            <tr>
+              <td>HTTP 429</td>
+              <td>Rate limit</td>
+              <td>Wait for the provider's retry window or raise the account limit.</td>
+            </tr>
+            <tr>
+              <td>HTTP 503, 529, or another server error</td>
+              <td>Overload</td>
+              <td>Retry after a short wait or choose another provider.</td>
+            </tr>
+            <tr>
+              <td><code>did not answer within ...</code></td>
+              <td>Request deadline</td>
+              <td>Check provider reachability; for local models, check load and memory.</td>
+            </tr>
+            <tr>
+              <td><code>reply was cut off by the token limit</code></td>
+              <td>Unusable response</td>
+              <td>Use the current preset or a local model with adequate context and output capacity.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="local-provider-fails">A local connection check fails</h2>
+      <p>
+        Work through these in order. Each step proves a different boundary.
+      </p>
+
+      <h3>1. Prove the server process answers on the host</h3>
+      <p>For Ollama:</p>
+      <pre><code>curl http://127.0.0.1:11434/api/version
+curl http://127.0.0.1:11434/v1/models</code></pre>
+      <p>For LM Studio's default address:</p>
+      <pre><code>curl http://127.0.0.1:1234/v1/models</code></pre>
+      <p>
+        If the direct request fails, fix or start the model server before changing IdeaForge.
+        If it answers but lists no models, pull or load one.
+        In Windows PowerShell, use <code>curl.exe</code> if <code>curl</code> is mapped to
+        <code>Invoke-WebRequest</code>.
+      </p>
+
+      <h3>2. Use the API root, not an individual endpoint</h3>
+      <p>
+        The server address normally ends in <code>/v1</code>. IdeaForge appends
+        <code>/models</code> and <code>/chat/completions</code>. Do not paste the full
+        <code>/chat/completions</code> URL.
+      </p>
+
+      <h3>3. Use explicit IPv4 loopback</h3>
+      <p>
+        Try <code>127.0.0.1</code> instead of <code>localhost</code>. Do not use
+        <code>0.0.0.0</code>, a LAN address, or bracketed <code>[::1]</code>. If
+        <code>localhost</code> and <code>127.0.0.1</code> show different model lists, two
+        local servers are answering on different address families. Choose one explicitly.
+      </p>
+
+      <h3>4. If the app is hosted, fix CORS</h3>
+      <ul>
+        <li>
+          Ollama: set <code>OLLAMA_ORIGINS</code> to the app's exact origin and restart the
+          Ollama process or service.
+        </li>
+        <li>
+          LM Studio: enable CORS in the server settings, or start the server with its CORS
+          option.
+        </li>
+        <li>
+          A page origin contains the scheme and host, not the path. For the public Pages
+          deployment, allow <code>https://jaypetez.github.io</code>, not the
+          <code>/ideaforge/</code> path.
+        </li>
+      </ul>
+
+      <h3>5. If using Chrome from a hosted page, allow Local Network Access</h3>
+      <p>
+        Press <strong>Check the connection</strong> and accept Chrome's site permission. If
+        it was denied earlier, reset the site's Local Network Access permission in browser
+        settings, reload, and press Check again. A CORS fix cannot substitute for this
+        permission, and the permission cannot substitute for CORS; both must pass.
+      </p>
+
+      <h3>6. If using Safari from a hosted page, move the app local</h3>
+      <p>
+        Serve IdeaForge at <code>http://127.0.0.1:8765</code>. The shipped app does not
+        support the hosted-HTTPS to local-HTTP path in Safari.
+      </p>
+
+      <h3>7. If using a phone, stop using the computer's localhost</h3>
+      <p>
+        On a phone, <code>localhost</code> means the phone. IdeaForge intentionally refuses
+        a computer's <code>192.168.x.x</code> address. Use a hosted model on the phone or run
+        the app on the computer with the model.
+      </p>
+
+      <h3>8. If the list fails but the server is compatible, type the model</h3>
+      <p>
+        The model field is an editable input, not a locked select. A custom server may omit
+        <code>/models</code> yet still implement chat completions. Type the exact identifier
+        and start only after proving that the chat endpoint is compatible.
+      </p>
+
+      <p>
+        See <a href="./local-models-and-docker.html#cors-and-local-network-access">CORS,
+        Local Network Access, and Safari</a> for the full browser matrix.
+      </p>
+
+      <h2 id="docker-fails">Docker does not start or is unexpectedly slow</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>What it means</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>could not select device driver "nvidia"</code></td>
+              <td>The repository Compose GPU reservation cannot be satisfied.</td>
+              <td>
+                Install the NVIDIA Container Toolkit, follow the release file's marked CPU
+                instructions, or run the model natively and containerise only IdeaForge.
+              </td>
+            </tr>
+            <tr>
+              <td>Port 11434 is already allocated</td>
+              <td>A native or second containerised Ollama already owns the port.</td>
+              <td>
+                Stop the unintended server, or set <code>IDEAFORGE_OLLAMA_PORT</code> and
+                enter the matching <code>127.0.0.1</code> address in IdeaForge.
+              </td>
+            </tr>
+            <tr>
+              <td>The app opens but no model is found</td>
+              <td>The app container and model container have separate jobs.</td>
+              <td>
+                Run <code>docker compose exec ollama ollama list</code>, pull a model if
+                needed, then press Check the connection again.
+              </td>
+            </tr>
+            <tr>
+              <td>Inference works but is extremely slow</td>
+              <td>Ollama may have fallen back to CPU or offloaded only part of the model.</td>
+              <td>
+                Inspect GPU device requests and run the real-model validator before changing
+                the app.
+              </td>
+            </tr>
+            <tr>
+              <td>A release remains old after <code>up -d</code></td>
+              <td>Compose reused the image already present locally.</td>
+              <td>Run <code>docker compose pull</code>, then <code>up -d</code>.</td>
+            </tr>
+            <tr>
+              <td>Models disappeared</td>
+              <td>The named volume was removed or a different project name is in use.</td>
+              <td>
+                Check <code>docker volume ls</code>. Avoid <code>down -v</code> when model
+                retention matters.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Useful first commands:</p>
+      <pre><code>docker compose -f docker/compose.yml ps
+docker compose -f docker/compose.yml logs --tail 100 ollama
+docker compose -f docker/compose.yml exec ollama ollama list
+docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceRequests}}'</code></pre>
+
+      <h2 id="checklist-fallback">The interview uses the built-in checklist</h2>
+      <p>
+        This is a degraded but intentional path, not data loss. The seed question never
+        needs a model. For later turns, IdeaForge falls back when the provider is absent,
+        unreachable, times out, returns unusable JSON, or produces a question that remains
+        repetitive or compound after one regeneration.
+      </p>
+      <ol>
+        <li>Read the visible error beside the turn; it names the provider or response failure.</li>
+        <li>Return to Settings and run Check the key or Check the connection.</li>
+        <li>
+          For a local model, inspect the browser console for <code>[ideaforge]</code>
+          warnings. They distinguish absorbed model-shape quirks from a turn that had to
+          fall back.
+        </li>
+        <li>
+          If a small local model trips a question-quality guard once, retry the validation
+          run before treating it as an application regression. Repeated bank turns with
+          network errors are a server or browser problem, not model luck.
+        </li>
+      </ol>
+      <p>
+        The completed screen records whether any question came from the checklist. A
+        successful-looking export alone is not proof that the provider worked.
+      </p>
+
+      <h2 id="wrap-up-fails">The wrap-up fails</h2>
+      <p>
+        The synthesis call is larger than an ordinary turn because it uses the interview
+        transcript to produce the title, refined prompt, assumptions, and open questions.
+        Local models that handled short turn prompts can fail here because of context,
+        memory, output length, or model-shape limits.
+      </p>
+      <ul>
+        <li>
+          Keep or download the document already shown. The transcript, coverage, and open
+          questions remain; the refined prompt is marked as not generated.
+        </li>
+        <li>
+          Check that the model remains loaded and has enough memory for the larger context.
+        </li>
+        <li>Run <code>npm run validate:local</code> to exercise the same final synthesis.</li>
+        <li>
+          Reopen the idea and ask for more only after the provider is healthy; reopening
+          continues from the saved session rather than reconstructing it from the export.
+        </li>
+      </ul>
+
+      <h2 id="saving-fails">A session is not saved or disappears</h2>
+      <p>
+        IdeaForge surfaces IndexedDB failures with a message telling you to export before
+        closing the tab. Common causes are private browsing restrictions, disabled site
+        storage, quota pressure, browser eviction, or a database upgrade blocked by another
+        open tab.
+      </p>
+      <ol class="steps">
+        <li><strong>Keep the tab open and export the current idea immediately.</strong></li>
+        <li>Close other IdeaForge tabs, then reload and retry.</li>
+        <li>Check that browser storage is allowed for the exact origin you are using.</li>
+        <li>Install the app if practical, then start or import again so persistence is requested.</li>
+        <li>Back up the whole Ideas library before clearing any site data.</li>
+      </ol>
+      <p>
+        If a saved key disappears while sessions remain, the wrapping key may have been
+        evicted independently of the ciphertext. IdeaForge deletes the now-undecryptable
+        credential payload and asks you to paste the key again rather than looping forever.
+      </p>
+
+      <h2 id="voice-fails">Voice or dictation is unavailable</h2>
+      <ol>
+        <li>Confirm microphone permission for the exact app origin.</li>
+        <li>
+          If the mic button is absent, read the setup message. IdeaForge withholds the button
+          when the browser's recogniser exists but fails its proof-of-life check.
+        </li>
+        <li>
+          In an installed iPhone app, Edge, or Firefox, configure Groq or OpenAI
+          transcription instead of relying on browser recognition.
+        </li>
+        <li>
+          If inference and transcription use different providers, paste the separate
+          transcription key. If both use Groq or both use OpenAI, the inference key is
+          reused automatically.
+        </li>
+        <li>
+          Test a short recording. An empty or extremely short capture is discarded rather
+          than sent for transcription.
+        </li>
+      </ol>
+      <p>
+        See <a href="./mobile-and-voice.html">Mobile and voice</a> for hands-free commands,
+        trigger-word rules, and platform-specific setup.
+      </p>
+
+      <h2 id="validation-fails">The real-model validator fails</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Failed claim</th>
+              <th>Meaning</th>
+              <th>Next action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No Chrome found</td>
+              <td>The harness cannot discover a supported browser binary.</td>
+              <td>Set <code>CHROME_PATH</code> to Chrome or Chromium.</td>
+            </tr>
+            <tr>
+              <td>Ollama is unreachable</td>
+              <td><code>OLLAMA_URL</code> does not answer the native API.</td>
+              <td>Start Ollama and use explicit <code>127.0.0.1</code>.</td>
+            </tr>
+            <tr>
+              <td>The address names more than one server</td>
+              <td><code>localhost</code> resolves to different Ollama instances.</td>
+              <td>Set <code>OLLAMA_URL</code> to the intended numeric loopback address.</td>
+            </tr>
+            <tr>
+              <td>The model is not pulled</td>
+              <td>The requested identifier is absent from <code>/api/tags</code>.</td>
+              <td>Pull that exact model or change <code>IDEAFORGE_MODEL</code>.</td>
+            </tr>
+            <tr>
+              <td>The model does not load onto the GPU</td>
+              <td>GPU access is missing or the model does not fit as expected.</td>
+              <td>
+                Fix the runtime or deliberately set <code>VALIDATE_ALLOW_CPU=1</code> to
+                continue without claiming a GPU pass.
+              </td>
+            </tr>
+            <tr>
+              <td>The browser reached a different server</td>
+              <td>The harness and page resolved the model address differently.</td>
+              <td>Replace <code>localhost</code> with <code>127.0.0.1</code> everywhere.</td>
+            </tr>
+            <tr>
+              <td>A question came from the checklist</td>
+              <td>The real provider call or model output failed during the run.</td>
+              <td>Read the turn error and <code>[ideaforge]</code> console warning, then rerun.</td>
+            </tr>
+            <tr>
+              <td>Too few browser POSTs</td>
+              <td>The run completed through fallback rather than real inference.</td>
+              <td>Fix the first provider/network failure; the export itself is not evidence.</td>
+            </tr>
+            <tr>
+              <td>Synthesis is not generated</td>
+              <td>The model failed the larger wrap-up request.</td>
+              <td>Check context capacity, memory residency, and the model's JSON reliability.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Full validator setup and environment controls are in
+        <a href="./local-models-and-docker.html#real-model-validation">Validate a real model</a>.
+      </p>
+
+      <h2 id="report-a-problem">Report a reproducible problem</h2>
+      <p>
+        For an ordinary bug, open a
+        <a href="https://github.com/jaypetez/ideaforge/issues">GitHub issue</a> with:
+      </p>
+      <ul>
+        <li>the exact app origin and whether it was hosted, local, or containerised;</li>
+        <li>browser and operating-system versions;</li>
+        <li>the selected provider and, for local models, the base URL and model identifier;</li>
+        <li>the complete visible error and relevant console warning;</li>
+        <li>whether Check the key or Check the connection passed;</li>
+        <li>the smallest safe reproduction, with all API keys and sensitive transcript text removed.</li>
+      </ul>
+      <p>
+        Report suspected credential exfiltration, script execution, or cross-origin storage
+        access through
+        <a href="https://github.com/jaypetez/ideaforge/security/advisories/new">private vulnerability reporting</a>,
+        not a public issue.
+      </p>
+
+      <h2 id="implementation-references">Implementation references</h2>
+      <p>
+        Provider error classes and retry policy are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/errors.js"><code>src/providers/errors.js</code></a>.
+        Local diagnostics and request deadlines are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/http.js"><code>src/providers/http.js</code></a>
+        and
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/openaiCompat.js"><code>src/providers/openaiCompat.js</code></a>.
+        The fallback path is coordinated by
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/runtime/turn.js"><code>src/runtime/turn.js</code></a>.
+      </p>
+      <p>
+        Storage errors and recovery are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/db.js"><code>src/store/db.js</code></a>
+        and
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/secrets.js"><code>src/store/secrets.js</code></a>.
+        Docker diagnostics come from
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/compose.yml"><code>docker/compose.yml</code></a>
+        and
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/tools/validate-local.mjs"><code>tools/validate-local.mjs</code></a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
