@@ -1,6 +1,6 @@
 ---
 name: update-readme
-description: Refresh README facts after UI, provider, core, dimension, version, or README changes.
+description: Regenerate IdeaForge README screenshots/example and re-derive README claims.
 ---
 
 # Updating the README
@@ -10,6 +10,11 @@ Run every command from the repository root, not this skill's directory. Use the 
 client's native file and terminal tools with its normal permissions; this skill does not
 pre-approve tools or require a particular shell.
 Never use a live provider key or a paid provider to generate the committed walkthrough.
+
+This is the generated README/artifact subprocedure. For the public guide and synchronized
+documentation surfaces, start with
+[`update-documentation`](../update-documentation/SKILL.md), which invokes this skill when
+README screenshots or the worked example are in scope.
 
 The README makes claims about code that moves. This skill re-derives them instead of
 re-wording them.
@@ -69,8 +74,6 @@ Check each of these against source and fix the README where they disagree:
 | "a built-in bank of 21" | sum of `bank.length` across `DIMENSIONS` |
 | the soft and hard ceilings | `SOFT_TURN_CEILING` / `HARD_TURN_CEILING`, `src/core/engine.js` |
 | the provider table | `PROVIDER_CHOICES` in `src/providers/index.js` |
-| the unit test count | the tail of `npm test` |
-| the browser check count | the tail of `npm run test:browser:required` |
 | the ratchet rules | `applyCoverage` in `src/core/session.js` |
 | the walkthrough's question count and coverage | the meta line of the generated example |
 | every `npm run …` shown | `scripts` in `package.json` |
@@ -113,6 +116,7 @@ The README is prose that explains *why*, not a feature list. Match what is alrea
 ## 4. Verify before claiming done
 
 ```sh
+npm run test:docs
 npm test
 npm run test:all
 ```
@@ -120,9 +124,9 @@ npm run test:all
 `npm run test:all` includes the module graph and the required-browser variant; a missing
 Chrome is a failure rather than a successful skip.
 
-`test/docs.test.mjs` checks that every image and relative link the README references exists,
-and that the dimension count and hard ceiling it states match source. It does not check the
-prose — that part is the job above.
+`test/docs.test.mjs` checks the public documentation inventory, links, assets, commands and
+selected source-derived facts. It does not judge prose quality — that part is the job above
+and the read-only documentation review skill.
 
 Finally, look at the rendered page. `<picture>` with `prefers-color-scheme`, and whether the
 hero actually animates, can only be confirmed on github.com, so push the branch and open it

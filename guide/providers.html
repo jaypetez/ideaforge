@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Providers | IdeaForge guide</title>
+  <meta name="description"
+        content="Choose an IdeaForge model and dictation provider, validate keys, and understand what is stored and sent.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation</summary>
+        <ul>
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./providers.html" aria-current="page">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Model and dictation connections</p>
+      <h1>Choose where the interview runs.</h1>
+      <p class="lede">
+        IdeaForge calls the selected provider directly from your browser. There is no
+        IdeaForge proxy, account, or application server between the page and the model.
+        Hosted providers need their own API key; local providers need a loopback server and
+        an installed model.
+      </p>
+
+      <div class="callout">
+        <strong>Use the Check button before a real interview.</strong>
+        For a hosted provider it validates the key. For a local provider it checks the
+        server and reads its model list. This separates setup failures from an interview
+        that has already started.
+      </div>
+
+      <h2 id="current-choices">Current provider choices</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Choice</th>
+              <th>Credential</th>
+              <th>Best fit</th>
+              <th>What IdeaForge does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Claude (this viewer)</strong></td>
+              <td>No key</td>
+              <td>IdeaForge opened inside a Claude viewer that grants model sampling.</td>
+              <td>
+                Uses the viewer's built-in sampling capability. It is offered as the
+                default only when that capability is actually present.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Anthropic</strong></td>
+              <td>Anthropic API key</td>
+              <td>A hosted Claude path with separate fast-turn and wrap-up tiers.</td>
+              <td>
+                Calls the Anthropic Messages API directly. Key validation makes a small
+                real model request because Anthropic does not expose a browser-reachable
+                model list for this use.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>OpenAI</strong></td>
+              <td>OpenAI API key</td>
+              <td>A hosted OpenAI path using the repository's current tier mapping.</td>
+              <td>
+                Uses OpenAI-compatible chat completions. Validation reads
+                <code>/models</code>, which gives the browser a useful authentication
+                result before an interview begins.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Groq</strong></td>
+              <td>Groq API key</td>
+              <td>Hosted OpenAI-compatible inference, with optional Groq transcription.</td>
+              <td>
+                Uses Groq's OpenAI-compatible endpoint. The same key can cover both
+                interview inference and Groq dictation when both choices match.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>OpenRouter</strong></td>
+              <td>OpenRouter API key</td>
+              <td>A hosted route through OpenRouter using IdeaForge's preset tiers.</td>
+              <td>
+                Sends bearer-authenticated OpenAI-compatible requests to OpenRouter's
+                allowlisted API origin.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Ollama (local)</strong></td>
+              <td>No key in the current UI</td>
+              <td>A model served by Ollama on this device.</td>
+              <td>
+                Starts at <code>http://localhost:11434/v1</code>, reads the installed model
+                list, and requires you to choose or type a model instead of guessing one.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>LM Studio (local)</strong></td>
+              <td>No key in the current UI</td>
+              <td>A model served by LM Studio on this device.</td>
+              <td>
+                Starts at <code>http://localhost:1234/v1</code>. LM Studio must have its
+                local server running and CORS enabled.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Another local server</strong></td>
+              <td>No key in the current UI</td>
+              <td>llama.cpp, vLLM, or another OpenAI-compatible server on this device.</td>
+              <td>
+                Accepts a typed OpenAI-compatible base URL only on
+                <code>localhost</code> or <code>127.0.0.1</code>, and requires a model name.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Hosted model identifiers are deliberately owned by the provider presets rather than
+        exposed as free-text settings. They can change as providers retire or replace models.
+        Local choices work differently: IdeaForge asks the server what is installed, leaves
+        the model field editable, and never assumes that a particular local model exists.
+      </p>
+
+      <div class="callout warning">
+        <strong>There is no arbitrary remote-server option.</strong>
+        A hand-typed address must be loopback. Allowing any remote URL would widen the page's
+        network allowlist and undermine the boundary that prevents a stored key from being
+        posted to an attacker-controlled host.
+      </div>
+
+      <h2 id="setup-flow">Set up and verify a provider</h2>
+      <ol class="steps">
+        <li>
+          <strong>Select the provider.</strong>
+          On a normal web page, Anthropic is the first-run default. Inside a compatible
+          Claude viewer, the no-key viewer provider becomes the default.
+        </li>
+        <li>
+          <strong>Paste a hosted key, or set the local server address.</strong>
+          Local OpenAI-compatible addresses should include the API root, normally ending
+          in <code>/v1</code>, because IdeaForge appends <code>/models</code> and
+          <code>/chat/completions</code>.
+        </li>
+        <li>
+          <strong>Press Check the key or Check the connection.</strong>
+          Hosted checks make an authenticated request. Local checks read the server's
+          model list and populate suggestions without replacing a model name you typed.
+        </li>
+        <li>
+          <strong>Choose a local model.</strong>
+          If the server reports one model, IdeaForge selects it. If the list endpoint is
+          unavailable but you know the identifier, type it directly.
+        </li>
+        <li>
+          <strong>Start the interview.</strong>
+          The provider selection, credentials, local address, and model are saved on this
+          device when the provider is built for a check or an interview.
+        </li>
+      </ol>
+
+      <p>
+        For local browser and server requirements, including hosted-page CORS and local
+        network permission, continue to
+        <a href="./local-models-and-docker.html">Local models and Docker</a>.
+      </p>
+
+      <h2 id="keyring">How saved credentials behave</h2>
+      <ul class="checklist">
+        <li>
+          One encrypted keyring stores a separate record for each inference provider, plus
+          the selected transcription provider and its key.
+        </li>
+        <li>
+          Switching providers does not overwrite the key saved for the previous provider.
+          Returning to it shows a masked hint and reuses the saved value when the input is
+          left blank.
+        </li>
+        <li>
+          Local server addresses and model names are remembered in the same keyring even
+          though they are not secrets. This is why a local choice survives a reload.
+        </li>
+        <li>
+          Anthropic sends its key in <code>x-api-key</code>. The OpenAI-compatible choices
+          send bearer authorisation. Provider requests explicitly omit browser cookies.
+        </li>
+        <li>
+          <strong>Forget my key</strong> removes the whole stored credential payload and
+          its wrapping key, including inference and transcription keys for every provider.
+          It does not revoke a key at the provider; revoke it there as well when needed.
+        </li>
+      </ul>
+
+      <p>
+        The encrypted-at-rest design and its limits are explained in
+        <a href="./privacy-and-security.html">Privacy and security</a>. The short version is
+        that a copied browser profile does not contain the API key in plaintext, but code
+        already running as this origin could use the stored key in the same way the app can.
+        Use a scoped, expiring key with a sensible provider-side limit.
+      </p>
+
+      <h2 id="dictation">Dictation is a separate provider choice</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dictation choice</th>
+              <th>Key behaviour</th>
+              <th>Network behaviour</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Browser recogniser</strong></td>
+              <td>No IdeaForge transcription key.</td>
+              <td>
+                Uses the browser's Web Speech implementation when it proves that it is
+                alive. Its processing model is controlled by the browser, not IdeaForge.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Groq Whisper</strong></td>
+              <td>
+                Uses the inference key automatically when Groq is also the selected model
+                provider; otherwise it has its own saved transcription key.
+              </td>
+              <td>Sends recorded audio directly to Groq's transcription endpoint.</td>
+            </tr>
+            <tr>
+              <td><strong>OpenAI transcription</strong></td>
+              <td>
+                Uses the inference key automatically when OpenAI is also selected;
+                otherwise it has its own saved transcription key.
+              </td>
+              <td>Sends recorded audio directly to OpenAI's transcription endpoint.</td>
+            </tr>
+            <tr>
+              <td><strong>Off</strong></td>
+              <td>No transcription key.</td>
+              <td>No IdeaForge audio capture or transcription request.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        The app tests the browser recogniser by behaviour rather than by the mere presence
+        of an API. If it cannot prove that recognition works, it uses the selected hosted
+        transcriber when one is configured, or keeps the keyboard as the reliable fallback.
+        See <a href="./mobile-and-voice.html">Mobile and voice</a> for platform details.
+      </p>
+
+      <h2 id="failure-behaviour">What happens when a provider fails</h2>
+      <p>
+        Provider adapters translate service-specific failures into one shared set of
+        authentication, rate-limit, overload, network, timeout, response, cancellation, and
+        configuration errors. Transient rate-limit, overload, and network failures are
+        retried with backoff. Authentication, invalid configuration, unusable model output,
+        and the request deadline require a user or model change instead.
+      </p>
+      <p>
+        A failed question does not dead-end the interview. IdeaForge uses a built-in
+        checklist question for that turn and marks the source on screen and in the saved
+        session. A failed final synthesis preserves the transcript, coverage, and open
+        questions; only the generated refined prompt is missing. Use the
+        <a href="./troubleshooting.html">troubleshooting decision tree</a> when a check or
+        turn falls back.
+      </p>
+
+      <h2 id="official-links">Provider account and API references</h2>
+      <ul>
+        <li>
+          Anthropic:
+          <a href="https://console.anthropic.com/settings/keys">API keys</a> and
+          <a href="https://docs.anthropic.com/en/api/messages">Messages API</a>.
+        </li>
+        <li>
+          OpenAI:
+          <a href="https://platform.openai.com/api-keys">API keys</a> and
+          <a href="https://platform.openai.com/docs/api-reference/authentication">API authentication</a>.
+        </li>
+        <li>
+          Groq:
+          <a href="https://console.groq.com/keys">API keys</a> and
+          <a href="https://console.groq.com/docs/production-readiness/security-onboarding">security guidance</a>.
+        </li>
+        <li>
+          OpenRouter:
+          <a href="https://openrouter.ai/keys">API keys</a> and
+          <a href="https://openrouter.ai/docs/api_reference/authentication">API authentication</a>.
+        </li>
+        <li>
+          Ollama:
+          <a href="https://docs.ollama.com/api/openai-compatibility">OpenAI compatibility</a>.
+        </li>
+        <li>
+          LM Studio:
+          <a href="https://lmstudio.ai/docs/developer/core/server">local server documentation</a>.
+        </li>
+      </ul>
+
+      <h2 id="implementation-references">Implementation references</h2>
+      <p>
+        The current list and first-run selection live in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/index.js"><code>src/providers/index.js</code></a>.
+        Request authentication, loopback policy, local-network options, and deadlines live in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/http.js"><code>src/providers/http.js</code></a>.
+        The hosted and local OpenAI-compatible presets are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/openaiCompat.js"><code>src/providers/openaiCompat.js</code></a>,
+        while Anthropic's browser-direct adapter is in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/anthropic.js"><code>src/providers/anthropic.js</code></a>.
+      </p>
+      <p>
+        Settings persistence is implemented by
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/secrets.js"><code>src/store/secrets.js</code></a>,
+        the UI flow by
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/ui/app.js"><code>src/ui/app.js</code></a>,
+        and hosted dictation by
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/transcribe.js"><code>src/voice/transcribe.js</code></a>.
+        GitHub Models and Copilot chat are deliberately not provider choices; the rationale
+        is recorded beside the registry in <code>src/providers/index.js</code>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

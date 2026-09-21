@@ -1,5 +1,5 @@
-# The app image is index.html, sw.js, the manifest, the licence and src/. Everything else
-# is either generated, test-only, or history.
+# The static image is the app, public guide and generated guide screenshots. Everything
+# else is repository-only documentation, test material, tooling or history.
 #
 # Note what this means for Dockerfile.harness, which does COPY . .  — `tools` and `docker`
 # are excluded here, so the harness image does NOT contain tools/validate-local.mjs. It works
@@ -8,7 +8,9 @@
 .git
 .github
 .claude
-docs
+docs/*
+!docs/screenshots/
+!docs/screenshots/**
 test
 tools
 spikes

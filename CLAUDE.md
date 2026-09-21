@@ -15,7 +15,8 @@ the browser with the user's own API key.
 ## Commands
 
 ```sh
-npm test                 # lint:purity, then the unit suite (251 tests in a fresh run)
+npm test                 # lint:purity, then the unit suite
+npm run test:docs        # public guide/README facts, links and assistant wiring
 npm run test:graph       # syntax + import-graph checks over the shipped modules
 npm run test:browser:required
                          # headless Chrome on the assembled publishable tree, fail-closed
@@ -56,6 +57,7 @@ src/providers/  the only directory allowed to touch the network
 src/store/      IndexedDB sessions + the encrypted API key
 src/voice/      microphone, transcription, speech synthesis
 src/ui/         the app shell (the only place that touches the DOM)
+guide/          static public documentation, published beside the app
 ```
 
 A new file under `src/` must also be added to `sw.js`'s `SHELL`; `test/wiring.test.mjs`
@@ -231,6 +233,10 @@ Several tests exist because the behaviour was wrong the first time, and the comm
   user's API key in browser memory.
 - **No hash routing in the UI.** WebKit re-prompts for the microphone on hash change in a
   standalone home-screen app; panels are toggled with `hidden` instead.
+- **The public guide is static and outside the app shell.** It lives under `guide/`, has no
+  runtime dependency or build step, and is published beside the app. The root-scoped
+  service worker must bypass `/guide/`; a failed documentation navigation must never fall
+  through to cached `index.html`.
 - **The version lives in two places** — `package.json` and `src/version.js` — because a
   browser ES module can't import JSON without an import attribute and there is no build
   step. A test asserts they match, and `release.yml`'s read-only `verify` job also checks the

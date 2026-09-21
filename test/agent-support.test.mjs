@@ -19,7 +19,9 @@ const EXPECTED_SKILLS = new Set([
   'add-provider',
   'change-voice-and-driving',
   'release',
+  'review-ideaforge-documentation',
   'review-ideaforge-change',
+  'update-documentation',
   'update-readme',
   'validate-local-model',
 ]);
@@ -436,11 +438,25 @@ test('review agents are distinct, explicit, read-only adapters for the shared sk
   const expected = new Map([
     [join('.claude', 'agents', 'ideaforge-review-claude.md'), {
       name: 'ideaforge-review-claude',
+      skill: 'review-ideaforge-change',
+      tools: ['Read', 'Grep', 'Glob'],
+      keys: ['description', 'name', 'permissionMode', 'skills', 'tools'],
+    }],
+    [join('.claude', 'agents', 'ideaforge-docs-review-claude.md'), {
+      name: 'ideaforge-docs-review-claude',
+      skill: 'review-ideaforge-documentation',
       tools: ['Read', 'Grep', 'Glob'],
       keys: ['description', 'name', 'permissionMode', 'skills', 'tools'],
     }],
     [join('.github', 'agents', 'ideaforge-review-copilot.agent.md'), {
       name: 'ideaforge-review-copilot',
+      skill: 'review-ideaforge-change',
+      tools: ['read', 'search', 'grep', 'glob'],
+      keys: ['description', 'name', 'tools'],
+    }],
+    [join('.github', 'agents', 'ideaforge-docs-review-copilot.agent.md'), {
+      name: 'ideaforge-docs-review-copilot',
+      skill: 'review-ideaforge-documentation',
       tools: ['read', 'search', 'grep', 'glob'],
       keys: ['description', 'name', 'tools'],
     }],
@@ -464,7 +480,7 @@ test('review agents are distinct, explicit, read-only adapters for the shared sk
     assert.deepEqual(config.tools, agent.tools);
     assert.doesNotMatch(config.tools.join(' '), /\b(?:bash|edit|execute|shell|write)\b/i);
     assert.match(config.description, /\bsupplied\b/i);
-    assert.match(md, /review-ideaforge-change/);
+    assert.match(md, new RegExp(agent.skill));
     assert.match(md, /read-only/i);
     assert.match(md, /exact\s+change set is unavailable,\s+stop/i);
     for (const target of localLinks(definition.file, md)) {
@@ -472,10 +488,15 @@ test('review agents are distinct, explicit, read-only adapters for the shared sk
     }
   }
 
-  const claude = readFileSync(join(ROOT, '.claude', 'agents', 'ideaforge-review-claude.md'),
-    'utf8');
-  assert.match(claude, /^skills:\r?\n[ \t]+-[ \t]+review-ideaforge-change[ \t]*\r?$/m);
-  assert.match(claude, /^permissionMode:[ \t]*plan[ \t]*\r?$/m);
+  for (const [file, skill] of [
+    ['ideaforge-review-claude.md', 'review-ideaforge-change'],
+    ['ideaforge-docs-review-claude.md', 'review-ideaforge-documentation'],
+  ]) {
+    const claude = readFileSync(join(ROOT, '.claude', 'agents', file), 'utf8');
+    assert.match(claude, new RegExp(
+      `^skills:\\r?\\n[ \\t]+-[ \\t]+${skill}[ \\t]*\\r?$`, 'm'));
+    assert.match(claude, /^permissionMode:[ \t]*plan[ \t]*\r?$/m);
+  }
 });
 
 test('documented node test commands exclude browser probe modules', () => {

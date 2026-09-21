@@ -126,8 +126,12 @@ test('the assembled site contains exactly the publishable tree', async () => {
     assert.ok(actual.includes('LICENSE'));
     assert.ok(actual.includes('src/ui/app.js'));
     assert.ok(actual.includes('src/version.js'));
+    assert.ok(actual.includes('guide/index.html'));
+    assert.ok(actual.includes('guide/assets/guide.css'));
+    assert.ok(actual.includes('docs/screenshots/01-setup.light.png'));
     assert.ok(!actual.some((file) => file.startsWith('test/')), 'test files must not ship');
-    assert.ok(!actual.some((file) => file.startsWith('docs/')), 'docs must not ship');
+    assert.ok(!actual.some((file) => file.startsWith('docs/') && !file.startsWith('docs/screenshots/')),
+      'only generated screenshots may ship from docs/');
     assert.ok(!actual.some((file) => /\.test\.mjs$/.test(file)), 'test modules must not ship');
   } finally {
     rmSync(outDir, { recursive: true, force: true });
@@ -145,4 +149,12 @@ test('the container copies the same publishable roots as the site assembler', ()
     assert.ok(sources.includes(`${dir}/`), `docker/Dockerfile.app does not copy ${dir}/`);
   }
   assert.ok(!sources.includes('.'), 'the container must not copy the whole repository');
+});
+
+test('the app service worker leaves the public guide alone', () => {
+  assert.match(SW, /GUIDE_PATH/);
+  assert.match(SW, /GUIDE_SCREENSHOTS_PATH/);
+  assert.match(SW, /url\.pathname\.startsWith\(GUIDE_PATH\)[\s\S]*GUIDE_SCREENSHOTS_PATH/);
+  assert.doesNotMatch(SW, /^\s*'\.\/guide\//m,
+    'guide pages must not join the app shell cache');
 });

@@ -11,10 +11,13 @@
 
 FROM nginx:1.27-alpine
 
-# Not COPY . — the app image has no business containing the tests, the docs, the day-0
-# spikes or the git history.
+# Not COPY . — the image has no business containing tests, repository-only documentation,
+# day-0 spikes or git history. The public guide and its generated screenshots are part of
+# the shipped static site.
 COPY index.html manifest.webmanifest sw.js LICENSE /usr/share/nginx/html/
 COPY src/ /usr/share/nginx/html/src/
+COPY guide/ /usr/share/nginx/html/guide/
+COPY docs/screenshots/ /usr/share/nginx/html/docs/screenshots/
 
 # Belt and braces: .dockerignore should already have excluded these.
 RUN find /usr/share/nginx/html -name '*.test.mjs' -delete

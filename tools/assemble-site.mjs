@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const ROOT_FILES = ['index.html', 'manifest.webmanifest', 'sw.js', 'LICENSE'];
-export const ROOT_DIRS = ['src'];
+export const ROOT_DIRS = ['src', 'guide', 'docs/screenshots'];
 
 const OMIT = /\.test\.mjs$/;
 

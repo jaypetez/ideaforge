@@ -72,7 +72,7 @@ export async function serveRepo({ root = ROOT, before } = {}) {
       if (out && out.root) servedRoot = resolve(out.root);
       if (out && out.swScope) swScope = out.swScope;
     }
-    if (path === '/' || path === '') path = '/index.html';
+    if (!path || path.endsWith('/')) path += 'index.html';
 
     const relativePath = path.replace(/^\/+/, '').split('/').join(sep);
     const file = resolve(servedRoot, relativePath);
