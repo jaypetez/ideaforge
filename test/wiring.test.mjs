@@ -39,7 +39,7 @@ function sourceFiles(dir = 'src') {
   for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
     const rel = `${dir}/${entry.name}`;
     if (entry.isDirectory()) out.push(...sourceFiles(rel));
-    else if (/\.(js|css|svg)$/.test(entry.name)) out.push(rel);
+    else if (/\.(js|css|svg|png)$/.test(entry.name)) out.push(rel);
   }
   return out;
 }

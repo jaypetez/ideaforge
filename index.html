@@ -49,6 +49,7 @@
 ">
 
 <link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./src/ui/apple-touch-icon.png">
 <meta name="theme-color" content="#0e6b73">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <link rel="stylesheet" href="./src/ui/app.css">
@@ -64,6 +65,7 @@
         <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
         <span class="meter-label" id="meter-label">0%</span>
       </span>
+      <button type="button" class="ghost small" id="b-library">Ideas</button>
       <button type="button" class="ghost small" id="b-settings">Settings</button>
     </div>
   </header>
@@ -74,6 +76,14 @@
       IdeaForge asks you one question at a time about a half-formed idea, then writes the
       prompt you should have given an LLM in the first place.
     </p>
+
+    <aside class="install-card" id="install-card" hidden>
+      <div>
+        <h2 id="install-title">Use IdeaForge on this phone</h2>
+        <p class="hint" id="install-note"></p>
+      </div>
+      <button type="button" class="ghost" id="b-install" hidden>Install IdeaForge</button>
+    </aside>
 
     <div class="field">
       <label for="provider">Where should the questions come from?</label>
@@ -149,6 +159,7 @@
     <div id="resume" hidden>
       <h2>Pick up where you left off</h2>
       <div class="rows" id="resume-rows"></div>
+      <button type="button" class="ghost" id="b-view-all">View all ideas</button>
     </div>
 
     <p class="hint version" id="version"></p>
@@ -190,13 +201,68 @@
     </details>
   </section>
 
+  <!-- ───────────────────────────────────────────────────────────── library -->
+  <section id="panel-library" hidden>
+    <div class="section-head">
+      <div>
+        <h2>Your ideas</h2>
+        <p class="hint">
+          Stored on this device. Back up before clearing site data or moving phones.
+        </p>
+      </div>
+      <button type="button" class="ghost small" id="b-library-new">New idea</button>
+    </div>
+
+    <div class="library-tools">
+      <div class="field">
+        <label for="library-search">Search conversations</label>
+        <input id="library-search" type="search"
+               placeholder="name, tag, question, answer or prompt">
+      </div>
+      <div class="library-filters">
+        <div class="field">
+          <label for="library-status">Status</label>
+          <select id="library-status">
+            <option value="all">All ideas</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="library-tag">Tag</label>
+          <select id="library-tag">
+            <option value="">All tags</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="library-summary">
+      <span class="hint" id="library-count">0 ideas</span>
+      <div class="btns">
+        <button type="button" class="ghost small" id="b-backup">Back up ideas</button>
+        <button type="button" class="ghost small" id="b-import">Import backup</button>
+        <input id="backup-file" type="file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+
+    <p class="hint backup-warning">
+      A backup contains the full text of your interviews, unencrypted. It never contains
+      API keys.
+    </p>
+    <p class="hint" id="library-empty" hidden>No ideas match these filters.</p>
+    <div class="idea-list" id="library-rows"></div>
+  </section>
+
   <!-- ────────────────────────────────────────────────────────────── done -->
   <section id="panel-done" hidden>
     <h2 id="done-title">Your refined prompt</h2>
     <p class="hint" id="done-meta"></p>
     <pre class="output" id="output"></pre>
     <div class="btns">
-      <button type="button" id="b-copy">Copy markdown</button>
+      <button type="button" id="b-share">Share .md</button>
+      <button type="button" class="ghost" id="b-copy">Copy markdown</button>
       <button type="button" class="ghost" id="b-download">Download .md</button>
       <button type="button" class="ghost" id="b-reopen">Ask me more</button>
       <button type="button" class="ghost" id="b-new">New idea</button>

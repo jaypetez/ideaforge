@@ -51,6 +51,7 @@ export default async function run(check, { subpath }) {
   check('the dictation note is rendered', $('stt-note').textContent.trim().length > 0);
   check('no key stored, so Forget my key is hidden', $('b-forget').hidden === true);
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
+  check('the ideas library starts hidden', $('panel-library').hidden === true);
   check('the mic button is hidden until an interview starts', $('b-mic').hidden === true);
   check('#note is a polite atomic status region',
     $('note').getAttribute('role') === 'status'
@@ -70,7 +71,9 @@ export default async function run(check, { subpath }) {
   // so assert what a person actually sees instead.
   const rendered = (id) => win.getComputedStyle($(id)).display !== 'none';
   check('the hidden interview panel is not rendered', !rendered('panel-interview'));
+  check('the hidden ideas library is not rendered', !rendered('panel-library'));
   check('the hidden done panel is not rendered', !rendered('panel-done'));
+  check('phone installation help stays out of the desktop setup', !rendered('install-card'));
   check('the Base URL field is not rendered for a hosted provider', !rendered('field-base'));
   check('the hidden listening indicator is not rendered', !rendered('listening'));
   check('the hidden coverage meter is not rendered', !rendered('meter'));
@@ -161,8 +164,19 @@ export default async function run(check, { subpath }) {
     resolved(manifest.scope) === subpath, resolved(manifest.scope));
   check('manifest icons resolve under the subpath',
     manifest.icons.every((i) => resolved(i.src).startsWith(subpath)));
+  check('the manifest has raster any and maskable icons for phone launchers',
+    manifest.icons.some((i) => i.type === 'image/png' && i.sizes === '192x192'
+      && i.purpose === 'any')
+      && manifest.icons.some((i) => i.type === 'image/png' && i.sizes === '512x512'
+        && i.purpose === 'any')
+      && manifest.icons.some((i) => i.type === 'image/png' && i.sizes === '512x512'
+        && i.purpose === 'maskable'));
   check('the manifest declares an id, so identity survives a start_url change',
     typeof manifest.id === 'string' && manifest.id.length > 0, manifest.id);
+  const touchIcon = sub.contentDocument.querySelector('link[rel="apple-touch-icon"]');
+  check('the iPhone touch icon resolves under the subpath',
+    touchIcon && resolved(touchIcon.getAttribute('href')).startsWith(subpath),
+    touchIcon && resolved(touchIcon.getAttribute('href')));
 
   // A service worker's scope is its own directory, and GitHub Pages cannot set the header
   // that would widen it — so registering relatively is the only thing that works there.

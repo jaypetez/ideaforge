@@ -13,7 +13,10 @@
 
 import { DIMENSIONS, DIMENSION_IDS, LEVEL_RANK, getDimension } from './dimensions.js';
 
-export const SCHEMA = 1;
+export const SCHEMA = 2;
+export const MAX_SESSION_NAME = 120;
+export const MAX_TAGS = 12;
+export const MAX_TAG_LENGTH = 32;
 
 /** Coverage may rise at most one level per dimension per turn... */
 const MAX_LEVEL_RISE_PER_TURN = 1;
@@ -39,7 +42,10 @@ export function createSession({ id, now = 0, device = 'desktop' } = {}) {
     createdAt: now,
     updatedAt: now,
     status: 'interviewing',        // interviewing | synthesizing | done
+    name: '',                      // optional user-controlled library/export title
     title: '',
+    tags: [],
+    archivedAt: 0,
     opening: '',                   // the user's verbatim opening statement
     turns: [],
     coverage,
@@ -196,6 +202,35 @@ const LEVELS_HAS = (l) => l === 'thin' || l === 'partial' || l === 'covered';
 const LEVELS_AT = (rank) => ['thin', 'partial', 'covered'][Math.min(2, Math.max(0, rank))];
 const nonEmpty = (s) => typeof s === 'string' && s.trim().length > 0;
 
+export function normalizeSessionName(value) {
+  return typeof value === 'string'
+    ? value.trim().replace(/\s+/g, ' ').slice(0, MAX_SESSION_NAME)
+    : '';
+}
+
+export function normalizeTags(value) {
+  if (!Array.isArray(value)) return [];
+  const tags = [];
+  const seen = new Set();
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue;
+    const tag = raw.trim().replace(/\s+/g, ' ').slice(0, MAX_TAG_LENGTH);
+    const key = tag.toLowerCase();
+    if (!tag || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length >= MAX_TAGS) break;
+  }
+  return tags;
+}
+
+export function sessionDisplayTitle(session, fallback = 'Untitled idea') {
+  return normalizeSessionName(session && session.name)
+    || normalizeSessionName(session && session.title)
+    || normalizeSessionName(session && session.opening)
+    || fallback;
+}
+
 /** Merge new facts into the ledger, skipping near-duplicates. */
 export function addFacts(session, facts, now = 0) {
   if (!Array.isArray(facts) || !facts.length) return session;
@@ -237,6 +272,25 @@ export function setZeroGainStreak(session, n, now = 0) { return bump(session, { 
 export function setWrapOffered(session, v, now = 0) { return bump(session, { wrapOffered: v }, now); }
 export function setTitle(session, title, now = 0) { return bump(session, { title }, now); }
 export function setStatusField(session, status, now = 0) { return bump(session, { status }, now); }
+export function renameSession(session, name, now = 0) {
+  return bump(session, { name: normalizeSessionName(name) }, now);
+}
+export function setSessionTags(session, tags, now = 0) {
+  return bump(session, { tags: normalizeTags(tags) }, now);
+}
+export function archiveSession(session, now = 0) {
+  return bump(session, { archivedAt: now || session.updatedAt || 1 }, now);
+}
+export function restoreSession(session, now = 0) {
+  return bump(session, { archivedAt: 0 }, now);
+}
+export function copySession(session, { id, name = null, now = 0 } = {}) {
+  if (!id) throw new Error('copySession requires a new id');
+  return bump(session, {
+    id,
+    name: normalizeSessionName(name == null ? session.name : name),
+  }, now);
+}
 
 export function setSynthesis(session, { text, tier = '', assumptions = [], openQuestions = null, now = 0 }) {
   const patch = {
@@ -262,6 +316,10 @@ export function migrate(stored) {
   if (stored.schema > SCHEMA) return null;
   const base = createSession({ id: stored.id || 'recovered', now: stored.createdAt || 0 });
   const merged = { ...base, ...stored, schema: SCHEMA };
+  merged.name = normalizeSessionName(stored.name);
+  merged.tags = normalizeTags(stored.tags);
+  merged.archivedAt = Number.isFinite(stored.archivedAt) && stored.archivedAt > 0
+    ? stored.archivedAt : 0;
   merged.turns = recordArray(stored.turns).map((turn) => ({
     ...turn,
     chips: Array.isArray(turn.chips) ? turn.chips.filter((chip) => typeof chip === 'string') : [],

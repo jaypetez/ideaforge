@@ -12,7 +12,7 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v3';
+const CACHE = 'ideaforge-v4';
 
 const SHELL = [
   './',
@@ -21,10 +21,19 @@ const SHELL = [
   './src/version.js',
   './src/ui/app.css',
   './src/ui/app.js',
+  './src/ui/install.js',
+  './src/ui/library.js',
+  './src/ui/share.js',
   './src/ui/icon.svg',
   './src/ui/icon-maskable.svg',
+  './src/ui/icon-192.png',
+  './src/ui/icon-512.png',
+  './src/ui/icon-maskable-512.png',
+  './src/ui/apple-touch-icon.png',
+  './src/core/backup.js',
   './src/core/dimensions.js',
   './src/core/driving.js',
+  './src/core/library.js',
   './src/core/session.js',
   './src/core/engine.js',
   './src/core/digest.js',

@@ -6,7 +6,7 @@
 // scrolling past everything you already know.
 
 import { DIMENSION_IDS, getDimension, LEVEL_RANK } from './dimensions.js';
-import { isLowConfidence } from './session.js';
+import { isLowConfidence, sessionDisplayTitle } from './session.js';
 
 const LOW_CONF_NOTE = '_(drafted by Claude and submitted unedited — treat as unconfirmed)_';
 
@@ -28,7 +28,7 @@ export function slug(text, fallback = 'idea') {
 }
 
 export function exportFilename(session) {
-  return `ideaforge-${slug(session.title)}-${isoDate(session.updatedAt)}.md`;
+  return `ideaforge-${slug(sessionDisplayTitle(session, 'idea'))}-${isoDate(session.updatedAt)}.md`;
 }
 
 function transcriptSection(session) {
@@ -76,7 +76,7 @@ function coverageTable(session) {
  * @param {{mode?: 'claude'|'checklist', note?: string}} opts
  */
 export function buildExport(session, { mode = 'claude', note = null } = {}) {
-  const title = session.title || 'Untitled idea';
+  const title = sessionDisplayTitle(session);
   const answered = session.turns.filter((t) => t.answer || t.skipped).length;
   const lowConf = session.turns.filter((t) => isLowConfidence(t)).length;
 
