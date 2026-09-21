@@ -37,7 +37,12 @@ const REQUIRED = process.argv.includes('--required') || Boolean(process.env.BROW
 const SUBPATH = '/subpath-check/';
 
 async function probeNames() {
-  const files = await readdir(PROBE_DIR).catch(() => []);
+  const files = await readdir(PROBE_DIR).catch((err) => {
+    if (REQUIRED) {
+      throw new Error(`cannot read browser probe directory: ${err.message}`, { cause: err });
+    }
+    return [];
+  });
   return files.filter((f) => f.endsWith('.browser.mjs')).sort();
 }
 
@@ -107,6 +112,10 @@ async function serve(probes, siteRoot, onResults) {
 async function main() {
   const probes = await probeNames();
   if (!probes.length) {
+    if (REQUIRED) {
+      console.error('no browser probes found, and browser checks are required');
+      return 1;
+    }
     console.log('no browser probes found - nothing to do');
     return 0;
   }
