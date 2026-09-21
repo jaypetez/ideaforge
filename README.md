@@ -361,7 +361,7 @@ engine portable and the turn loop testable without a network — the whole suite
 a second, with no mocking framework and no network access.
 
 ```sh
-npm test              # the purity lint, then 236 tests
+npm test              # the purity lint, then 237 tests
 npm run test:graph    # syntax-check the source and import every platform-free module
 npm run test:browser:required # 123 checks in real Chrome, with no missing-browser skip
 npm run test:all      # all three gates above
@@ -392,8 +392,9 @@ silently when broken, which is most of them. Security policy and the honest thre
 [SECURITY.md](SECURITY.md).
 
 Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
-local-model, README, and review work, plus client-specific read-only review agents.
-[Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains discovery and use.
+local-model, README, review, and explicit release work, plus client-specific read-only
+review agents. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
+discovery and use.
 
 ## Licence
 

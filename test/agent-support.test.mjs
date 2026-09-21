@@ -17,10 +17,12 @@ const ALL_TESTS_SCRIPT = 'npm test && npm run test:graph && npm run test:browser
 const EXPECTED_SKILLS = new Set([
   'add-provider',
   'change-voice-and-driving',
+  'release',
   'review-ideaforge-change',
   'update-readme',
   'validate-local-model',
 ]);
+const skillPath = (name) => join(ROOT, '.claude', 'skills', name, 'SKILL.md');
 
 function filesUnder(dir) {
   if (!existsSync(dir)) return [];
@@ -69,7 +71,14 @@ function parseFrontmatter(header, label) {
     }
     assert.doesNotMatch(raw, /^[{["']|[}\]]$/,
       `${label}: only plain scalar values are supported for ${key}`);
-    config[key] = raw;
+    const continuation = [];
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1].match(/^  (?!- )(.+)$/);
+      if (!next) break;
+      continuation.push(next[1].trim());
+      i++;
+    }
+    config[key] = [raw, ...continuation].join(' ');
   }
   return config;
 }
@@ -259,8 +268,9 @@ function checkDeliveryGates(md, label) {
   for (const { language, body } of fencedBlocks(md)) {
     const lines = body.split(/\r?\n/).map((line) => line.trim())
       .filter((line) => line && !line.startsWith('#'));
-    if (!lines.some((line) => /^git push\b|^gh pr\b/.test(line))) continue;
-    const pushes = lines.filter((line) => /^git push\b/.test(line));
+    const pushes = lines.filter((line) =>
+      /^git push\b/.test(line) && !/refs\/tags\//.test(line));
+    if (!pushes.length) continue;
     assert.equal(pushes.length, 1, `${label}: expected exactly one push command`);
     for (const push of pushes) {
       assert.match(push, /^git push -u origin HEAD(?: &&)?$/,
@@ -344,6 +354,7 @@ test('Claude imports the shared workflow and Copilot links to both sources of tr
     join(ROOT, 'AGENTS.md'),
     join(ROOT, 'CLAUDE.md'),
     join(ROOT, '.claude', 'skills'),
+    skillPath('release'),
     join(ROOT, 'CONTRIBUTING.md'),
   ]) {
     assert.ok(links.includes(expected), `Copilot entry point does not link to ${expected}`);
@@ -351,7 +362,7 @@ test('Claude imports the shared workflow and Copilot links to both sources of tr
   for (const target of links) assert.ok(existsSync(target), `broken instruction link: ${target}`);
 });
 
-test('shared skills use portable metadata, unique names, and existing resources', () => {
+test('shared skills use valid metadata, unique names, and existing resources', () => {
   const definitions = skillDefinitions();
   assert.deepEqual(new Set(definitions.map((skill) => skill.name)), EXPECTED_SKILLS);
   assert.equal(definitions.length, EXPECTED_SKILLS.size, 'skill names must be unique');
@@ -359,7 +370,10 @@ test('shared skills use portable metadata, unique names, and existing resources'
   for (const skill of definitions) {
     const label = relative(ROOT, skill.file);
     assert.ok(lstatSync(skill.file).isFile(), `${skill.file} must be a regular file`);
-    assert.deepEqual(new Set(Object.keys(skill.config)), new Set(['description', 'name']));
+    const keys = skill.name === 'release'
+      ? ['description', 'disable-model-invocation', 'name']
+      : ['description', 'name'];
+    assert.deepEqual(new Set(Object.keys(skill.config)), new Set(keys));
     plainString(skill.name, `${skill.name}: name`);
     plainString(skill.description, `${skill.name}: description`);
     assert.match(skill.name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -382,6 +396,28 @@ test('shared skills use portable metadata, unique names, and existing resources'
   for (const value of ['[not-a-string]', '# comment', '|', 'null', '123', 'foo: bar']) {
     const parsed = parseFrontmatter(`description: ${value}`, 'fixture');
     assert.throws(() => plainString(parsed.description, 'fixture: description'));
+  }
+});
+
+test('release remains explicit and references the existing delivery workflow', () => {
+  const release = skillDefinitions().find((skill) => skill.name === 'release');
+  assert.ok(release, 'missing release skill');
+  assert.equal(release.config['disable-model-invocation'], 'true');
+  assert.ok(!('user-invocable' in release.config), 'release must remain user-invocable');
+
+  const links = localLinks(release.file, release.md);
+  for (const expected of [
+    join(ROOT, 'AGENTS.md'),
+    join(ROOT, 'CONTRIBUTING.md'),
+    join(ROOT, 'package.json'),
+    join(ROOT, 'src', 'version.js'),
+    join(ROOT, '.github', 'release.yml'),
+    join(ROOT, '.github', 'workflows', 'ci.yml'),
+    join(ROOT, '.github', 'workflows', 'release.yml'),
+    join(ROOT, '.github', 'workflows', 'pages.yml'),
+    skillPath('update-readme'),
+  ]) {
+    assert.ok(links.includes(expected), `release is missing reference: ${expected}`);
   }
 });
 
@@ -520,16 +556,19 @@ test('agent guidance never permits a missing browser to look green', () => {
     'test "$(git rev-parse HEAD)" = "$tested" &&\n' +
     'test -z "$(git status --porcelain)" &&\n' +
     'git push -u origin HEAD\n' +
+    'gh pr create --base main --fill\n' +
     '```\n',
     'fixture'), /not failure-chained/);
   assert.throws(() => checkDeliveryGates(
-    '```sh\nnpm run test:all &&\ngit push -u origin other-branch\n```\n',
+    '```sh\nnpm run test:all &&\ngit push -u origin other-branch &&\n' +
+    'gh pr create --base main --fill\n```\n',
     'fixture'), /push the tested HEAD/);
   assert.throws(() => checkDeliveryGates(
-    '```sh\ngit push -u origin HEAD &&\nnpm run test:all\n```\n',
+    '```sh\ngit push -u origin HEAD &&\nnpm run test:all &&\n' +
+    'gh pr create --base main --fill\n```\n',
     'fixture'), /pushes before validation/);
   assert.throws(() => checkDeliveryGates(
-    '```sh\ngit push -u origin HEAD\n```\n',
+    '```sh\ngit push -u origin HEAD &&\ngh pr create --base main --fill\n```\n',
     'fixture'), /no full-suite command/);
 });
 

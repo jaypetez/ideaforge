@@ -1,11 +1,11 @@
 ---
 name: update-readme
-description: Refresh and verify the README after UI, provider, core, dimension, or README changes.
+description: Refresh README facts after UI, provider, core, dimension, version, or README changes.
 ---
 
 # Updating the README
 
-This is the single shared skill for Claude Code and GitHub Copilot (CLI and VS Code).
+This is the shared README skill for Claude Code and GitHub Copilot (CLI and VS Code).
 Run every command from the repository root, not this skill's directory. Use the current
 client's native file and terminal tools with its normal permissions; this skill does not
 pre-approve tools or require a particular shell.

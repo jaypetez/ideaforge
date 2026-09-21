@@ -6,7 +6,9 @@ covers *how to iterate on it and prove it works*. Read both before changing the 
 
 Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
 `change-voice-and-driving`, `validate-local-model`, `update-readme`, and
-`review-ideaforge-change`. Keep one definition of each, not client-specific copies. See
+`review-ideaforge-change`. The `release` skill is explicitly invoked; preparing its PR is
+not permission to merge or publish. Keep one definition of each skill, not client-specific
+copies. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
