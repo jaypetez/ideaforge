@@ -108,17 +108,39 @@
     </div>
 
     <!--
-      A text input with a datalist rather than a select: pressing Check reads the installed
+      A text input with a datalist rather than a select: pressing Check reads the available
       models off the server, but someone whose /models endpoint is unreachable and who
       knows their model name must still be able to start. A select would need a "type a
       name" escape hatch and a second hidden input; this is one control that is both.
+
+      Two boxes rather than one because the interview spends its calls very unevenly: a
+      dozen questions against one wrap-up that reads the entire transcript back. Offering a
+      single model would mean choosing a cheap one silently downgraded the expensive call.
+      Both share one datalist — the candidates are the same, only the job differs. Each
+      placeholder is that provider's own default, which is how the tier split finally
+      becomes visible to the person paying for it.
     -->
     <div class="field" id="field-model" hidden>
-      <label for="model">Model</label>
+      <label for="model">Model for the questions</label>
       <input id="model" list="model-list" spellcheck="false" autocomplete="off"
-             placeholder="press Check the connection to list what is installed">
+             placeholder="press Check the connection to list what is available">
       <datalist id="model-list"></datalist>
+      <p class="hint">
+        One call per question, so nearly all of the cost is here. Leave it blank to use the
+        model shown in the box.
+      </p>
+      <!-- The one dynamic line for both boxes: the list read, and anything that went wrong. -->
       <p class="hint" id="model-note"></p>
+    </div>
+
+    <div class="field" id="field-wrapmodel" hidden>
+      <label for="wrapmodel">Model for the wrap-up</label>
+      <input id="wrapmodel" list="model-list" spellcheck="false" autocomplete="off"
+             placeholder="same as the questions model">
+      <p class="hint">
+        One call at the end, over the whole transcript. It is the call that suffers first on
+        a small model, so it is worth more here than on the questions.
+      </p>
     </div>
 
     <div class="field">

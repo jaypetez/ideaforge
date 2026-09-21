@@ -317,8 +317,10 @@ depends on whose resolver is asking.
             srcset="docs/screenshots/01-setup.dark.png">
     <img src="docs/screenshots/01-setup.light.png" width="760"
          alt="The setup screen: a provider dropdown set to Anthropic, an API key field noting
-              the key is stored encrypted on this device, a dictation dropdown, a ‘Start an
-              interview’ button, and a Guide link in the footer.">
+              the key is stored encrypted on this device, two model fields showing
+              claude-haiku-4-5 for the questions and claude-sonnet-5 for the wrap-up, a
+              dictation dropdown, a ‘Start an interview’ button, and a Guide link in the
+              footer.">
   </picture>
 </p>
 
@@ -334,6 +336,14 @@ Pick a provider and paste a key. The options:
 | **Another local server** | free | Any OpenAI-compatible server on `localhost`. |
 | **Claude viewer** | no key at all | Only inside a Claude artifact viewer. |
 
+**Choosing the models.** Those defaults are only defaults. Every provider but the Claude
+viewer offers two model boxes, because the calls are not alike: a dozen questions, then one
+wrap-up that reads the whole transcript back. Leave a box blank and the provider's own
+default runs — the field shows you which one, which is the part that used to be invisible.
+Naming a cheap question model does not touch the wrap-up; you have to change that
+separately, which is the point of there being two. Pressing **Check the key** fills the
+suggestions from the provider's real catalogue wherever one is readable from a browser.
+
 **About the key.** It is encrypted with a non-extractable `CryptoKey` and stored in
 IndexedDB on your device, and it is sent to exactly one host — the provider you picked,
 which is also the only host the page's CSP permits it to talk to. What that does *not*
@@ -346,7 +356,7 @@ Do not paste an API key into a **shared** Claude artifact — anyone the artifac
 with can read the page. Inside a Claude viewer, use the built-in `sample` provider.
 
 **A local model is easiest from a local page.** `npm run serve`, pick Ollama, press
-**Check the connection** and the model box fills with whatever you have actually pulled.
+**Check the connection** and the model boxes fill with whatever you have actually pulled.
 Ollama allows any localhost origin out of the box, so there is nothing to configure.
 
 From the hosted site it takes two steps, and one of them is easy to miss. Ollama answers an

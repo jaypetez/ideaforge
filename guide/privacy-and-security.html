@@ -105,11 +105,15 @@
               </td>
             </tr>
             <tr>
-              <td><strong>Local provider address and model</strong></td>
+              <td><strong>Server address and model choices</strong></td>
               <td>
-                In the encrypted credential payload, although these values are not secret.
+                In the encrypted credential payload, per provider, although these values are
+                not secret.
               </td>
-              <td>Used only to address the loopback model server.</td>
+              <td>
+                Used to address a loopback model server, and to name which model each
+                request asks for. They are sent only to the provider already selected.
+              </td>
               <td><strong>Forget my key</strong> clears the whole saved keyring.</td>
             </tr>
             <tr>

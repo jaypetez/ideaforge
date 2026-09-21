@@ -85,21 +85,21 @@
             <tr>
               <td><strong>Anthropic</strong></td>
               <td>Anthropic API key</td>
-              <td>A hosted Claude path with separate fast-turn and wrap-up tiers.</td>
+              <td>A hosted Claude path with separate question and wrap-up models.</td>
               <td>
-                Calls the Anthropic Messages API directly. Key validation makes a small
-                real model request because Anthropic does not expose a browser-reachable
-                model list for this use.
+                Calls the Anthropic Messages API directly. Checking the key makes a small
+                real request using the question model, because Anthropic exposes no
+                browser-reachable model list to read instead.
               </td>
             </tr>
             <tr>
               <td><strong>OpenAI</strong></td>
               <td>OpenAI API key</td>
-              <td>A hosted OpenAI path using the repository's current tier mapping.</td>
+              <td>A hosted OpenAI path, with its catalogue readable from the browser.</td>
               <td>
-                Uses OpenAI-compatible chat completions. Validation reads
-                <code>/models</code>, which gives the browser a useful authentication
-                result before an interview begins.
+                Uses OpenAI-compatible chat completions. Checking the key reads
+                <code>/models</code>, which both authenticates and fills the model
+                suggestions in one request.
               </td>
             </tr>
             <tr>
@@ -114,10 +114,10 @@
             <tr>
               <td><strong>OpenRouter</strong></td>
               <td>OpenRouter API key</td>
-              <td>A hosted route through OpenRouter using IdeaForge's preset tiers.</td>
+              <td>A hosted route to many vendors through one key.</td>
               <td>
                 Sends bearer-authenticated OpenAI-compatible requests to OpenRouter's
-                allowlisted API origin.
+                allowlisted API origin, and reads its catalogue the same way.
               </td>
             </tr>
             <tr>
@@ -151,11 +151,39 @@
         </table>
       </div>
 
+      <h2 id="choosing-models">Choosing the models</h2>
       <p>
-        Hosted model identifiers are deliberately owned by the provider presets rather than
-        exposed as free-text settings. They can change as providers retire or replace models.
-        Local choices work differently: IdeaForge asks the server what is installed, leaves
-        the model field editable, and never assumes that a particular local model exists.
+        Every provider except the Claude viewer offers two model fields, because an
+        interview does not spend its calls evenly. Each question is one call, and there are
+        usually around a dozen. The wrap-up is a single call that reads the whole transcript
+        and produces the refined prompt. Those are different jobs, so IdeaForge lets you
+        answer them separately.
+      </p>
+      <ul>
+        <li>
+          <strong>Model for the questions</strong> runs every interview turn. This is where
+          nearly all of the cost is, so a small fast model is usually the right choice.
+        </li>
+        <li>
+          <strong>Model for the wrap-up</strong> runs once, at the end. It is the call that
+          degrades first on a small model, so it is worth spending more here than on the
+          turns.
+        </li>
+      </ul>
+      <p>
+        Leave a field blank to use the provider's own default, which is shown in the field
+        as placeholder text. Choosing a question model never changes the wrap-up: the
+        provider's stronger default stays in place unless you replace it yourself. A local
+        server has no stronger default, so there a single question model serves both.
+      </p>
+      <p>
+        Both fields accept any identifier the provider will answer to, and both suggest the
+        models IdeaForge already uses. Pressing <strong>Check the key</strong> or
+        <strong>Check the connection</strong> replaces those suggestions with the real list
+        wherever the provider publishes one in a browser-reachable form. Anthropic does not,
+        so its suggestions stay as the models IdeaForge defaults to; type any other Claude
+        identifier directly. A suggested list is a convenience and not a guarantee: a hosted
+        catalogue usually includes models that are not chat models at all.
       </p>
 
       <div class="callout warning">
@@ -180,18 +208,19 @@
         </li>
         <li>
           <strong>Press Check the key or Check the connection.</strong>
-          Hosted checks make an authenticated request. Local checks read the server's
-          model list and populate suggestions without replacing a model name you typed.
+          The check makes a real request and fills the model suggestions from the provider's
+          own list wherever one is readable, without replacing a model name you typed.
         </li>
         <li>
-          <strong>Choose a local model.</strong>
-          If the server reports one model, IdeaForge selects it. If the list endpoint is
-          unavailable but you know the identifier, type it directly.
+          <strong>Choose the models, or leave them blank.</strong>
+          Blank means the provider's default, shown in each field as placeholder text. A
+          local server has no default, so it needs a question model before it will start.
+          If the list is unavailable but you know the identifier, type it directly.
         </li>
         <li>
           <strong>Start the interview.</strong>
-          The provider selection, credentials, local address, and model are saved on this
-          device when the provider is built for a check or an interview.
+          The provider selection, credentials, local address, and both model choices are
+          saved on this device when the provider is built for a check or an interview.
         </li>
       </ol>
 
@@ -213,8 +242,9 @@
           left blank.
         </li>
         <li>
-          Local server addresses and model names are remembered in the same keyring even
-          though they are not secrets. This is why a local choice survives a reload.
+          Server addresses and both model choices are remembered per provider in the same
+          keyring even though they are not secrets. This is why a choice survives a reload,
+          and why switching provider and back does not lose it.
         </li>
         <li>
           Anthropic sends its key in <code>x-api-key</code>. The OpenAI-compatible choices

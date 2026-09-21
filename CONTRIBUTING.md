@@ -125,7 +125,9 @@ rather than code. Four files, and the fourth is the one people forget:
 
 1. `src/providers/openaiCompat.js` — an entry in `OPENAI_COMPAT_PRESETS`: a label, a base
    URL, how it authenticates, what its output-budget parameter is called, and either a
-   `tiers` map of model ids or `local: true` and a model the user picks.
+   `tiers` map of model ids or `local: true` and a model the user picks. Set
+   `discoverModels` when `GET /models` answers a browser with CORS headers, which is what
+   lets the settings screen offer the real catalogue instead of the preset's defaults.
    `PROVIDER_CHOICES` derives itself from that object, so `src/providers/index.js` needs
    no edit at all.
 2. `index.html` — the origin goes in `connect-src`. That list is an allowlist and the app

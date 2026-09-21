@@ -127,13 +127,24 @@ function normalise(raw) {
   return ring;
 }
 
-const record = (r) => ({ apiKey: str(r.apiKey), baseUrl: str(r.baseUrl), model: str(r.model) });
+// `model` is the QUESTIONS model and keeps its old name on purpose: it predates the
+// split, and renaming it would silently drop the model every existing local-server user
+// has already chosen. `wrapModel` is additive, so CREDENTIALS_VERSION does not move — a
+// blob written before this field existed reads back '', which means "use the preset's
+// strong tier", which is exactly right for everyone who has never seen the second box.
+const record = (r) => ({
+  apiKey: str(r.apiKey), baseUrl: str(r.baseUrl),
+  model: str(r.model), wrapModel: str(r.wrapModel),
+});
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
 /** One provider's record, always an object, so no call site needs a guard. */
 export function credsFor(ring, kind) {
   const r = (ring && ring.byKind && ring.byKind[kind]) || {};
-  return { kind, apiKey: r.apiKey || '', baseUrl: r.baseUrl || '', model: r.model || '' };
+  return {
+    kind, apiKey: r.apiKey || '', baseUrl: r.baseUrl || '',
+    model: r.model || '', wrapModel: r.wrapModel || '',
+  };
 }
 
 /**
