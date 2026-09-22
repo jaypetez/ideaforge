@@ -26,6 +26,27 @@ class NetworkErrorRecognition extends SilentRecognition {
   start() { setTimeout(() => this.onerror && this.onerror({ error: 'network' }), 5); }
 }
 
+/** Stand in for a user tapping Block on the microphone prompt. */
+class RefusedRecognition extends SilentRecognition {
+  start() { setTimeout(() => this.onerror && this.onerror({ error: 'not-allowed' }), 5); }
+}
+
+/**
+ * navigator.permissions is a readonly WebIDL attribute, so it needs defineProperty for the
+ * same reason window.speechSynthesis does — assigning to it throws in module code.
+ */
+function withPermission(state, fn) {
+  const real = Object.getOwnPropertyDescriptor(Navigator.prototype, 'permissions')
+    || Object.getOwnPropertyDescriptor(navigator, 'permissions');
+  Object.defineProperty(navigator, 'permissions', {
+    value: { query: async () => ({ state }) }, configurable: true,
+  });
+  return Promise.resolve(fn()).finally(() => {
+    delete navigator.permissions;
+    if (real && !('permissions' in navigator)) Object.defineProperty(navigator, 'permissions', real);
+  });
+}
+
 function withRecognition(Impl, fn) {
   const realSR = window.SpeechRecognition;
   const realWK = window.webkitSpeechRecognition;
@@ -53,7 +74,28 @@ export default async function run(check) {
     const ms = Math.round(performance.now() - t0);
     check('...but the behavioural probe declares it dead', verdict === 'dead', ms + 'ms');
     check('the probe does not hang waiting for it', ms < 4000, ms + 'ms');
-    check('the verdict is remembered for this origin', cachedVerdict() === 'dead');
+    // Only with the microphone already granted. A silent engine is then genuinely the
+    // engine's fault, which is the installed-iPhone case this whole probe exists for.
+    await withPermission('granted', async () => {
+      forgetVerdict();
+      check('a silent engine with the microphone already granted is remembered as dead',
+        (await probeWebSpeech({ force: true })) === 'dead' && cachedVerdict() === 'dead',
+        String(cachedVerdict()));
+    });
+
+    // ── the bug: a permission decision is not an engine verdict ──────────────
+    //
+    // rec.start() is what RAISES the prompt, so on a first run the probe was timing a
+    // person hunting for Allow, not an engine. It timed out, wrote 'dead', and because a
+    // cached verdict short-circuits the probe, dictation was off for that origin for ever
+    // — including after the microphone was granted. Reported, never remembered.
+    await withPermission('prompt', async () => {
+      forgetVerdict();
+      check('a timeout while the prompt is still up is NOT remembered',
+        (await probeWebSpeech({ force: true, promptMs: 150 })) === 'dead'
+          && cachedVerdict() === null,
+        String(cachedVerdict()));
+    });
 
     forgetVerdict();
     const v = await createVoice({ stt: STT });
@@ -76,6 +118,37 @@ export default async function run(check) {
     check('an Edge-style network error is declared dead',
       (await probeWebSpeech({ force: true })) === 'dead',
       Math.round(performance.now() - t0) + 'ms');
+  });
+
+  // A refusal is revocable from site settings, so writing the engine off over one would
+  // mean never finding out it had been granted.
+  await withRecognition(RefusedRecognition, async () => {
+    await withPermission('prompt', async () => {
+      forgetVerdict();
+      check('a refused microphone is not remembered as a broken engine',
+        (await probeWebSpeech({ force: true })) === 'dead' && cachedVerdict() === null,
+        String(cachedVerdict()));
+    });
+  });
+
+  // The poisoned values v1 already wrote to real phones have to be discarded, not believed.
+  await withRecognition(SilentRecognition, async () => {
+    forgetVerdict();
+    localStorage.setItem('ideaforge.webspeech', 'dead');
+    check('a verdict written by the previous version is ignored', cachedVerdict() === null);
+    forgetVerdict();
+  });
+
+  // Blaming the platform for a blocked microphone sends people hunting a browser bug that
+  // is not there, past the one cause they can actually fix.
+  await withRecognition(RefusedRecognition, async () => {
+    await withPermission('denied', async () => {
+      forgetVerdict();
+      const v = await createVoice({ stt: null });
+      check('a blocked microphone is reported as blocked, not as a broken browser',
+        /blocked for this site/i.test(v.unavailableReason || ''), v.unavailableReason);
+      v.dispose();
+    });
   });
 
   await withRecognition(null, async () => {

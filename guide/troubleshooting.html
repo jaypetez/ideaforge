@@ -427,8 +427,11 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
       <ol>
         <li>Confirm microphone permission for the exact app origin.</li>
         <li>
-          If the mic button is absent, read the setup message. IdeaForge withholds the button
-          when the browser's recogniser exists but fails its proof-of-life check.
+          If the mic button is absent, read the setup message. It distinguishes the two
+          causes that look identical from inside the page: a microphone blocked for the site,
+          which you fix in the browser's site settings and then start an interview again, and
+          a recogniser that exists but fails its proof-of-life check, which you work around
+          with a transcription key.
         </li>
         <li>
           In an installed iPhone app, Edge, or Firefox, configure Groq or OpenAI

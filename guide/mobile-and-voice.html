@@ -190,6 +190,15 @@
         configured recorder-and-transcription fallback or withholds voice controls.
       </p>
 
+      <p>
+        Starting the recogniser is also what asks for the microphone, so the first interview
+        on a device waits for that answer rather than timing the engine. Declining, or a
+        microphone already blocked for the site, is reported as blocked and is not treated as
+        a broken browser: allow it in your browser&rsquo;s site settings and start an
+        interview again. Only a recogniser that fails on its own account is remembered as
+        unavailable.
+      </p>
+
       <h2 id="configure-voice">Configure dictation</h2>
       <ol class="steps">
         <li>Open <strong>Settings</strong>.</li>
