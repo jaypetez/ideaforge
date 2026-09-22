@@ -372,7 +372,8 @@ running the app locally too is still the path of least resistance.
 ## Talking instead of typing
 
 Tap **Answer out loud** to dictate one answer, or turn on **hands-free** and the app reads
-each question aloud, listens, and moves on. Dictated answers are marked as such: the
+each question aloud — then its suggested answers, so you have something to react to without
+looking — listens, and moves on. Dictated answers are marked as such: the
 interviewer is told to read them for intent and never to ask you to clarify a
 mis-transcription, and the export records which answers you spoke.
 

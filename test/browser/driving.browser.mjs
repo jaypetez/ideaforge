@@ -94,7 +94,9 @@ function scriptedClaude() {
         text: JSON.stringify({
           question: `Scripted question ${n}?`,
           move: 'concretize',
-          chips: [],
+          // Real chips, because the probe asserts they are read aloud. With `[]` here those
+          // checks passed by being vacuous, which is the same as not having them.
+          chips: ['like a business card', 'like a notes app'],
           facts: [],
           coverage,
         }),
@@ -178,9 +180,23 @@ export default async function run(check) {
       return;
     }
 
+    // Against the recorded question text, not a count. This asserted `spoken.length > 0`,
+    // which primeSpeech()'s own silent ' ' utterance satisfies before a single question is
+    // read — so wiring voice.speak to a no-op left it green. It could not fail.
+    const heard = fake.synthesis.spoken.map((u) => u.text);
     check('the app read the question out loud before listening',
-      fake.synthesis.spoken.length > 0 && fake.recognition.startCount > 0,
-      `${fake.synthesis.spoken.length} spoken, ${fake.recognition.startCount} sessions`);
+      heard.some((u) => u.includes(session.turns[0].question)) && fake.recognition.startCount > 0,
+      `${heard.length} utterances, ${fake.recognition.startCount} sessions`);
+
+    // The chips are what show you the shape of answer the question wants, and hands-free is
+    // the one mode where the screen is what you are not looking at.
+    const withChips = session.turns.find((t) => (t.chips || []).length && t.answer);
+    check('...and read the suggested answers too',
+      !withChips || heard.some((u) => u.startsWith('For example:') && u.includes(withChips.chips[0])),
+      withChips ? `chips: ${JSON.stringify(withChips.chips)}` : 'no turn carried chips');
+    check('...as a separate utterance, so neither can outrun the Chrome watchdog',
+      !withChips || !heard.some((u) => u.includes(withChips.question) && u.includes('For example:')),
+      heard.find((u) => u.includes('For example:')) || '(none)');
 
     const first = session.turns[0];
     check('the trigger word is stripped from what is recorded',

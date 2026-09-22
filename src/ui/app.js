@@ -747,11 +747,6 @@ async function listenForDriving(prompt, confirm) {
   }
 }
 
-/** What gets read aloud: the bridge and the question, never the chips. */
-function spoken(turn) {
-  return turn.bridge ? `${turn.bridge} ${turn.question}` : turn.question;
-}
-
 /** The open question, used to prime the transcriber with this turn's vocabulary. */
 function currentQuestion() {
   const t = state.session && openTurn(state.session);

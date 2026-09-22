@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   DRIVING, parseSpeech, endsWithTrigger, stripTrigger,
-  matchAffirmation, normalizeTrigger, triggerWarning,
+  matchAffirmation, normalizeTrigger, triggerWarning, spokenExamples,
 } from '../src/core/driving.js';
 
 // ───────────────────────────────────────────────── the trigger word
@@ -182,4 +182,51 @@ test('a risky trigger is flagged but not refused', () => {
   assert.ok(triggerWarning('a'), 'a single letter is too easy to mishear');
   assert.equal(triggerWarning('over'), null);
   assert.equal(triggerWarning('bananas'), null);
+});
+
+// ──────────────────────────────────────────── the examples, said out loud
+//
+// The chips are what show you the shape of answer a question wants. On screen they do that
+// for free; hands-free is the one mode where the screen is what you are not looking at.
+
+test('the suggestions are read as examples, not as a menu', () => {
+  assert.equal(
+    spokenExamples(['like a business card', 'like LinkedIn', 'like the notes app']),
+    'For example: like a business card, like LinkedIn, or like the notes app.',
+  );
+  assert.equal(spokenExamples(['nothing really']), 'For example: nothing really.');
+  assert.equal(spokenExamples(['one thing', 'another']), 'For example: one thing, or another.');
+});
+
+test('a turn with no suggestions says nothing at all', () => {
+  // "For example:" followed by silence is worse than not speaking. Bank questions carry no
+  // chips, so this is the common case rather than an edge one.
+  for (const empty of [[], null, undefined, ['', '   ']]) {
+    assert.equal(spokenExamples(empty), '', JSON.stringify(empty));
+  }
+});
+
+test('a long set of suggestions is trimmed to whole examples, never mid-phrase', () => {
+  // engine.js allows four chips of up to fourteen words. Read as one utterance that is past
+  // the ~15s Chrome watchdog speak.js describes, and Chrome drops it with no error at all.
+  // The real worst case engine.js permits: four chips of fourteen words, about sixty words.
+  const fourteen = (n) => `suggestion ${n} padded out to the full fourteen words that engine allows here`;
+  const long = [fourteen('one'), fourteen('two'), fourteen('three'), fourteen('four')];
+  const said = spokenExamples(long);
+  assert.ok(said.split(/\s+/).length <= 36, said);
+  assert.ok(said.includes(long[0]), 'the first example survives');
+  assert.ok(!said.includes(long[3]), 'the last one is dropped whole');
+  assert.ok(!/suggestion four/.test(said), 'and no fragment of it is left behind');
+  // Whatever survived is a complete chip, not a truncated one.
+  assert.match(said, /\.$/);
+});
+
+test('one very long suggestion is still spoken rather than dropped to silence', () => {
+  const said = spokenExamples(['a single suggestion that is far longer than any sane budget allows here']);
+  assert.match(said, /^For example: a single suggestion/);
+});
+
+test('trailing punctuation on a chip does not double up in the sentence', () => {
+  assert.equal(spokenExamples(['like a card,', 'like LinkedIn.']),
+    'For example: like a card, or like LinkedIn.');
 });
