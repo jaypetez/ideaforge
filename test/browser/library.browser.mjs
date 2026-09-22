@@ -170,6 +170,19 @@ export default async function run(check) {
     rendered('panel-done') && recoveredSynthesis.pending === null
       && recoveredSynthesis.status === 'done');
 
+  // The result is rendered markdown now, so #output.textContent is prose with every marker
+  // stripped. Copy, Download and Share must still hand over the source — which is what the
+  // element keeps in dataset.source, and what silently rewrote docs/examples/ as one
+  // unbroken line the first time this was wired up.
+  const source = $('output').dataset.source || '';
+  check('the rendered result still carries its markdown source',
+    /^#\s/.test(source) && source.includes('## Refined prompt'), source.slice(0, 60));
+  check('...which is not what the rendered view reads as',
+    !$('output').textContent.includes('## Refined prompt'));
+  check('...and the document still renders as elements, not as text',
+    $('output').querySelectorAll('h2, p').length > 2,
+    `${$('output').querySelectorAll('h2, p').length} blocks`);
+
   $('b-library').click();
   await settle(250);
   const archivedDraft = $('library-rows').querySelector('[data-session-id="s_draft"]');

@@ -12,7 +12,7 @@ import {
 } from '../core/session.js';
 import { DIMENSIONS, getDimension } from '../core/dimensions.js';
 import {
-  coveragePercent, buildExport, exportFilename, forSpeech, speechChunks,
+  coveragePercent, buildExport, exportFilename, forSpeech, speechChunks, renderBlocks,
 } from '../core/markdown.js';
 import { HARD_TURN_CEILING, wrapAdvisory, shouldOfferWrap } from '../core/engine.js';
 import {
@@ -482,7 +482,9 @@ function renderCoverage() {
     if (c.status === 'probing') {
       const skip = document.createElement('button');
       skip.type = 'button';
-      skip.className = 'ghost small';
+      // Quiet: it is a per-row escape hatch, and as a bordered secondary it competed with
+      // the coverage level beside it — which is the thing the row exists to show.
+      skip.className = 'quiet small';
       skip.textContent = 'not relevant';
       skip.title = `Stop asking about ${d.label.toLowerCase()}`;
       skip.onclick = async () => {
@@ -509,6 +511,8 @@ function render() {
   els.meter.hidden = false;
   els['meter-fill'].style.width = `${pct}%`;
   els['meter-label'].textContent = `${pct}%`;
+  // The number was on screen and announced to nobody. The element carries role="progressbar".
+  els.meter.setAttribute('aria-valuenow', String(pct));
 
   const open = openTurn(s);
   if (open) {
@@ -846,7 +850,77 @@ function renderDone() {
   els['done-meta'].textContent =
     `${s.turns.filter((t) => t.answer || t.skipped).length} questions · coverage ${coveragePercent(s)}%` +
     (degraded ? ' · some questions came from the built-in checklist' : '');
-  els.output.textContent = exportFor(s);
+  drawExport(exportFor(s));
+}
+
+/**
+ * The export, drawn.
+ *
+ * The parsing is in src/core/markdown.js, which is purity-linted and so cannot touch the
+ * DOM; this is the half that can. Every span goes in through textContent — the blocks come
+ * from `synthesis.text`, which is model output, and there is no innerHTML anywhere in this
+ * app for exactly that reason.
+ */
+function drawExport(markdown) {
+  els.output.textContent = '';
+  // The rendered view and the bytes it was rendered from, together. `textContent` used to BE
+  // the markdown and is now flattened prose with every marker gone, so anything reading the
+  // artifact off the page — tools/screenshots.mjs writes docs/examples/ from here — needs the
+  // source kept somewhere. Copy, Download and Share go through exportFor() instead, which is
+  // the same bytes without depending on the DOM at all.
+  els.output.dataset.source = markdown;
+  const spans = (into, list) => {
+    for (const s of list || []) {
+      const tag = s.code ? 'code' : s.bold ? 'strong' : s.italic ? 'em' : null;
+      if (!tag) { into.append(s.text); continue; }
+      const el = document.createElement(tag);
+      el.textContent = s.text;
+      into.append(el);
+    }
+  };
+
+  for (const block of renderBlocks(markdown)) {
+    if (block.type === 'hr') { els.output.append(document.createElement('hr')); continue; }
+
+    if (block.type === 'pre') {
+      const pre = document.createElement('pre');
+      pre.textContent = block.text;
+      els.output.append(pre);
+      continue;
+    }
+
+    if (block.type === 'list') {
+      const list = document.createElement(block.ordered ? 'ol' : 'ul');
+      for (const item of block.items) {
+        const li = document.createElement('li');
+        spans(li, item);
+        list.append(li);
+      }
+      els.output.append(list);
+      continue;
+    }
+
+    if (block.type === 'table') {
+      const table = document.createElement('table');
+      const thead = table.createTHead().insertRow();
+      for (const cell of block.head) spans(thead.appendChild(document.createElement('th')), cell);
+      const body = table.createTBody();
+      for (const row of block.rows) {
+        const tr = body.insertRow();
+        for (const cell of row) spans(tr.insertCell(), cell);
+      }
+      els.output.append(table);
+      continue;
+    }
+
+    const el = document.createElement(
+      block.type === 'quote' ? 'blockquote'
+        : /^h[123]$/.test(block.type) ? block.type
+          : 'p');
+    if (block.meta) el.className = 'meta';
+    spans(el, block.spans);
+    els.output.append(el);
+  }
 }
 
 function download() {
@@ -1187,7 +1261,10 @@ function bind() {
   els['b-share'].onclick = () => shareSession(state.session);
   els['b-copy'].onclick = async () => {
     try {
-      await navigator.clipboard.writeText(els.output.textContent);
+      // exportFor, not the DOM. #output renders the markdown now, so reading its textContent
+      // back would hand over the prose with every marker stripped — which is not the thing
+      // anyone is copying it for. One source of bytes for Copy, Download and Share.
+      await navigator.clipboard.writeText(exportFor(state.session));
       say('Copied.');
     } catch { say('Could not reach the clipboard — select the text above instead.'); }
   };

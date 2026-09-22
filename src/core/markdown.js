@@ -136,6 +136,130 @@ export function buildExport(session, { mode = 'claude', note = null } = {}) {
 }
 
 /**
+ * The export, as blocks a view can draw.
+ *
+ * The refined prompt is what the whole interview was for, and it used to be shown as raw
+ * markdown source — `# Heading`, `**Q:**`, `_(dictated)_` — which reads as a log file rather
+ * than as the thing you came for.
+ *
+ * This returns DATA, never DOM, and that is not an accident: src/core/ is purity-linted, so
+ * `document` cannot be mentioned in this file at all. src/ui/app.js turns these blocks into
+ * elements, which also means the renderer is unit-testable without a browser.
+ *
+ * Not a general markdown parser and not trying to be. `buildExport` above is the only
+ * producer, so this covers exactly what that emits, plus enough inline handling to survive
+ * whatever the model puts inside `synthesis.text` — the one part nobody controls. Anything
+ * unrecognised falls through as a paragraph rather than being dropped, on the same principle
+ * as parseTurnResult: never lose content to a shape you did not expect.
+ *
+ * @param {string} markdown
+ * @returns {Array<object>} blocks of {type, spans|items|head|rows|text}
+ */
+export function renderBlocks(markdown) {
+  const lines = String(markdown || '').replace(/\r\n?/g, '\n').split('\n');
+  const blocks = [];
+  let i = 0;
+
+  const isRow = (line) => /^\s*\|.*\|\s*$/.test(line);
+  const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  const breaks = (line) => /^(#{1,6}\s|\s*>|\s*```)/.test(line)
+    || /^\s*(?:---|\*\*\*|___)\s*$/.test(line)
+    || /^\s*(?:[-*+]|\d+[.)])\s+/.test(line);
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+
+    if (/^\s*(?:---|\*\*\*|___)\s*$/.test(line)) { blocks.push({ type: 'hr' }); i++; continue; }
+
+    const head = line.match(/^(#{1,6})\s+(.*)$/);
+    if (head) {
+      blocks.push({ type: `h${Math.min(head[1].length, 3)}`, spans: inline(head[2]) });
+      i++;
+      continue;
+    }
+
+    // A fence, which a model will sometimes wrap a prompt in.
+    if (/^\s*```/.test(line)) {
+      const body = [];
+      i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i++]);
+      i++;
+      blocks.push({ type: 'pre', text: body.join('\n') });
+      continue;
+    }
+
+    if (/^\s*>/.test(line)) {
+      const body = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) body.push(lines[i++].replace(/^\s*>\s?/, ''));
+      blocks.push({ type: 'quote', spans: inline(body.join(' ')) });
+      continue;
+    }
+
+    // A table needs its separator row to be one. A single pipe in prose does not.
+    if (isRow(line) && isRow(lines[i + 1] || '') && /^[\s|:-]+$/.test(lines[i + 1])) {
+      const heads = cells(line).map(inline);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && isRow(lines[i])) rows.push(cells(lines[i++]).map(inline));
+      blocks.push({ type: 'table', head: heads, rows });
+      continue;
+    }
+
+    const bullet = line.match(/^\s*([-*+]|\d+[.)])\s+/);
+    if (bullet) {
+      const ordered = /\d/.test(bullet[1]);
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^\s*(?:[-*+]|\d+[.)])\s+(.*)$/);
+        if (m) { items.push(m[1]); i++; continue; }
+        // An indented continuation belongs to the item above it. openQuestionsSection
+        // writes its "Why it matters" line exactly that way.
+        if (/^\s+\S/.test(lines[i]) && items.length) {
+          items[items.length - 1] += ` ${lines[i].trim()}`;
+          i++;
+          continue;
+        }
+        break;
+      }
+      blocks.push({ type: 'list', ordered, items: items.map(inline) });
+      continue;
+    }
+
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !breaks(lines[i])) para.push(lines[i++].trim());
+    const text = para.join(' ');
+    // A paragraph that is one whole emphasis run is the meta line under the title, or a
+    // "_Nothing outstanding._" placeholder. Both read better as quiet text than as italics.
+    const meta = /^_[^_]+_$/.test(text);
+    blocks.push({ type: 'p', meta, spans: inline(meta ? text.slice(1, -1) : text) });
+  }
+
+  return blocks;
+}
+
+/**
+ * Inline emphasis, as spans. Code is matched first so a `**` inside a code span stays literal.
+ *
+ * @returns {Array<{text: string, bold?: boolean, italic?: boolean, code?: boolean}>}
+ */
+function inline(text) {
+  const out = [];
+  const re = /`([^`]+)`|\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*/g;
+  let at = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m.index > at) out.push({ text: text.slice(at, m.index) });
+    if (m[1] !== undefined) out.push({ text: m[1], code: true });
+    else if (m[2] !== undefined) out.push({ text: m[2], bold: true });
+    else out.push({ text: m[3] !== undefined ? m[3] : m[4], italic: true });
+    at = re.lastIndex;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out.length ? out : [{ text: '' }];
+}
+
+/**
  * The same text, said out loud.
  *
  * Markdown read by a speech synthesiser is punctuation soup — "hash hash Refined prompt",

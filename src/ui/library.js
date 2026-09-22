@@ -107,7 +107,10 @@ export function createLibraryView({
     const archive = button(card.status === 'archived' ? 'Restore' : 'Archive');
     archive.onclick = run(archive, () =>
       card.status === 'archived' ? onRestore(session) : onArchive(session), onError);
-    const remove = button('Delete');
+    // Delete looked exactly like Share .md. It is the one action on this card that cannot
+    // be undone, so it is the one that gets a different colour. Same label — the browser
+    // probe finds it by visible text.
+    const remove = button('Delete', 'ghost small danger');
     remove.onclick = run(remove, async () => {
       if (confirmDelete(card.title)) await onDelete(session);
     }, onError);
@@ -119,13 +122,19 @@ export function createLibraryView({
     summary.textContent = 'Rename or tag';
     const nameLabel = document.createElement('label');
     nameLabel.textContent = 'Idea name';
+    // These labels wrapped nothing and pointed at nothing, so both inputs were announced
+    // unlabelled. The id is per session because several cards are open at once.
+    nameLabel.htmlFor = `idea-name-${session.id}`;
     const name = document.createElement('input');
+    name.id = nameLabel.htmlFor;
     name.value = session.name || '';
     name.placeholder = card.title;
     name.maxLength = 120;
     const tagsLabel = document.createElement('label');
     tagsLabel.textContent = 'Tags';
+    tagsLabel.htmlFor = `idea-tags-${session.id}`;
     const tags = document.createElement('input');
+    tags.id = tagsLabel.htmlFor;
     tags.value = card.tags.join(', ');
     tags.placeholder = 'work, writing, product';
     const save = button('Save details', '');

@@ -325,7 +325,10 @@ async function run(theme, chrome, port) {
     );
     await app.shot('06-refined-prompt');
 
-    const markdown = await app.eval(`document.getElementById('output').textContent`);
+    // dataset.source, not textContent: #output renders the markdown now, so its textContent
+    // is the prose with every marker stripped — which silently rewrote this whole file as one
+    // unbroken line the first time. test/docs.test.mjs caught it.
+    const markdown = await app.eval(`document.getElementById('output').dataset.source`);
     await app.eval(`document.getElementById('b-library').click()`);
     await app.waitFor(
       `!document.getElementById('panel-library').hidden

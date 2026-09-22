@@ -14,7 +14,7 @@ import {
 } from '../src/core/engine.js';
 import { buildTranscriptBlock, utf8Length, BUDGET_BYTES } from '../src/core/digest.js';
 import {
-  buildExport, coveragePercent, slug, exportFilename, forSpeech, speechChunks,
+  buildExport, coveragePercent, slug, exportFilename, forSpeech, speechChunks, renderBlocks,
 } from '../src/core/markdown.js';
 
 const seed = (over = {}) => ({ id: 's_test', now: 1000, ...over });
@@ -516,6 +516,86 @@ test('the app version matches package.json', async () => {
 });
 
 // ───────────────────────────────────────────── reading it back aloud
+
+// ───────────────────────────────────────────────── the export, as blocks
+//
+// The refined prompt is the payoff of the whole interview and was shown as raw markdown
+// source. These pin the shapes buildExport actually emits — a general parser is not the
+// goal, surviving its own producer is.
+
+/** The text of a block, flattened, so a test reads as a claim rather than as a tree walk. */
+const flat = (block) => (block.spans || []).map((s) => s.text).join('');
+
+test('renderBlocks turns the export into the blocks the export actually contains', () => {
+  const blocks = renderBlocks([
+    '# An idea',
+    '',
+    '_2026-09-13 · 8 questions_',
+    '',
+    '> **Careful.** Worth a read.',
+    '',
+    '## Refined prompt',
+    '',
+    'Write a product brief.',
+    '',
+    '---',
+    '',
+    '_Forged with IdeaForge._',
+  ].join('\n'));
+
+  assert.deepEqual(blocks.map((b) => b.type), ['h1', 'p', 'quote', 'h2', 'p', 'hr', 'p']);
+  assert.equal(flat(blocks[0]), 'An idea');
+  // The meta line is one whole emphasis run: quieter text, not italics, and the markers go.
+  assert.equal(blocks[1].meta, true);
+  assert.equal(flat(blocks[1]), '2026-09-13 · 8 questions');
+  assert.equal(flat(blocks[2]), 'Careful. Worth a read.');
+  assert.equal(blocks[2].spans[0].bold, true);
+});
+
+test('renderBlocks reads the coverage table, and only when it is really a table', () => {
+  const [table] = renderBlocks('| Dimension | Coverage |\n|---|---|\n| Outcome | covered |');
+  assert.equal(table.type, 'table');
+  assert.deepEqual(table.head.map((c) => c.map((s) => s.text).join('')), ['Dimension', 'Coverage']);
+  assert.deepEqual(table.rows[0].map((c) => c.map((s) => s.text).join('')), ['Outcome', 'covered']);
+
+  // A pipe in prose is prose. Without the separator-row check this became a one-column table.
+  const [prose] = renderBlocks('| not a table, just a sentence with a pipe |');
+  assert.equal(prose.type, 'p');
+});
+
+test('an open question keeps its indented "why it matters" line', () => {
+  // openQuestionsSection writes the reason as a continuation line, which a naive line-per-item
+  // reader drops on the floor — silently losing the half of the entry that explains it.
+  const [list] = renderBlocks('- **Audience** — who is it for?\n  _Why it matters: it scopes everything._');
+  assert.equal(list.type, 'list');
+  assert.equal(list.items.length, 1);
+  assert.match(list.items[0].map((s) => s.text).join(''), /who is it for\? Why it matters/);
+});
+
+test('renderBlocks keeps text it does not understand rather than dropping it', () => {
+  // Same rule as parseTurnResult: synthesis.text is model output and nobody controls it.
+  const blocks = renderBlocks('Plain line\n\n    oddly indented\n\n&&& not markdown at all');
+  assert.equal(blocks.length, 3);
+  assert.ok(blocks.every((b) => b.type === 'p' || b.type === 'list'));
+  assert.match(blocks.map(flat).join(' '), /Plain line.*oddly indented.*not markdown at all/s);
+});
+
+test('inline code survives emphasis markers inside it', () => {
+  const [p] = renderBlocks('Use `a ** b` and **really** mean it.');
+  assert.deepEqual(p.spans.map((s) => [s.text, s.code || s.bold || false]), [
+    ['Use ', false], ['a ** b', true], [' and ', false], ['really', true], [' mean it.', false],
+  ]);
+});
+
+test('every block of a real export is accounted for', () => {
+  // The guard that matters: buildExport is the only producer, so nothing it writes may end
+  // up as an unrecognised paragraph carrying visible markdown syntax.
+  const blocks = renderBlocks(buildExport(withOpening()));
+  assert.ok(blocks.length > 5, `only ${blocks.length} blocks`);
+  const rendered = blocks.map(flat).join('\n');
+  assert.doesNotMatch(rendered, /^#{1,6}\s/m, 'a heading was left as literal text');
+  assert.doesNotMatch(rendered, /\*\*/, 'bold markers reached the output');
+});
 
 test('forSpeech strips the markers a synthesiser would read out as words', () => {
   const said = forSpeech([
