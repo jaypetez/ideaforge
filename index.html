@@ -50,25 +50,42 @@
 
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./src/ui/apple-touch-icon.png">
-<meta name="theme-color" content="#0e6b73">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<!-- Two, because one static value painted light teal chrome around the dark UI on an
+     installed phone. The colours are --accent from src/ui/app.css, both themes. -->
+<meta name="theme-color" content="#0b6169" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1014" media="(prefers-color-scheme: dark)">
+<!-- 500 and 700 join 400/600 so hierarchy can come from weight rather than size alone.
+     Both origins are already in the CSP; a different family or CDN would not be. -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="./src/ui/app.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to the interview</a>
 
 <div class="wrap">
 
   <header class="bar">
     <h1>IdeaForge</h1>
     <div class="bar-right">
-      <span class="meter" id="meter" hidden>
-        <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
-        <span class="meter-label" id="meter-label">0%</span>
-      </span>
       <button type="button" class="ghost small" id="b-library">Ideas</button>
       <button type="button" class="ghost small" id="b-settings">Settings</button>
     </div>
   </header>
+
+  <!--
+    The coverage ratchet is the product, so it gets a full-width row of its own during an
+    interview rather than 84px beside the title. role="progressbar" and aria-valuenow are
+    new: the percentage updated on screen and was never announced to anyone.
+  -->
+  <div class="meter" id="meter" hidden
+       role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+       aria-label="Coverage of this idea">
+    <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
+    <span class="meter-label" id="meter-label">0%</span>
+  </div>
+
+  <main id="main">
 
   <!-- ─────────────────────────────────────────────────────────── setup -->
   <section id="panel-setup">
@@ -85,8 +102,16 @@
       <button type="button" class="ghost" id="b-install" hidden>Install IdeaForge</button>
     </aside>
 
+    <!--
+      Two groups where there used to be eight identical fields in one flat stack. This is
+      presentation only: no new panels and no routing, because WebKit re-prompts for the
+      microphone on a hash change in an installed app and the panel model exists to avoid it.
+    -->
+    <div class="group">
+      <h2>Where the questions come from</h2>
+
     <div class="field">
-      <label for="provider">Where should the questions come from?</label>
+      <label for="provider">Provider</label>
       <select id="provider"></select>
       <p class="hint" id="provider-note"></p>
     </div>
@@ -143,6 +168,11 @@
       </p>
     </div>
 
+    </div><!-- /.group -->
+
+    <div class="group">
+      <h2>Voice</h2>
+
     <div class="field">
       <label for="stt">Dictation</label>
       <select id="stt">
@@ -172,10 +202,12 @@
       </p>
     </div>
 
+    </div><!-- /.group -->
+
     <div class="btns">
       <button type="button" id="b-start">Start an interview</button>
       <button type="button" class="ghost" id="b-check">Check the key</button>
-      <button type="button" class="ghost" id="b-forget" hidden>Forget my key</button>
+      <button type="button" class="ghost danger" id="b-forget" hidden>Forget my key</button>
     </div>
 
     <div id="resume" hidden>
@@ -193,7 +225,10 @@
   <!-- ───────────────────────────────────────────────────────── interview -->
   <section id="panel-interview" hidden>
     <p class="bridge" id="bridge" hidden></p>
-    <h2 class="question" id="question">…</h2>
+    <!-- The question text is swapped on every turn. Without a live region a screen-reader
+         user was never told a new one had arrived — they heard the old question, answered,
+         and nothing announced the next. -->
+    <h2 class="question" id="question" aria-live="polite" aria-atomic="true">…</h2>
     <p class="asking" id="asking" hidden>thinking of the next question…</p>
 
     <div class="chips" id="chips"></div>
@@ -206,7 +241,7 @@
       <span id="listening-label">Listening…</span>
     </div>
 
-    <div class="btns">
+    <div class="btns interview-actions">
       <button type="button" id="b-send">Send</button>
       <button type="button" class="ghost" id="b-mic" hidden>🎤 Answer out loud</button>
       <button type="button" class="ghost" id="b-skip">Skip this one</button>
@@ -284,7 +319,14 @@
   <section id="panel-done" hidden>
     <h2 id="done-title">Your refined prompt</h2>
     <p class="hint" id="done-meta"></p>
-    <pre class="output" id="output"></pre>
+    <!--
+      A div, not a pre. The refined prompt is rendered from src/core/markdown.js's
+      renderBlocks now instead of being shown as raw markdown source; Copy, Download and
+      Share still hand over the exact source bytes, read from exportFor() rather than from
+      this element. The .output class keeps its max-height cap, which tools/screenshots.mjs
+      depends on to stop the export pane growing with the viewport it is being framed in.
+    -->
+    <div class="output" id="output"></div>
     <div class="btns">
       <button type="button" id="b-share">Share .md</button>
       <button type="button" class="ghost" id="b-copy">Copy markdown</button>
@@ -297,6 +339,7 @@
   <p class="note" id="note" role="status" aria-live="polite" aria-atomic="true" hidden></p>
   <p class="err" id="err" role="alert" aria-live="assertive" aria-atomic="true" hidden></p>
 
+  </main>
 </div>
 
 <script type="module" src="./src/ui/app.js"></script>

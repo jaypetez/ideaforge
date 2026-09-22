@@ -8,6 +8,12 @@
 
 const BOOT_MS = 4000;
 
+/** Sum of an rgb() string's channels, so "is this one darker" is a claim and not a vibe. */
+function channelSum(colour) {
+  return (String(colour).match(/\d+(?:\.\d+)?/g) || []).slice(0, 3)
+    .reduce((total, n) => total + Number(n), 0);
+}
+
 function loadFrame(src) {
   return new Promise((resolve, reject) => {
     const frame = document.createElement('iframe');
@@ -122,6 +128,31 @@ export default async function run(check, { subpath }) {
   check('…and a wrap-up model alongside it', rendered('field-wrapmodel'));
   check('…and asks for no API key', !rendered('field-key'));
 
+  // ── the two themes actually differ ───────────────────────────────────────
+  //
+  // tools/screenshots.mjs produces the light and dark README pairs by setting
+  // documentElement.dataset.theme. Nothing verified that the attribute changed anything, so
+  // breaking the theme would have shipped fourteen PNGs that were the same image twice, with
+  // a green suite. It matters more now that the tokens go through light-dark(), which reads
+  // `color-scheme` rather than the media query — get that wrong and every colour collapses
+  // to one theme silently.
+  const themed = (theme) => {
+    doc.documentElement.dataset.theme = theme;
+    return win.getComputedStyle(doc.body).backgroundColor;
+  };
+  const lightBg = themed('light');
+  const darkBg = themed('dark');
+  delete doc.documentElement.dataset.theme;
+  check('the light and dark themes render differently', lightBg !== darkBg, `${lightBg} vs ${darkBg}`);
+  check('...and dark is the darker of the two',
+    channelSum(darkBg) < channelSum(lightBg), `${darkBg} vs ${lightBg}`);
+
+  // Native controls follow the theme only if color-scheme is declared; without it the select
+  // and the scrollbars stayed light inside a dark page.
+  check('the page declares its colour scheme so native controls follow',
+    /dark/.test(win.getComputedStyle(doc.documentElement).colorScheme || ''),
+    win.getComputedStyle(doc.documentElement).colorScheme);
+
   const typeBase = (value) => {
     $('baseurl').value = value;
     $('baseurl').dispatchEvent(new win.Event('input'));
@@ -168,6 +199,47 @@ export default async function run(check, { subpath }) {
   $('provider').value = 'custom';
   $('provider').dispatchEvent(new win.Event('change'));
   typeBase('http://127.0.0.1:11435/v1');
+
+  // ── the phone layout ─────────────────────────────────────────────────────
+  //
+  // Only the guide and the library were checked at a phone width; the setup and interview
+  // panels never were, and they are the two that gained a grouped card and a sticky action
+  // bar. A horizontal scrollbar on a phone is the classic way a redesign ships broken.
+  $('provider').value = 'anthropic';
+  $('provider').dispatchEvent(new win.Event('change'));
+  frame.width = 390;
+  await settle(150);
+  check('the setup screen has no horizontal overflow at a phone width',
+    doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
+    `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
+
+  // The action bar is sticky rather than fixed precisely so it cannot cover the answer box.
+  // Asserting it on the narrowest phone worth supporting, because that is where the buttons
+  // wrap onto their own rows and the bar is at its tallest.
+  $('panel-setup').hidden = true;
+  $('panel-interview').hidden = false;
+  frame.width = 360;
+  await settle(150);
+  check('the interview has no horizontal overflow at 360px',
+    doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
+    `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
+  const answerBox = $('answer').getBoundingClientRect();
+  const actionBar = doc.querySelector('.interview-actions').getBoundingClientRect();
+  check('the sticky action bar does not cover the answer box',
+    actionBar.top >= answerBox.bottom - 1,
+    `bar ${Math.round(actionBar.top)} vs answer ${Math.round(answerBox.bottom)}`);
+  // Only the ones on screen: #b-mic and #b-wrap are hidden until voice works and until the
+  // wrap-up is offered, and a hidden element measures zero.
+  const barButtons = [...doc.querySelectorAll('.interview-actions button')]
+    .filter((b) => win.getComputedStyle(b).display !== 'none');
+  check('every visible action in that bar clears the 24px WCAG target floor',
+    barButtons.length > 1 && barButtons.every((b) => b.getBoundingClientRect().height >= 24),
+    barButtons.map((b) => Math.round(b.getBoundingClientRect().height)).join(','));
+
+  $('panel-interview').hidden = true;
+  $('panel-setup').hidden = false;
+  frame.width = 900;
+  await settle(150);
 
   // ── what the widened connect-src actually parses ─────────────────────────
   //

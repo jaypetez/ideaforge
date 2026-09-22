@@ -1,14 +1,20 @@
 :root {
   color-scheme: light dark;
-  --ground: #f6f7f9;
+  /* Kept in step with src/ui/app.css by hand. The app and the guide are one product and
+     used to be a shade apart on six of these, which reads as two products that nearly
+     match. The typeface deliberately still differs: the guide loads no webfont, because
+     test/docs.test.mjs requires every guide asset to be local and its CSP allows no font
+     origin at all. A document and a tool are allowed to be set differently; being almost
+     the same colour is just drift. */
+  --ground: #f4f6f8;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --ink: #14181d;
-  --ink-dim: #5b646f;
-  --line: #dfe3e9;
-  --accent: #0e6b73;
+  --surface-2: #eceff4;
+  --ink: #0f141a;
+  --ink-dim: #58626f;
+  --line: #dfe4ea;
+  --accent: #0b6169;
   --accent-ink: #ffffff;
-  --ok: #1a7f4b;
+  --ok: #17703f;
   --warn: #8a6a00;
   --fail: #b3261e;
   --sans: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -17,17 +23,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #0f1216;
-    --surface: #161b21;
-    --surface-2: #1d242c;
-    --ink: #e6eaef;
-    --ink-dim: #9aa4b0;
-    --line: #2c343e;
-    --accent: #4fd1c5;
-    --accent-ink: #081112;
+    --ground: #0d1014;
+    --surface: #151a20;
+    --surface-2: #1c222b;
+    --ink: #e7ecf2;
+    --ink-dim: #939daa;
+    --line: #262d37;
+    --accent: #5eead4;
+    --accent-ink: #052622;
     --ok: #46c07f;
     --warn: #d9a441;
-    --fail: #ff786c;
+    --fail: #ff6b5e;
   }
 }
 

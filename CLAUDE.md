@@ -129,6 +129,34 @@ These are load-bearing and most of them fail *silently* if broken.
   `canShare` checks are synchronous; adding an unrelated `await` before the call makes the
   mobile share sheet fail with `NotAllowedError`.
 
+## The look: tokens, and two ways the theme dies quietly
+
+`src/ui/app.css` is the design system — spacing, radius, elevation, type and colour are all
+tokens, and nothing hardcodes a pixel value it could name instead.
+
+- **Theming is `light-dark()` over an explicit `color-scheme`, and `[data-theme]` is
+  load-bearing.** `tools/screenshots.mjs` produces the light and dark README pairs by setting
+  `documentElement.dataset.theme` — it does **not** emulate `prefers-color-scheme`. Delete
+  `:root[data-theme="dark"] { color-scheme: dark }` and both runs render identically, shipping
+  fourteen PNGs that are the same image twice with a green suite. `test/browser/app.browser.mjs`
+  now asserts the two themes compute different backgrounds; that is the only thing catching it.
+- **`color-scheme` is not decoration.** Without it the native select, the scrollbars and the
+  file picker stay light inside a dark page.
+- **`[hidden] { display: none !important }` stays.** Five probe checks and the screenshot
+  fitter depend on it beating any author `display` written later.
+- **`#output` renders markdown, so its `textContent` is no longer the export.** The source
+  lives on `dataset.source`, which is what `screenshots.mjs` writes `docs/examples/` from;
+  Copy, Download and Share go through `exportFor()`. Reading the export off the DOM rewrote
+  the whole worked example as one unbroken line the first time, and `test/docs.test.mjs`
+  caught it. `renderBlocks` in `src/core/markdown.js` returns data rather than DOM because
+  `src/core/` is purity-linted — the UI builds the elements.
+- **`screenshots.mjs` hardcodes `.wrap`, `details.cov`, `.idea-card`, `#output`'s height cap
+  and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
+  `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
+  any of them breaks the harness, sometimes by hanging rather than failing.
+- **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
+  warns forever otherwise, and a run that warns about fonts is a run to throw away.
+
 ## Voice: probe by behaviour, never by feature detection
 
 Inside an installed iOS home-screen app, `webkitSpeechRecognition` **exists, constructs,
