@@ -20,7 +20,7 @@
 // The failure mode is deliberately a SKIPPED QUESTION rather than a stopped app. Somebody
 // overtaking a truck loses one question, not the interview.
 
-import { parseSpeech, matchAffirmation, DRIVING } from '../core/driving.js';
+import { parseSpeech, matchAffirmation, spokenExamples, DRIVING } from '../core/driving.js';
 
 /**
  * Errors where trying again is noise rather than resilience. A denied permission fails
@@ -92,7 +92,7 @@ export function createDriveLoop(io) {
     await io.speak(text);
   }
 
-  /** What gets read aloud: the bridge and the question, never the chips. */
+  /** What gets read aloud: the bridge and the question. The chips follow, separately. */
   const spoken = (turn) => (turn.bridge ? `${turn.bridge} ${turn.question}` : turn.question);
 
   /**
@@ -172,6 +172,12 @@ export function createDriveLoop(io) {
 
       if (spokenFor !== keyOf(turn)) {
         await say(spoken(turn));
+        // Two utterances, not one longer string, and that is load-bearing twice over.
+        // `speak.js` caps its own wait at 2s + words/2.6 because Chrome drops an utterance
+        // that outlasts an internal ~15s watchdog without ever firing `onend`; a question
+        // plus four fourteen-word chips clears that on its own. And a beat between the
+        // question and its examples is how a person would say it.
+        if (live()) await say(spokenExamples(turn.chips));
         spokenFor = keyOf(turn);
       }
       if (!live()) break;

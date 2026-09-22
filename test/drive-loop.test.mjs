@@ -38,7 +38,7 @@ function scriptedIo(outcomes, opts = {}) {
     },
     // A fresh object every call, as an immutable session reducer would produce.
     openTurn: () => (answered < turns
-      ? { id: `t${answered}`, question: `q${answered}`, bridge: null }
+      ? { id: `t${answered}`, question: `q${answered}`, bridge: null, chips: opts.chips || [] }
       : null),
     submit: async (t) => { log.push(['submit', t]); answered += 1; },
     skip: async () => { log.push(['skip']); answered += 1; },
@@ -74,6 +74,41 @@ test('the question is read before the answer is captured, never after', async ()
   await createDriveLoop(s.io).run();
   const order = s.kinds().filter((k) => k === 'speak' || k === 'listen' || k === 'submit');
   assert.deepEqual(order, ['speak', 'listen', 'submit', 'speak', 'listen', 'submit']);
+});
+
+// ── the suggestions, said out loud ───────────────────────────────────────────
+//
+// On screen the chips show what shape of answer the question wants. Hands-free is the one
+// mode where the screen is what you are deliberately not looking at.
+
+test('the suggestions are read after the question and before listening', async () => {
+  const s = scriptedIo([ANSWER('first over')], {
+    turns: 1, chips: ['like a business card', 'like LinkedIn'],
+  });
+  await createDriveLoop(s.io).run();
+  const order = s.kinds().filter((k) => k === 'speak' || k === 'listen');
+  assert.deepEqual(order, ['speak', 'speak', 'listen'], 'question, then examples, then listen');
+  assert.ok(s.said()[0].includes('q0'), 'the question comes first');
+  assert.match(s.said()[1], /For example: like a business card, or like LinkedIn\./);
+});
+
+test('a turn with no suggestions is spoken exactly once', async () => {
+  // The common case: a bank question carries no chips, and "For example:" followed by
+  // nothing would be worse than staying quiet.
+  const s = scriptedIo([ANSWER('first over')], { turns: 1 });
+  await createDriveLoop(s.io).run();
+  assert.equal(s.said().length, 1, s.said().join(' | '));
+});
+
+test('"repeat that" reads the question and its suggestions again', async () => {
+  const s = scriptedIo([ANSWER('repeat that'), ANSWER('an answer over')], {
+    turns: 1, chips: ['like a business card'],
+  });
+  await createDriveLoop(s.io).run();
+  const asked = s.said().filter((t) => t.includes('q0'));
+  const examples = s.said().filter((t) => /For example/.test(t));
+  assert.equal(asked.length, 2, 'the question is read twice');
+  assert.equal(examples.length, 2, 'and so are the examples — repeating half of it is worse');
 });
 
 // ── the invariant ────────────────────────────────────────────────────────────

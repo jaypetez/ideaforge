@@ -201,3 +201,41 @@ export function triggerWarning(word) {
   }
   return null;
 }
+
+/**
+ * The suggestion chips, as a sentence to read out.
+ *
+ * They are the examples that show you what shape of answer the question wants, and on screen
+ * they do that work for free. Hands-free is the one mode where the screen is the thing you
+ * are deliberately not looking at, so they have to be said or they may as well not exist.
+ *
+ * Examples, not a menu: there is no "say one" affordance, because a chip tapped on screen is
+ * Claude's wording rather than yours and `classifyAnswer` caps that at `partial` on purpose.
+ * Hearing them should leave you talking in your own words, not reading one back.
+ *
+ * A word budget rather than a chip count, because `src/core/engine.js` caps chips at four of
+ * up to fourteen words each. Four long ones are about sixty words, which is past the ~15s
+ * Chrome watchdog that `speak.js` describes — and an utterance that outlasts it is dropped
+ * with no error and no `onend`. Dropping from the end keeps whole chips rather than cutting
+ * one mid-phrase. `drive.js` also says this as its own utterance, so the question is never
+ * at risk of being the thing that overruns.
+ *
+ * @param {string[]} chips
+ * @param {{maxWords?: number}} [opts]
+ * @returns {string} the sentence, or '' when there is nothing worth saying
+ */
+export function spokenExamples(chips, { maxWords = 34 } = {}) {
+  const kept = (Array.isArray(chips) ? chips : [])
+    .filter((c) => typeof c === 'string' && c.trim())
+    .map((c) => c.trim().replace(/[.,;:]+$/, ''));
+  if (!kept.length) return '';
+
+  const words = (list) => list.join(' ').split(/\s+/).length;
+  // Always keep the first, however long it is: one example is the whole point, and a budget
+  // that can return nothing turns a long chip into silence.
+  while (kept.length > 1 && words(kept) > maxWords) kept.pop();
+
+  const list = kept.length === 1 ? kept[0]
+    : `${kept.slice(0, -1).join(', ')}, or ${kept[kept.length - 1]}`;
+  return `For example: ${list}.`;
+}

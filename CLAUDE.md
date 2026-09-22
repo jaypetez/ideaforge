@@ -208,6 +208,11 @@ enough that the eighth failure case never gets written.
   time to finalise, because `stop()` resolves with settled finals only and would otherwise
   discard the clause the trigger appeared in. The two probe cases either side of it in
   `test/browser/driving.browser.mjs` are the sharpest tests in the suite.
+- **The question and its suggestions are two utterances, deliberately.** `spokenExamples`
+  in `src/core/driving.js` builds the second one and trims to a word budget rather than a chip
+  count. Joining them into one string is the obvious simplification and reintroduces the bug
+  below: four fourteen-word chips plus a question clears the watchdog on its own, and the
+  whole turn goes silent with no error.
 - **`speak.js` caps its own wait**, so anything long must go through `speechChunks`. A
   six-hundred-word prompt read as one utterance is abandoned partway through by Chrome with
   no error at all.

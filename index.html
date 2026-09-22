@@ -233,6 +233,16 @@
 
     <div class="chips" id="chips"></div>
 
+    <!--
+      Above the answer box, not below the buttons. It used to sit after .interview-actions,
+      which became `position: sticky` on phones in v0.5.0 — so on the one device this feature
+      is for, the control that turns it on scrolled underneath the button bar.
+    -->
+    <label class="toggle" id="handsfree-wrap" hidden>
+      <input type="checkbox" id="handsfree">
+      <span>Hands-free — read each question aloud, with suggestions, and listen for the answer</span>
+    </label>
+
     <label class="sr-only" for="answer">Your answer</label>
     <textarea id="answer" rows="4" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
 
@@ -247,11 +257,6 @@
       <button type="button" class="ghost" id="b-skip">Skip this one</button>
       <button type="button" class="ghost" id="b-wrap" hidden>That’s enough — write it up</button>
     </div>
-
-    <label class="toggle" id="handsfree-wrap" hidden>
-      <input type="checkbox" id="handsfree">
-      <span>Hands-free — read each question aloud and listen for the answer</span>
-    </label>
 
     <p class="turnline" id="turnline"></p>
 

@@ -706,7 +706,11 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
 
     // Read the pane, not the download button: wrapUp never calls busy(), so the button is
     // live while #output is still empty and a click there writes a zero-byte file.
-    const md = await app.text('output');
+    // dataset.source, not textContent. #output renders the markdown as a document now, so
+    // its textContent is the prose with every marker stripped and `## Refined prompt` never
+    // appears in it. Same trap as docs/examples/ in the same release; this reader was the
+    // one that got missed, because validate:local is not part of npm run test:all.
+    const md = await app.eval(`document.getElementById('output').dataset.source || ''`);
     check('the export carries a refined prompt', /## Refined prompt/.test(md) && md.length > 800,
       `${md.length} chars`);
     check('the export is not the checklist fallback', !/_Not generated\./.test(md));
