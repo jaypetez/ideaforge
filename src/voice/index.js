@@ -11,7 +11,9 @@
 //      most of what a dictated answer to a hard question sounds like.
 //   3. Neither: the keyboard, which is always there.
 
-import { probeWebSpeech, listenViaWebSpeech, webSpeechPresent, forgetVerdict } from './webspeech.js';
+import {
+  probeWebSpeech, listenViaWebSpeech, webSpeechPresent, forgetVerdict, micPermissionState,
+} from './webspeech.js';
 import { createRecorder, micSupported } from './recorder.js';
 import { createTranscriber, STT_PRESETS } from './transcribe.js';
 import { speak, cancelSpeech, primeSpeech, ttsSupported } from './speak.js';
@@ -41,14 +43,17 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
   } else if (!micSupported()) {
     reason = 'This browser cannot record audio.';
   } else {
-    // The engine is present but did not answer the probe — an installed iPhone app, Edge,
-    // or Firefox with the pref off. Offering a mic button here would be worse than none:
-    // it would start, never fire an event, and hang with no error to show. Say what would
-    // actually fix it instead.
-    reason = webSpeechPresent()
-      ? 'Your browser reports dictation support but it does not work here — a known bug in ' +
-        'installed iPhone apps, Edge and Firefox. Add a transcription key in Settings to dictate.'
-      : 'This browser has no built-in dictation. Add a transcription key in Settings to dictate.';
+    // The engine did not answer the probe. WHY decides what to say, and getting that wrong
+    // sends people hunting for a browser bug that is not there: a blocked microphone fails
+    // exactly like a broken engine from in here, and it is the one cause the reader can
+    // actually fix. Check it before blaming the platform.
+    reason = (await micPermissionState()) === 'denied'
+      ? 'The microphone is blocked for this site. Allow it in your browser’s site settings ' +
+        'and start an interview again, or add a transcription key in Settings to dictate instead.'
+      : webSpeechPresent()
+        ? 'Your browser reports dictation support but it does not work here — a known bug in ' +
+          'installed iPhone apps, Edge and Firefox. Add a transcription key in Settings to dictate.'
+        : 'This browser has no built-in dictation. Add a transcription key in Settings to dictate.';
   }
 
   let recorder = null;

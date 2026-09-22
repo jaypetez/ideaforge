@@ -16,7 +16,25 @@
 // trusting the flag.
 
 const VERDICT_KEY = 'ideaforge.webspeech';
+/**
+ * Bumped when the MEANING of a stored verdict changes, so every value written under the old
+ * meaning is discarded rather than believed. v1 cached a 'dead' that a pending microphone
+ * prompt had caused — a verdict about a human reading a dialog, not about an engine — and
+ * because a cached verdict short-circuits the probe, that was permanent per origin.
+ */
+const VERDICT_VERSION = '2';
 const PROBE_MS = 1500;
+/**
+ * The deadline when the browser is about to ask for the microphone.
+ *
+ * `rec.start()` is what RAISES that prompt, so on a first run the probe is not timing an
+ * engine, it is timing a person finding and tapping Allow. Nobody does that in PROBE_MS, so
+ * the old budget declared every first run dead. Generous rather than precise: setupVoice
+ * runs after the interview panel is already on screen, so waiting costs a late microphone
+ * button and nothing else. A refusal does not wait it out — Chrome fires `not-allowed` the
+ * moment they decline.
+ */
+const PROMPT_MS = 20000;
 /**
  * How long a dictation session may go with no event of any kind before we give up on it.
  *
@@ -37,42 +55,84 @@ export function webSpeechPresent() {
 
 /** The remembered result of a previous probe: 'alive' | 'dead' | null. */
 export function cachedVerdict() {
-  try { return localStorage.getItem(VERDICT_KEY); } catch { return null; }
+  try {
+    const raw = localStorage.getItem(VERDICT_KEY);
+    if (!raw) return null;
+    const at = raw.indexOf(':');
+    // An unversioned value was written by v1 and is not trusted; see VERDICT_VERSION.
+    if (at < 0 || raw.slice(0, at) !== VERDICT_VERSION) return null;
+    const verdict = raw.slice(at + 1);
+    return verdict === 'alive' || verdict === 'dead' ? verdict : null;
+  } catch { return null; }
 }
 function remember(verdict) {
-  try { localStorage.setItem(VERDICT_KEY, verdict); } catch { /* private window */ }
+  try {
+    localStorage.setItem(VERDICT_KEY, `${VERDICT_VERSION}:${verdict}`);
+  } catch { /* private window */ }
 }
+
 export function forgetVerdict() {
   try { localStorage.removeItem(VERDICT_KEY); } catch { /* private window */ }
 }
 
 /**
+ * Whether the browser is about to ask for the microphone, so the probe can tell a broken
+ * engine from an unanswered question.
+ *
+ * Firefox and Safari do not accept 'microphone' here and throw, which is why the unknown
+ * case must behave exactly as before: those are the browsers the short budget and the
+ * cached verdict were written for.
+ */
+export async function micPermissionState() {
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    return (status && status.state) || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
  * Prove the engine is alive, rather than merely present.
  *
- * @param {{lang?: string, force?: boolean}} [opts] force re-probes past a cached verdict
+ * @param {{lang?: string, force?: boolean, probeMs?: number, promptMs?: number}} [opts]
+ *   force re-probes past a cached verdict; the two budgets are injectable for the same
+ *   reason `deafMs` is — the twenty-second one is otherwise untestable in any suite anyone
+ *   would be willing to wait for.
  * @returns {Promise<'alive'|'dead'>}
  */
-export function probeWebSpeech({ lang = 'en-US', force = false } = {}) {
+export async function probeWebSpeech({
+  lang = 'en-US', force = false, probeMs = PROBE_MS, promptMs = PROMPT_MS,
+} = {}) {
   const SR = Impl();
-  if (!SR) return Promise.resolve('dead');
+  if (!SR) return 'dead';
   if (!force) {
     const cached = cachedVerdict();
-    if (cached === 'alive' || cached === 'dead') return Promise.resolve(cached);
+    if (cached === 'alive' || cached === 'dead') return cached;
   }
+
+  // A permission decision is not an engine verdict, and conflating the two is what made a
+  // first run on Android permanent: the prompt went up, PROBE_MS expired while it was still
+  // on screen, and 'dead' was cached for the origin for ever. So when a prompt is pending,
+  // the probe waits for a person rather than for an engine, and any 'dead' it reaches is
+  // reported but NOT remembered — the answer can change the next time we ask.
+  const permission = await micPermissionState();
+  const pending = permission === 'prompt';
 
   return new Promise((resolve) => {
     let settled = false;
     let rec;
-    const done = (verdict) => {
+    const done = (verdict, { cache = true } = {}) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       try { if (rec) { rec.onend = null; rec.abort(); } } catch { /* nothing to abort */ }
-      remember(verdict);
+      if (cache) remember(verdict);
       resolve(verdict);
     };
 
-    const timer = setTimeout(() => done('dead'), PROBE_MS);
+    const timer = setTimeout(() => done('dead', { cache: !pending }), pending ? promptMs : probeMs);
 
     try {
       rec = new SR();
@@ -88,13 +148,18 @@ export function probeWebSpeech({ lang = 'en-US', force = false } = {}) {
     rec.onaudiostart = () => done('alive');
     rec.onresult = () => done('alive');
     rec.onerror = (e) => {
-      // 'no-speech' and 'aborted' mean it ran, which is all we asked. Edge's 'network'
-      // and a denied permission mean it did not.
-      done(e && (e.error === 'no-speech' || e.error === 'aborted') ? 'alive' : 'dead');
+      const kind = e && e.error;
+      // 'no-speech' and 'aborted' mean it ran, which is all we asked.
+      if (kind === 'no-speech' || kind === 'aborted') { done('alive'); return; }
+      // Edge's 'network' is the engine failing and is worth remembering. A refusal is not:
+      // the user can grant the microphone later from site settings, and an engine written
+      // off over a permission would never be tried again to find out.
+      const refused = kind === 'not-allowed' || kind === 'service-not-allowed';
+      done('dead', { cache: !refused && !pending });
     };
-    rec.onend = () => done('dead');
+    rec.onend = () => done('dead', { cache: !pending });
 
-    try { rec.start(); } catch { done('dead'); }
+    try { rec.start(); } catch { done('dead', { cache: !pending }); }
   });
 }
 

@@ -139,6 +139,15 @@ voice is the one where feature detection lies. Edge throws `network`; Firefox sh
 within 1.5s, caching the verdict per origin. Anything else falls through to
 record-and-transcribe permanently. Do not "simplify" this into an `in window` check.
 
+**A permission decision is not an engine verdict, and `rec.start()` is what raises the
+prompt.** So on a first run the probe is timing a person finding Allow, not an engine — and
+1.5s cached `dead` for the origin for ever, which is how Android Chrome lost dictation
+permanently on the very first interview. While a prompt is pending the budget is
+`PROMPT_MS`, and a `dead` reached that way, or from `not-allowed`, is reported but never
+remembered. Only a verdict that blames the *engine* is cacheable. `VERDICT_VERSION` exists
+to throw away the values written before that distinction, and a blocked microphone is
+reported as blocked rather than as the installed-iPhone bug it looks identical to.
+
 `src/voice/vad.js` (silence detection) is pure and clock-injected specifically so it can be
 tested without a microphone. Its noise floor is a running minimum, which works because
 speech has gaps at word boundaries — that is what lets a recording opening mid-sentence
