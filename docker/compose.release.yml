@@ -18,7 +18,7 @@
 #
 #   docker compose -f compose.release.yml pull && docker compose -f compose.release.yml up -d
 #
-# To pin instead, replace `:latest` with a version: ghcr.io/jaypetez/ideaforge:0.6.0
+# To pin instead, replace `:latest` with a version: ghcr.io/jaypetez/ideaforge:0.6.1
 #
 # ── NO NVIDIA GPU? READ THIS FIRST ──────────────────────────────────────────────────────
 # The stanza marked GPU BLOCK below hands the ollama container your GPU. On a machine with no
