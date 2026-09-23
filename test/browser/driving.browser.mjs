@@ -259,6 +259,49 @@ export default async function run(check) {
     fake.restore();
   }
 
+  // ── Android: every draft arrives as a final ──────────────────────────────
+  // The reported bug, end to end. Chrome on Android sends each growing guess as its own
+  // final result with confidence 0, and a driver's answer was recorded as every draft of
+  // itself. The same shape also let a one-word first draft that happens to be a command
+  // skip the question outright, and a real command sent that way must still work.
+  {
+    const android = (text) => text.split(' ').map((_, n, words) =>
+      ({ at: 40 + n * 40, final: words.slice(0, n + 1).join(' '), confidence: 0 }));
+    // The command's drafts revise a word on the way, as Google's recogniser does: unfolded,
+    // "skip the skip this one" would be an answer, and RE_REFUSAL would read it as a refusal.
+    const revised = (texts) => texts.map((text, n) => ({ at: 40 + n * 40, final: text, confidence: 0 }));
+    const app = await startDriving(fake, [
+      android('I want to create a game like Tetris over'),
+      android('pass it around the table over'),
+      revised(['skip', 'skip the', 'skip this', 'skip this one']),
+      android('and this one I can answer over'),
+    ]);
+
+    const session = await until(async () => {
+      const s = await latestSession(app.win);
+      return s && s.turns.filter((t) => t.answer || t.skipped).length >= 4 ? s : null;
+    }, 30000);
+    if (!session) {
+      check('Android drafts reach the interview', false,
+        diagnose(fake, app, await latestSession(app.win)));
+    } else {
+      const answers = session.turns.map((t) => t.answer).filter(Boolean);
+      check('Android drafts are recorded as one clean answer',
+        answers[0] === 'I want to create a game like Tetris', JSON.stringify(answers));
+      check('...a first draft that is a command word does not skip the question',
+        answers[1] === 'pass it around the table', JSON.stringify(answers));
+      check('...and a real command sent as drafts still skips, unrecorded',
+        session.turns.filter((t) => t.skipped).length === 1
+          && !session.turns.some((t) => /skip this/i.test(t.answer || '')),
+        JSON.stringify(session.turns.map((t) => ({ answer: t.answer, skipped: !!t.skipped }))));
+      check('no uncaught error while driving on Android drafts',
+        app.errors.length === 0, app.errors.join('; '));
+    }
+
+    app.frame.remove();
+    fake.restore();
+  }
+
   // ── it does not dead-end ─────────────────────────────────────────────────
   // The old loop `break`s here and leaves a message telling you to tap the microphone.
   {

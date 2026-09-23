@@ -29,20 +29,26 @@ Keep matching and state transitions pure. Browser APIs belong in `src/voice/` or
   explicitly; they do not strand the interview.
 - A trigger word is terminal-only. A command must occupy the whole utterance.
 - A matched command carries empty answer text so it cannot reach `submitAnswer`.
-- An interim trigger arms settlement; it does not discard the clause or stop immediately.
+- A trigger in an interim, or in a final without confidence, arms settlement; it does not
+  discard the clause or stop immediately.
 - Long speech goes through `speechChunks`; one oversized utterance can disappear without an
   error.
 - The Web Speech probe requires proof of life. Presence, construction, and a clean `start()`
   are not support.
 
-Do not "simplify" cumulative Web Speech results, `resultIndex`, interim/final handling, the
-deaf watchdog, or the running-minimum noise floor without a failing behavioral test.
+Do not "simplify" rebuilding from the whole cumulative `results` list on every event (never
+walking from `resultIndex`), interim/final handling,
+`assembleTranscript`'s absorb/revise/sweep rules and its refusal to drop a shorter result,
+the `settled` test that makes an unconfirmed final wait like an interim, the deaf watchdog,
+or the running-minimum noise floor without a failing behavioral test.
 
 ## 3. Make the fake as strict as the platform
 
 The scripted recogniser must preserve the browser's cumulative `results` shape and only feed
 utterances under the same flags the production recogniser uses. A forgiving fake can prove
-broken code correct.
+broken code correct. That includes Android's shape: each growing guess at its own index,
+already final, with confidence 0, and no interim anywhere in that session — script it as
+consecutive `final` steps with `confidence: 0` and no `interim` steps.
 
 `window.speechSynthesis` is readonly in module code. Replace it with
 `Object.defineProperty`, not assignment.

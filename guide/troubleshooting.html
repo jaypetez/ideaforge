@@ -446,6 +446,13 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
           Test a short recording. An empty or extremely short capture is discarded rather
           than sent for transcription.
         </li>
+        <li>
+          If a dictated answer repeats its own opening words, such as
+          <q>I I want I want to&hellip;</q>, the page is running a copy of the app from before
+          v0.6.1. Reload it twice: the service worker fetches the new version on the first
+          load and uses it on the second. If it persists, report the browser, the device, and
+          whether a Bluetooth headset or car was the microphone.
+        </li>
       </ol>
       <p>
         See <a href="./mobile-and-voice.html">Mobile and voice</a> for hands-free commands,

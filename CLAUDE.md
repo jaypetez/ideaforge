@@ -176,6 +176,38 @@ remembered. Only a verdict that blames the *engine* is cacheable. `VERDICT_VERSI
 to throw away the values written before that distinction, and a blocked microphone is
 reported as blocked rather than as the installed-iPhone bug it looks identical to.
 
+**On Android, `isFinal` does not mean settled, and a new index does not mean new words.**
+With `continuous` on, Chrome there reports every in-progress guess as a final result at its
+own index, usually with confidence 0 (`SpeechRecognitionImpl.java` says as much). Joining
+every final put "I I want I want to … I want to create a game like Tetris" into a driver's
+answer, and the replayed-index guard could not see it because every index was new.
+`assembleTranscript` (`src/voice/webspeech.js`, pure, tested in `test/voice.test.mjs`) folds
+the capture instead, and a result is only ever replaced by a *later* one. **A draft is a
+final with no confidence from a session that has never sent an interim.** Chromium on
+Android turns every partial into a final, so its sessions never send one, while desktop
+Chrome, Edge and Safari do. `listenViaWebSpeech` has to remember that per session
+(`interims` on each result), because once the last interim is finalised the list no longer
+shows it. Confidence alone is not enough: an engine that reports 0 for ordinary finals
+would otherwise lose "we need a website" to "we need a logo".
+- A result that repeats the newest kept result(s) word for word **absorbs** them.
+- A draft that arrives changing a word or two of the draft before it, in the same recogniser
+  session, **revises** it ("skip the" → "skip this", "…like Tet risk" → "…like Tetris", "I" →
+  "I'm"), provided its opening still stands. A revision never crosses a restart, and it does
+  not happen when the draft got there by absorbing a sentence begun again: drafts that start
+  again from "it" and grow into "it should be cheap" are a new sentence after "it should be
+  fast".
+- A confirmed final **sweeps** away its session's trailing drafts, even where it respells
+  them ("one hundred and twenty" → "120", "I am done" → "I'm done"). It sweeps words that a
+  draft carried in from an earlier session only if the final opens with them too.
+
+Words inside one result are never touched. **Nothing is dropped for being shorter**: a
+prefix of the last result is also what "over" looks like said alone after "over the years
+we grew", and discarding it strands driving mode. The carry across restarts is a list of
+results, not a string, so a replayed phrase at the start of a new session is recognisable.
+Confidence never removes a word on its own. Desktop sessions send interims, so none of
+their finals is ever a draft; an engine that also reports confidence 0 only has its trigger
+words wait out `settleMs` (see `settled` below).
+
 `src/voice/vad.js` (silence detection) is pure and clock-injected specifically so it can be
 tested without a microphone. Its noise floor is a running minimum, which works because
 speech has gaps at word boundaries — that is what lets a recording opening mid-sentence
@@ -207,7 +239,11 @@ enough that the eighth failure case never gets written.
   "we went over budget" extend itself and prove it was not the end, *and* it gives the engine
   time to finalise, because `stop()` resolves with settled finals only and would otherwise
   discard the clause the trigger appeared in. The two probe cases either side of it in
-  `test/browser/driving.browser.mjs` are the sharpest tests in the suite.
+  `test/browser/dictation.browser.mjs` are the sharpest tests in the suite. **A final is
+  only "settled" when the engine stands behind it** (`confidence > 0`, no interim pending):
+  an Android draft is final with no confidence, and judging it as settled ended "we went
+  over budget" at "we went over" and took the first draft of "repeat customers…" as the
+  command `repeat`.
 - **The question and its suggestions are two utterances, deliberately.** `spokenExamples`
   in `src/core/driving.js` builds the second one and trims to a word budget rather than a chip
   count. Joining them into one string is the obvious simplification and reintroduces the bug
