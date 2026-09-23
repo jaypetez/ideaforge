@@ -76,6 +76,11 @@ Claude Code, Copilot CLI, and VS Code all discover that location. Use the curren
 client's normal tools and permissions, not duplicate skill copies or blanket tool
 pre-approvals.
 
+The optional [Playwright MCP configuration](../.mcp.json) uses the browser
+discovered by the existing harness for exploratory, isolated inspection; it does
+not replace `npm run test:browser:required`. See the contributor guide for
+discovery and workspace-trust guidance.
+
 See [coding assistant setup](../CONTRIBUTING.md#coding-assistants) for discovery
 commands and troubleshooting. Copilot support here is for developing the repository,
 not a new inference provider inside the app.

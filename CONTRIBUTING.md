@@ -94,9 +94,15 @@ This covers local development with the two assistants, not Copilot cloud-agent s
 an additional model provider in the app. Open a PR for review and leave merging to the
 reviewer unless you were explicitly asked to merge.
 
-There is no repository plugin, hook, extension, or MCP server. Auto-discovered files meet
-the current need without adding an executable installation surface. Package a plugin only
-when there is a real second repository or external audience to version it for.
+The optional [Playwright MCP server](.mcp.json) supports exploratory browser work in
+Copilot CLI and VS Code. `tools/playwright-mcp.mjs` finds the same Chrome or Edge
+executable as the browser tests (or uses `CHROME_PATH`) and runs a pinned package
+via `npx` in an isolated, headless profile: first use downloads the tool, but
+adds no app dependency or build step. Tool output goes to a temporary directory
+and is removed when the MCP server exits. Check `copilot mcp list --json` or VS
+Code's MCP server view after trusting the workspace; approve the executable
+when prompted. This supplements, not replaces, `npm run test:browser:required`.
+No repository plugin, hook, or extension is needed.
 
 ## The one rule that is enforced mechanically
 
