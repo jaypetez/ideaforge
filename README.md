@@ -247,8 +247,9 @@ menu and choose **Install app** or **Add to Home screen**. Google's
 show the same browser flow.
 
 Chrome's recogniser is the free dictation path on Android. It ends long speech sessions
-every few seconds even when asked not to, so IdeaForge joins those pieces back together
-rather than truncating the answer.
+every few seconds even when asked not to, and it sends every growing guess at a sentence as
+a separate, already-final result. IdeaForge restarts it until you finish and keeps only the
+newest guess, so one answer is neither truncated nor repeated back to you.
 
 ### iPhone
 

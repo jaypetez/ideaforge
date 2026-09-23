@@ -13,17 +13,23 @@
 // CSP. One definition, no build step, and it keeps working when IDEAFORGE_URL points at a
 // built container that does not serve /test/.
 //
-// The fidelity that matters is the event shape. listenViaWebSpeech walks
-// `ev.resultIndex -> ev.results.length` and reads `results[i].isFinal` and
-// `results[i][0].transcript`. A fake that emitted a flat {results:[{transcript}]} would
-// pass happily against a completely broken accumulator, which is the one thing this is for.
+// The fidelity that matters is the event shape. listenViaWebSpeech rebuilds the answer from
+// the whole `ev.results` list on every event, reading `results[i].isFinal` and
+// `results[i][0].transcript` and `.confidence`. A fake that emitted a flat
+// {results:[{transcript}]} would pass happily against a completely broken accumulator, which
+// is the one thing this is for.
+//
+// Consecutive `final` steps land at NEW indices, which is also Android Chrome's shape for a
+// growing guess: 'I', 'I want', 'I want to', each at its own index, each already final, each
+// with confidence 0. A step's `confidence` defaults to 0.9, a desktop final; pass 0 to script
+// an Android draft.
 
 (function installFakeVoice(global) {
   'use strict';
 
   /** One alternative, one result: the array-like shape the real event carries. */
-  function makeResult(transcript, isFinal) {
-    const item = [{ transcript: transcript, confidence: 0.9 }];
+  function makeResult(transcript, isFinal, confidence) {
+    const item = [{ transcript: transcript, confidence: confidence == null ? 0.9 : confidence }];
     item.isFinal = !!isFinal;
     return item;
   }
@@ -121,7 +127,7 @@
     if (step.interim != null) {
       // An interim rewrites the slot at the write cursor; it does not advance it.
       const at = this._results.length - (this._pendingInterim === null ? 0 : 1);
-      this._results[at] = makeResult(step.interim, false);
+      this._results[at] = makeResult(step.interim, false, step.confidence);
       this._pendingInterim = at;
       this._fire(at);
       return;
@@ -130,7 +136,7 @@
     if (step.final != null) {
       // A final writes the cursor slot and THEN advances it.
       const at = this._pendingInterim === null ? this._results.length : this._pendingInterim;
-      this._results[at] = makeResult(step.final, true);
+      this._results[at] = makeResult(step.final, true, step.confidence);
       this._pendingInterim = null;
       this._fire(at);
       return;
@@ -166,7 +172,8 @@
     this._clear();
     if (config.flushOnStop && this._pendingInterim !== null) {
       const at = this._pendingInterim;
-      this._results[at] = makeResult(this._results[at][0].transcript, true);
+      const slot = this._results[at][0];
+      this._results[at] = makeResult(slot.transcript, true, slot.confidence);
       this._pendingInterim = null;
       this._fire(at);
     }

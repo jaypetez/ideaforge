@@ -90,8 +90,11 @@
       <p>
         Chrome&rsquo;s browser recogniser is the preferred no-key dictation path when its
         behavioural probe succeeds. Android may end long recognition sessions even when
-        continuous listening was requested; IdeaForge restarts the recogniser and joins the
-        pieces so one answer is not silently truncated.
+        continuous listening was requested, and it sends every growing guess at a sentence as
+        a separate, already-final result. IdeaForge restarts the recogniser and keeps only the
+        newest guess, so one answer is neither silently truncated nor repeated back as
+        &ldquo;I I want I want to&hellip;&rdquo;. Because those guesses arrive marked final,
+        hands-free mode waits a moment before trusting a trigger word or command in one.
       </p>
 
       <h2 id="iphone">Install on iPhone or iPad</h2>
@@ -152,7 +155,7 @@
           <tbody>
             <tr>
               <th scope="row">Android Chrome, tab or installed</th>
-              <td>Used when the live probe succeeds; long answers are joined across recogniser restarts.</td>
+              <td>Used when the live probe succeeds; long answers survive recogniser restarts, and repeated partial guesses are merged into one answer.</td>
               <td>Available with a supported microphone, recorder, and transcription key.</td>
               <td>Shown when voice input and speech synthesis are both available.</td>
             </tr>

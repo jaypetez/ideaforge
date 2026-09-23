@@ -1,9 +1,10 @@
 // The dictation session's event state machine, driven by a scripted recogniser.
 //
-// listenViaWebSpeech is the least-tested and most rule-laden code in the app: it walks
-// `resultIndex`, accumulates finals across sessions, restarts itself when the engine ends
-// early, keeps a half-finished answer when a live engine fails, and decides on its own when
-// an answer is over. Every one of those is a correctness rule stated only in a comment,
+// listenViaWebSpeech is the least-tested and most rule-laden code in the app: it rebuilds the
+// answer from the whole result list, folds Android's re-sent drafts into one sentence,
+// carries finals across sessions, restarts itself when the engine ends early, keeps a
+// half-finished answer when a live engine fails, and decides on its own when an answer is
+// over. Every one of those is a correctness rule stated only in a comment,
 // because until now there was no way to make a recogniser say a particular thing at a
 // particular moment.
 //
@@ -13,7 +14,7 @@
 
 import { listenViaWebSpeech, forgetVerdict } from '../../src/voice/webspeech.js';
 import { speak, ttsSupported } from '../../src/voice/speak.js';
-import { endsWithTrigger } from '../../src/core/driving.js';
+import { endsWithTrigger, parseSpeech } from '../../src/core/driving.js';
 import { createVoice } from '../../src/voice/index.js';
 
 await import('./fixtures/fake-voice.js');
@@ -24,6 +25,11 @@ function heard(steps, opts = {}) {
   fake.script([steps]);
   return listenViaWebSpeech({ autoStop: true, ...opts });
 }
+
+/** An Android draft: already final, at a new index, with no confidence behind it. */
+const draft = (at, text) => ({ at, final: text, confidence: 0 });
+/** A run of drafts, `step` ms apart. */
+const drafts = (texts, from, step) => texts.map((text, n) => draft(from + n * step, text));
 
 /** A session that will not settle on its own gets a deadline, so a hang is a failure. */
 function within(promise, ms, label) {
@@ -78,6 +84,90 @@ export default async function run(check) {
     ]).promise;
     check('a replayed result index does not duplicate the clause',
       replayed === 'three seconds with one thumb', replayed);
+
+    // ── Android: every draft arrives as a final ────────────────────────────
+    // Reported from Android Chrome over a car's Bluetooth. With `continuous` on, Chrome there
+    // reports each in-progress guess as a FINAL result at a new index, with confidence 0, so
+    // nothing is ever re-announced — every index is new — and the answer came back as every
+    // draft of itself. These are the drafts that produced the report, in order.
+
+    const REPORTED = ['I', 'I want', 'I want to', 'I want to', 'I want to create',
+      'I want to create', 'I want to create', 'I want to create', 'I want to create a',
+      'I want to create a game', 'I want to create a game like',
+      'I want to create a game like Tetris'];
+
+    const shown = [];
+    const growing = await within(heard([
+      ...drafts(REPORTED, 10, 20),
+      { at: 300, end: true },
+    ], { onInterim: (t) => shown.push(t) }).promise, 3000, 'Android drafts');
+    check('Android’s drafts come out as one sentence, not every draft of it',
+      growing === 'I want to create a game like Tetris', growing);
+    check('...and the live transcript never shows a word twice',
+      shown.length > 0 && shown.every((t) => growing.startsWith(t)), JSON.stringify(shown));
+
+    const onScreen = [];
+    await within(heard([
+      draft(10, 'I want'),
+      { at: 40, interim: 'I want to create a game' },
+      { at: 70, end: true },
+    ], { onInterim: (t) => onScreen.push(t) }).promise, 3000, 'an interim over a draft');
+    check('an interim that extends the last final replaces it on screen',
+      onScreen[onScreen.length - 1] === 'I want to create a game', JSON.stringify(onScreen));
+
+    // Press-to-talk restarts the engine every time it ends, and a restarted session can
+    // open by replaying the last phrase the previous one already gave.
+    const across = heard([
+      draft(10, 'I want to'),
+      draft(30, 'I want to create a game'),
+      { at: 50, end: true },
+    ], { autoStop: false });
+    fake.script([[
+      draft(10, 'I want to create a game'),
+      draft(30, 'like'),
+      draft(50, 'like Tetris'),
+      { at: 70, end: true },
+    ]]);
+    setTimeout(() => across.stop(), 500);
+    const replayedAcross = await within(across.promise, 3000, 'a replay after a restart');
+    check('a restarted session that replays the last phrase does not repeat it',
+      replayedAcross === 'I want to create a game like Tetris', replayedAcross);
+
+    const twoHalves = heard([
+      { at: 10, final: 'the first half of the answer' },
+      { at: 30, end: true },
+    ], { autoStop: false });
+    fake.script([[{ at: 10, final: 'and the second half' }, { at: 30, end: true }]]);
+    setTimeout(() => twoHalves.stop(), 500);
+    const halves = await within(twoHalves.promise, 3000, 'a new clause after a restart');
+    check('...while a new clause after a restart is still kept',
+      halves === 'the first half of the answer and the second half', halves);
+
+    // A revision never crosses a restart, which depends on each restart being told apart.
+    // Taken for one session, the second sentence reads as a revised draft of the first.
+    const parallel = heard([
+      draft(10, 'it should'),
+      draft(30, 'it should be fast'),
+      { at: 50, end: true },
+    ], { autoStop: false });
+    fake.script([[draft(10, 'it should be cheap'), { at: 30, end: true }]]);
+    setTimeout(() => parallel.stop(), 500);
+    const both = await within(parallel.promise, 3000, 'a parallel sentence after a restart');
+    check('...and a similar sentence after a restart is a new sentence, not a revision',
+      both === 'it should be fast it should be cheap', both);
+
+    // Confidence alone does not make a draft. An engine that sends interims is finalising
+    // clauses even when it reports no confidence for them, and it must still be read that way
+    // after its last interim has been finalised — when the list itself no longer shows one.
+    const clauses = await within(heard([
+      { at: 10, interim: 'we need a' },
+      { at: 30, final: 'we need a website', confidence: 0 },
+      { at: 60, interim: 'we need a' },
+      { at: 80, final: 'we need a logo', confidence: 0 },
+      { at: 110, end: true },
+    ]).promise, 3000, 'an engine that reports no confidence');
+    check('an engine that sends interims keeps every clause, whatever its confidence',
+      clauses === 'we need a website we need a logo', clauses);
 
     // ── ending, and not ending ─────────────────────────────────────────────
 
@@ -134,6 +224,45 @@ export default async function run(check) {
       /three seconds one thumb standing up/.test(stalled), stalled);
     check('...and the clause it appeared in is not thrown away',
       /over$/.test(stalled.trim()), stalled);
+
+    // On Android a draft is a FINAL, so "final" cannot mean "settled": a trigger in a draft
+    // has to wait out settleMs exactly as one in an interim does. This is the transient case
+    // above as Android sends it. Judged as settled, it ended at 250ms, stuttered.
+    const drafted = await within(heard([
+      draft(10, 'it has to work in a car'),
+      draft(250, 'it has to work in a car over'),
+      draft(600, 'it has to work in a car over the noise of the engine'),
+      draft(900, 'it has to work in a car over the noise of the engine over'),
+    ], { isComplete: done, settleMs: 500 }).promise, 4000, 'a transient trigger in a draft');
+    check('a trigger in an Android draft waits out settleMs, as one in an interim does',
+      drafted === 'it has to work in a car over the noise of the engine over', drafted);
+
+    // A one-word draft can be a whole command. "Repeat customers…" arrives first as
+    // "repeat", and ending there skips the question the driver was in the middle of
+    // answering. The rule here is app.js's own isComplete.
+    const likeTheApp = (t) => {
+      const s = parseSpeech(t);
+      return s.stopped || s.kind !== 'answer';
+    };
+    const customers = await within(heard(drafts([
+      'repeat',
+      'repeat customers',
+      'repeat customers are',
+      'repeat customers are the whole business',
+      'repeat customers are the whole business over',
+    ], 10, 60), { isComplete: likeTheApp, settleMs: 300 }).promise, 4000, 'a command-shaped draft');
+    check('a first draft that happens to be a command does not end the answer',
+      customers === 'repeat customers are the whole business over', customers);
+
+    // None of that may be bought by dropping anything. A trigger said on its own after a
+    // sentence that opens with it is a PREFIX of that sentence, and a rule that discarded
+    // "stale, shorter" results would discard the one word that ends the answer.
+    const spokenAlone = await within(heard([
+      { at: 10, final: 'over the years we grew' },
+      { at: 40, final: 'over' },
+    ], { isComplete: done, settleMs: 300 }).promise, 3000, 'a trigger said on its own');
+    check('a trigger said alone after a sentence that opens with it still ends the answer',
+      spokenAlone === 'over the years we grew over', spokenAlone);
 
     // ── failure ────────────────────────────────────────────────────────────
 
