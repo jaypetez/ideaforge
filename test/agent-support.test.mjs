@@ -7,6 +7,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { playwrightMcpCommand } from '../tools/playwright-mcp.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const read = (...parts) => readFileSync(join(ROOT, ...parts), 'utf8');
@@ -362,6 +363,41 @@ test('Claude imports the shared workflow and Copilot links to both sources of tr
     assert.ok(links.includes(expected), `Copilot entry point does not link to ${expected}`);
   }
   for (const target of links) assert.ok(existsSync(target), `broken instruction link: ${target}`);
+});
+
+test('workspace Playwright MCP uses a pinned, isolated browser outside app dependencies', () => {
+  const config = JSON.parse(read('.mcp.json'));
+  assert.deepEqual(Object.keys(config), ['mcpServers']);
+  assert.deepEqual(Object.keys(config.mcpServers), ['playwright']);
+
+  const server = config.mcpServers.playwright;
+  assert.deepEqual(Object.keys(server).sort(), ['args', 'command', 'type']);
+  assert.equal(server.type, 'stdio');
+  assert.equal(server.command, 'node');
+  assert.deepEqual(server.args, ['tools/playwright-mcp.mjs']);
+
+  const unix = playwrightMcpCommand('/usr/bin/google-chrome', 'linux', '/tmp/ideaforge-mcp');
+  assert.equal(unix.command, 'npx');
+  assert.deepEqual(unix.args.slice(0, 1), ['--yes']);
+  assert.match(unix.args[1], /^@playwright\/mcp@\d+\.\d+\.\d+$/);
+  assert.deepEqual(unix.args.slice(2), ['--headless', '--isolated']);
+  assert.deepEqual(unix.env, {
+    PLAYWRIGHT_MCP_EXECUTABLE_PATH: '/usr/bin/google-chrome',
+    PLAYWRIGHT_MCP_OUTPUT_DIR: '/tmp/ideaforge-mcp',
+  });
+  const win = playwrightMcpCommand(
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'win32', 'C:\\Temp\\ideaforge-mcp',
+  );
+  assert.equal(win.command, process.env.ComSpec || 'cmd.exe');
+  assert.deepEqual(win.args.slice(0, 3), ['/d', '/s', '/c']);
+  assert.match(win.args[3], /^npx --yes @playwright\/mcp@\d+\.\d+\.\d+ --headless --isolated$/);
+  assert.deepEqual(win.env, {
+    PLAYWRIGHT_MCP_EXECUTABLE_PATH: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    PLAYWRIGHT_MCP_OUTPUT_DIR: 'C:\\Temp\\ideaforge-mcp',
+  });
+  assert.deepEqual(PACKAGE.dependencies || {}, {});
+  assert.deepEqual(PACKAGE.devDependencies || {}, {});
 });
 
 test('shared skills use valid metadata, unique names, and existing resources', () => {
