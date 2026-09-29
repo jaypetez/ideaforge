@@ -1289,7 +1289,7 @@ export default async function run(check) {
     }
   });
 
-  for (const via of ['button', 'ctrl', 'meta']) {
+  for (const via of ['button', 'ctrl', 'meta', 'skip']) {
     await withApp(check, `sending live browser dictation through ${via}`, async (app) => {
       const session = await startTypedDraft(app, check);
       if (!session) return;
@@ -1302,6 +1302,31 @@ export default async function run(check) {
       capture._step({ final: answer, confidence: 0.9 });
       if (!(await expect(app, check, 'the current spoken words are visible before Send',
         () => app.$('answer').value === answer))) return;
+      if (via === 'skip') {
+        app.$('b-skip').click();
+        const skipped = await expect(app, check, 'Skip advances the live dictated question once',
+          () => app.model.calls.length === 1 && app.model.calls[0]);
+        if (!skipped) return;
+        skipped.release();
+        if (!(await expect(app, check, 'the skipped question releases input before typing the next answer',
+          () => app.$('question').textContent === NEXT_QUESTION && !app.$('answer').disabled
+            && !visible(app.$('listening')) && app.mic.allStopped()))) return;
+        app.$('answer').value = 'paper cards';
+        app.$('answer').dispatchEvent(new app.win.Event('input'));
+        app.$('b-send').click();
+        const next = await expect(app, check, 'the typed answer after Skip is submitted once',
+          () => app.model.calls.length === 2 && app.model.calls[1]);
+        if (!next) return;
+        const saved = await within(loadSession(session.id), 'reading provenance after a skipped dictation');
+        check('Skip resets voice provenance so the next typed answer is classified as terse',
+          saved.turns[0].skipped && !saved.turns[0].answer
+            && saved.turns[1].answer === 'paper cards' && saved.turns[1].answerSource === 'typed'
+            && saved.turns[1].classification === 'terse'
+            && app.requests.length === 0,
+          JSON.stringify(saved.turns[1]));
+        next.release();
+        return;
+      }
       if (via === 'button') app.$('b-send').click();
       else app.$('answer').dispatchEvent(new app.win.KeyboardEvent('keydown', {
         key: 'Enter', ctrlKey: via === 'ctrl', metaKey: via === 'meta',

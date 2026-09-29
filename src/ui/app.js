@@ -901,6 +901,7 @@ async function doSkip() {
   const credentialEpoch = state.credentialEpoch;
   const fromVoice = state.voiceMode !== 'manual';
   els.answer.value = '';
+  state.answerSource = 'typed';
   say('');
   await persist(session);
   await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice);
