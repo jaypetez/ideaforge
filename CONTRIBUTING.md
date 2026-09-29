@@ -219,6 +219,12 @@ were Windows-only path handling.
 
 Say how you verified it. If it touches voice, storage or a provider, name the browser.
 
+`main` only changes through a PR with a green `ci` check, and a PR needs one approving
+review from a maintainer before it merges. Two rulesets enforce that, mirrored in
+`.github/ruleset.json` (PR, `ci`, no force-push or deletion — applies to everyone) and
+`.github/ruleset-review.json` (the approval — maintainers may merge their own PRs without
+it, but never without `ci`).
+
 Label the PR before it merges. Release notes are generated from labels — `providers`,
 `voice`, `bug`, `enhancement`, `documentation` — and an unlabelled PR lands under
 "Everything else" for good. `.github/release.yml` has the full list.
