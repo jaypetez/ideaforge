@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  attachReporter, createReporter, monitorProbe, parseOptions, REPORT_BINDING, selectProbes,
+  attachReporter, completeReporter, createReporter, monitorProbe, parseOptions, REPORT_BINDING, selectProbes,
 } from '../../tools/browser-check.mjs';
 
 const PROBE = 'voice-stage.browser.mjs';
@@ -148,6 +148,57 @@ test('an emitter failure latches and cannot be retried into apparent completion'
   assert.equal(attempts, 1, 'there is no automatic retry or success-shaped fallback');
 });
 
+test('completion crosses a task boundary and retains errors reported during the drain', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const emitted = [];
+  const reporter = createReporter(PROBE, (message) => emitted.push(JSON.parse(message)));
+  reporter.record(result('control assertion'));
+  const completing = completeReporter(reporter);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(emitted.map((message) => message.done), [false],
+    'promise microtasks alone cannot finish the probe');
+  t.mock.timers.tick(0);
+  await Promise.resolve();
+  assert.deepEqual(emitted.map((message) => message.done), [false],
+    'the first timer task can precede the browser rejection notification');
+  reporter.record({ probe: 'page', name: 'unhandled rejection', ok: false, detail: 'must fail the run' });
+  t.mock.timers.tick(0);
+  await completing;
+  assert.deepEqual(emitted.map((message) => message.done), [false, false, true]);
+  assert.equal(emitted.at(-1).results[1].detail, 'must fail the run');
+  assert.equal(emitted.at(-1).results[1].ok, false);
+});
+
+test('an emitter failure during the completion drain remains fatal without retry', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const failure = new Error('report channel broke during error drain');
+  let attempts = 0;
+  const reporter = createReporter(PROBE, () => {
+    attempts++;
+    if (attempts > 1) throw failure;
+  });
+  reporter.record(result('control assertion'));
+  const completing = completeReporter(reporter);
+  assert.throws(() => reporter.record(result('queued failure', false)), (error) => error === failure);
+  t.mock.timers.tick(0);
+  await Promise.resolve();
+  t.mock.timers.tick(0);
+  await assert.rejects(completing, (error) => error === failure);
+  assert.equal(attempts, 2, 'completion must not retry a failed emitter');
+});
+
+test('a missing emitter still cannot report successful completion after the drain', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const reporter = createReporter(PROBE, undefined);
+  assert.throws(() => reporter.record(result('control assertion')), TypeError);
+  const completing = completeReporter(reporter);
+  t.mock.timers.tick(0);
+  await Promise.resolve();
+  t.mock.timers.tick(0);
+  await assert.rejects(completing, TypeError);
+});
+
 function reportChannel() {
   const handlers = new Map();
   return {
@@ -187,6 +238,24 @@ test('a broken CDP reporting connection fails closed with partial results', asyn
   const dispose = await attachReporter(channel, monitor);
   channel.emit(payload([result('last completed claim')]));
   channel.ws.dispatchEvent(new Event('close'));
+  const outcome = await monitor.promise;
+  assert.match(outcome.error.message, /report channel closed/);
+  assert.deepEqual(outcome.results, [result('last completed claim')]);
+  dispose();
+});
+
+test('a CDP disconnect during the task drain cannot turn partial results into success', async (t) => {
+  const monitor = monitored(t);
+  const channel = reportChannel();
+  const dispose = await attachReporter(channel, monitor);
+  const reporter = createReporter(PROBE, (message) => channel.emit(message));
+  reporter.record(result('last completed claim'));
+  const completing = completeReporter(reporter);
+  channel.ws.dispatchEvent(new Event('close'));
+  t.mock.timers.tick(0);
+  await Promise.resolve();
+  t.mock.timers.tick(0);
+  await completing;
   const outcome = await monitor.promise;
   assert.match(outcome.error.message, /report channel closed/);
   assert.deepEqual(outcome.results, [result('last completed claim')]);

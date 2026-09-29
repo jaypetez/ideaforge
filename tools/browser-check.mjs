@@ -99,6 +99,13 @@ export function createReporter(probe, emit) {
   };
 }
 
+/** One task can run ahead of queued rejection notifications; drain the following task too. */
+export async function completeReporter(reporter) {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  reporter.complete();
+}
+
 /** Receive ordered reports independently of page networking; a broken channel is fatal. */
 export async function attachReporter(cdp, monitor) {
   const closed = () => monitor.fail(new Error('browser report channel closed before completion'));
@@ -158,7 +165,7 @@ export function runnerHtml(probe) {
     '} catch (err) {',
     '  check("probe threw", false, (err && err.stack) || String(err));',
     '}',
-    'reporter.complete();',
+    `await (${completeReporter.toString()})(reporter);`,
     '</script>',
   ].join('\n');
 }
