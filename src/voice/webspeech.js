@@ -39,8 +39,7 @@ const PROBE_MS = 1500;
  */
 const PROMPT_MS = 20000;
 /**
- * How long a dictation session may go without proof of life before we give up on it: no
- * result before the first word, no event of any kind after it.
+ * How long a dictation session may go with no event of any kind before we give up on it.
  *
  * Generous, because it is a last resort and not a turn timer: a speaker thinking in silence
  * produces no events either, and cutting them off would be a worse bug than the one this
@@ -440,6 +439,9 @@ export function assembleTranscript(results = []) {
  * is the same installed-iOS failure the file header describes, arriving a few seconds later
  * than the probe can see it.
  *
+ * `firstWordMs` bounds the wait for the first word, which `deafMs` cannot on Android: a deaf
+ * engine there restarts every few seconds, and a restart is an event. Hands-free only.
+ *
  * `isComplete` is how driving mode ends an answer on a word rather than on a pause. It is a
  * CALLBACK rather than a trigger string so the rule itself stays in src/core/driving.js,
  * where it is pure and unit-tested; this file only decides WHEN to consult it. The text it
@@ -447,12 +449,12 @@ export function assembleTranscript(results = []) {
  * above, which keeps one definition of the rule and gives the recorder path the same one.
  *
  * @param {{lang?: string, onInterim?: Function, autoStop?: boolean, deafMs?: number,
- *          isComplete?: (text: string) => boolean, settleMs?: number,
+ *          firstWordMs?: number, isComplete?: (text: string) => boolean, settleMs?: number,
  *          onStart?: Function, onAudioError?: Function}} opts
  * @returns {{promise: Promise<string>, stop: Function, abort: Function}}
  */
 export function listenViaWebSpeech({
-  lang = 'en-US', onInterim, autoStop = false, deafMs = DEAF_MS,
+  lang = 'en-US', onInterim, autoStop = false, deafMs = DEAF_MS, firstWordMs = 0,
   isComplete = null, settleMs = 600, onStart, onAudioError,
 } = {}) {
   const SR = Impl();
@@ -475,21 +477,20 @@ export function listenViaWebSpeech({
     if (settled) return;
     settled = true;
     clearTimeout(deaf);
+    clearTimeout(firstWord);
     clearTimeout(settling);
     clearTimeout(finishing);
     fn();
   }
 
   /**
-   * Proof of life restarts the deadline. Until the first word, only a result counts as proof.
-   * Starts, restarts and `no-speech` errors once counted too, and that is exactly the
-   * lifecycle of an Android recogniser that hears nothing: it ends every few seconds, is
-   * restarted, and each restart pushed the deadline back — so a deaf capture listened for
-   * ever, and "over" was never heard because no word ever was.
+   * Any event at all is proof of life; the deadline restarts from it.
    *
-   * Once a word has arrived the engine has shown it can hear, and any event counts again.
-   * A driver who stops mid-answer to change lane produces nothing but those restarts; ending
-   * on them would submit half an answer without its trigger word.
+   * That includes the start, `no-speech` and restart of a session, which is also the whole
+   * lifecycle of an Android recogniser that hears nothing — so on Android this deadline
+   * never fires before the first word. That is deliberate here: a healthy Android engine
+   * does exactly the same while someone thinks, and press-to-talk promises them as long as
+   * they like. The bound for a capture that must not wait for ever is `firstWordMs`.
    *
    * Giving up RESOLVES with whatever was heard rather than rejecting, because a dead engine
    * is a small loss and not an error — the same judgement speak.js makes about an utterance
@@ -504,9 +505,24 @@ export function listenViaWebSpeech({
     }, deafMs);
   }
 
-  let wordsHeard = false;
-  /** A lifecycle event: proof of life only for an engine that has already heard a word. */
-  const lifecycle = () => { if (wordsHeard) alive(); };
+  /**
+   * The first-word deadline, armed once at capture start and cleared by the first result
+   * with any words in it. Nothing else touches it: not a start, not a restart, not a
+   * `no-speech` — because an Android engine that cannot hear is never silent, it ends and is
+   * restarted every few seconds, and every one of those events is proof of life to `alive`.
+   * Without this, a deaf hands-free capture listened for ever and "over" did nothing,
+   * because no word ever arrived for it to end.
+   *
+   * Off unless asked for, and only hands-free asks: press-to-talk promises unlimited
+   * thinking time (see `noSpeechMs` in vad.js) and a healthy Android engine thinking along
+   * with them looks exactly like a deaf one. A driver's silence is already bounded by the
+   * gate's `noSpeechMs`, so this is that same promise kept on the native path.
+   */
+  let firstWord = null;
+  function heardAWord() {
+    clearTimeout(firstWord);
+    firstWord = null;
+  }
 
   // Finals from EARLIER sessions of this same capture, kept apart from the current
   // session's. Android ends a session every few seconds whatever `continuous` says, so one
@@ -557,7 +573,7 @@ export function listenViaWebSpeech({
     }
     alive();
     const so = now();
-    if (so.text.trim()) wordsHeard = true;
+    if (so.text.trim()) heardAWord();
     if (onInterim) onInterim(so.text);
     if (isComplete && wantMore) judge(so.text, so.settled);
   };
@@ -606,7 +622,7 @@ export function listenViaWebSpeech({
 
   rec.onerror = (ev) => {
     if (settled) return;
-    lifecycle();
+    alive();
     const kind = ev && ev.error;
     if (kind === 'audio-capture') onAudioError?.();
     if (kind === 'no-speech' || kind === 'aborted') return;   // onend will settle it
@@ -623,7 +639,7 @@ export function listenViaWebSpeech({
   };
 
   rec.onstart = rec.onaudiostart = () => {
-    lifecycle();
+    alive();
     if (!settled && wantMore) onStart?.();
   };
 
@@ -638,13 +654,19 @@ export function listenViaWebSpeech({
       session = [];
       sessionNo += 1;
       sessionSentInterim = false;
-      try { rec.start(); lifecycle(); return; } catch { /* fall through and settle */ }
+      try { rec.start(); alive(); return; } catch { /* fall through and settle */ }
     }
     settle(() => resolve(answer()));
   };
 
   try { rec.start(); } catch (e) { settle(() => reject(new Error(`Could not start dictation: ${e.message}`))); }
   alive();
+  if (firstWordMs > 0 && !settled) {
+    firstWord = setTimeout(() => {
+      try { rec.onend = null; rec.abort(); } catch { /* nothing to abort */ }
+      settle(() => resolve(answer()));
+    }, firstWordMs);
+  }
 
   return {
     promise,

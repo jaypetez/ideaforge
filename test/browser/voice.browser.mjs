@@ -13,6 +13,7 @@ import { createRecorder, micSupported } from '../../src/voice/recorder.js';
 import { createVoice, forgetStarvedMeter } from '../../src/voice/index.js';
 import { ttsSupported } from '../../src/voice/speak.js';
 import { endsWithTrigger } from '../../src/core/driving.js';
+import { STARVED_SPEECH_MS } from '../../src/voice/vad.js';
 
 /** Stand in for a recogniser that reports itself present and then does nothing. */
 class SilentRecognition {
@@ -686,6 +687,51 @@ async function nativeLevelChecks(check) {
               await within(pressed, 'press-to-talk stop', 2000) === 'heard after the retry'
                 && gaveUpBars(watched) && seen.requests === 2 && tracksEnded(seen),
               `${seen.requests} acquisitions; ${watched.unavailable.join('; ')}`);
+            await voice.dispose();
+
+            // The race the live verdict loses. A hands-free capture's first-word deadline is
+            // the gate's noSpeechMs, and a driver who starts a beat late, in phrases, reaches
+            // it with well under STARVED_SPEECH_MS of speech on the meter. The capture ended
+            // as a miss, the verdict was never applied, and the meter starved the repeat and
+            // every capture after it — the driver was asked again and again, for ever.
+            forgetStarvedMeter();
+            level.gain.value = 0;
+            voice = await createVoice();
+            const late = { samples: [], unavailable: [] };
+            const lateRequests = seen.requests;
+            fake.script([
+              drafts(['lost while', 'lost while starved']),
+              drafts(['heard next time', 'heard next time over'], 10),
+            ]);
+            const raced = voice.listen({
+              autoStop: false, settleMs: 100, isComplete: (text) => endsWithTrigger(text),
+              gate: { noSpeechMs: 2400 },
+              onLevel: (rms, state) => { late.samples.push(rms); late.speechMs = state.speechMs; },
+              onLevelUnavailable: (reason) => late.unavailable.push(reason),
+            });
+            await until(() => late.samples.length >= 8, 'calibrating on silence');
+            await wait(150);                      // a beat late
+            for (let n = 0; n < 4; n++) {         // in phrases, with gaps between them
+              level.gain.value = 0.4;
+              await wait(350);
+              level.gain.value = 0;
+              await wait(80);
+            }
+            const racedText = await within(raced, 'a starved capture reaching its first-word deadline', 4000);
+            check('a starved capture that reaches its first-word deadline first still gives the meter up',
+              racedText === '' && gaveUpBars(late) && tracksEnded(seen)
+                && late.speechMs < STARVED_SPEECH_MS,
+              `${JSON.stringify(racedText)}, ${Math.round(late.speechMs)}ms of speech; `
+                + late.unavailable.join('; '));
+            await voice.dispose();
+
+            voice = await createVoice();
+            const repeated = { samples: [], unavailable: [] };
+            const heardNext = await within(handsFree(voice, repeated), 'the repeat after the race', 3000);
+            check('...so the repeat never reopens the meter and is heard in full',
+              heardNext === 'heard next time over' && seen.requests === lateRequests + 1
+                && gaveUpBars(repeated),
+              `${JSON.stringify(heardNext)}, ${seen.requests - lateRequests} acquisitions`);
           } finally {
             fake.starveWhile(null);
             forgetStarvedMeter();

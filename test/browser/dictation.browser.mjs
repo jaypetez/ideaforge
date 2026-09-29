@@ -820,26 +820,43 @@ export default async function run(check) {
       !deafHung && typeof deafText === 'string', JSON.stringify(deafText));
 
     // Android's deaf engine is not silent: it starts, reports no-speech and ends every few
-    // seconds, and the capture restarts it. Counting those events as proof of life pushed
-    // the deadline back on every restart, so a recogniser that never heard a word — the
-    // hands-free "over" that did nothing — listened for ever instead of reaching the miss
-    // ladder. Only a result proves the engine can hear.
-    const cycling = Array.from({ length: 60 }, () => [{ at: 40, error: 'no-speech' }, { at: 50, end: true }]);
-    fake.script(cycling);
+    // seconds, and the capture restarts it. Every one of those is an event, so the deaf
+    // deadline never fires — and a hands-free recogniser that never heard a word, the "over"
+    // that did nothing, listened for ever instead of reaching the miss ladder. Only a word
+    // clears the first-word deadline, and nothing else pushes it back.
+    const cycling = () => Array.from({ length: 80 }, () => [{ at: 40, error: 'no-speech' }, { at: 50, end: true }]);
+    fake.script(cycling());
     const cycleStart = performance.now();
     const cycleStarts = fake.recognition.startCount;
     const cycled = await outcome(within(
-      listenViaWebSpeech({ autoStop: false, deafMs: 400, isComplete: (t) => endsWithTrigger(t) }).promise,
+      listenViaWebSpeech({ autoStop: false, firstWordMs: 400, isComplete: (t) => endsWithTrigger(t) }).promise,
       2000, 'a recogniser that restarts without ever hearing a word'));
     const restarts = fake.recognition.startCount - cycleStarts;
-    check('an engine that keeps restarting with no result still reaches the deaf deadline',
+    check('an engine that keeps restarting with no result still reaches the first-word deadline',
       cycled.value === '' && restarts > 2,
       cycled.error ? cycled.error.message : `${Math.round(performance.now() - cycleStart)}ms, ${restarts} sessions`);
     fake.script([]);
 
-    // ...but once a word has arrived the engine has proved it can hear, and those restarts
-    // are a driver pausing mid-answer to change lane. Ending on them submitted half an
-    // answer without its trigger word, so they count as proof of life again.
+    // A healthy Android engine does exactly the same while someone thinks, and press-to-talk
+    // promises them as long as they like. Once, before the first word, those restarts stopped
+    // counting as proof of life, and press-to-talk closed on a person still thinking.
+    fake.script(cycling());
+    let thinkingSettled = false;
+    const thinking = listenViaWebSpeech({ autoStop: false, deafMs: 400 });
+    const thought = outcome(thinking.promise.then((t) => { thinkingSettled = true; return t; }));
+    await wait(1500);
+    const openWhileThinking = !thinkingSettled;
+    thinking.stop();
+    const thoughtOut = await within(thought, 2000, 'press-to-talk stopped after thinking');
+    check('press-to-talk over a restarting engine stays open past the deaf deadline while they think',
+      openWhileThinking && thoughtOut.value === '',
+      openWhileThinking ? (thoughtOut.error ? thoughtOut.error.message : JSON.stringify(thoughtOut.value))
+        : 'closed before stop()');
+    fake.script([]);
+
+    // ...and once a word has arrived the first-word deadline is gone, so the same restarts
+    // are a driver pausing mid-answer to change lane. Ending on them submitted half an answer
+    // without its trigger word.
     const lanePause = Array.from({ length: 20 }, () => [{ at: 40, error: 'no-speech' }, { at: 50, end: true }]);
     fake.script([
       [draft(10, 'it should work offline because'), { at: 50, end: true }],
@@ -847,7 +864,10 @@ export default async function run(check) {
       [draft(10, 'the venue has no signal over')],
     ]);
     const paused = await outcome(within(
-      listenViaWebSpeech({ autoStop: false, deafMs: 400, settleMs: 50, isComplete: (t) => endsWithTrigger(t) }).promise,
+      listenViaWebSpeech({
+        autoStop: false, deafMs: 400, firstWordMs: 400, settleMs: 50,
+        isComplete: (t) => endsWithTrigger(t),
+      }).promise,
       4000, 'an answer resumed after a long pause'));
     check('a pause longer than the deaf deadline mid-answer does not cut the answer short',
       paused.value === 'it should work offline because the venue has no signal over',

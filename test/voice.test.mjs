@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createSilenceGate, rmsOf, DEFAULTS, DRIVING_GATE, CONFIRM_GATE,
-  meterStarvesRecognition, STARVED_SPEECH_MS,
+  meterStarvesRecognition, STARVED_SPEECH_MS, STARVED_AT_END_MS,
 } from '../src/voice/vad.js';
 import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from '../src/voice/transcribe.js';
 import { assembleTranscript } from '../src/voice/webspeech.js';
@@ -602,4 +602,23 @@ test('the starvation verdict waits past the speech a gate needs before it judges
   for (const gate of [DEFAULTS, DRIVING_GATE, CONFIRM_GATE]) {
     assert.ok(STARVED_SPEECH_MS > (gate.minSpeechMs ?? DEFAULTS.minSpeechMs));
   }
+});
+
+// The race the live verdict lost: a hands-free capture's first-word deadline ended it before
+// 2.5s of speech had been counted, so the meter was never given up and every capture after
+// it starved too. Once the capture is over, a second of speech with no word is enough.
+test('a capture that ended without a word needs less speech to condemn the meter', () => {
+  assert.equal(meterStarvesRecognition({ speechMs: STARVED_AT_END_MS, heardWords: false, ended: true }), true);
+  assert.equal(meterStarvesRecognition({ speechMs: STARVED_AT_END_MS, heardWords: false }), false,
+    'mid-capture the higher bar still applies: the sentence may still be starting');
+  assert.equal(meterStarvesRecognition({ speechMs: STARVED_AT_END_MS - 1, heardWords: false, ended: true }), false,
+    'a cough or a "so…" is not evidence, even at the end');
+  assert.equal(meterStarvesRecognition({ speechMs: 60000, heardWords: true, ended: true }), false,
+    'a word from the recogniser clears the meter at the end too');
+  assert.equal(meterStarvesRecognition({ ended: true }), false);
+});
+
+test('the end-of-capture bar sits between a gate minimum speech and the live bar', () => {
+  assert.ok(STARVED_AT_END_MS < STARVED_SPEECH_MS, 'waiting longer than the live bar would be pointless');
+  assert.ok(STARVED_AT_END_MS > DRIVING_GATE.minSpeechMs, 'less than an answer needs is not evidence');
 });

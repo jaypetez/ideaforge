@@ -238,11 +238,19 @@
         Android may not let the level bars and the recogniser use the microphone at the
         same time. When the bars show speech for a few seconds but the recogniser has
         written no words, IdeaForge switches the bars off until the page is reloaded.
-        The words spoken during those seconds were never heard, so in hands-free mode it
-        says it didn&rsquo;t catch that. Give the whole answer again. After that, words
-        should appear as you speak and your trigger word ends the answer. If the
-        recogniser hears nothing for several seconds before your first word, the capture
-        ends and hands-free asks again. It no longer keeps listening for ever.
+        The words spoken during those seconds were never heard, so hands-free treats the
+        capture as a miss and follows its <a href="#recovery">recovery steps</a>. Give
+        the whole answer again. After that, words should appear as you speak and your
+        trigger word ends the answer. See
+        <a href="./troubleshooting.html#voice-no-words">the bars move but no words
+        appear</a>. This has been checked only against a scripted recogniser, not on a
+        physical Android phone.
+      </p>
+      <p>
+        In hands-free mode, if no word at all arrives within about eight seconds of
+        listening, the capture ends as a miss even when Android keeps restarting the
+        recogniser. Once you have started speaking, a pause does not end the answer; your
+        trigger word does. Press-to-talk has no such limit before the first word.
       </p>
 
       <h2 id="iphone">Install on iPhone or iPad</h2>

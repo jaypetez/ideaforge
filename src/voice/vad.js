@@ -149,18 +149,35 @@ export function createSilenceGate(opts = {}) {
 export const STARVED_SPEECH_MS = 2500;
 
 /**
+ * The same verdict once the capture has already ended without a word.
+ *
+ * Lower, because there is nothing left to protect by waiting: the capture has lost whatever
+ * was said, and the only question is whether the NEXT one should open the meter. The live
+ * bar alone lost a race — a hands-free capture's first-word deadline usually ended it before
+ * 2.5s of speech had been counted, so the verdict never landed and every capture starved.
+ * Still above a gate's minimum speech, so a cough or a "so…" is not evidence.
+ */
+export const STARVED_AT_END_MS = 1000;
+
+/**
  * Is the level meter starving native recognition of the microphone?
  *
  * On Android Chrome a page-held `getUserMedia` track and the platform recogniser cannot both
  * hear: the meter's bars move with the voice while the recogniser receives silence, raises no
  * error, and restarts every few seconds with no result. Nothing reports it, so it is judged
  * the only way this app judges an engine — by behaviour. The meter heard someone talk for
- * seconds and the recogniser heard nothing. A false positive costs the bars, never the words.
+ * seconds and the recogniser heard nothing.
  *
- * @param {{speechMs?: number, heardWords?: boolean}} evidence
+ * A false positive is not free. It costs the level bars for the rest of the page, and in
+ * hands-free one spoken miss — the capture is thrown away and the driver asked to repeat,
+ * along with any words the recogniser had heard but not yet reported. Press-to-talk retries
+ * the capture once, silently, without the meter.
+ *
+ * @param {{speechMs?: number, heardWords?: boolean, ended?: boolean}} evidence
+ *   ended — the capture is already over, so STARVED_AT_END_MS applies
  */
-export function meterStarvesRecognition({ speechMs = 0, heardWords = false } = {}) {
-  return !heardWords && speechMs >= STARVED_SPEECH_MS;
+export function meterStarvesRecognition({ speechMs = 0, heardWords = false, ended = false } = {}) {
+  return !heardWords && speechMs >= (ended ? STARVED_AT_END_MS : STARVED_SPEECH_MS);
 }
 
 /** RMS of a time-domain buffer, 0..1. Uint8 samples are centred on 128. */

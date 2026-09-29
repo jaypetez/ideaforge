@@ -303,20 +303,29 @@ enough that the eighth failure case never gets written.
 - **The deaf watchdog in `webspeech.js` resolves, never rejects.** An engine that emits one
   interim and then goes silent used to leave the promise unsettled for ever. It is the same
   installed-iOS failure `probeWebSpeech` guards the *start* against, arriving later than the
-  probe can see. **Until the first word, only a result resets it.** Android's deaf engine
-  starts, reports `no-speech` and ends every few seconds; counting those as proof of life let
-  every restart push the deadline back, and hands-free listened for ever. After a word they
-  count again, because then they are a driver pausing mid-answer, and ending there would
-  submit half an answer without its trigger.
+  probe can see. Any recogniser event is proof of life for it. It cannot also bound the
+  wait for a *first* word: Android's deaf engine starts, reports `no-speech` and ends every
+  few seconds, so it is never silent and every restart is a legitimate event. That bound is
+  `firstWordMs` in `listenViaWebSpeech`, hands-free only, taken from the gate's
+  `noSpeechMs` and **not reset by restarts**; when it expires with no word the capture ends
+  as a miss. Press-to-talk passes none, because it promises unlimited thinking time before
+  the first word. After a word, a pause never ends a hands-free answer — only the trigger
+  (or the watchdog on a truly silent engine) does, since ending there would submit half an
+  answer without its trigger.
 - **On Android the level meter can starve recognition, silently.** A page-held
   `getUserMedia` track moves the bars while the recogniser hears nothing and raises no
-  `audio-capture`. `meterStarvesRecognition` (`src/voice/vad.js`) judges it by behaviour —
-  seconds of metered speech, no word — and `runCapture` releases the meter for the rest of
-  the page's life. **What was said while starved is gone**, so hands-free resolves `''` (a
-  spoken miss, then the whole answer again) instead of retrying into the second half of a
-  sentence; only press-to-talk retries. The fake's `starveWhile` in
-  `test/browser/fixtures/fake-voice.js` drops starved words for the same reason and is the
-  only reproduction; no physical Android run has confirmed the mechanism.
+  `audio-capture`. `meterStarvesRecognition` (`src/voice/vad.js`) judges it by behaviour,
+  at two points: mid-capture after `STARVED_SPEECH_MS` of metered speech with no word, and
+  at the end of a wordless capture after `STARVED_AT_END_MS`. The second exists because
+  `firstWordMs` can end the capture before the first threshold is reached, and that race
+  must not leave the meter on. Either verdict releases the meter for the rest of the page's
+  life (not persisted; a new controller on Resume or press-to-talk reuses it). **What was
+  said while starved is gone**, so hands-free resolves `''` — a miss through the drive
+  loop's recovery ladder, then the whole answer again — instead of retrying into the second
+  half of a sentence; only press-to-talk retries, once, without the meter. A hands-free
+  false positive costs the bars for the page and one spoken miss. The fake's `starveWhile`
+  in `test/browser/fixtures/fake-voice.js` drops starved words for the same reason and is
+  the only reproduction; no physical Android run has confirmed the mechanism.
 - **`DRIVING_GATE` numbers are first guesses against an imagined car.** The tests assert the
   *direction* of each change from `DEFAULTS`, never the value. Only a real drive settles them.
 

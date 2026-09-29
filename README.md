@@ -270,10 +270,12 @@ show the same browser flow.
 The browser recogniser is the no-extra-key dictation path when its live probe succeeds.
 IdeaForge handles recogniser restarts and Android-style growing final results, so repeated
 guesses can be folded into one answer rather than counted as separate sentences. If the
-level bars move but no words appear, the bars are keeping the microphone from the
-recogniser. After a few seconds IdeaForge turns them off, and hands-free says it didn't
-catch that, so give the answer again. That logic has scripted coverage; the redesign has
-not been physically tested on an Android phone.
+level bars move but no words appear, this usually means the bars are keeping the
+microphone from the recogniser. After a few seconds IdeaForge turns them off and
+hands-free treats that capture as a miss
+([recovery steps](https://jaypetez.github.io/ideaforge/guide/mobile-and-voice.html#recovery)),
+so give the whole answer again. That logic has scripted coverage only; the redesign has not
+been physically tested on an Android phone.
 
 ### iPhone
 
