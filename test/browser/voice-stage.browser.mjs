@@ -1289,8 +1289,8 @@ export default async function run(check) {
     }
   });
 
-  for (const navigate of [false, true]) {
-    await withApp(check, `manual recorder loss ${navigate ? 'after navigation ignores late text' : 'retains its transcribed draft'}`,
+  for (const move of ['stay', 'navigate', 'advance']) {
+    await withApp(check, `manual recorder loss: ${move}`,
       async (app) => {
         const transcript = 'saved before the microphone ended';
         const apiKey = 'gsk-synthetic-manual-input-loss-key-never-sent';
@@ -1371,7 +1371,7 @@ export default async function run(check) {
 
           let current = null;
           const newDraft = 'An unrelated notebook idea must not receive the earlier microphone result.';
-          if (navigate) {
+          if (move === 'navigate') {
             app.$('b-library').click();
             if (!(await expect(app, check, 'navigation can leave the interrupted capture while transcription is held',
               () => visible(app.$('panel-library'))))) return;
@@ -1383,17 +1383,45 @@ export default async function run(check) {
             current = await startTypedDraft(app, check, newDraft);
             if (!current) return;
             check('the new idea has a different session identity', current.id !== session.id);
+          } else if (move === 'advance') {
+            const replacement = 'A pocket notebook helps me remember the people I meet at conferences.';
+            app.$('answer').value = replacement;
+            app.$('answer').dispatchEvent(new app.win.Event('input'));
+            app.$('b-send').click();
+            const call = await expect(app, check, 'a typed replacement advances while the old transcription is held',
+              () => app.model.calls.length === 1 && app.model.calls[0]);
+            if (!call) return;
+            call.release();
+            current = await expect(app, check, 'the same interview reaches its next unanswered question', async () => {
+              const saved = await within(loadSession(session.id), 'reading the advanced interview');
+              return saved?.turns.length === 2 && saved.turns[0].answer === replacement
+                && !saved.turns[1].answer && !app.$('answer').disabled
+                && app.$('question').textContent === NEXT_QUESTION && saved;
+            });
+            if (!current) return;
+            app.$('answer').value = newDraft;
+            app.$('answer').dispatchEvent(new app.win.Event('input'));
+            if (!(await expect(app, check, 'the next question owns a durable draft before the old reply',
+              async () => (await within(loadSession(session.id), 'reading the next-question draft'))
+                ?.draftAnswer === newDraft))) return;
           }
           releaseTranscript();
           if (!(await expect(app, check, 'the deferred transcription response is actually consumed',
             () => seen.responseRead))) return;
           await within(captureOperation, 'settling the manual input-loss handler');
-          if (navigate) {
+          if (move === 'navigate') {
             const saved = await within(loadSession(current.id), 'reading the idea after a stale transcription');
             check('late input-loss text and error cannot overwrite the new active idea',
               visible(app.$('manual-interview')) && app.$('answer').value === newDraft
                 && saved.draftAnswer === newDraft && !saved.turns[0].answer
                 && app.$('err').textContent === '' && app.model.calls.length === 0, detail(app));
+          } else if (move === 'advance') {
+            const saved = await within(loadSession(session.id), 'reading the next question after the old reply');
+            check('late input-loss text and error cannot overwrite a later question in the same interview',
+              visible(app.$('manual-interview')) && app.$('answer').value === newDraft
+                && saved?.draftAnswer === newDraft && saved.turns.length === 2
+                && saved.turns[0].answer === current.turns[0].answer && !saved.turns[1].answer
+                && app.$('err').textContent === '' && app.model.calls.length === 1, detail(app));
           } else {
             const saved = await within(loadSession(session.id), 'reading the retained manual input-loss draft');
             check('manual input loss keeps the transcription in both the textarea and persistent unsent draft',
@@ -1406,7 +1434,8 @@ export default async function run(check) {
           }
           check('input-loss handling releases all microphone tracks and stops recording',
             app.mic.allStopped() && recorders.every((recorder) => recorder.state === 'inactive')
-              && !visible(app.$('listening')) && app.model.calls.length === 0, detail(app));
+              && !visible(app.$('listening')) && app.model.calls.length === (move === 'advance' ? 1 : 0),
+            detail(app));
         } finally {
           try {
             releaseTranscript();

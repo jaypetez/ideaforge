@@ -1122,6 +1122,9 @@ async function listenOnce({ prompt, autoStop }) {
   const epoch = state.voiceEpoch;
   const navigation = state.navigation;
   const sessionId = state.session.id;
+  const turnId = openTurn(state.session).id;
+  const ownsTurn = () => currentView(sessionId, navigation) && epoch === state.voiceEpoch
+    && openTurn(state.session)?.id === turnId;
   els.handsfree.disabled = true;
   els.listening.hidden = false;
   els['listening-label'].textContent = 'Getting the microphone ready…';
@@ -1131,28 +1134,29 @@ async function listenOnce({ prompt, autoStop }) {
       prompt,
       autoStop,
       onPhase: (phase) => {
-        if (epoch !== state.voiceEpoch || navigation !== state.navigation) return;
+        if (!ownsTurn()) return;
         els['listening-label'].textContent = phase === 'transcribing'
           ? 'Turning speech into text…'
           : voice.mode === 'recorder' ? 'Listening — stop talking when you’re done.' : 'Listening…';
       },
       onInterim: (t) => {
-        if (epoch !== state.voiceEpoch || navigation !== state.navigation) return;
+        if (!ownsTurn()) return;
         els.answer.value = t;
         queueDraftSave();
       },
       onLevel: (rms) => {
+        if (!ownsTurn()) return;
         els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
       },
       onLevelUnavailable: (reason) => {
-        if (epoch !== state.voiceEpoch || navigation !== state.navigation) return;
+        if (!ownsTurn()) return;
         els.pulse.style.removeProperty('--level');
         say(reason);
       },
     });
   } catch (error) {
     if (error.code === 'audio-capture' && error.fatal && typeof error.draft === 'string'
-        && error.draft.trim() && currentView(sessionId, navigation) && epoch === state.voiceEpoch) {
+        && error.draft.trim() && ownsTurn()) {
       els.answer.value = error.draft;
       state.answerSource = 'voice';
       await flushDraft();
@@ -2108,22 +2112,25 @@ function bind() {
     const navigation = state.navigation;
     const id = state.session.id;
     const epoch = state.voiceEpoch;
+    const turnId = openTurn(state.session).id;
+    const ownsTurn = () => currentView(id, navigation) && epoch === state.voiceEpoch
+      && openTurn(state.session)?.id === turnId;
     try {
       if (!state.voice) {
         prepareSpeechOutput();
         await setupVoice({ automatic: false });
       }
-      if (!currentView(id, navigation) || !state.voice || !state.voice.available) return;
+      if (!ownsTurn() || !state.voice || !state.voice.available) return;
       // autoStop false: the button is press-to-talk, so the user decides when they are
       // done. Whatever came back lands in the box for them to edit before sending.
       const heard = await listenOnce({ prompt: currentQuestion(), autoStop: false });
-      if (currentView(id, navigation) && epoch === state.voiceEpoch && heard.trim()) {
+      if (ownsTurn() && heard.trim()) {
         els.answer.value = heard;
         state.answerSource = 'voice';
         queueDraftSave();
       }
     } catch (e) {
-      if (currentView(id, navigation) && epoch === state.voiceEpoch) {
+      if (ownsTurn()) {
         fail(e.code === 'audio-capture' ? e.message : e);
       }
     }
