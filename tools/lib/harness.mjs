@@ -57,13 +57,22 @@ export function findChrome() {
  *
  * @returns {Promise<import('node:http').Server>} already listening; `.address().port` is live.
  */
-export async function serveRepo({ root = ROOT, before } = {}) {
+export async function serveRepo({ root = ROOT, before, onResponse } = {}) {
   const defaultRoot = resolve(root);
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     let path = decodeURIComponent(url.pathname);
     let servedRoot = defaultRoot;
     let swScope = '/';
+    let fileError = null;
+    if (onResponse) {
+      const started = Date.now();
+      res.once('close', () => onResponse({
+        method: req.method, path: url.pathname, status: res.statusCode,
+        requestBytes: Number(req.headers['content-length'] || 0),
+        elapsedMs: Date.now() - started, aborted: !res.writableFinished, fileError,
+      }));
+    }
 
     if (before) {
       const out = await before(req, res, url);
@@ -86,7 +95,8 @@ export async function serveRepo({ root = ROOT, before } = {}) {
         'content-type': MIME[extname(file)] || 'application/octet-stream',
         'service-worker-allowed': swScope,
       }).end(body);
-    } catch {
+    } catch (error) {
+      fileError = { code: error.code, message: error.message };
       res.writeHead(404).end('not found');
     }
   });
@@ -128,13 +138,18 @@ export function launchChrome(chrome, { url, extraArgs = [] }) {
  * The same dependency-free CDP transport used by screenshots and the local validator.
  * This shared variant bounds requests and never fabricates Runtime user activation.
  */
-class CDP {
+export class CDP {
   constructor(ws) {
     this.ws = ws;
     this.seq = 0;
     this.pending = new Map();
+    this.handlers = new Map();
     ws.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
+      if (message.id == null) {
+        for (const handler of this.handlers.get(message.method) || []) handler(message.params);
+        return;
+      }
       const pending = this.pending.get(message.id);
       if (!pending) return;
       this.pending.delete(message.id);
@@ -144,6 +159,16 @@ class CDP {
     });
     ws.addEventListener('close', () => this.rejectPending(new Error('Chrome CDP connection closed')));
     ws.addEventListener('error', () => this.rejectPending(new Error('Chrome CDP connection failed')));
+  }
+
+  on(method, handler) {
+    if (!this.handlers.has(method)) this.handlers.set(method, new Set());
+    const handlers = this.handlers.get(method);
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+      if (!handlers.size) this.handlers.delete(method);
+    };
   }
 
   rejectPending(error) {
@@ -201,8 +226,125 @@ class CDP {
 
   close() {
     this.rejectPending(new Error('Chrome CDP client closed'));
+    this.handlers.clear();
     this.ws.close();
   }
+}
+
+/** Install before navigation so a failed iframe module cannot outrun its probe's onload. */
+export async function observeChrome(cdp, record) {
+  const contexts = new Map();
+  const requests = new Map();
+  const on = (method, handler) => cdp.on(method, handler);
+  on('Runtime.executionContextCreated', ({ context }) => {
+    contexts.set(context.id, context.auxData?.frameId);
+    record('context', { id: context.id, frameId: context.auxData?.frameId, origin: context.origin });
+  });
+  on('Runtime.exceptionThrown', ({ exceptionDetails: error }) => record('exception', {
+    frameId: contexts.get(error.executionContextId), text: error.exception?.description || error.text,
+    url: error.url, line: error.lineNumber, column: error.columnNumber, stack: error.stackTrace,
+  }));
+  on('Runtime.consoleAPICalled', (event) => record('console', {
+    frameId: contexts.get(event.executionContextId), level: event.type,
+    text: event.args.map((arg) => String(arg.value ?? arg.description ?? arg.type).slice(0, 4000)).join(' '),
+    stack: event.stackTrace,
+  }));
+  on('Log.entryAdded', ({ entry }) => record('log', {
+    level: entry.level, source: entry.source, text: entry.text, url: entry.url,
+    line: entry.lineNumber, stack: entry.stackTrace,
+  }));
+  on('Page.frameNavigated', ({ frame }) => record('frame', {
+    frameId: frame.id, parentId: frame.parentId, loaderId: frame.loaderId, url: frame.url,
+  }));
+  on('Page.frameDetached', (event) => record('frame-detached', event));
+  on('Network.requestWillBeSent', (event) => {
+    const request = {
+      id: event.requestId, frameId: event.frameId, loaderId: event.loaderId,
+      type: event.type, method: event.request.method, url: event.request.url,
+    };
+    requests.set(event.requestId, request);
+    record('request', request);
+  });
+  on('Network.responseReceived', (event) => {
+    const request = requests.get(event.requestId);
+    if (request) request.status = event.response.status;
+    record('response', {
+      ...request, id: event.requestId, status: event.response.status,
+      mime: event.response.mimeType, fromDiskCache: event.response.fromDiskCache,
+      fromServiceWorker: event.response.fromServiceWorker,
+      serviceWorkerResponseSource: event.response.serviceWorkerResponseSource,
+    });
+  });
+  on('Network.loadingFailed', (event) => {
+    record('resource-failed', { ...requests.get(event.requestId), id: event.requestId,
+      error: event.errorText, canceled: event.canceled, blockedReason: event.blockedReason });
+    requests.delete(event.requestId);
+  });
+  on('Network.loadingFinished', ({ requestId }) => requests.delete(requestId));
+  on('ServiceWorker.workerVersionUpdated', ({ versions }) => record('workers', { versions }));
+  on('ServiceWorker.workerErrorReported', ({ errorMessage }) => record('worker-error', errorMessage));
+  await cdp.send('Page.enable');
+  await cdp.send('Runtime.enable');
+  await cdp.send('Log.enable');
+  await cdp.send('Network.enable');
+  await cdp.send('ServiceWorker.enable');
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+    const report = (event, error = '') => console.debug('__ideaforge_boot__', JSON.stringify({
+      event, error, url: location.href, readyState: document.readyState,
+      version: document.getElementById('version')?.textContent,
+      providers: document.getElementById('provider')?.options.length,
+      startHandler: typeof document.getElementById('b-start')?.onclick,
+      focused: document.hasFocus(), visibility: document.visibilityState,
+      controller: navigator.serviceWorker?.controller?.scriptURL || null
+    }));
+    addEventListener('error', (event) =>
+      report('error', event.message || event.target?.src || event.target?.href || 'resource error'), true);
+    addEventListener('unhandledrejection', (event) => report('rejection', String(event.reason?.stack || event.reason)));
+    addEventListener('DOMContentLoaded', () => report('dom-ready'), { once: true });
+    addEventListener('load', () => report('load'), { once: true });
+    navigator.serviceWorker?.addEventListener('controllerchange', () => report('controller-change'));
+    let operation = 0;
+    const storage = (event, detail) => console.debug('__ideaforge_storage__', JSON.stringify({
+      event, url: location.href, ...detail
+    }));
+    const open = indexedDB.open;
+    indexedDB.open = function (...args) {
+      const request = open.apply(this, args);
+      const id = ++operation;
+      storage('open', { id, name: args[0], version: args[1] });
+      for (const event of ['success', 'error', 'blocked', 'upgradeneeded']) {
+        request.addEventListener(event, () => storage('open-' + event, {
+          id, error: event === 'error' ? request.error?.name : undefined
+        }));
+      }
+      return request;
+    };
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...args) {
+      const tx = transaction.apply(this, args);
+      const id = ++operation;
+      storage('transaction', { id, stores: [...tx.objectStoreNames], mode: tx.mode });
+      for (const event of ['complete', 'abort', 'error']) {
+        tx.addEventListener(event, () => storage('transaction-' + event, { id, error: tx.error?.name }));
+      }
+      return tx;
+    };
+    const hidden = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidden');
+    Object.defineProperty(HTMLElement.prototype, 'hidden', {
+      ...hidden,
+      set(value) {
+        if (this.id === 'panel-setup' || this.id === 'panel-library') {
+          console.debug('__ideaforge_panel__', JSON.stringify({
+            id: this.id, hidden: value, stack: new Error().stack
+          }));
+        }
+        hidden.set.call(this, value);
+      }
+    });
+    setTimeout(() => {
+      if (document.getElementById('version')?.textContent === '') report('boot-still-pending');
+    }, 2500);
+  })();` });
 }
 
 /** Attach only to the debugging port written by this throwaway Chrome profile. */

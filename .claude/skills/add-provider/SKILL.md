@@ -18,6 +18,7 @@ Read:
 - `src/providers/http.js`, `src/providers/errors.js`, and `src/providers/index.js`
 - `src/providers/openaiCompat.js` or the closest dedicated adapter
 - `src/voice/transcribe.js` and the dictation options in `index.html` for transcription
+- `src/providers/tts.js`, `src/voice/output.js`, and `src/voice/playback.js` for speech output
 - `test/providers.test.mjs`, `test/voice.test.mjs`, `test/wiring.test.mjs`, and the relevant
   browser probes
 
@@ -32,6 +33,9 @@ because of CORS, Local Network Access, mixed content, or the CSP.
   `listModels`, and `validateKey`.
 - A transcription endpoint belongs in `STT_PRESETS` in `src/voice/transcribe.js`; add its
   explicit `<option>` in `index.html`, because that selector is not data-driven.
+- Speech output uses `TTS_PRESETS` and the output/playback adapters, not `sampleJson`.
+  Preserve the separate key, explicit consent, no-fallback preview gate, bounded audio,
+  cancellation and visible native fallback. Consent withdrawal must take effect immediately.
 - Every surfaced failure must be a `ProviderError` code. Do not return a plain `Error`.
 - A local provider must pass the shared parsed-URL loopback check. Never add a second
   definition of "local".
@@ -63,6 +67,10 @@ Add focused tests for:
 - invalid-key behavior, including opaque CORS failures;
 - deadlines, caller cancellation, retry eligibility, and model-list shapes;
 - CSP and service-worker wiring.
+
+For speech output, include `test/tts.test.mjs`, `test/speech.test.mjs`, and the speech-output
+and voice-stage browser probes. A scripted audio response proves neither live endpoint
+CORS nor perceived voice quality; both need separately authorised evidence.
 
 HTTP tests use injected `fetch`; they must not reach the network.
 

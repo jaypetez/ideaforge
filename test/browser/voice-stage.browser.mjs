@@ -1,9 +1,12 @@
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { DRIVING } from '../../src/core/driving.js';
-import { askQuestion, createSession } from '../../src/core/session.js';
+import { askQuestion, createSession, isLowConfidence, setDraftAnswer } from '../../src/core/session.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
-import { clearCredentials } from '../../src/store/secrets.js';
+import { loadPrefs } from '../../src/store/prefs.js';
+import {
+  clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withTts,
+} from '../../src/store/secrets.js';
 
 const PARTIAL = 'A guide explaining how to pause voice reminders and exit voice menus without losing my place';
 const TYPED = 'Keep this typed idea about a quiet notebook for remembering conference names.';
@@ -238,6 +241,52 @@ function instrumentRecognition(win) {
   };
 }
 
+function deferredWakeLocks(win) {
+  const original = Object.getOwnPropertyDescriptor(win.navigator, 'wakeLock');
+  const requests = [];
+  Object.defineProperty(win.navigator, 'wakeLock', {
+    configurable: true,
+    value: {
+      request(type) {
+        if (type !== 'screen') throw new Error(`unexpected wake-lock type: ${type}`);
+        let resolve;
+        let released = false;
+        const promise = new Promise((done) => { resolve = done; });
+        const lock = new win.EventTarget();
+        const entry = {
+          lock, resolved: false, adopted: false,
+          complete() { entry.resolved = true; resolve(lock); },
+        };
+        Object.defineProperty(lock, 'released', { get: () => released });
+        lock.release = async () => {
+          if (released) return;
+          released = true;
+          lock.dispatchEvent(new win.Event('release'));
+        };
+        const addListener = lock.addEventListener;
+        lock.addEventListener = function (name, listener, options) {
+          if (name === 'release') entry.adopted = true;
+          return addListener.call(this, name, listener, options);
+        };
+        requests.push(entry);
+        return promise;
+      },
+    },
+  });
+  return {
+    requests,
+    releasePending() { for (const entry of [...requests]) entry.complete(); },
+    dispose() {
+      for (const entry of [...requests]) {
+        entry.complete();
+        entry.lock.release();
+      }
+      if (original) Object.defineProperty(win.navigator, 'wakeLock', original);
+      else delete win.navigator.wakeLock;
+    },
+  };
+}
+
 function phase(app) { return app.$('voice-stage').dataset.phase; }
 function level(app) {
   return Number.parseFloat(app.win.getComputedStyle(app.$('voice-signal'))
@@ -306,6 +355,11 @@ function detail(app) {
     captures: captureCount(app), live: liveCaptures(app).length,
     tracks: app.mic.tracks().map((track) => track.readyState),
     micRequests: app.mic.requests,
+    dictation: app.$('stt').value,
+    hostedSpeechAllowed: loadPrefs().hostedSpeechAllowed,
+    wakeLocks: app.wakeLocks?.requests.map((entry) => ({
+      resolved: entry.resolved, adopted: entry.adopted, released: entry.lock.released,
+    })),
     spoken: spoken(app).map((utterance) => utterance.text),
     modelCalls: app.model.calls.length, modelTiers: app.model.calls.map((call) => call.tier),
     doneVisible: visible(app.$('panel-done')), doneTitle: app.$('done-title').textContent,
@@ -320,10 +374,17 @@ async function expect(app, check, label, predicate, ms) {
   return value;
 }
 
-async function withApp(check, label, scenario, { remembered = false, speakMs = 220, seed } = {}) {
-  await cleanStorage();
+async function withApp(check, label, scenario, {
+  remembered = false, speakMs = 220, seed, credentials, preferences, reuseStorage = false,
+} = {}) {
+  if (!reuseStorage) await cleanStorage();
   if (seed) await within(saveSession(seed), 'seeding the recorded voice interview');
-  if (remembered) localStorage.setItem('ideaforge.prefs', JSON.stringify({ handsFree: true }));
+  if (credentials) await within(saveCredentials(credentials), 'encrypting synthetic speech credentials');
+  if (remembered || preferences) {
+    localStorage.setItem('ideaforge.prefs', JSON.stringify({
+      ...preferences, ...(remembered ? { handsFree: true } : {}),
+    }));
+  }
   let app;
   let frame;
   const fake = window.__FakeVoice;
@@ -411,6 +472,7 @@ async function withApp(check, label, scenario, { remembered = false, speakMs = 2
         // Exit must cancel the loop before releasing an endpoint or model result.
         app.recognition.releaseHeld();
         app.mic.releaseHeld();
+        app.wakeLocks?.releasePending();
         app.model.releaseAll();
         cleanupPhase = 'waiting for Exit and its draft save';
         await within(Promise.resolve(exiting), cleanupPhase);
@@ -433,6 +495,7 @@ async function withApp(check, label, scenario, { remembered = false, speakMs = 2
         } finally {
           app.observer.disconnect();
           app.mic.dispose();
+          app.wakeLocks?.dispose();
           frame?.remove();
           fake.restore();
         }
@@ -467,6 +530,43 @@ async function startVoice(app, check) {
 async function listening(app, check, label = 'speech completes before one capture begins') {
   return expect(app, check, label, () =>
     phase(app) === 'listening' && liveCaptures(app).length === 1 && app.recognition.current());
+}
+
+async function startTypedDraft(app, check, draft = '') {
+  app.$('b-start').click();
+  if (!(await expect(app, check, 'the typed interview is ready without voice ownership', () =>
+    visible(app.$('manual-interview')) && !visible(app.$('voice-stage'))
+      && app.doc.activeElement === app.$('answer')))) return null;
+  const session = (await within(listSessions(), 'reading the typed interview'))[0];
+  if (draft) {
+    app.$('answer').value = draft;
+    app.$('answer').dispatchEvent(new app.win.Event('input'));
+    if (!(await expect(app, check, 'the retained typed draft is durable before voice starts', async () =>
+      (await within(loadSession(session.id), 'reading the retained draft'))?.draftAnswer === draft))) return null;
+  }
+  return session;
+}
+
+async function listenWithRetainedDraft(app, check, origin) {
+  const draft = origin === 'typed' ? TYPED : PARTIAL;
+  const session = origin === 'typed'
+    ? await startTypedDraft(app, check, draft) : await startVoice(app, check);
+  if (!session) return null;
+  if (origin === 'typed') {
+    app.$('handsfree').checked = true;
+    app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+  } else {
+    const capture = await listening(app, check, 'a spoken draft is captured before Pause');
+    if (!capture) return null;
+    capture._step({ final: draft, confidence: 0.9 });
+    app.$('b-voice-pause').click();
+    if (!(await expect(app, check, 'Pause retains the spoken draft without answering', async () =>
+      phase(app) === 'paused' && !app.$('b-voice-pause').disabled
+        && (await within(loadSession(session.id), 'reading the paused draft'))?.draftAnswer === draft))) return null;
+    app.$('b-voice-pause').click();
+  }
+  const capture = await listening(app, check, 'voice is listening with the retained draft');
+  return capture ? { session, draft, capture } : null;
 }
 
 function reducedMotionRules(app) {
@@ -1037,6 +1137,282 @@ export default async function run(check) {
       detail(app));
     noOverlap(app, check);
   }, { speakMs: 450 });
+
+  const chipText = 'A pocket notebook for conference names';
+  const chipSession = askQuestion(createSession({ id: 's_voice_chip_prefix', now: 1 }), {
+    question: 'What form should the notebook take?',
+    dimension: 'outcome', chips: [chipText], source: 'model', now: 1,
+  });
+  for (const origin of ['typed', 'paused', 'chip']) {
+    await withApp(check, `bare finish word sends the retained ${origin} draft`, async (app) => {
+      let retained;
+      if (origin === 'chip') {
+        app.$('b-library').click();
+        const card = await expect(app, check, 'the open chip question is available in the library', () =>
+          visible(app.$('panel-library'))
+            && app.$('library-rows').querySelector(`[data-session-id="${chipSession.id}"]`));
+        if (!card) return;
+        [...card.querySelectorAll('button')].find((button) => button.textContent === 'Continue').click();
+        const chip = await expect(app, check, 'the resumed question offers a real selectable chip', () =>
+          [...app.$('chips').querySelectorAll('button')]
+            .find((button) => visible(button) && button.textContent === chipText));
+        if (!chip) return;
+        chip.click();
+        if (!(await expect(app, check, 'selecting the chip retains its exact unedited wording', async () =>
+          app.$('answer').value === chipText
+            && (await within(loadSession(chipSession.id), 'reading the chip draft'))?.draftAnswer === chipText))) return;
+        app.$('handsfree').checked = true;
+        app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+        const capture = await listening(app, check, 'voice starts with the unedited chip prefix');
+        if (!capture) return;
+        retained = { session: chipSession, draft: chipText, capture };
+      } else {
+        retained = await listenWithRetainedDraft(app, check, origin);
+      }
+      if (!retained) return;
+      if (origin === 'typed' || origin === 'chip') {
+        const pause = origin === 'typed';
+        retained.capture._step({ final: pause ? 'pause voice' : 'exit voice', confidence: 0 });
+        app.$(pause ? 'b-voice-pause' : 'b-voice-exit').click();
+        if (!(await expect(app, check, `${pause ? 'Pause' : 'Exit'} restores only the ${origin} prefix`, () =>
+          app.$('answer').value === retained.draft && (pause
+            ? phase(app) === 'paused' && !app.$('b-voice-pause').disabled
+            : visible(app.$('manual-interview')) && !visible(app.$('voice-stage')))))) return;
+        if (pause) app.$('b-voice-pause').click();
+        else {
+          app.$('handsfree').checked = true;
+          app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+        }
+        retained.capture = await listening(app, check, `the restored ${origin} prefix starts a fresh capture`);
+        if (!retained.capture) return;
+      }
+      retained.capture._step({ final: 'over', confidence: 0.9 });
+      if (!(await expect(app, check, 'the bare finish word submits the existing draft once',
+        () => app.model.calls.length === 1))) return;
+      const submitted = await within(loadSession(retained.session.id), 'reading the bare-trigger answer');
+      check('the recorded answer is exactly the retained draft, without the finish word',
+        submitted.turns.length === 1 && submitted.turns[0].answer === retained.draft
+          && !submitted.turns[0].skipped,
+        JSON.stringify(submitted.turns[0]));
+      const expectedSource = origin === 'paused' ? 'voice' : origin;
+      check(`a bare finish word preserves ${expectedSource} provenance rather than relabeling the prefix`,
+        submitted.turns[0].answerSource === expectedSource
+          && isLowConfidence(submitted.turns[0]) === (origin === 'chip'),
+        `source=${submitted.turns[0].answerSource}; lowConfidence=${isLowConfidence(submitted.turns[0])}`);
+      app.model.calls[0].release();
+      if (!(await expect(app, check, 'the retained answer advances one question and clears its draft', async () => {
+        const saved = await within(loadSession(retained.session.id), 'reading the settled retained answer');
+        return saved?.turns.length === 2 && !saved.draftAnswer;
+      }))) return;
+      check('the bare trigger does not cause a duplicate model request',
+        await remains(() => app.model.calls.length === 1), detail(app));
+    }, { seed: origin === 'chip' ? chipSession : undefined });
+  }
+
+  for (const failure of ['empty', 'error']) {
+    await withApp(check, `three ${failure} captures preserve a retained draft`, async (app) => {
+      const retained = await listenWithRetainedDraft(app, check, failure === 'empty' ? 'typed' : 'paused');
+      if (!retained) return;
+      let capture = retained.capture;
+      for (let index = 0; index < 3; index++) {
+        if (failure === 'error') capture._step({ error: 'network' });
+        // With no scripted results, the real native-recognition watchdog returns an
+        // empty capture. Do not retime it or replace the recorder/recognizer controller.
+        const ended = await expect(app, check, `${failure} capture ${index + 1} reaches recovery or stand-down`,
+          () => !capture._live && (
+            ['paused', 'blocked'].includes(phase(app)) || !visible(app.$('voice-stage'))
+            || (phase(app) === 'listening' && app.recognition.current() !== capture)
+            || app.model.calls.length > 0
+          ), failure === 'empty' ? 25000 : 5000);
+        if (!ended) return;
+        const saved = await within(loadSession(retained.session.id), 'reading the draft after capture failure');
+        const preserved = saved?.turns.length === 1 && !saved.turns[0].answer && !saved.turns[0].skipped
+          && saved.draftAnswer === retained.draft && app.$('answer').value === retained.draft
+          && app.model.calls.length === 0;
+        check(`${failure} capture ${index + 1} never skips, deletes or submits the retained words`,
+          preserved, detail(app));
+        if (!preserved) return;
+        if (index === 2) break;
+        if (['paused', 'blocked'].includes(phase(app))) {
+          if (!(await expect(app, check, 'stand-down offers a deliberate Resume for the saved draft',
+            () => !app.$('b-voice-pause').disabled))) return;
+          app.$('b-voice-pause').click();
+        } else if (!visible(app.$('voice-stage'))) {
+          app.$('handsfree').checked = true;
+          app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+        }
+        capture = await listening(app, check, 'the next capture still belongs to the unanswered draft');
+        if (!capture) return;
+      }
+      check('three failed captures leave the original idea intact',
+        app.model.calls.length === 0 && app.$('answer').value === retained.draft, detail(app));
+    });
+  }
+
+  await withApp(check, 'manual dictation releases and reacquires real microphone tracks', async (app) => {
+    const session = await startTypedDraft(app, check);
+    if (!session) return;
+    for (let index = 0; index < 2; index++) {
+      const acquisitions = app.mic.requests;
+      const previousTracks = app.mic.tracks().slice();
+      app.$('b-mic').click();
+      const capture = await expect(app, check, `manual mic tap ${index + 1} acquires a live stream`, () =>
+        app.recognition.current() && app.mic.requests === acquisitions + 1
+          && app.mic.tracks().some((track) => track.readyState === 'live')
+          && app.recognition.current());
+      if (!capture) return;
+      check('manual dictation does not take over the voice stage or revive an ended track',
+        visible(app.$('manual-interview')) && !visible(app.$('voice-stage'))
+          && previousTracks.every((track) => track.readyState === 'ended'), detail(app));
+      const text = `The words from manual recording ${index + 1} stay available for editing`;
+      capture._step({ final: text, confidence: 0.9 });
+      app.$('b-mic').click();
+      if (!(await expect(app, check, `manual capture ${index + 1} finishes with every acquired track stopped`, () =>
+        !visible(app.$('listening')) && app.mic.allStopped() && liveCaptures(app).length === 0
+          && app.$('answer').value === text))) return;
+      await expect(app, check, `manual capture ${index + 1} remains an unsent durable draft`, async () => {
+        const saved = await within(loadSession(session.id), 'reading the manual dictation draft');
+        return saved?.draftAnswer === text && !saved.turns[0].answer && app.model.calls.length === 0;
+      });
+    }
+  });
+
+  const unfinished = setDraftAnswer(recorded, TYPED, 20);
+  await withApp(check, 'remembered hands-free with Dictation Off resumes safely', async (app) => {
+    app.$('stt').value = 'off';
+    app.$('stt').dispatchEvent(new app.win.Event('change'));
+    check('the resume precondition combines remembered hands-free with Dictation Off',
+      loadPrefs().handsFree === true && app.$('stt').value === 'off');
+    app.$('b-library').click();
+    const card = await expect(app, check, 'the unfinished idea can be selected with dictation disabled', () =>
+      visible(app.$('panel-library'))
+        && app.$('library-rows').querySelector(`[data-session-id="${unfinished.id}"]`));
+    if (!card) return;
+    [...card.querySelectorAll('button')].find((button) => button.textContent === 'Continue').click();
+    const available = () => (visible(app.$('manual-interview')) && !visible(app.$('voice-stage')))
+      || (visible(app.$('voice-stage')) && phase(app) === 'blocked'
+        && app.$('voice-detail').textContent.trim() && !app.$('b-voice-exit').disabled);
+    if (!(await expect(app, check, 'Dictation Off resumes manually or explicitly blocked, never stuck Starting',
+      available))) return;
+    check('disabled dictation cannot silently acquire a microphone or narrate the saved interview',
+      await remains(() => available() && captureCount(app) === 0 && app.mic.requests === 0
+        && spoken(app).length === 0 && app.model.calls.length === 0), detail(app));
+    if (visible(app.$('voice-stage'))) app.$('b-voice-exit').click();
+    await expect(app, check, 'the unfinished draft remains editable after the safe resume', async () =>
+      visible(app.$('manual-interview')) && !app.$('answer').disabled && app.$('answer').value === TYPED
+        && (await within(loadSession(unfinished.id), 'reading the dictation-off idea'))?.draftAnswer === TYPED);
+  }, { seed: unfinished, remembered: true });
+
+  await withApp(check, 'delayed wake locks are deduplicated and released across Resume', async (app) => {
+    const wake = deferredWakeLocks(app.win);
+    app.wakeLocks = wake;
+    if (!(await startVoice(app, check)) || !(await listening(app, check))) return;
+    if (!(await expect(app, check, 'the initial screen wake-lock request is observable',
+      () => wake.requests.length > 0))) return;
+    const initial = wake.requests.slice();
+    initial.forEach((entry) => entry.complete());
+    if (!(await expect(app, check, 'initial wake locks are adopted before pausing',
+      () => initial.every((entry) => entry.adopted)))) return;
+    app.$('b-voice-pause').click();
+    if (!(await expect(app, check, 'Pause releases every acquired screen wake lock', () =>
+      phase(app) === 'paused' && !app.$('b-voice-pause').disabled
+        && initial.every((entry) => entry.lock.released)))) return;
+
+    let before = wake.requests.length;
+    app.$('b-voice-pause').click();
+    if (!(await listening(app, check, 'Resume completes setup while its wake-lock promise remains pending'))) return;
+    check('Resume and its asynchronous voice setup share one pending wake-lock request',
+      await remains(() => wake.requests.length === before + 1
+        && !wake.requests.at(-1).resolved), detail(app));
+    const latePause = wake.requests.at(-1);
+    app.$('b-voice-pause').click();
+    if (!(await expect(app, check, 'Pause completes without waiting for an unresolved wake lock', () =>
+      phase(app) === 'paused' && !app.$('b-voice-pause').disabled))) return;
+    latePause.complete();
+    if (!(await expect(app, check, 'a wake lock returned after Pause is immediately released',
+      () => latePause.lock.released))) return;
+
+    before = wake.requests.length;
+    app.$('b-voice-pause').click();
+    if (!(await listening(app, check, 'the next explicit Resume creates a fresh pending wake-lock request'))) return;
+    check('the next Resume is also deduplicated', wake.requests.length === before + 1, detail(app));
+    const lateExit = wake.requests.at(-1);
+    app.$('b-voice-exit').click();
+    if (!(await expect(app, check, 'Exit restores manual mode while the wake lock is still pending', () =>
+      !visible(app.$('voice-stage')) && visible(app.$('manual-interview'))))) return;
+    lateExit.complete();
+    if (!(await expect(app, check, 'a wake lock returned after Exit is immediately released',
+      () => lateExit.lock.released))) return;
+
+    app.$('handsfree').checked = true;
+    app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+    if (!(await listening(app, check, 'explicit voice reentry can acquire another screen lock'))) return;
+    const acquired = wake.requests.at(-1);
+    acquired.complete();
+    if (!(await expect(app, check, 'the final screen lock is genuinely acquired before Exit',
+      () => acquired.adopted && !acquired.lock.released))) return;
+    app.$('b-voice-exit').click();
+    if (!(await expect(app, check, 'Exit releases the acquired lock and all older late locks', () =>
+      !visible(app.$('voice-stage')) && wake.requests.every((entry) => entry.lock.released)))) return;
+    const requests = wake.requests.length;
+    check('retired wake-lock continuations cannot acquire another lock or restart capture',
+      await remains(() => wake.requests.length === requests && app.mic.allStopped()
+        && liveCaptures(app).length === 0 && app.model.calls.length === 0), detail(app));
+  });
+
+  const verifiedSpeech = withTts(withCreds(emptyKeyring(), 'artifact', {}), {
+    kind: 'openai', apiKey: 'sk-synthetic-encrypted-speech-key-never-sent',
+    voice: 'marin', verified: true,
+  });
+  await withApp(check, 'legacy speech verification does not imply hosted consent', async (app) => {
+    check('a verified encrypted speech record still defaults to hosted output disallowed',
+      loadPrefs().hostedSpeechAllowed === false && !app.$('tts-consent').checked);
+    if (!(await startVoice(app, check))) return;
+    check('a legacy verified key cannot automatically select hosted speech',
+      app.requests.length === 0 && /browser/i.test(app.$('voice-backend').textContent), detail(app));
+  }, { credentials: verifiedSpeech, remembered: true });
+
+  for (const action of ['withdraw consent', 'switch to browser']) {
+    await withApp(check, `verified hosted speech ${action} persists without Start`, async (app) => {
+      check('the synthetic encrypted record begins verified and explicitly allowed',
+        app.$('speech').value === 'openai' && app.$('tts-consent').checked
+          && loadPrefs().hostedSpeechAllowed === true);
+      if (action === 'withdraw consent') {
+        app.$('tts-consent').checked = false;
+        app.$('tts-consent').dispatchEvent(new app.win.Event('change'));
+      } else {
+        app.$('speech').value = 'browser';
+        app.$('speech').dispatchEvent(new app.win.Event('change'));
+      }
+      check('hosted permission is revoked immediately in device preferences',
+        loadPrefs().hostedSpeechAllowed === false, app.$('speech-check').textContent);
+      if (!(await expect(app, check, 'revocation updates encrypted credentials without starting an interview',
+        async () => {
+          const credentials = await within(loadCredentials(), 'reading revoked synthetic speech credentials');
+          return credentials?.tts.verified === false
+            && (action !== 'switch to browser' || credentials.tts.kind === 'browser');
+        }))) return;
+      check('settings-only revocation made no provider request or new session',
+        app.requests.length === 0 && (await within(listSessions(), 'checking settings-only revocation')).length === 0);
+
+      // Nothing is capturing or previewing in this settings-only frame. Restore the
+      // single-window fixture before loading a new document over the SAME persisted data.
+      app.fake.restore();
+      app.frame.hidden = true;
+      await withApp(check, `reload after ${action} cannot re-enable hosted speech`, async (reloaded) => {
+        check('the new document reloads the persisted revocation, not a fresh default keyring',
+          loadPrefs().hostedSpeechAllowed === false && !reloaded.$('tts-consent').checked
+            && (action !== 'switch to browser' || reloaded.$('speech').value === 'browser'));
+        const credentials = await within(loadCredentials(), 'reading the reloaded revoked keyring');
+        check('the synthetic speech key is retained but its verification remains revoked',
+          credentials?.tts.apiKey === verifiedSpeech.tts.apiKey && !credentials.tts.verified);
+        if (!(await startVoice(reloaded, check))) return;
+        check('reloaded voice uses browser speech without an automatic hosted request',
+          reloaded.requests.length === 0 && /browser/i.test(reloaded.$('voice-backend').textContent),
+          detail(reloaded));
+      }, { reuseStorage: true });
+    }, { credentials: verifiedSpeech, preferences: { handsFree: true, hostedSpeechAllowed: true } });
+  }
 
   await withApp(check, 'hosted speech opt-in gate', async (app) => {
     check('hosted speech defaults off without consent or saved verification',

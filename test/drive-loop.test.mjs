@@ -305,6 +305,25 @@ test('invalid persisted progress cannot bypass the wrap safety floor', async () 
   assert.deepEqual(s.only('wrap'), []);
 });
 
+test('a bare finish word submits a retained draft instead of counting as a miss', async () => {
+  const s = scriptedIo([ANSWER('over')], { turns: 1 });
+  s.io.hasDraft = () => true;
+  await createDriveLoop(s.io).run();
+  assert.deepEqual(s.only('submit'), ['']);
+  assert.deepEqual(s.only('skip'), []);
+});
+
+for (const capture of [NOTHING, { kind: 'throw', message: 'temporary network failure' }]) {
+  test(`repeated ${capture.kind || 'empty'} captures never skip a retained draft`, async () => {
+    const s = scriptedIo([capture], { turns: 1 });
+    s.io.hasDraft = () => true;
+    assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+    assert.deepEqual(s.only('skip'), []);
+    assert.deepEqual(s.only('submit'), []);
+    assert.match(s.said().at(-1), /draft.*still here/i);
+  });
+}
+
 // ── the wrap offer ───────────────────────────────────────────────────────────
 
 test('reaching coverage asks, out loud, and wraps on a yes', async () => {

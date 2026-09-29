@@ -39,6 +39,7 @@ const SAY = {
   miss: 'I didn’t catch that. Take your time, and say “%s” when you’re done.',
   again: 'Let me read that again.',
   giveUpOne: 'I’ll come back to that one.',
+  keptDraft: 'Your draft is still here. I have paused listening rather than skip those words. Resume when you are ready.',
   standDown: 'I can’t hear you, so I’ve switched hands-free off. '
     + 'Tap the microphone when you’re ready.',
   lostMic: 'I’ve lost the microphone, so I’ve switched hands-free off.',
@@ -62,6 +63,7 @@ const SAY = {
  *   notify:     (msg: string) => void,
  *   running:    () => boolean,
  *   answeredCount?: () => number,
+ *   hasDraft?:   () => boolean,
  *   onState?:   (phase: 'speaking'|'listening'|'processing'|'recovering'|'paused'|'stopped') => void,
  *   pause?:     () => void|Promise<void>,
  *   exit?:      () => void|Promise<void>,
@@ -229,6 +231,10 @@ export function createDriveLoop(io) {
       return true;
     }
 
+    if (io.hasDraft?.()) {
+      await say(SAY.keptDraft);
+      return false;
+    }
     misses = 0;
     blindSkips += 1;
     await say(SAY.giveUpOne);
@@ -289,6 +295,13 @@ export function createDriveLoop(io) {
       const said = parseSpeech(heard, { trigger });
 
       if (said.kind === 'pause' || said.kind === 'exit') return stopByCommand(said.kind);
+      if (said.kind === 'answer' && said.stopped && !said.text.trim() && io.hasDraft?.()) {
+        await perform('processing', () => io.submit(''));
+        answers += 1;
+        misses = blindSkips = 0;
+        spokenFor = null;
+        continue;
+      }
       if (said.kind === 'answer' && !said.text.trim()) {
         if (!(await recoverFromMiss())) return 'stopped';
         continue;

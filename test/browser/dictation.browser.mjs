@@ -51,22 +51,32 @@ async function until(predicate, label, ms = 6000) {
 }
 
 /** Real recording, deferred STT. Only the harness's same-origin progress reports pass through. */
-async function withCaptureRequests(fn, { ignoreAbort = false } = {}) {
+async function withCaptureRequests(fn, { ignoreAbort = false, stream, configureContext, replyText } = {}) {
   const realFetch = globalThis.fetch;
   const RealRecorder = window.MediaRecorder;
+  const RealContext = window.AudioContext;
   const realAcquire = navigator.mediaDevices.getUserMedia;
-  const seen = { requests: [], streams: [], recordings: 0, events: [] };
+  const seen = { requests: [], streams: [], contexts: [], recordings: 0, events: [], bytes: 0 };
   window.MediaRecorder = function (...args) {
     seen.recordings += 1;
     const recorder = new RealRecorder(...args);
     recorder.addEventListener('start', () => seen.events.push('capture-start'));
+    recorder.addEventListener('dataavailable', (event) => { seen.bytes += event.data.size; });
     return recorder;
   };
   window.MediaRecorder.isTypeSupported = RealRecorder.isTypeSupported.bind(RealRecorder);
+  if (configureContext) {
+    window.AudioContext = function (...args) {
+      const context = new RealContext(...args);
+      seen.contexts.push(context);
+      configureContext(context);
+      return context;
+    };
+  }
   navigator.mediaDevices.getUserMedia = async (...args) => {
-    const stream = await realAcquire.apply(navigator.mediaDevices, args);
-    seen.streams.push(stream);
-    return stream;
+    const input = stream ? stream.clone() : await realAcquire.apply(navigator.mediaDevices, args);
+    seen.streams.push(input);
+    return input;
   };
   globalThis.fetch = (url, init) => {
     if (url === '/__result') return realFetch(url, init);
@@ -86,14 +96,17 @@ async function withCaptureRequests(fn, { ignoreAbort = false } = {}) {
       },
       cancel: () => reject(new DOMException('fixture finished', 'AbortError')),
     });
+    if (replyText !== undefined) seen.requests.at(-1).reply(replyText);
     return reply.finally(() => init.signal.removeEventListener('abort', cancel));
   };
   try { await fn(seen); } finally {
     globalThis.fetch = realFetch;
     window.MediaRecorder = RealRecorder;
+    window.AudioContext = RealContext;
     navigator.mediaDevices.getUserMedia = realAcquire;
     seen.requests.forEach((request) => request.cancel());
     seen.streams.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
+    await Promise.all(seen.contexts.filter((ctx) => ctx.state !== 'closed').map((ctx) => ctx.close()));
   }
 }
 
@@ -144,6 +157,227 @@ async function recorderCancellationChecks(check) {
         }
       } finally { await voice.dispose(); }
     });
+  }
+
+  async function interruptedDraftChecks(check) {
+    const realSR = window.SpeechRecognition;
+    const realWK = window.webkitSpeechRecognition;
+    let active;
+    let correction = false;
+    const result = (text, isFinal) => Object.assign([{ transcript: text, confidence: 0.9 }], { isFinal });
+    class DraftRecognition {
+      constructor() { active = this; this.stops = 0; }
+      start() {
+        queueMicrotask(() => {
+          this.onstart?.();
+          if (!this.continuous) return;
+          this.results = [result('the budget is', true), result('one hundred and twenty dollars', false)];
+          this.onresult?.({ resultIndex: 0, results: this.results });
+        });
+      }
+      stop() {
+        this.stops += 1;
+        if (correction) {
+          setTimeout(() => {
+            this.results[1] = result('$120', true);
+            this.onresult?.({ resultIndex: 1, results: this.results });
+          }, 40);
+        }
+      }
+      abort() {}
+    }
+    window.SpeechRecognition = window.webkitSpeechRecognition = DraftRecognition;
+    forgetVerdict();
+    try {
+      for (const corrected of [false, true]) {
+        correction = corrected;
+        const voice = await createVoice();
+        let shown = '';
+        try {
+          const pending = voice.listen({ autoStop: false, onInterim: (text) => { shown = text; } });
+          await until(() => shown.includes('twenty dollars'), 'visible pending native tail');
+          const paused = voice.pause();
+          const expected = corrected ? 'the budget is $120' : 'the budget is one hundred and twenty dollars';
+          check(corrected
+            ? 'pause keeps a finalized shorter correction rather than the longest visible draft'
+            : 'pause retains the final clause and still-visible interim tail at its deadline',
+          await within(paused, 1200, 'native draft pause') === expected && await pending === expected,
+          expected);
+          check('native draft-preserving pause stops rather than restarting recognition', active.stops === 1);
+        } finally { await voice.dispose(); }
+      }
+      correction = false;
+      let shown = '';
+      const ordinary = listenViaWebSpeech({
+        autoStop: false, onInterim: (text) => { shown = text; },
+      });
+      await until(() => shown.includes('twenty dollars'), 'ordinary pending native tail');
+      ordinary.stop();
+      check('ordinary native stop still returns only settled finals',
+        await within(ordinary.promise, 1200, 'ordinary native stop') === 'the budget is');
+      const voice = await createVoice();
+      try {
+        shown = '';
+        const pending = voice.listen({ onInterim: (text) => { shown = text; } });
+        await until(() => shown.includes('twenty dollars'), 'aborted pending native tail');
+        const paused = voice.pause();
+        voice.abort();
+        check('abort still discards both the final clause and a pending paused draft',
+          await pending === '' && await paused === '');
+      } finally { await voice.dispose(); }
+    } finally {
+      window.SpeechRecognition = realSR;
+      window.webkitSpeechRecognition = realWK;
+      forgetVerdict();
+    }
+  }
+
+  async function recorderEvidenceChecks(check) {
+    const ctx = new AudioContext();
+    const source = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const output = ctx.createMediaStreamDestination();
+    source.connect(gain).connect(output);
+    gain.gain.value = 0.001;
+    source.start();
+    await ctx.resume();
+    const config = { stt: { kind: 'groq', apiKey: 'not-a-real-key' }, preferRecorder: true };
+    try {
+      for (const action of ['stop', 'pause']) {
+        await withCaptureRequests(async (seen) => {
+          const voice = await createVoice(config);
+          let last;
+          const phases = [];
+          try {
+            const pending = voice.listen({
+              autoStop: false, isComplete: () => false, gate: { maxMs: 12000 },
+              onLevel: (_, state) => { last = state; }, onPhase: (phase) => phases.push(phase),
+            });
+            await until(() => seen.bytes >= 1600 && last?.heardSpeech === false, 'enough observed silence', 8000);
+            const closing = voice[action]();
+            const text = await within(pending, 2000, 'stopped known silence');
+            check(`${action} never transcribes observed silence, even above the byte threshold`,
+              text === '' && seen.requests.length === 0 && !phases.includes('transcribing'),
+              `${seen.bytes} audio bytes; ${seen.requests.length} STT requests`);
+            if (action === 'pause') await closing;
+          } finally { await voice.dispose(); }
+        }, { stream: output.stream, replyText: 'this would be a silence hallucination' });
+      }
+
+      await withCaptureRequests(async (seen) => {
+        const voice = await createVoice(config);
+        let last;
+        try {
+          const pending = voice.listen({
+            autoStop: false, isComplete: () => false, gate: { maxMs: 12000, minSpeechMs: 900 },
+            onLevel: (_, state) => {
+              last = state;
+              if (state.heardSpeech) voice.stop();
+            },
+          });
+          await until(() => seen.bytes >= 1600 && last?.heardSpeech === false, 'short speech lead-in', 8000);
+          gain.gain.value = 0.4;
+          check('the first real speech sample is retained without waiting for minSpeechMs',
+            await within(pending, 2000, 'short real speech') === 'a short real answer'
+              && last.heardSpeech && last.speechMs < 900 && seen.requests.length === 1,
+            `${last?.speechMs}ms of detected speech`);
+        } finally { await voice.dispose(); }
+      }, { stream: output.stream, replyText: 'a short real answer' });
+
+      await withCaptureRequests(async (seen) => {
+        const voice = await createVoice(config);
+        const unavailable = [];
+        let levels = 0;
+        try {
+          const result = await outcome(within(voice.listen({
+            isComplete: () => true, gate: { maxMs: 650 },
+            onLevel: () => { levels += 1; }, onLevelUnavailable: (reason) => unavailable.push(reason),
+          }), 2500, 'unknown speech evidence'));
+          check('an unusable meter reports unknown evidence without discarding recordable speech',
+            result.value === 'speech captured without VAD' && levels === 0
+              && unavailable.length === 1 && /unknown/i.test(unavailable[0])
+              && seen.requests.length === 1,
+            result.error?.message || unavailable.join('; '));
+        } finally { await voice.dispose(); }
+      }, {
+        stream: output.stream, replyText: 'speech captured without VAD',
+        configureContext: (context) => {
+          context.createAnalyser = () => { throw new Error('injected analyser failure'); };
+        },
+      });
+
+      gain.gain.value = 0.001;
+      let failMeter = false;
+      await withCaptureRequests(async (seen) => {
+        const voice = await createVoice(config);
+        const observed = [];
+        const unavailable = [];
+        try {
+          const pending = outcome(voice.listen({
+            isComplete: () => true, gate: { maxMs: 1200 },
+            onLevel: (_, state) => observed.push(state),
+            onLevelUnavailable: (reason) => unavailable.push(reason),
+          }));
+          await until(() => seen.bytes >= 1600 && observed.length > 0, 'quiet before meter failure');
+          failMeter = true;
+          gain.gain.value = 0.4;
+          const result = await within(pending, 2500, 'unmetered continuation');
+          check('quiet observed before meter failure cannot classify later unmetered audio as silence',
+            result.value === 'speech after the meter failed' && seen.requests.length === 1
+              && observed.every((state) => state.heardSpeech === false)
+              && unavailable.length === 1 && /unknown/i.test(unavailable[0]),
+            result.error?.message || unavailable.join('; '));
+        } finally { await voice.dispose(); }
+      }, {
+        stream: output.stream, replyText: 'speech after the meter failed',
+        configureContext: (context) => {
+          const create = context.createAnalyser.bind(context);
+          context.createAnalyser = () => {
+            const analyser = create();
+            const read = analyser.getByteTimeDomainData.bind(analyser);
+            analyser.getByteTimeDomainData = (buffer) => {
+              if (failMeter) throw new Error('injected mid-capture meter failure');
+              read(buffer);
+            };
+            return analyser;
+          };
+        },
+      });
+
+      for (const pauseWhileTranscribing of [false, true]) {
+        gain.gain.value = 0.001;
+        await withCaptureRequests(async (seen) => {
+          const voice = await createVoice(config);
+          let last;
+          try {
+            const pending = outcome(voice.listen({
+              isComplete: () => false, gate: { maxMs: 12000 },
+              onLevel: (_, state) => { last = state; },
+            }));
+            await until(() => last?.heardSpeech === false && seen.bytes >= 1600, 'input loss lead-in', 8000);
+            gain.gain.value = 0.4;
+            await until(() => last?.heardSpeech, 'speech before microphone loss');
+            await wait(250);
+            seen.streams[0].getTracks().forEach((track) => track.stop());
+            await until(() => seen.requests.length === 1, 'retained input-loss audio transcription');
+            const paused = pauseWhileTranscribing ? outcome(voice.pause()) : null;
+            seen.requests[0].reply('saved before the microphone ended');
+            const result = await within(pending, 2000, 'input loss stand-down');
+            const draft = paused ? (await paused).value : await voice.pause();
+            check(`ended input retains its draft when pause happens ${pauseWhileTranscribing ? 'during' : 'after'} STT`,
+              result.error?.fatal === true && result.error.code === 'audio-capture'
+                && result.error.draft === 'saved before the microphone ended'
+                && draft === 'saved before the microphone ended'
+                && seen.recordings === 1 && seen.requests.length === 1,
+              result.error?.message || 'unexpected successful capture');
+          } finally { await voice.dispose(); }
+        }, { stream: output.stream });
+      }
+    } finally {
+      source.stop();
+      output.stream.getTracks().forEach((track) => track.stop());
+      await ctx.close();
+    }
   }
 
   await withCaptureRequests(async (seen) => {
@@ -310,6 +544,8 @@ async function recorderCancellationChecks(check) {
         JSON.stringify({ text, phases, requests: seen.requests.length }));
     } finally { await voice.dispose(); }
   });
+  await interruptedDraftChecks(check);
+  await recorderEvidenceChecks(check);
 }
 
 export default async function run(check) {

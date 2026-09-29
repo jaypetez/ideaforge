@@ -24,6 +24,7 @@ const DEFAULTS = {
   handsFree: false,
   speechVoice: '',
   speechRate: 1,
+  hostedSpeechAllowed: false,
 };
 
 export function speechPreferences(value = {}) {
@@ -34,23 +35,30 @@ export function speechPreferences(value = {}) {
   };
 }
 
-/** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number}} */
+/** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number,
+ *             hostedSpeechAllowed: boolean}} */
 export function loadPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
     const stored = JSON.parse(raw);
     if (!stored || typeof stored !== 'object') return { ...DEFAULTS };
-    return { ...DEFAULTS, ...stored, ...speechPreferences(stored) };
+    return {
+      ...DEFAULTS, ...stored, ...speechPreferences(stored),
+      hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
+    };
   } catch {
     return { ...DEFAULTS };
   }
 }
 
-/** Merge and write. Silent on failure: a preference is not worth an error message. */
+/** Merge and write. Callers handling consent use the result to report a failed write. */
 export function savePrefs(patch) {
   try {
     const next = { ...loadPrefs(), ...patch };
     localStorage.setItem(KEY, JSON.stringify({ ...next, ...speechPreferences(next) }));
-  } catch { /* private window, or the quota is full of something that matters more */ }
+    return true;
+  } catch {
+    return false;
+  }
 }

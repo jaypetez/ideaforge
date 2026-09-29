@@ -34,6 +34,12 @@ metered text transfer and an AI-generated voice, and a successful in-app check a
 It never reuses an inference or transcription key. The preview makes a real provider
 request; a failed preview cannot pass by playing browser speech instead.
 
+Withdrawal is immediate: a separate device permission flag is cleared and the encrypted
+keyring's verification is revoked without waiting for another Start. Both gates must permit
+hosted output. A new successful preview is required to enable it again. If storage fails,
+the current page still blocks hosted output and reports that the withdrawal could not be
+fully saved; it does not claim persistence succeeded.
+
 `src/providers/tts.js` fixes the endpoint and permitted voices, bounds the request and audio
 response, omits cookies and rejects redirects. `src/voice/output.js` handles visible browser
 fallback after a hosted failure, but cancellation never starts fallback playback.

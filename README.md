@@ -443,8 +443,11 @@ no hidden listener waiting for a resume command. **Exit** keeps the interview an
 words, or shows the export if the write-up is underway or complete. Untranscribed audio
 cancelled on Exit is reported rather than passed off as saved text.
 
-Empty captures follow a bounded retry, repeat and skip sequence. A blocked microphone,
-failed playback or repeated input failure instead leaves an explicit recovery state, with
+After Resume, saying just the finish word sends the retained draft. Repeated misses pause
+rather than skip a question that already has draft words.
+
+Empty captures without a draft follow a bounded retry, repeat and skip sequence. A blocked
+microphone, failed playback or repeated input failure leaves an explicit recovery state, with
 Resume and Exit available. Moving the app into the background pauses voice; installation
 does not promise a lock-screen conversation.
 
@@ -461,6 +464,10 @@ transcription key. You must accept that the voice is AI-generated, spoken text g
 OpenAI and usage is metered, then complete **Check and preview OpenAI voice** successfully.
 Until then, replies use the browser voice. A hosted failure visibly falls back to browser
 speech; a failed check cannot pass by playing the fallback.
+
+Switching back to browser speech or withdrawing consent disables hosted speech immediately
+and saves that choice without requiring another interview. Enabling it again needs a new
+successful check. A storage failure is reported rather than presented as a saved withdrawal.
 
 No developer-authorised live speech key or spending cap was supplied for this redesign, so
 live hosted CORS and voice quality remain unverified. An in-app preview checks that attempt

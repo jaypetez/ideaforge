@@ -19,10 +19,14 @@
 // tools/screenshots.mjs and live in tools/lib/harness.mjs.
 
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { once } from 'node:events';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { ROOT, MIME, findChrome, serveRepo, launchChrome } from './lib/harness.mjs';
+import {
+  ROOT, MIME, findChrome, serveRepo, launchChrome, connectChrome, observeChrome,
+} from './lib/harness.mjs';
 import { assembleSite } from './assemble-site.mjs';
 import { runBrowserPolicyChecks } from './browser-policy-check.mjs';
 
@@ -187,9 +191,10 @@ export function monitorProbe(probe, { timeoutMs, overallDeadline, onResults = ()
   };
 }
 
-async function serve(probes, siteRoot, onResults, onError) {
+async function serve(probes, siteRoot, onResults, onError, onResponse) {
   return serveRepo({
     root: siteRoot,
+    onResponse,
     async before(req, res, url) {
       let path = decodeURIComponent(url.pathname);
 
@@ -231,6 +236,7 @@ async function main() {
       + 'Omit --probe to run every browser probe. Names must match exactly; unknown names fail.\n'
       + 'Every run with Chrome includes the independent audio-policy checks, including focused runs.\n'
       + 'BROWSER_CHECK_TIMEOUT sets the per-probe no-progress budget (default 180000ms).\n'
+      + 'BROWSER_CHECK_TRACE writes pre-document CDP and server diagnostics to a new JSONL file.\n'
       + 'The overall budget is 180000ms for policy/startup plus that budget per selected probe.');
     return 0;
   }
@@ -262,6 +268,22 @@ async function main() {
   let monitor = null;
   let completed = 0;
   let lastProbe = '';
+  let traceStream = null;
+  let traceError = null;
+  let activeProbe = 'setup';
+  const issues = [];
+  const trace = (kind, data) => {
+    const entry = { at: Date.now(), probe: activeProbe, kind, ...data };
+    const acknowledgedReport = kind === 'resource-failed' && data.status === 204
+      && data.method === 'POST' && data.url?.endsWith('/__result')
+      && data.canceled && data.error === 'net::ERR_ABORTED';
+    if (kind === 'exception' || (kind === 'resource-failed' && !acknowledgedReport) || kind === 'worker-error'
+        || (kind === 'log' && data.level === 'error')) {
+      if (issues.length === 100) issues.shift();
+      issues.push(entry);
+    }
+    traceStream?.write(JSON.stringify(entry) + '\n');
+  };
   /** @type {Array<{probe: string, name: string, ok: boolean, detail: string}>} */
   const allResults = [];
   const overallMs = 180000 + TIMEOUT_MS * probes.length;
@@ -272,6 +294,7 @@ async function main() {
   const record = (results) => {
     allResults.push(...results);
     for (const r of results) {
+      trace('assertion', { name: r.name, ok: r.ok, detail: r.ok ? '' : r.detail });
       if (r.probe !== lastProbe) { console.log('\n' + r.probe); lastProbe = r.probe; }
       if (r.ok) console.log('  ok    ' + r.name + (r.detail ? '  (' + r.detail + ')' : ''));
       else console.log('  FAIL  ' + r.name + '  ' + r.detail);
@@ -281,10 +304,17 @@ async function main() {
     + `${overallMs}ms overall budget; audio policy required`);
 
   try {
+    if (process.env.BROWSER_CHECK_TRACE) {
+      traceStream = createWriteStream(process.env.BROWSER_CHECK_TRACE, { flags: 'wx' });
+      traceStream.on('error', (error) => { traceError = error; monitor?.fail(error); });
+      await once(traceStream, 'open');
+      console.log('browser diagnostic trace: ' + process.env.BROWSER_CHECK_TRACE);
+    }
     siteDir = await mkdtemp(join(tmpdir(), 'ideaforge-browser-site-'));
     await assembleSite({ outDir: siteDir, clean: false });
     server = await serve(probes, siteDir,
-      (posted) => monitor?.accept(posted) || false, (error) => monitor?.fail(error));
+      (posted) => monitor?.accept(posted) || false, (error) => monitor?.fail(error),
+      traceStream ? (event) => trace('server', event) : undefined);
     const { port } = server.address();
 
     // Separate fresh profiles: the synthetic-media suite's autoplay bypass cannot prove
@@ -296,15 +326,20 @@ async function main() {
 
     for (const probe of probes) {
       let browser = null;
+      let cdp = null;
       let outcome;
+      activeProbe = probe;
+      issues.length = 0;
       monitor = monitorProbe(probe, { timeoutMs: TIMEOUT_MS, overallDeadline, onResults: record });
       console.log(`\nstarting ${probe} (${completed + 1}/${probes.length})`);
 
       try {
+        const url = 'http://127.0.0.1:' + port + '/__run.html?probe=' + encodeURIComponent(probe);
         browser = launchChrome(chrome, {
-          url: 'http://127.0.0.1:' + port + '/__run.html?probe=' + encodeURIComponent(probe),
+          url: traceStream ? 'about:blank' : url,
           // Grant and synthesise a microphone so the recorder and the silence gate run for real.
           extraArgs: [
+            ...(traceStream ? ['--remote-debugging-port=0'] : []),
             '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
             '--autoplay-policy=no-user-gesture-required',
           ],
@@ -314,13 +349,25 @@ async function main() {
         browser.child.once('error', (error) => active.fail(error));
         browser.child.once('exit', (code, signal) =>
           active.fail(new Error(`Chrome exited before ${probe} completed (${signal || code})`)));
+        if (traceStream) {
+          cdp = await connectChrome(browser);
+          await observeChrome(cdp, trace);
+          trace('launch', { profile: browser.profile, pid: browser.child.pid });
+          await cdp.send('Page.bringToFront');
+          await cdp.send('Page.navigate', { url });
+        }
         outcome = await monitor.promise;
       } catch (error) {
         monitor.fail(error);
         outcome = await monitor.promise;
       } finally {
+        cdp?.close();
         monitor = null;
         browser?.kill();
+      }
+      if (traceStream && (outcome.error || outcome.results.some((r) => !r.ok))) {
+        console.log(`pre-document diagnostics for ${probe}: ${issues.length} issue(s)`);
+        for (const issue of issues) console.log('  DIAG  ' + JSON.stringify(issue));
       }
       if (outcome.error) {
         record([{ probe, name: 'probe did not complete', ok: false,
@@ -341,6 +388,14 @@ async function main() {
       server.closeAllConnections();
     });
     if (siteDir) await rm(siteDir, { recursive: true, force: true });
+    const stream = traceStream;
+    traceStream = null;
+    if (stream && !stream.destroyed) {
+      stream.end();
+      await once(stream, 'finish');
+    }
+    if (traceError) record([{ probe: 'harness', name: 'diagnostic trace failed', ok: false,
+      detail: traceError.message }]);
   }
 
   const failed = allResults.filter((r) => !r.ok).length;

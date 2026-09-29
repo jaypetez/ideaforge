@@ -3,6 +3,7 @@ import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { HARD_TURN_CEILING } from '../../src/core/engine.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
+import { loadPrefs } from '../../src/store/prefs.js';
 import { clearCredentials } from '../../src/store/secrets.js';
 
 const OLD_ANSWER = 'A bicycle courier needs a reliable way to remember delivery instructions.';
@@ -536,6 +537,24 @@ export default async function run(check) {
     check('only the answer-durability and settled saves occur, and the terminal turn stays disabled',
       saves.length === 2 && app.$('b-send').disabled && app.$('b-skip').disabled
         && app.$('answer').disabled, detail(app));
+
+    const starts = app.fake.recognition.startCount;
+    const speeches = app.fake.synthesis.spoken.length;
+    app.$('handsfree').checked = true;
+    app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+    if (!(await expect(app, check, 'toggling Hands-free after terminal Exit stays manual and ready to wrap', () =>
+      visible(app.$('manual-interview')) && !visible(app.$('voice-stage'))
+        && !visible(app.$('panel-done')) && !app.$('handsfree').checked
+        && /ready to write it up/i.test(app.$('question').textContent)
+        && visible(app.$('b-wrap')) && !app.$('b-wrap').disabled))) return;
+    const afterToggle = await within(loadSession(terminal.id), 'reading the terminal idea after the voice toggle');
+    check('a rejected terminal voice toggle does not persist hands-free as enabled',
+      loadPrefs().handsFree === false, `handsFree=${loadPrefs().handsFree}`);
+    check('the terminal toggle starts no synthesis, narration or recognition',
+      app.model.calls.length === 0 && app.fake.recognition.startCount === starts
+        && app.fake.synthesis.spoken.length === speeches, detail(app));
+    check('the rejected voice toggle preserves the saved terminal answer unchanged',
+      JSON.stringify(afterToggle) === JSON.stringify(saved), detail(app));
   }, { seed: terminal, voice: true });
 
   const pendingSynthesis = synthesisSeed();

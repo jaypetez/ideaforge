@@ -467,6 +467,7 @@ export function listenViaWebSpeech({
   let deaf = null;
   let settling = null;
   let finishing = null;
+  let preserveDraft = false;
 
   /** Resolve or reject exactly once, and stop watching. */
   function settle(fn) {
@@ -490,7 +491,7 @@ export function listenViaWebSpeech({
     clearTimeout(deaf);
     deaf = setTimeout(() => {
       try { rec.onend = null; rec.abort(); } catch { /* nothing to abort */ }
-      settle(() => resolve(heard()));
+      settle(() => resolve(answer()));
     }, deafMs);
   }
 
@@ -510,6 +511,7 @@ export function listenViaWebSpeech({
 
   const now = () => assembleTranscript(carried.concat(session));
   const heard = () => now().finals;
+  const answer = () => preserveDraft ? now().text : heard();
 
   /**
    * Recomputed from the whole result list every time rather than appended to.
@@ -584,7 +586,7 @@ export function listenViaWebSpeech({
       try { rec.abort(); } catch (err) {
         if (err.name !== 'InvalidStateError') console.warn('Could not release speech recognition.', err);
       }
-      settle(() => resolve(heard()));
+      settle(() => resolve(answer()));
     }, 400);
   }
 
@@ -597,7 +599,7 @@ export function listenViaWebSpeech({
     wantMore = false;
     // A mid-session failure on an engine that had been working: keep whatever was heard
     // rather than throwing away a half-finished answer.
-    if (heard()) return;
+    if (heard() || (preserveDraft && now().text)) return;
     settle(() => reject(Object.assign(new Error(kind === 'not-allowed'
       ? 'Microphone access was denied.'
       : `Speech recognition failed (${kind || 'unknown'}).`), { code: kind })));
@@ -616,7 +618,7 @@ export function listenViaWebSpeech({
     // In hands-free mode the engine's endpoint IS the end of the answer — but only once
     // it has actually heard something, otherwise Android's habit of ending every few
     // seconds would return an empty answer before the user finished thinking.
-    if (autoStop && heard()) { settle(() => resolve(heard())); return; }
+    if (autoStop && heard()) { settle(() => resolve(answer())); return; }
     if (wantMore) {
       carried = carried.concat(session.filter((r) => r.isFinal));
       session = [];
@@ -624,7 +626,7 @@ export function listenViaWebSpeech({
       sessionSentInterim = false;
       try { rec.start(); alive(); return; } catch { /* fall through and settle */ }
     }
-    settle(() => resolve(heard()));
+    settle(() => resolve(answer()));
   };
 
   try { rec.start(); } catch (e) { settle(() => reject(new Error(`Could not start dictation: ${e.message}`))); }
@@ -632,7 +634,13 @@ export function listenViaWebSpeech({
 
   return {
     promise,
-    stop() { if (!settled) { wantMore = false; finishNow(); } },
+    /** Explicit pause keeps the latest assembled draft; ordinary stop still requires finals. */
+    stop({ preserveDraft: keepDraft = false } = {}) {
+      if (settled) return;
+      preserveDraft ||= keepDraft;
+      wantMore = false;
+      finishNow();
+    },
     abort() {
       wantMore = false;
       settle(() => resolve(''));

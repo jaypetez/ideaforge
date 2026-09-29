@@ -122,6 +122,11 @@
         A moving meter proves that samples arrived, not that the recogniser understood you.
         It stops outside listening; missing input is never replaced by an animated guess.
       </p>
+      <p>
+        If recorded dictation loses its meter, recording can continue without silence
+        detection. The app reports the remaining time limit; the segment still ends within
+        its cap. Metering that is unavailable is not treated as proof of silence.
+      </p>
 
       <h2 id="pause-resume-exit">Pause, resume or return to text</h2>
       <p>
@@ -135,6 +140,11 @@
         Pausing does not undo an answer already sent, and it does not start the next
         capture. <strong>Resume</strong> requires a deliberate tap; no hidden listener
         waits for a spoken resume command.
+      </p>
+      <p>
+        To send a retained draft after Resume, say just the finish word. Repeated misses
+        will pause rather than skip a question that already has draft words.
+        Choosing Dictation Off opens the typed interview, even if hands-free was remembered.
       </p>
       <figure class="screenshot voice-shot">
         <picture>

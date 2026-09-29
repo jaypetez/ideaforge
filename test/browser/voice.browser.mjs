@@ -337,9 +337,24 @@ async function captureLifetimeChecks(check) {
     },
   }, async (seen) => {
     const result = await outcome(createRecorder());
-    check('analyser setup failure is surfaced and releases its already-granted microphone',
-      /injected analyser/.test(result.error?.message || '') && tracksEnded(seen)
-        && seen.contexts.every((ctx) => ctx.state === 'closed'));
+    check('analyser setup failure does not discard a usable microphone',
+      !!result.value && !tracksEnded(seen), result.error?.message || '');
+    if (!result.value) return;
+    const unavailable = [];
+    let levels = 0;
+    try {
+      const started = performance.now();
+      const audio = await within(result.value.record({
+        autoStop: false, maxMs: 650, onLevel: () => { levels += 1; },
+        onLevelUnavailable: (reason) => unavailable.push(reason),
+      }), 'recording without an analyser', 2000);
+      check('an unavailable analyser leaves real audio recording until an independent deadline',
+        audio.size > 1600 && performance.now() - started >= 600 && !result.value.recording(),
+        `${audio.size} bytes`);
+      check('missing level and speech evidence is explicit, never fabricated',
+        levels === 0 && unavailable.length === 1 && /unknown|unavailable/i.test(unavailable[0]),
+        unavailable.join('; '));
+    } finally { await result.value.dispose(); }
   });
 
   await withMedia({
@@ -390,6 +405,69 @@ async function captureLifetimeChecks(check) {
           && seen.contexts.every((ctx) => ctx.state === 'closed'));
       check('recorder reuse does not reacquire the mic or route it to speakers',
         seen.requests === 1 && seen.speakerConnections === 0);
+    } finally { await rec.dispose(); }
+  });
+}
+
+async function recorderMeterFailureChecks(check) {
+  await withMedia({
+    configureContext: (ctx) => {
+      ctx.suspend();
+      ctx.resume = () => new Promise(() => {});
+    },
+  }, async () => {
+    const rec = await createRecorder();
+    const unavailable = [];
+    let levels = 0;
+    try {
+      const result = await outcome(within(rec.record({
+        autoStop: false, maxMs: 650, onLevel: () => { levels += 1; },
+        onLevelUnavailable: (reason) => unavailable.push(reason),
+      }), 'recorder while Web Audio cannot resume', 2500));
+      check('a never-resuming audio context cannot strand MediaRecorder or invent silence',
+        result.value?.size > 1600 && levels === 0 && unavailable.length === 1
+          && /unknown/i.test(unavailable[0]), result.error?.message || unavailable.join('; '));
+    } finally { await rec.dispose(); }
+  });
+
+  for (const failure of ['suspend', 'close']) {
+    await withMedia({}, async (seen) => {
+      const rec = await createRecorder();
+      const unavailable = [];
+      let samples = 0;
+      try {
+        const pending = outcome(rec.record({
+          autoStop: false, maxMs: 1000, onLevel: () => { samples += 1; },
+          onLevelUnavailable: (reason) => unavailable.push(reason),
+        }));
+        await until(() => samples >= 5, 'meter before interruption');
+        await seen.contexts[0][failure]();
+        await wait(80);
+        check(`an analyser ${failure} does not stop or disable the recorder microphone`,
+          rec.recording() && seen.streams[0].getAudioTracks().every((track) =>
+            track.readyState === 'live' && track.enabled));
+        const result = await within(pending, 'meter failure deadline', 2500);
+        check(`recording survives analyser ${failure} with its captured audio intact`,
+          !result.error && result.value?.size > 1600, result.error?.message || `${result.value?.size} bytes`);
+        check(`analyser ${failure} is reported once without stale levels`,
+          unavailable.length === 1 && /unknown|unavailable/i.test(unavailable[0]),
+          unavailable.join('; '));
+      } finally { await rec.dispose(); }
+    });
+  }
+
+  await withMedia({}, async (seen) => {
+    const rec = await createRecorder();
+    try {
+      const pending = outcome(rec.record({ autoStop: false, maxMs: 4000 }));
+      await wait(650);
+      await seen.contexts[0].close();
+      seen.streams[0].getTracks().forEach((track) => track.stop());
+      const result = await within(pending, 'lost microphone input', 2000);
+      check('ended input rejects explicitly but preserves the already captured audio',
+        result.error?.code === 'audio-capture' && result.error.fatal === true
+          && result.error.audio?.size > 1600 && !rec.recording(),
+        result.error?.message || 'unexpected successful recording');
     } finally { await rec.dispose(); }
   });
 }
@@ -706,20 +784,29 @@ export default async function run(check) {
   });
 
   // ── the recorder and the silence gate, against a real audio pipeline ──────
-  const rec = await createRecorder();
-  check('a recording MIME type was negotiated', typeof rec.mime === 'string', rec.mime || 'browser default');
-
-  let peak = 0;
-  let last = null;
-  const blob = await rec.record({
-    onLevel: (rms, state) => { peak = Math.max(peak, rms); last = state; },
-    silenceMs: 600, minSpeechMs: 200, maxMs: 6000,
+  await withMedia({}, async (seen) => {
+    const rec = await createRecorder();
+    check('a recording MIME type was negotiated', typeof rec.mime === 'string', rec.mime || 'browser default');
+    let peak = 0;
+    let last = null;
+    const started = performance.now();
+    try {
+      const blob = await rec.record({
+        onLevel: (rms, state) => {
+          peak = Math.max(peak, rms);
+          last = state;
+          // Give the real analyser silence after enough synthetic microphone speech.
+          if (state.speechMs >= 200) seen.streams[0].getTracks().forEach((track) => { track.enabled = false; });
+        },
+        silenceMs: 600, minSpeechMs: 200, maxMs: 6000,
+      });
+      check('recording produces a non-empty blob', blob && blob.size > 1000, (blob && blob.size) + ' bytes');
+      check('the analyser saw signal', peak > 0.01, 'peak rms ' + peak.toFixed(3));
+      check('the silence gate detected speech', !!(last && last.heardSpeech));
+      check('the gate closed on actual silence before the independent time limit',
+        !!last?.done && performance.now() - started < 5500);
+    } finally { await rec.dispose(); }
   });
-  check('recording produces a non-empty blob', blob && blob.size > 1000, (blob && blob.size) + ' bytes');
-  check('the analyser saw signal', peak > 0.01, 'peak rms ' + peak.toFixed(3));
-  check('the silence gate detected speech', !!(last && last.heardSpeech));
-  check('the gate closed on its own rather than hitting the ceiling', !!(last && last.done));
-  rec.dispose();
 
   // ── the backend picker when the real recogniser works ─────────────────────
   forgetVerdict();
@@ -736,6 +823,7 @@ export default async function run(check) {
   forgetVerdict();
 
   await captureLifetimeChecks(check);
+  await recorderMeterFailureChecks(check);
   await nativeLevelChecks(check);
   await setupCancellationChecks(check);
 }

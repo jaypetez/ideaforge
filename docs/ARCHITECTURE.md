@@ -170,6 +170,9 @@ Browser output is the default. Consent and the successful hosted-preview gate be
 `withTts` in `src/store/secrets.js` keeps speech credentials independent of inference and
 STT; `speechPreferences` in `src/store/prefs.js` holds the non-secret browser voice and pace.
 Neither speech credentials nor generated audio enters session backups.
+The separate `hostedSpeechAllowed` device flag defaults off. Withdrawal clears it
+synchronously and revokes the keyring verification; only a successful explicit preview
+enables both gates again.
 
 The UI owns cancellation before a voice controller exists too: setup passes a signal through
 `createVoice` to the behavioural recognition probe. A retired setup must not start a
@@ -180,11 +183,16 @@ A fresh drive loop reads wrap eligibility through its injected `answeredCount` c
 Pause/Resume must not reset the progress already recorded in the session. Turn and synthesis
 work cannot share a pending promise with a different result shape; a retired voice turn may
 settle after Exit, but it must not start synthesis without a new request.
+The `hasDraft` callback lets a bare finish word submit retained words and prevents the
+miss-recovery ladder from silently skipping them. Manual dictation releases its input when
+that capture ends; active hands-free capture can still reuse its microphone between turns.
 
 The behavioural rules live in [CLAUDE.md](../CLAUDE.md#voice-presentation-and-spoken-output).
 The evidence boundary matters just as much: `tools/browser-check.mjs` includes separate
 `tools/browser-policy-check.mjs` runs with real Web Audio and trusted input gestures, beside
-the original synthetic-media/autoplay-bypassed suite. Neither proves real permission UI,
+the original synthetic-media/autoplay-bypassed suite. Its real-app phase drives the actual
+Preview, Start and Resume handlers with trusted clicks and real decoded audio, while
+inference, recognition and speech HTTP are scripted. Neither proves real permission UI,
 native recognition contention or physical mobile behaviour. The optional hosted adapter
 has no developer-verified live CORS or quality result for this redesign; its in-app preview
 is a local enablement gate, not a universal compatibility claim.

@@ -203,7 +203,9 @@ npm run test:all</code></pre>
         The required browser command also runs
         <code>tools/browser-policy-check.mjs</code> in fresh profiles. It exercises real
         Web Audio before and after trusted gestures, with synthetic-microphone cases
-        identified separately. This is playback-policy evidence, not live provider CORS
+        identified separately. Its app phase exercises the real Preview, Start, Resume,
+        Pause and Exit handlers with trusted input and decoded audio, but scripted
+        model/recognition and fake speech HTTP. This is playback-policy evidence, not live provider CORS
         or a voice-quality audition.
       </p>
       <p>

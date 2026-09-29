@@ -136,6 +136,8 @@ evidence distinct from permission UI, native recognition sharing a microphone, p
 Android/iPhone behaviour and live hosted-speech CORS or quality. None of those is proved
 by a fake-media pass. Record unavailable physical checks rather than claiming device support,
 and never run paid speech checks without an authorised key and spending cap.
+The real-app policy phase also drives Preview, Start, Resume, Pause and Exit with trusted
+input and actual playback, using only scripted model/recognition and fake speech HTTP.
 
 Add a probe by dropping a file in `test/browser/`:
 ```js

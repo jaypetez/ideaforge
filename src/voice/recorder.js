@@ -17,6 +17,7 @@ const MIME_CANDIDATES = [
   'audio/mp4',
   '',                                  // let the browser pick
 ];
+const FLUSH_MS = 1000;
 
 export function micSupported() {
   return typeof navigator !== 'undefined'
@@ -58,33 +59,77 @@ export async function createRecorder({ vad = {}, signal } = {}) {
   /**
    * Record until silence, or until stop() is called.
    *
-   * @param {{onLevel?: Function, onStart?: Function, onSilence?: Function, autoStop?: boolean}} opts
+   * Metering is optional. Input loss rejects with {code: 'audio-capture', fatal: true, audio}
+   * after flushing the captured Blob, so callers can retain a draft without continuing.
+   * @param {{onLevel?: Function, onStart?: Function, onLevelUnavailable?: Function,
+   *          autoStop?: boolean}} opts
    * @returns {Promise<Blob>}
    */
-  function record({ onLevel, onStart, autoStop = true, ...gateOpts } = {}) {
+  function record({ onLevel, onStart, onLevelUnavailable, autoStop = true, ...gateOpts } = {}) {
     if (disposed) throw new Error('The microphone recorder has been disposed.');
     if (active) throw new Error('already recording');
 
+    const cfg = { ...DEFAULTS, ...vad, ...gateOpts };
+    if (!Number.isFinite(cfg.maxMs) || cfg.maxMs <= 0 || cfg.maxMs > 2147483647) {
+      throw new Error('Recording maxMs must be a finite positive timer duration.');
+    }
+    const liveInput = () => input.stream.getAudioTracks().some((track) => track.readyState === 'live');
+    const inputEnded = () => Object.assign(new Error(
+      'Microphone input ended. The captured audio was retained; resume to reconnect.',
+    ), { code: 'audio-capture', fatal: true });
+    if (!liveInput()) throw inputEnded();
     const rec = new MediaRecorder(input.stream, mime ? { mimeType: mime } : undefined);
     const chunks = [];
-    const gate = createSilenceGate({ ...DEFAULTS, ...vad, ...gateOpts });
+    const gate = createSilenceGate(cfg);
     let settled = false;
     let stopping = false;
+    let sampled = false;
+    let levelUnavailable = false;
+    let inputError = null;
+    let limit = null;
+    let health = null;
+    let flushing = null;
 
     return new Promise((resolve, reject) => {
+      const unavailable = (err) => {
+        if (levelUnavailable) return;
+        levelUnavailable = true;
+        const reason = `Microphone levels and automatic silence detection are unavailable; `
+          + `speech evidence is unknown. Recording keeps its time limit. ${err.message}`;
+        if (onLevelUnavailable) onLevelUnavailable(reason);
+        else console.warn(reason);
+      };
       const finish = (err = null, discard = false) => {
         if (settled) return;
         settled = true;
+        clearTimeout(limit);
+        clearInterval(health);
+        clearTimeout(flushing);
+        input.stream.getAudioTracks().forEach((track) => track.removeEventListener('ended', lostInput));
         input.stop();
         active = null;
         rec.onstart = rec.ondataavailable = rec.onstop = rec.onerror = null;
-        if (err) reject(err);
-        else resolve(new Blob(discard ? [] : chunks, { type: rec.mimeType || mime || 'audio/webm' }));
+        let failure = discard ? null : err || inputError;
+        if (!discard && !sampled && !levelUnavailable) {
+          try { unavailable(new Error('No microphone samples were available for this capture.')); }
+          catch (error) { failure = error; }
+        }
+        const audio = new Blob(discard ? [] : chunks, { type: rec.mimeType || mime || 'audio/webm' });
+        if (failure) {
+          if (failure.code === 'audio-capture') failure.audio = audio;
+          reject(failure);
+        } else resolve(audio);
       };
       const stop = () => {
         if (settled || stopping) return;
         stopping = true;
+        clearTimeout(limit);
+        clearInterval(health);
         input.stop();
+        flushing = setTimeout(() => {
+          finish(Object.assign(new Error('The recorder did not finish flushing its captured audio.'),
+            { code: 'audio-capture', fatal: true }));
+        }, FLUSH_MS);
         try {
           if (rec.state !== 'inactive') rec.stop();
         } catch (err) { finish(err); }
@@ -96,14 +141,25 @@ export async function createRecorder({ vad = {}, signal } = {}) {
           console.warn('Could not stop the failed microphone recording.', stopError);
         }
       };
+      const lostInput = () => {
+        if (settled || stopping) return;
+        inputError = inputEnded();
+        stop();
+      };
 
       rec.ondataavailable = (e) => { if (!settled && e.data?.size) chunks.push(e.data); };
       rec.onstart = () => {
         if (settled || stopping) return;
         try { onStart?.(); } catch (err) { fail(err); }
       };
-      rec.onstop = () => finish();
-      rec.onerror = (e) => fail(new Error(`recording failed: ${e.error?.name || 'unknown'}`));
+      rec.onstop = () => {
+        if (!stopping && !liveInput()) inputError = inputEnded();
+        finish();
+      };
+      rec.onerror = (e) => {
+        if (!liveInput()) lostInput();
+        else fail(new Error(`recording failed: ${e.error?.name || 'unknown'}`));
+      };
 
       active = {
         stop,
@@ -114,15 +170,23 @@ export async function createRecorder({ vad = {}, signal } = {}) {
         get stopping() { return stopping; },
       };
       try {
+        input.stream.getAudioTracks().forEach((track) => track.addEventListener('ended', lostInput));
+        // Neither bound depends on analyser frames, which can stop while MediaRecorder runs.
+        limit = setTimeout(stop, cfg.maxMs);
+        health = setInterval(() => { if (!liveInput()) lostInput(); }, 100);
         rec.start(250);
         if (settled || stopping) return;
         input.start((rms) => {
           if (settled || stopping) return;
+          sampled = true;
           // Report the state of THIS sample, including a terminal gate verdict.
           const verdict = gate.push(rms, performance.now());
           if (onLevel) onLevel(rms, gate.state());
           if (verdict === 'done' && autoStop) stop();
-        }, fail);
+        }, (err) => {
+          if (settled || stopping) return;
+          try { unavailable(err); } catch (error) { fail(error); }
+        });
       } catch (err) { fail(err); }
     });
   }

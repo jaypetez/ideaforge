@@ -32,6 +32,10 @@ Keep matching and state transitions pure. Browser APIs belong in `src/voice/` or
   Never leave a hidden microphone listening for a resume command.
 - Cancelling setup must stop the initial recognition probe as well as active capture.
 - Resume reads wrap eligibility from the session, not from the lifetime of a fresh loop.
+- A bare finish word can send a retained draft without inventing new answer text or changing
+  its typed/chip provenance. Repeated misses must not silently skip and erase retained words.
+- Manual dictation releases its input after that capture. Reuse between active hands-free
+  turns is a separate lifetime, never permission to leave the manual microphone open.
 - A trigger word is terminal-only. A command must occupy the whole utterance.
 - A matched command carries empty answer text so it cannot reach `submitAnswer`.
 - A trigger in an interim, or in a final without confidence, arms settlement; it does not

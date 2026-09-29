@@ -103,14 +103,18 @@ const state = {
   voiceCaption: '',
   voiceTranscript: null,
   voiceDetail: '',
+  voiceMeterWarning: '',
   voiceBackend: 'Browser voice',
   capturePrefix: '',
+  capturePrefixSource: 'typed',
   capturePending: false,
   captureConfirm: false,
   readback: false,
   writing: null,
   credentialEpoch: 0,
   wakeLock: null,
+  wakeLockRequest: null,
+  speechRevoked: false,
   starting: false,
   voiceWrapPending: null,
 };
@@ -467,6 +471,8 @@ function fillModelList(names) {
  */
 async function forgetKey() {
   state.credentialEpoch++;
+  state.speechRevoked = true;
+  savePrefs({ hostedSpeechAllowed: false });
   teardownVoice();
   if (state.previewSpeech) state.previewSpeech.dispose();
   state.previewSpeech = null;
@@ -527,8 +533,8 @@ function readSpeechFromForm() {
   const voice = els['tts-voice'].value === 'cedar' ? 'cedar' : 'marin';
   return {
     kind: 'openai', apiKey, voice,
-    verified: saved.verified && saved.apiKey === apiKey && saved.voice === voice
-      && els['tts-consent'].checked,
+    verified: saved.verified && !state.speechRevoked && loadPrefs().hostedSpeechAllowed
+      && saved.apiKey === apiKey && saved.voice === voice && els['tts-consent'].checked,
   };
 }
 
@@ -583,7 +589,7 @@ function renderSpeechSettings() {
   const preferences = loadPrefs();
   els.speech.value = saved.kind;
   els['tts-voice'].value = saved.voice;
-  els['tts-consent'].checked = saved.verified;
+  els['tts-consent'].checked = saved.verified && preferences.hostedSpeechAllowed && !state.speechRevoked;
   els.ttskey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste a scoped OpenAI key';
   els['speech-rate'].value = String(preferences.speechRate);
   els['speech-rate-value'].value = `${preferences.speechRate.toFixed(2)}×`;
@@ -624,11 +630,22 @@ async function previewSpeech() {
       els['speech-check'].textContent = 'The preview did not finish. Speech has not been enabled.';
       return;
     }
-    state.creds = withTts(state.creds || emptyKeyring(), {
+    const checked = withTts(state.creds || emptyKeyring(), {
       ...config, verified: config.kind === 'openai' ? true : config.verified,
     });
-    await saveCredentials(state.creds);
-    if (state.previewSpeech !== preview) return;
+    await saveCredentials(checked);
+    if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
+    if (config.kind === 'openai') {
+      if (!savePrefs({ hostedSpeechAllowed: true })) {
+        state.speechRevoked = true;
+        state.creds = withTts(checked, { ...checked.tts, verified: false });
+        await saveCredentials(state.creds);
+        els['speech-check'].textContent = 'The preview played, but permission could not be saved. Browser speech remains active.';
+        return;
+      }
+      state.speechRevoked = false;
+    }
+    state.creds = checked;
     els.ttskey.value = '';
     els['speech-check'].textContent = config.kind === 'openai'
       ? 'OpenAI speech played successfully in this browser. Enhanced speech is enabled.'
@@ -645,6 +662,32 @@ async function previewSpeech() {
       state.previewSpeech = null;
       onSpeechChange();
     }
+  }
+}
+
+async function revokeHostedSpeech() {
+  state.speechRevoked = true;
+  state.credentialEpoch++;
+  if (state.voiceMode === 'active') {
+    pauseVoice({ detail: 'Hosted speech is disabled. Resume to continue with the browser voice.' }).catch(fail);
+  }
+  if (state.previewSpeech) state.previewSpeech.dispose();
+  state.previewSpeech = null;
+  const saved = (state.creds && state.creds.tts) || emptyKeyring().tts;
+  const allowedSaved = savePrefs({ hostedSpeechAllowed: false });
+  state.creds = withTts(state.creds || emptyKeyring(), {
+    ...saved, kind: els.speech.value === 'openai' ? 'openai' : 'browser', verified: false,
+  });
+  onSpeechChange();
+  els['speech-check'].textContent = 'Disabling hosted speech…';
+  try {
+    await saveCredentials(state.creds);
+    els['speech-check'].textContent = 'Hosted speech is disabled. A new check and preview is needed to enable it.';
+  } catch (error) {
+    els['speech-check'].textContent = allowedSaved
+      ? `Hosted speech is disabled, but its credential settings could not be updated: ${error.message}`
+      : 'Hosted speech is stopped for this page, but the withdrawal could not be saved. Forget the speech key before closing.';
+    fail(error);
   }
 }
 
@@ -912,7 +955,8 @@ function renderVoiceStage() {
       ? state.voiceMode : state.voicePhase,
     question: state.voiceCaption || currentQuestion(),
     transcript: state.voiceTranscript === null ? els.answer.value : state.voiceTranscript,
-    detail: state.voiceDetail || (state.voicePhase === 'listening'
+    detail: [state.voiceMode === 'active' ? state.voiceMeterWarning : '', state.voiceDetail]
+      .filter(Boolean).join(' ') || (state.voicePhase === 'listening'
       ? `Say “${state.trigger}” to send. “Pause voice” or “exit voice” are commands.`
       : 'One question at a time. Take your time.'),
     backend: state.voiceBackend,
@@ -935,6 +979,7 @@ function prepareSpeechOutput() {
   const preferences = saveSpeechPreferences();
   const kind = config.kind === 'openai' && config.verified ? 'openai' : 'browser';
   state.voiceBackend = kind === 'openai' ? 'OpenAI · AI-generated voice' : 'Browser voice';
+  state.voiceMeterWarning = '';
   state.voiceDetail = config.kind === 'openai' && !config.verified
     ? 'OpenAI speech has not been checked. Using the browser voice.' : '';
   let output;
@@ -974,6 +1019,7 @@ async function speakForVoice(text) {
 }
 
 function releaseWakeLock() {
+  state.wakeLockRequest = null;
   const lock = state.wakeLock;
   state.wakeLock = null;
   if (lock && !lock.released) {
@@ -982,11 +1028,15 @@ function releaseWakeLock() {
 }
 
 async function keepScreenAwake() {
-  if (!navigator.wakeLock || document.hidden || state.voiceMode !== 'active' || state.wakeLock) return;
+  if (!navigator.wakeLock || document.hidden || state.voiceMode !== 'active'
+      || state.wakeLock || state.wakeLockRequest) return;
   const epoch = state.voiceEpoch;
+  const request = {};
+  state.wakeLockRequest = request;
   try {
     const lock = await navigator.wakeLock.request('screen');
-    if (epoch !== state.voiceEpoch || state.voiceMode !== 'active' || document.hidden) {
+    if (epoch !== state.voiceEpoch || state.wakeLockRequest !== request
+        || state.voiceMode !== 'active' || document.hidden) {
       await lock.release();
       return;
     }
@@ -998,12 +1048,18 @@ async function keepScreenAwake() {
     if (epoch !== state.voiceEpoch || state.voiceMode !== 'active') return;
     state.voiceDetail = 'Keep this screen open. The browser could not keep the display awake.';
     renderVoiceStage();
+  } finally {
+    if (state.wakeLockRequest === request) state.wakeLockRequest = null;
   }
 }
 
 async function setupVoice({ defer = false, automatic = state.wantHandsFree } = {}) {
   const { kind: sttKind, apiKey: sttKey } = (state.creds && state.creds.stt) || {};
   if (sttKind === 'off') {
+    if (automatic) {
+      setHandsFree(false);
+      say('Dictation is off. Continue by typing, or enable dictation in Settings.');
+    }
     els['b-mic'].hidden = true;
     els['handsfree-wrap'].hidden = true;
     return;
@@ -1084,8 +1140,19 @@ async function listenOnce({ prompt, autoStop }) {
       onLevel: (rms) => {
         els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
       },
+      onLevelUnavailable: (reason) => {
+        if (epoch !== state.voiceEpoch || navigation !== state.navigation) return;
+        els.pulse.style.removeProperty('--level');
+        say(reason);
+      },
     });
   } finally {
+    if (state.voice === voice) {
+      await Promise.resolve(voice.dispose()).catch((error) => {
+        say(`The microphone could not finish closing: ${error.message}`);
+      });
+      if (state.voice === voice) state.voice = null;
+    }
     if (epoch === state.voiceEpoch && navigation === state.navigation) {
       els.listening.hidden = true;
       els['b-mic'].textContent = 'Answer out loud';
@@ -1115,11 +1182,13 @@ async function runHandsFree() {
     listen: ({ prompt, confirm }) => listenForDriving(prompt, !!confirm, voice, running),
     openTurn: () => running() ? openTurn(state.session) : null,
     submit: (text) => running()
-      ? submitAndAdvance([state.capturePrefix, text].filter(Boolean).join(' '), 'voice') : undefined,
+      ? submitAndAdvance([state.capturePrefix, text].filter(Boolean).join(' '),
+        text.trim() ? 'voice' : state.capturePrefixSource) : undefined,
     skip: () => running() ? doSkip() : undefined,
     wrap: () => running() ? wrapUp('Wrapped up by voice.') : undefined,
     offerWrap: () => running() ? shouldOfferWrap(state.session) : null,
     answeredCount: () => state.session.turns.filter((turn) => turn.answer || turn.skipped).length,
+    hasDraft: () => !!els.answer.value.trim(),
     pause: () => pauseVoice({ command: true }),
     exit: () => exitVoice({ command: true }),
     scratch: () => {
@@ -1192,6 +1261,7 @@ async function listenForDriving(prompt, confirm, voice, running) {
   if (!running()) return '';
   const prefix = els.answer.value.trim();
   state.capturePrefix = prefix;
+  state.capturePrefixSource = state.answerSource;
   state.captureConfirm = confirm;
   state.voiceTranscript = confirm ? '' : null;
   setVoicePhase('starting', 'Getting the microphone ready…');
@@ -1229,9 +1299,11 @@ async function listenForDriving(prompt, confirm, voice, running) {
         els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
         state.voiceStage.level(rms);
       },
-      onLevelUnavailable: () => {
+      onLevelUnavailable: (reason) => {
         if (!running()) return;
-        state.voiceDetail = `Listening without a live meter. Say “${state.trigger}” to send.`;
+        state.voiceMeterWarning = String(reason || 'Microphone levels are unavailable.');
+        state.voiceStage.reset();
+        els.pulse.style.removeProperty('--level');
         renderVoiceStage();
       },
       onPhase: (phase) => {
@@ -1244,6 +1316,7 @@ async function listenForDriving(prompt, confirm, voice, running) {
       els['b-mic'].textContent = 'Answer out loud';
       els.pulse.style.removeProperty('--level');
       els.answer.value = prefix;
+      state.answerSource = state.capturePrefixSource;
       state.voiceTranscript = null;
       state.voiceStage.reset();
     }
@@ -1274,6 +1347,7 @@ function teardownVoice() {
   state.cycling = false;
   state.capturePending = false;
   state.captureConfirm = false;
+  state.voiceMeterWarning = '';
   state.voiceTranscript = null;
   state.readback = false;
   els['b-mic'].hidden = true;
@@ -1282,6 +1356,13 @@ function teardownVoice() {
 }
 
 function setHandsFree(on) {
+  if (on && (!state.session || state.voiceWrapPending
+      || (!state.busy && !openTurn(state.session)))) {
+    on = false;
+    state.wantHandsFree = false;
+    savePrefs({ handsFree: false });
+    say('There are no more questions. Choose the write-up when you are ready.');
+  }
   state.handsFree = on;
   els.handsfree.checked = on;
   if (!on) {
@@ -1312,9 +1393,11 @@ async function pauseVoice({ command = false, blocked = false, detail = '' } = {}
   const wasCapturing = state.voicePhase === 'listening' || state.voicePhase === 'transcribing';
   const confirmation = state.captureConfirm;
   const prefix = state.capturePrefix;
+  const prefixSource = state.capturePrefixSource;
   const captured = capturedDraftText(prefix);
   if (command || confirmation) els.answer.value = prefix;
   else if (wasCapturing) els.answer.value = retainedDraft(prefix, captured);
+  if (els.answer.value === prefix) state.answerSource = prefixSource;
   cancelDraftSave();
   state.voiceEpoch++;
   const epoch = state.voiceEpoch;
@@ -1347,7 +1430,7 @@ async function pauseVoice({ command = false, blocked = false, detail = '' } = {}
         && ['paused', 'blocked'].includes(state.voiceMode)) {
       if (!command && !confirmation && wasCapturing) {
         els.answer.value = retainedDraft(prefix, finalText || captured);
-        if (els.answer.value !== prefix) state.answerSource = 'voice';
+        state.answerSource = els.answer.value === prefix ? prefixSource : 'voice';
       }
       await flushDraft();
       if (epoch === state.voiceEpoch && currentView(id, navigation)
@@ -1390,6 +1473,7 @@ async function exitVoice({ command = false } = {}) {
   else if (!state.captureConfirm && ['listening', 'transcribing'].includes(state.voicePhase)) {
     els.answer.value = retainedDraft(state.capturePrefix, capturedDraftText(state.capturePrefix));
   }
+  if (els.answer.value === state.capturePrefix) state.answerSource = state.capturePrefixSource;
   const unfinishedAudio = state.voice && state.voice.mode === 'recorder'
     && (state.capturePending || ['listening', 'transcribing'].includes(state.voicePhase));
   const done = state.session && (state.session.status === 'done' || state.writing === state.session.id);
@@ -1459,7 +1543,7 @@ async function wrapUp(note) {
   try {
     if (wasDriving) {
       state.voiceCaption = 'Writing your refined prompt';
-      setVoicePhase('thinking', 'Your interview is saved. Bringing it together now.');
+      setVoicePhase('thinking', 'Bringing your answers together. The result will appear here.');
       await speakForVoice('Writing it up.');
       setVoicePhase('thinking');
     }
@@ -1824,6 +1908,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   }), { now: now() });
   busy(false);
   els.answer.value = '';
+  state.answerSource = 'typed';
   state.capturePrefix = '';
   await persist();
   state.starting = false;
@@ -1838,7 +1923,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
 async function resumeInterview(id) {
   const navigation = ++state.navigation;
   teardownVoice();
-  state.wantHandsFree = loadPrefs().handsFree === true;
+  state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
   prepareSpeechOutput();
   say('');
   fail(null);
@@ -1922,6 +2007,8 @@ async function resumeInterview(id) {
   }
   render();
   els.answer.value = state.session.draftAnswer || '';
+  state.answerSource = (openTurn(state.session)?.chips || []).some((chip) => chip === els.answer.value)
+    ? 'chip' : 'typed';
   await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });
   if (state.voiceMode === 'manual') els.answer.focus();
 }
@@ -1963,13 +2050,17 @@ function bind() {
     state.previewSpeech = null;
     els['speech-check'].textContent = '';
     onSpeechChange();
+    if (els.speech.value !== 'openai') revokeHostedSpeech().catch(fail);
   };
   const invalidatePreview = () => {
     if (state.previewSpeech) state.previewSpeech.dispose();
     state.previewSpeech = null;
     onSpeechChange();
   };
-  els['tts-consent'].onchange = invalidatePreview;
+  els['tts-consent'].onchange = () => {
+    invalidatePreview();
+    if (!els['tts-consent'].checked) revokeHostedSpeech().catch(fail);
+  };
   for (const control of [els.ttskey, els['tts-voice']]) {
     control.addEventListener('input', () => {
       invalidatePreview();
@@ -2021,9 +2112,13 @@ function bind() {
   };
   els.handsfree.onchange = async () => {
     const on = els.handsfree.checked;
-    state.wantHandsFree = on;
-    savePrefs({ handsFree: on });
     if (!on) { await exitVoice(); return; }
+    if (state.voiceWrapPending || (!state.busy && !openTurn(state.session))) {
+      setHandsFree(true);
+      return;
+    }
+    state.wantHandsFree = true;
+    savePrefs({ handsFree: true });
     state.voiceEpoch++;
     state.voiceMode = 'active';
     state.voicePhase = 'starting';
@@ -2100,7 +2195,7 @@ function bind() {
     const navigation = ++state.navigation;
     const session = state.session;
     teardownVoice();
-    state.wantHandsFree = loadPrefs().handsFree === true;
+    state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
     prepareSpeechOutput();
     try {
       await buildProvider();
@@ -2179,9 +2274,9 @@ async function boot() {
   if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
     window.speechSynthesis.addEventListener('voiceschanged', renderSpeechVoices);
   }
-  els.version.textContent = `IdeaForge v${VERSION}`;
-  await renderResumeList();
   show('panel-setup');
+  await renderResumeList();
+  els.version.textContent = `IdeaForge v${VERSION}`;
 
   // Installability and an offline cold start. Needs a secure context, so it simply does
   // not register on a file:// open — which is fine, the app still runs.

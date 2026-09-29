@@ -122,7 +122,8 @@
               <td><strong>Device preferences</strong></td>
               <td>
                 Plain localStorage: the finish word, hands-free preference, browser voice
-                identifier and speaking pace. The hosted speech choice, voice, key and
+                identifier, speaking pace and a separate hosted-speech permission flag.
+                The hosted speech choice, voice, key and
                 successful-check status belong to the encrypted keyring instead.
               </td>
               <td>
@@ -232,6 +233,12 @@
         <strong>Check and preview OpenAI voice</strong> action. The preview itself is a
         paid-provider request. It must succeed through the hosted backend; a browser
         fallback never counts as a passed check.
+      </p>
+      <p>
+        Withdrawing consent or selecting browser speech disables hosted output immediately
+        and saves the withdrawal without waiting for Start. Both the separate permission
+        flag and the checked keyring state must allow it. A new successful preview is
+        required to enable it again; storage failures are reported explicitly.
       </p>
       <p>
         The permission is for spoken output, not a new source of interview questions or

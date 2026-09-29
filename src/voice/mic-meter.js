@@ -43,11 +43,11 @@ function acquireMicrophone(signal) {
 
 /**
  * Acquire once. `signal` cancels acquisition; the returned owner controls its lifetime.
- * `start` reports real RMS only, or an explicit error when sampling cannot run.
+ * `start` reports real RMS only, or an explicit error when sampling cannot run. Meter
+ * failure does not disable the stream: a recorder can still capture it without Web Audio.
  */
 export async function createMicMeter({ signal } = {}) {
   const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext;
-  if (!AudioCtx) throw new Error('This browser cannot measure microphone levels.');
   const stream = await acquireMicrophone(signal);
   let ctx = null;
   let source = null;
@@ -55,15 +55,38 @@ export async function createMicMeter({ signal } = {}) {
   let buf = null;
   let active = null;
   let disposed = false;
-  let closing = null;
+  let closing = Promise.resolve();
+  let meterError = null;
 
-  function stop() {
+  function stopSampling() {
     const run = active;
     active = null;
     if (run) {
       cancelAnimationFrame(run.raf);
       clearTimeout(run.timer);
     }
+  }
+
+  function closeMeter() {
+    stopSampling();
+    for (const node of [source, analyser]) {
+      try { node?.disconnect(); } catch (err) {
+        console.warn('Could not disconnect the microphone analyser.', err);
+      }
+    }
+    if (ctx && ctx.state !== 'closed') {
+      try {
+        closing = ctx.close().catch((err) => {
+          console.warn('Could not close the microphone audio context.', err);
+        });
+      } catch (err) { console.warn('Could not close the microphone audio context.', err); }
+    }
+    source = analyser = buf = ctx = null;
+    return closing;
+  }
+
+  function stop() {
+    stopSampling();
     stream.getAudioTracks().forEach((track) => { track.enabled = false; });
   }
 
@@ -72,28 +95,24 @@ export async function createMicMeter({ signal } = {}) {
     disposed = true;
     stop();
     stream.getTracks().forEach((track) => track.stop());
-    source?.disconnect();
-    analyser?.disconnect();
-    closing = ctx && ctx.state !== 'closed'
-      ? ctx.close().catch((err) => { console.warn('Could not close the microphone audio context.', err); })
-      : Promise.resolve();
-    source = analyser = buf = ctx = null;
-    return closing;
+    return closeMeter();
   }
 
   try {
     signal?.throwIfAborted();
+    if (!AudioCtx) throw new Error('This browser cannot measure microphone levels.');
     ctx = new AudioCtx();
     source = ctx.createMediaStreamSource(stream);
     analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     source.connect(analyser);
     buf = new Uint8Array(analyser.fftSize);
-    stop();
   } catch (err) {
-    await dispose();
-    throw err;
+    if (signal?.aborted) { await dispose(); throw err; }
+    meterError = err;
+    closeMeter();
   }
+  stop();
 
   function start(onLevel, onUnavailable) {
     if (disposed) throw new Error('The microphone meter has been disposed.');
@@ -104,9 +123,11 @@ export async function createMicMeter({ signal } = {}) {
 
     const fail = (err) => {
       if (active !== run) return;
-      stop();
+      meterError = err;
+      closeMeter();
       onUnavailable(err);
     };
+    if (meterError) { fail(meterError); return; }
     const tick = () => {
       if (active !== run) return;
       let rms;

@@ -1,11 +1,13 @@
 // Real audio policy checks, deliberately separate from the autoplay-bypassed browser suite.
 // Run directly with `node tools\browser-policy-check.mjs`; missing Chrome is always a failure.
 
-import { rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ROOT, findChrome, serveRepo, launchChrome, connectChrome } from './lib/harness.mjs';
+import { runAppAudioPolicy } from '../test/browser/app-audio-policy.probe.mjs';
 
 const NORMAL_POLICY = [
   '--autoplay-policy=document-user-activation-required',
@@ -22,11 +24,15 @@ const CASES = [
     ],
   },
 ];
+const APP_CASE = {
+  name: 'audio-policy-app', mode: 'app',
+  flags: [...NORMAL_POLICY, '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+};
 
 /** A short PCM WAV: real decode/playback without a provider, stored recording, or dependency. */
-function toneWav() {
+function toneWav(seconds = 0.5) {
   const sampleRate = 16000;
-  const frames = sampleRate / 2;
+  const frames = Math.round(sampleRate * seconds);
   const bytes = Buffer.alloc(44 + frames * 2);
   bytes.write('RIFF', 0);
   bytes.writeUInt32LE(bytes.length - 8, 4);
@@ -88,8 +94,11 @@ async function closeBrowser(browser, cdp) {
 }
 
 /** Fail-closed both as a standalone command and as a phase of browser-check.mjs. */
-export async function runBrowserPolicyChecks({ chrome = findChrome(), siteRoot = ROOT } = {}) {
+export async function runBrowserPolicyChecks({
+  chrome = findChrome(), siteRoot = ROOT, appOnly = false, untrustedPreview = false,
+} = {}) {
   if (!chrome) throw new Error('no Chrome found: audio policy checks are required');
+  if (untrustedPreview && !appOnly) throw new Error('the negative control requires --app-only');
   const results = [];
   const wav = toneWav();
   const server = await serveRepo({
@@ -113,7 +122,7 @@ export async function runBrowserPolicyChecks({ chrome = findChrome(), siteRoot =
   });
   try {
     const origin = `http://127.0.0.1:${server.address().port}`;
-    for (const testCase of CASES) {
+    for (const testCase of appOnly ? [APP_CASE] : [...CASES, APP_CASE]) {
       let browser;
       let cdp;
       const check = (name, ok, detail = '') =>
@@ -130,9 +139,21 @@ export async function runBrowserPolicyChecks({ chrome = findChrome(), siteRoot =
         check('fresh-profile launch uses the declared policy',
           (testCase.mode === 'observe' ? autoplayFlags.length === 0
             : autoplayFlags.length === 1 && autoplayFlags[0] === NORMAL_POLICY[0])
-            && (testCase.mode === 'microphone' ? testCase.flags.every((flag) => args.includes(flag)) : !fakeMedia),
+            && (['microphone', 'app'].includes(testCase.mode)
+              ? testCase.flags.every((flag) => args.includes(flag)) : !fakeMedia),
           `${version.product}; ${args.join(' ')}`);
         await cdp.send('Page.enable');
+        if (testCase.mode === 'app') {
+          const [recognition, fixture] = await Promise.all([
+            readFile(join(ROOT, 'test', 'browser', 'fixtures', 'fake-voice.js'), 'utf8'),
+            readFile(join(ROOT, 'test', 'browser', 'fixtures', 'app-audio-policy.js'), 'utf8'),
+          ]);
+          const bootstrap = `window.__appAudioPolicyConfig = ${JSON.stringify({
+            wav: toneWav(3).toString('base64'),
+          })};\n${recognition}\n${fixture}`;
+          await runAppAudioPolicy(cdp, { origin, bootstrap, check, untrustedPreview });
+          continue;
+        }
         await cdp.send('Page.navigate', { url: `${origin}/__audio-policy.html?mode=${testCase.mode}` });
         await waitFor(cdp, 'ready', 15000);
         await cdp.click('#enable-audio');
@@ -162,7 +183,19 @@ export async function runBrowserPolicyChecks({ chrome = findChrome(), siteRoot =
 }
 
 async function main() {
-  const results = await runBrowserPolicyChecks();
+  const args = process.argv.slice(2);
+  if (args.includes('--help')) {
+    console.log('Usage: node tools\\browser-policy-check.mjs [--app-only [--negative-control]]\n'
+      + 'Default: the original 40 checks plus real-app normal-policy integration.\n'
+      + '--negative-control deliberately uses an untrusted preview and must exit nonzero.');
+    return 0;
+  }
+  for (const arg of args) {
+    if (!['--app-only', '--negative-control'].includes(arg)) throw new Error(`unknown policy option: ${arg}`);
+  }
+  const results = await runBrowserPolicyChecks({
+    appOnly: args.includes('--app-only'), untrustedPreview: args.includes('--negative-control'),
+  });
   for (const result of results) {
     console.log(`${result.ok ? 'ok  ' : 'FAIL'} ${result.probe}: ${result.name}`
       + (result.detail ? ` (${result.detail})` : ''));
