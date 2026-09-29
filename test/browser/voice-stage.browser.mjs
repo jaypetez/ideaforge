@@ -2,6 +2,7 @@ import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { DRIVING } from '../../src/core/driving.js';
 import { askQuestion, createSession, isLowConfidence, setDraftAnswer } from '../../src/core/session.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
+import { createSilenceGate, rmsOf } from '../../src/voice/vad.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { loadPrefs } from '../../src/store/prefs.js';
 import {
@@ -419,7 +420,8 @@ async function withApp(check, label, scenario, {
       throw new Error('network disabled in voice-stage probe');
     };
     app = { frame, win, doc, $, fake, mic, recognition, model, errors, violations, requests,
-      expectedRequests: 0, phases: [], originalUrl: win.location.href };
+      expectedRequests: 0, expectedRequestUrl: 'https://api.openai.com/v1/audio/speech',
+      phases: [], originalUrl: win.location.href };
     const observer = new win.MutationObserver(() => app.phases.push(phase(app)));
     observer.observe($('voice-stage'), { attributes: true, attributeFilter: ['data-phase'] });
     app.observer = observer;
@@ -445,7 +447,7 @@ async function withApp(check, label, scenario, {
     check(label + ': no uncaught async error', errors.length === 0, errors.join('\n'));
     check(label + ': no unexpected provider request',
       requests.length === app.expectedRequests
-        && requests.every((url) => url === 'https://api.openai.com/v1/audio/speech'),
+        && requests.every((url) => url === app.expectedRequestUrl),
       requests.join('\n'));
     check(label + ': no CSP violation', violations.length === 0, violations.join('\n'));
   } catch (error) {
@@ -1264,18 +1266,160 @@ export default async function run(check) {
       check('manual dictation does not take over the voice stage or revive an ended track',
         visible(app.$('manual-interview')) && !visible(app.$('voice-stage'))
           && previousTracks.every((track) => track.readyState === 'ended'), detail(app));
+      const beforeSpeech = spoken(app).length;
+      check('the mode switch is disabled while manual capture owns the microphone',
+        app.$('handsfree').disabled);
+      app.$('handsfree').checked = true;
+      app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+      check('a forced mode-switch event cannot start speech over a manual recording',
+        !app.$('handsfree').checked && !visible(app.$('voice-stage'))
+          && app.recognition.current() === capture && spoken(app).length === beforeSpeech);
       const text = `The words from manual recording ${index + 1} stay available for editing`;
       capture._step({ final: text, confidence: 0.9 });
       app.$('b-mic').click();
       if (!(await expect(app, check, `manual capture ${index + 1} finishes with every acquired track stopped`, () =>
         !visible(app.$('listening')) && app.mic.allStopped() && liveCaptures(app).length === 0
           && app.$('answer').value === text))) return;
+      check('hands-free becomes available again after manual capture releases its input',
+        !app.$('handsfree').disabled);
       await expect(app, check, `manual capture ${index + 1} remains an unsent durable draft`, async () => {
         const saved = await within(loadSession(session.id), 'reading the manual dictation draft');
         return saved?.draftAnswer === text && !saved.turns[0].answer && app.model.calls.length === 0;
       });
     }
   });
+
+  for (const navigate of [false, true]) {
+    await withApp(check, `manual recorder loss ${navigate ? 'after navigation ignores late text' : 'retains its transcribed draft'}`,
+      async (app) => {
+        const transcript = 'saved before the microphone ended';
+        const apiKey = 'gsk-synthetic-manual-input-loss-key-never-sent';
+        const endpoint = 'https://api.groq.com/openai/v1/audio/transcriptions';
+        app.$('stt').value = 'groq';
+        app.$('stt').dispatchEvent(new app.win.Event('change'));
+        app.$('sttkey').value = apiKey;
+        const session = await startTypedDraft(app, check);
+        if (!session) return;
+        const NativeRecorder = app.win.MediaRecorder;
+        const analyser = app.win.AnalyserNode.prototype;
+        const readSamples = analyser.getByteTimeDomainData;
+        const blockedFetch = app.win.fetch;
+        const gate = createSilenceGate();
+        const recorders = [];
+        const seen = { bytes: 0, samples: 0, request: null, responseRead: false };
+        let releaseTranscript;
+        let captureOperation;
+        const responseReady = new Promise((resolve) => { releaseTranscript = resolve; });
+        app.win.MediaRecorder = class extends NativeRecorder {
+          constructor(...args) {
+            super(...args);
+            recorders.push(this);
+            this.addEventListener('dataavailable', (event) => { seen.bytes += event.data.size; });
+          }
+        };
+        analyser.getByteTimeDomainData = function (buffer) {
+          readSamples.call(this, buffer);
+          if (recorders.some((recorder) => recorder.state === 'recording')) {
+            seen.samples++;
+            gate.push(rmsOf(buffer), app.win.performance.now());
+          }
+        };
+        app.win.fetch = async (input, options) => {
+          const url = String(input?.url || input);
+          if (url !== endpoint) return blockedFetch(input, options);
+          app.requests.push(url);
+          seen.request = {
+            method: options.method,
+            authorization: new app.win.Headers(options.headers).get('authorization'),
+            audio: options.body.get('file'),
+          };
+          await responseReady;
+          const response = new app.win.Response(JSON.stringify({ text: transcript }), {
+            status: 200, headers: { 'content-type': 'application/json' },
+          });
+          const json = response.json.bind(response);
+          response.json = async () => {
+            const body = await json();
+            seen.responseRead = true;
+            return body;
+          };
+          return response;
+        };
+        try {
+          const micButton = app.$('b-mic');
+          const handler = micButton.onclick;
+          micButton.onclick = function (event) {
+            captureOperation = Promise.resolve(handler.call(this, event));
+            return captureOperation;
+          };
+          try { micButton.click(); } finally { micButton.onclick = handler; }
+          if (!(await expect(app, check, 'manual recording has real speech evidence and more than 1600 captured bytes',
+            () => recorders.length === 1 && recorders[0].state === 'recording'
+              && seen.samples > 0 && gate.state().heardSpeech && seen.bytes > 1600, 8000))) return;
+          check('input-loss precondition comes from native audio, not a fabricated transcript',
+            gate.state().heardSpeech && seen.bytes > 1600 && app.requests.length === 0,
+            `${seen.samples} real analyser samples; ${seen.bytes} recorded bytes`);
+          app.expectedRequestUrl = endpoint;
+          app.expectedRequests = 1;
+          app.mic.tracks().forEach((track) => track.stop());
+          if (!(await expect(app, check, 'ended manual input sends its retained audio to the fake transcription endpoint',
+            () => seen.request !== null && app.mic.allStopped()))) return;
+          check('the intercepted transcription is an authenticated multipart POST of real retained audio',
+            seen.request.method === 'POST' && seen.request.authorization === `Bearer ${apiKey}`
+              && seen.request.audio instanceof app.win.Blob && seen.request.audio.size > 1600,
+            `${seen.request.method}; ${seen.request.audio?.size} audio bytes`);
+
+          let current = null;
+          const newDraft = 'An unrelated notebook idea must not receive the earlier microphone result.';
+          if (navigate) {
+            app.$('b-library').click();
+            if (!(await expect(app, check, 'navigation can leave the interrupted capture while transcription is held',
+              () => visible(app.$('panel-library'))))) return;
+            app.$('b-library-new').click();
+            if (!(await expect(app, check, 'a new idea can start before the old transcription reply',
+              () => visible(app.$('panel-setup'))))) return;
+            app.$('stt').value = 'off';
+            app.$('stt').dispatchEvent(new app.win.Event('change'));
+            current = await startTypedDraft(app, check, newDraft);
+            if (!current) return;
+            check('the new idea has a different session identity', current.id !== session.id);
+          }
+          releaseTranscript();
+          if (!(await expect(app, check, 'the deferred transcription response is actually consumed',
+            () => seen.responseRead))) return;
+          await within(captureOperation, 'settling the manual input-loss handler');
+          if (navigate) {
+            const saved = await within(loadSession(current.id), 'reading the idea after a stale transcription');
+            check('late input-loss text and error cannot overwrite the new active idea',
+              visible(app.$('manual-interview')) && app.$('answer').value === newDraft
+                && saved.draftAnswer === newDraft && !saved.turns[0].answer
+                && app.$('err').textContent === '' && app.model.calls.length === 0, detail(app));
+          } else {
+            const saved = await within(loadSession(session.id), 'reading the retained manual input-loss draft');
+            check('manual input loss keeps the transcription in both the textarea and persistent unsent draft',
+              app.$('answer').value === transcript && saved?.draftAnswer === transcript
+                && saved.turns.length === 1 && !saved.turns[0].answer && !saved.turns[0].skipped
+                && app.model.calls.length === 0, detail(app));
+            check('manual input loss still reports the microphone error after retaining the draft',
+              visible(app.$('err')) && /microphone input ended/i.test(app.$('err').textContent),
+              app.$('err').textContent);
+          }
+          check('input-loss handling releases all microphone tracks and stops recording',
+            app.mic.allStopped() && recorders.every((recorder) => recorder.state === 'inactive')
+              && !visible(app.$('listening')) && app.model.calls.length === 0, detail(app));
+        } finally {
+          try {
+            releaseTranscript();
+            if (recorders.some((recorder) => recorder.state === 'recording')) app.$('b-settings').click();
+            if (captureOperation) await within(captureOperation, 'closing the manual recorder regression');
+          } finally {
+            analyser.getByteTimeDomainData = readSamples;
+            app.win.MediaRecorder = NativeRecorder;
+            app.win.fetch = blockedFetch;
+          }
+        }
+      });
+  }
 
   const unfinished = setDraftAnswer(recorded, TYPED, 20);
   await withApp(check, 'remembered hands-free with Dictation Off resumes safely', async (app) => {
@@ -1413,6 +1557,41 @@ export default async function run(check) {
       }, { reuseStorage: true });
     }, { credentials: verifiedSpeech, preferences: { handsFree: true, hostedSpeechAllowed: true } });
   }
+
+  await withApp(check, 'consent withdrawal reports a preferences-only persistence failure', async (app) => {
+    check('hosted speech starts with a verified keyring and an independently allowed preference',
+      app.$('tts-consent').checked && loadPrefs().hostedSpeechAllowed === true);
+    const storage = app.win.Storage.prototype;
+    const setItem = storage.setItem;
+    let rejectedWrites = 0;
+    storage.setItem = function (key, value) {
+      if (this === app.win.localStorage && key === 'ideaforge.prefs') {
+        rejectedWrites++;
+        throw new app.win.DOMException('Synthetic preferences-only quota failure.', 'QuotaExceededError');
+      }
+      return setItem.call(this, key, value);
+    };
+    try {
+      app.$('tts-consent').checked = false;
+      app.$('tts-consent').dispatchEvent(new app.win.Event('change'));
+      if (!(await expect(app, check, 'IndexedDB revocation succeeds even though writing preferences failed', async () => {
+        const credentials = await within(loadCredentials(), 'reading the independently revoked keyring');
+        return rejectedWrites > 0 && credentials?.tts.verified === false
+          && credentials.tts.apiKey === verifiedSpeech.tts.apiKey;
+      }))) return;
+      check('only the permission preference remained unchanged, not the saved keyring',
+        loadPrefs().hostedSpeechAllowed === true && rejectedWrites > 0);
+      await expect(app, check, 'the speech status reports partial persistence rather than normal saved success', () =>
+        /permission preference could not be updated/i.test(app.$('speech-check').textContent)
+          && !/^Hosted speech is disabled\. A new check and preview/.test(app.$('speech-check').textContent));
+      if (!(await startVoice(app, check))) return;
+      check('the in-memory revocation and unverified keyring prevent hosted speech despite the stale preference',
+        loadPrefs().hostedSpeechAllowed === true && app.requests.length === 0
+          && /browser/i.test(app.$('voice-backend').textContent), detail(app));
+    } finally {
+      storage.setItem = setItem;
+    }
+  }, { credentials: verifiedSpeech, preferences: { hostedSpeechAllowed: true } });
 
   await withApp(check, 'hosted speech opt-in gate', async (app) => {
     check('hosted speech defaults off without consent or saved verification',

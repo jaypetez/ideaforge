@@ -682,7 +682,9 @@ async function revokeHostedSpeech() {
   els['speech-check'].textContent = 'Disabling hosted speech…';
   try {
     await saveCredentials(state.creds);
-    els['speech-check'].textContent = 'Hosted speech is disabled. A new check and preview is needed to enable it.';
+    els['speech-check'].textContent = allowedSaved
+      ? 'Hosted speech is disabled. A new check and preview is needed to enable it.'
+      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.';
   } catch (error) {
     els['speech-check'].textContent = allowedSaved
       ? `Hosted speech is disabled, but its credential settings could not be updated: ${error.message}`
@@ -1119,6 +1121,8 @@ async function listenOnce({ prompt, autoStop }) {
   const voice = state.voice;
   const epoch = state.voiceEpoch;
   const navigation = state.navigation;
+  const sessionId = state.session.id;
+  els.handsfree.disabled = true;
   els.listening.hidden = false;
   els['listening-label'].textContent = 'Getting the microphone ready…';
   els['b-mic'].textContent = 'Stop listening';
@@ -1146,6 +1150,14 @@ async function listenOnce({ prompt, autoStop }) {
         say(reason);
       },
     });
+  } catch (error) {
+    if (error.code === 'audio-capture' && error.fatal && typeof error.draft === 'string'
+        && error.draft.trim() && currentView(sessionId, navigation) && epoch === state.voiceEpoch) {
+      els.answer.value = error.draft;
+      state.answerSource = 'voice';
+      await flushDraft();
+    }
+    throw error;
   } finally {
     if (state.voice === voice) {
       await Promise.resolve(voice.dispose()).catch((error) => {
@@ -1155,6 +1167,7 @@ async function listenOnce({ prompt, autoStop }) {
     }
     if (epoch === state.voiceEpoch && navigation === state.navigation) {
       els.listening.hidden = true;
+      els.handsfree.disabled = false;
       els['b-mic'].textContent = 'Answer out loud';
       els.pulse.style.removeProperty('--level');
     }
@@ -1352,6 +1365,7 @@ function teardownVoice() {
   state.readback = false;
   els['b-mic'].hidden = true;
   els['handsfree-wrap'].hidden = true;
+  els.handsfree.disabled = false;
   els.listening.hidden = true;
 }
 
@@ -2093,13 +2107,13 @@ function bind() {
     setHandsFree(false);
     const navigation = state.navigation;
     const id = state.session.id;
+    const epoch = state.voiceEpoch;
     try {
       if (!state.voice) {
         prepareSpeechOutput();
         await setupVoice({ automatic: false });
       }
       if (!currentView(id, navigation) || !state.voice || !state.voice.available) return;
-      const epoch = state.voiceEpoch;
       // autoStop false: the button is press-to-talk, so the user decides when they are
       // done. Whatever came back lands in the box for them to edit before sending.
       const heard = await listenOnce({ prompt: currentQuestion(), autoStop: false });
@@ -2108,10 +2122,19 @@ function bind() {
         state.answerSource = 'voice';
         queueDraftSave();
       }
-    } catch (e) { fail(e); }
+    } catch (e) {
+      if (currentView(id, navigation) && epoch === state.voiceEpoch) {
+        fail(e.code === 'audio-capture' ? e.message : e);
+      }
+    }
   };
   els.handsfree.onchange = async () => {
     const on = els.handsfree.checked;
+    if (on && state.voiceMode === 'manual' && !els.listening.hidden) {
+      els.handsfree.checked = false;
+      say('Stop the current recording before turning on hands-free.');
+      return;
+    }
     if (!on) { await exitVoice(); return; }
     if (state.voiceWrapPending || (!state.busy && !openTurn(state.session))) {
       setHandsFree(true);

@@ -75,7 +75,7 @@ export async function createRecorder({ vad = {}, signal } = {}) {
     }
     const liveInput = () => input.stream.getAudioTracks().some((track) => track.readyState === 'live');
     const inputEnded = () => Object.assign(new Error(
-      'Microphone input ended. The captured audio was retained; resume to reconnect.',
+      'Microphone input ended. The captured audio was retained; reconnect the microphone to continue.',
     ), { code: 'audio-capture', fatal: true });
     if (!liveInput()) throw inputEnded();
     const rec = new MediaRecorder(input.stream, mime ? { mimeType: mime } : undefined);
