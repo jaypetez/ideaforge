@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html" aria-current="page">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -48,23 +48,29 @@
       <p class="eyebrow">First run</p>
       <h1>Start with the idea, not a perfect prompt.</h1>
       <p class="lede">
-        Choose where the questions should come from, give IdeaForge a rough opening
-        statement, and answer one focused question at a time. The app saves the conversation
-        on this device and writes the result as portable Markdown.
+        Choose where the questions come from, then Start with voice or Type instead.
+        A rough opening statement is enough. The app saves the conversation on this
+        device and writes the result as portable Markdown.
       </p>
       <div class="hero-actions">
         <a class="button-link primary" href="../">Open IdeaForge</a>
         <a class="button-link" href="./providers.html">Choose a provider</a>
       </div>
 
-      <picture>
-        <source media="(prefers-color-scheme: dark)"
-                srcset="../docs/screenshots/02-first-question.dark.png">
-        <img class="hero-shot"
-             src="../docs/screenshots/02-first-question.light.png"
-             alt="The first IdeaForge question, asking for the idea in a sentence or two,
-                  with an answer box, Send and Skip controls, and coverage at zero percent.">
-      </picture>
+      <figure class="screenshot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)"
+                  srcset="../docs/screenshots/02-first-question.dark.png">
+          <img class="hero-shot"
+               src="../docs/screenshots/02-first-question.light.png"
+               alt="The first IdeaForge question in the typed interview, asking for the
+                    idea in a sentence or two, with an answer box and Send and Skip controls.">
+        </picture>
+        <figcaption>
+          The same opening question starts both paths. Type instead leaves the manual
+          controls visible; voice reads the question before listening.
+        </figcaption>
+      </figure>
 
       <div class="callout">
         <strong>You do not need to prepare a brief first.</strong>
@@ -106,14 +112,16 @@
                 Hosted providers normally need an API key. Local providers need a loopback
                 server address and a model name. Use a scoped, expiring API key rather than
                 a primary account key. Which models run is yours to choose on the same
-                screen, and every provider starts with a working default.
+                screen. Hosted presets supply model defaults; a local server needs a
+                model you have installed.
               </td>
             </tr>
             <tr>
               <th scope="row">Voice, if wanted</th>
               <td>
-                Dictation is optional. You can use a working browser recogniser, configure
-                hosted transcription, or choose keyboard only.
+                Use a working browser recogniser or configure hosted transcription.
+                Spoken replies default to the browser voice, with a picker and preview.
+                Both are optional: Type instead starts without opening the microphone.
               </td>
             </tr>
           </tbody>
@@ -128,12 +136,18 @@
       </div>
 
       <h2 id="configure">Configure the setup screen</h2>
+      <p>
+        The provider and its key or address, <strong>Spoken replies</strong> choice,
+        <strong>Dictation</strong>, finish word and both start buttons stay outside the
+        expandable sections. Open the extra options only when you want to change them.
+      </p>
       <ol class="steps">
         <li>
           <strong>Choose where the questions come from.</strong>
           Pick an inference provider from the first list. The fields below change to match:
           hosted providers show an API-key field, local providers show a server address, and
-          both show the two model fields.
+          both offer two model fields under <strong>Model options</strong>. This section
+          starts collapsed for hosted providers and opens automatically for local ones.
         </li>
         <li>
           <strong>Enter the required connection details.</strong>
@@ -142,18 +156,23 @@
           the phone itself, not a computer on the same network.
         </li>
         <li>
-          <strong>Choose the models, or leave them blank.</strong>
+          <strong>Open Model options to change the defaults.</strong>
           <strong>Model for the questions</strong> runs every interview turn and is where
           the cost is; <strong>Model for the wrap-up</strong> runs once at the end and is
-          the call that suffers most on a small model. A blank field uses the provider's
-          own default, which the field shows as placeholder text. See
+          the call that suffers most on a small model. A blank hosted field uses the
+          provider's default, shown as placeholder text. Local providers need an installed
+          question model; a blank wrap-up field then uses that model too. See
           <a href="./providers.html#choosing-models">Providers</a> for the detail.
         </li>
         <li>
-          <strong>Choose dictation behaviour.</strong>
-          Leave the browser recogniser selected, choose one of the hosted transcription
-          services and supply its key, or select <strong>Off &mdash; keyboard only</strong>.
-          The hands-free finish word can also be changed here.
+          <strong>Choose how to listen and speak.</strong>
+          Expand <strong>Voice and speaking pace</strong> to preview a browser voice and
+          adjust its pace. Selecting OpenAI under <strong>Spoken replies</strong> opens
+          this section automatically for its separate key, consent and preview.
+          Under <strong>Dictation</strong>, choose browser recognition, hosted transcription
+          with its key, or <strong>Off &mdash; keyboard only</strong>. The hands-free finish
+          word is configured here too. Optional OpenAI speech has a separate consented
+          check and speech key; it does not supply dictation.
         </li>
         <li>
           <strong>Test the connection.</strong>
@@ -164,32 +183,43 @@
           known model name.
         </li>
         <li>
-          <strong>Start the interview.</strong>
+          <strong>Start with voice, or Type instead.</strong>
           IdeaForge stores the selected provider settings on this device, creates a new
-          local session, and opens the seed question immediately.
+          local session and opens the seed question. Voice starts its input/output checks
+          from your tap; Type instead leaves the microphone closed until you request it.
         </li>
       </ol>
 
       <p>
         Provider credentials are kept separately from interview records. API keys are
         encrypted at rest in this browser, while non-secret preferences such as the
-        hands-free finish word are stored as device preferences. For the threat model and
-        exact limits of browser storage, read
+        hands-free finish word, browser voice and speaking pace are device preferences.
+        For the threat model and exact limits of browser storage, read
         <a href="./privacy-and-security.html">Privacy and security</a>.
       </p>
 
       <h2 id="answer-first-question">Answer the first question</h2>
       <p>
-        Describe the idea in your own words. It can be incomplete: the point of the
-        interview is to find the missing specifics. Press <strong>Send</strong>, or use
+        In voice mode, wait until the stage says <strong>Listening to you</strong>, then
+        answer and end with the configured finish word, normally <q>over</q>.
+        <strong>Pause</strong> releases the microphone and keeps captured words;
+        <strong>Resume</strong> needs a tap. <strong>Exit</strong> returns to the manual
+        interview without skipping or requesting a write-up. See
+        <a href="./mobile-and-voice.html#pause-resume-exit">Mobile and voice</a> for
+        pending transcription and device limits.
+      </p>
+      <p>
+        In the typed interview, describe the idea in your own words. It can be incomplete:
+        the point is to find the missing specifics. Press <strong>Send</strong>, or use
         <kbd>Ctrl</kbd>+<kbd>Enter</kbd> on Windows and Linux or
         <kbd>Command</kbd>+<kbd>Enter</kbd> on macOS. A plain Enter remains available for
         paragraphs.
       </p>
       <p>
         After the opening answer, IdeaForge asks a follow-up grounded in the conversation.
-        Each screen contains one question, an optional short bridge from the previous
-        answer, and sometimes suggestion chips that show possible answer shapes.
+        The manual view shows one question, an optional short bridge from the previous
+        answer and sometimes suggestion chips. Voice reads the question and examples in
+        turn, not while listening for another answer.
       </p>
 
       <h3 id="suggestion-chips">Use suggestion chips as starting points</h3>
@@ -216,6 +246,10 @@
       </p>
 
       <h2 id="follow-the-interview">Follow the interview without managing it</h2>
+      <p>
+        These controls are in the manual interview. Choose Exit to inspect them from the
+        voice stage; coverage and the stopping rules continue to apply in either mode.
+      </p>
       <ul class="checklist">
         <li>The progress meter shows coverage, not a countdown or a quality score.</li>
         <li>The line below the controls shows the question number and current dimension.</li>
@@ -277,12 +311,12 @@
               <td>IndexedDB in the current browser profile; visible through <strong>Ideas</strong>.</td>
             </tr>
             <tr>
-              <th scope="row">Provider and transcription credentials</th>
+              <th scope="row">Inference, transcription and speech credentials</th>
               <td>Encrypted in IndexedDB; removed by <strong>Forget my key</strong>.</td>
             </tr>
             <tr>
-              <th scope="row">Finish word and hands-free preference</th>
-              <td>Local device preferences; forgetting a key does not reset them.</td>
+              <th scope="row">Finish word, hands-free preference, browser voice and pace</th>
+              <td>Local device preferences, excluded from backups; forgetting a key does not reset them.</td>
             </tr>
             <tr>
               <th scope="row">Downloaded Markdown or JSON backups</th>

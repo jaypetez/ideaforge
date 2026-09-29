@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mobile and voice · IdeaForge guide</title>
   <meta name="description"
-        content="Install IdeaForge on Android or iPhone, configure dictation, and run a resilient hands-free interview.">
+        content="Start a voice interview, pause or return to typing, choose spoken replies, and understand mobile and network limits.">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'self'; img-src 'self' data:;
                  base-uri 'none'; form-action 'none'">
@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -45,34 +45,163 @@
     </nav>
 
     <main id="main">
-      <p class="eyebrow">Phone installation and spoken answers</p>
-      <h1>Take the interview with you.</h1>
+      <p class="eyebrow">Voice, at your pace</p>
+      <h1>One question. Then your answer.</h1>
       <p class="lede">
-        IdeaForge can be installed as a home-screen web app, accept one dictated answer at
-        a time, or run a continuous hands-free loop that reads each question aloud and
-        listens for a finish word.
+        Choose <strong>Start with voice</strong> for a focused conversation, or
+        <strong>Type instead</strong> for the answer box and coverage details. Both use the
+        same interview. Voice takes turns: IdeaForge speaks, then listens.
       </p>
       <div class="hero-actions">
         <a class="button-link primary" href="../">Open IdeaForge</a>
-        <a class="button-link" href="#support">Check voice support</a>
+        <a class="button-link" href="#pause-resume-exit">Pause, resume or exit</a>
       </div>
 
-      <picture>
-        <source media="(prefers-color-scheme: dark)"
-                srcset="../docs/screenshots/01-setup.dark.png">
-        <img class="hero-shot"
-             src="../docs/screenshots/01-setup.light.png"
-             alt="The IdeaForge setup screen with provider, API key, a model for the
-                  questions and a model for the wrap-up, dictation, hands-free finish word,
-                  connection check, and start controls.">
-      </picture>
+      <figure class="screenshot voice-shot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)"
+                  srcset="../docs/screenshots/08-voice-listening.dark.png">
+          <img class="hero-shot"
+               src="../docs/screenshots/08-voice-listening.light.png"
+               alt="The listening voice stage with microphone-level bars, the current
+                    question, captured words, and Pause and Exit buttons. The manual
+                    composer and coverage controls are hidden.">
+        </picture>
+        <figcaption>
+          The voice view keeps the question and captured words in view without a second
+          transcript dashboard. This is the real app driven by scripted voice, not a
+          physical-device or live-provider test.
+        </figcaption>
+      </figure>
 
       <div class="callout">
-        <strong>Installation changes presentation and storage durability, not the data model.</strong>
-        The installed app still stores ideas in that browser&rsquo;s local site data and
-        still needs a provider connection for grounded questions and synthesis. There is no
-        account-based sync.
+        <strong>Wait for listening before speaking.</strong>
+        There is no always-listening interruption or voice barge-in. Spoken commands work
+        only during capture. The Pause and Exit buttons can stop playback without waiting
+        for it to finish.
       </div>
+
+      <h2 id="voice-stage">Read the voice stage</h2>
+      <p>
+        The voice stage opens in place, not on another route. It hides the answer box,
+        suggestion chips, manual actions, coverage and unrelated navigation while it owns
+        interaction. The question or current spoken caption, captured text, status and
+        Pause/Exit controls remain available. Exit brings the manual controls back.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption>What the display is telling you</caption>
+          <thead>
+            <tr><th scope="col">State</th><th scope="col">What it means</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Getting ready</th>
+              <td>Input or output is starting. Respond to a browser permission prompt if one appears.</td>
+            </tr>
+            <tr>
+              <th scope="row">Speaking</th>
+              <td>Wait for the question and examples to finish. The indicator is a state, not a measured waveform of the assistant&rsquo;s voice.</td>
+            </tr>
+            <tr>
+              <th scope="row">Listening</th>
+              <td>Bars reflect measured microphone input. If levels are unavailable, the app says so; recognition can continue without a meter.</td>
+            </tr>
+            <tr>
+              <th scope="row">Processing</th>
+              <td>Transcription or model work is pending, not another opportunity to speak. Recorder-based input has no words to show until transcription returns.</td>
+            </tr>
+            <tr>
+              <th scope="row">Paused or needs attention</th>
+              <td>Automatic progression has stopped. Read the explanation, then tap Resume or Exit.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        A moving meter proves that samples arrived, not that the recogniser understood you.
+        It stops outside listening; missing input is never replaced by an animated guess.
+      </p>
+
+      <h2 id="pause-resume-exit">Pause, resume or return to text</h2>
+      <p>
+        <strong>Pause</strong> stops playback, releases the microphone and retains the
+        captured draft without sending it. A recording already captured may need a moment
+        to finish transcription; Resume stays unavailable while that settles. If the
+        segment cannot be transcribed, the app reports it rather than inventing saved text.
+      </p>
+      <p>
+        A model request submitted before Pause may still finish for its originating idea.
+        Pausing does not undo an answer already sent, and it does not start the next
+        capture. <strong>Resume</strong> requires a deliberate tap; no hidden listener
+        waits for a spoken resume command.
+      </p>
+      <figure class="screenshot voice-shot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)"
+                  srcset="../docs/screenshots/09-voice-paused.dark.png">
+          <img class="hero-shot"
+               src="../docs/screenshots/09-voice-paused.light.png"
+               alt="The paused voice stage with a still microphone indicator, retained
+                    draft words, a microphone-off explanation, and Resume and Exit controls."
+               loading="lazy">
+        </picture>
+        <figcaption>
+          Paused means the microphone is off. Read the retained words before choosing
+          Resume, or Exit to edit them in the ordinary answer box.
+        </figcaption>
+      </figure>
+      <p>
+        <strong>Exit</strong> leaves voice presentation, not the interview. It does not
+        skip a question, delete work or request a write-up. Transcribed words remain in
+        the manual draft; an unfinished audio segment cancelled on Exit is reported.
+        If the write-up is already underway or complete, Exit shows the document view
+        instead of reopening a finished question.
+      </p>
+      <p>
+        Moving the page into the background pauses voice. Return to the page and tap
+        Resume when ready. The app requests a screen wake lock where available, but that
+        is best-effort, not a promise of background or lock-screen conversation.
+      </p>
+
+      <h2 id="spoken-replies">Choose the voice you hear</h2>
+      <p>
+        In Settings, <strong>Spoken replies</strong> defaults to the browser voice. The
+        <strong>Voice and speaking pace</strong> section opens the voice list and preview.
+        It shows the actual voices exposed by this device, with language
+        and <strong>on device</strong> or <strong>network</strong> labels. These are the
+        browser&rsquo;s descriptions, not a quality ranking or a guarantee of offline use.
+        Use <strong>Preview voice</strong> and <strong>Speaking pace</strong> to choose
+        before starting. A saved voice that disappears falls back with an explanation.
+      </p>
+      <p>
+        <strong>OpenAI voice</strong> is a separate, optional, metered output path. It
+        opens <strong>Voice and speaking pace</strong> automatically when selected under
+        <strong>Spoken replies</strong>. It requires its own speech key: an inference or
+        transcription key is never reused.
+        Confirm that spoken text will go to OpenAI, usage is metered and the voice is
+        AI-generated, then complete <strong>Check and preview OpenAI voice</strong>.
+        Merely selecting it does not enable hosted requests during the interview.
+      </p>
+      <p>
+        The check must play successfully through the selected hosted backend; browser
+        fallback cannot make it pass. Until it passes, replies use browser speech.
+        A later hosted failure visibly falls back to the browser voice. If output still
+        cannot play, voice stops with a recovery action rather than listening over silence.
+      </p>
+      <div class="callout warning">
+        <strong>The in-app check is not a universal compatibility claim.</strong>
+        No developer-authorised live speech key or spending cap was supplied for this
+        redesign. Live hosted CORS and voice quality remain unverified. A successful
+        preview checks that request and playback in that browser only.
+      </div>
+      <p>
+        Speech output does not supply a transcription service. Configure
+        <a href="#configure-voice">Dictation</a> separately, and see
+        <a href="./providers.html#spoken-replies">Providers</a> and
+        <a href="./privacy-and-security.html#speech-output">Privacy and security</a>
+        for the text, audio and credential boundaries.
+      </p>
 
       <h2 id="android">Install on Android</h2>
       <ol class="steps">
@@ -91,9 +220,8 @@
         Chrome&rsquo;s browser recogniser is the preferred no-key dictation path when its
         behavioural probe succeeds. Android may end long recognition sessions even when
         continuous listening was requested, and it sends every growing guess at a sentence as
-        a separate, already-final result. IdeaForge restarts the recogniser and keeps only the
-        newest guess, so one answer is neither silently truncated nor repeated back as
-        &ldquo;I I want I want to&hellip;&rdquo;. Because those guesses arrive marked final,
+        a         separate, already-final result. IdeaForge restarts the recogniser and folds growing
+        guesses together rather than counting each as another sentence. Because they arrive marked final,
         hands-free mode waits a moment before trusting a trigger word or command in one.
       </p>
 
@@ -105,11 +233,12 @@
         <li>Tap <strong>Add</strong>, then launch IdeaForge from the new icon.</li>
       </ol>
       <div class="callout warning">
-        <strong>Use hosted transcription for dictation in the installed iPhone app.</strong>
+        <strong>Configure hosted transcription for the installed iPhone app.</strong>
         The browser recogniser can exist, start without an error, and then produce no
-        events. IdeaForge tests for proof of life and hides the microphone rather than
-        leaving a capture hanging. Choose Groq Whisper or OpenAI transcription in Settings
-        and supply the corresponding key.
+        events. IdeaForge tests for proof of life and reports when there is no usable
+        input path. Choose Groq Whisper or OpenAI transcription in Settings and supply
+        the corresponding key. Actual capture and playback still depend on that browser
+        context and its permissions; installation is not proof that either works.
       </div>
 
       <h2 id="offline">What installation does offline</h2>
@@ -118,6 +247,12 @@
         is unavailable, the interview can continue from the built-in question bank instead
         of failing to open. Provider requests are never placed in that cache, and a refined
         prompt still needs a working provider at wrap-up.
+      </p>
+      <p>
+        Offline launch is not offline voice. Browser recognition and network voices may
+        need a connection; even an on-device voice label is not an end-to-end offline
+        guarantee. Hosted transcription and OpenAI speech require their services to be
+        reachable. Keep typing available when offline.
       </p>
       <p>
         Back up the Ideas library before removing site data or moving devices. An installed
@@ -140,10 +275,17 @@
         running the app locally as well is the practical route.
       </p>
 
-      <h2 id="support">Voice support matrix</h2>
+      <h2 id="support">Voice paths and verification limits</h2>
+      <div class="callout warning">
+        <strong>The redesign has not been physically tested on Android or iPhone.</strong>
+        Tabs and installed apps on both platforms are design targets, not verified support
+        claims. Automated desktop checks cover sequencing and separate real Web Audio
+        policy checks; they do not prove mobile permissions, native recognition sharing a
+        microphone, Bluetooth routes or recovery from a phone interruption.
+      </div>
       <div class="table-wrap">
         <table>
-          <caption>Voice paths offered by the current app</caption>
+          <caption>Routes to try, subject to the live browser checks</caption>
           <thead>
             <tr>
               <th scope="col">Environment</th>
@@ -155,27 +297,27 @@
           <tbody>
             <tr>
               <th scope="row">Android Chrome, tab or installed</th>
-              <td>Used when the live probe succeeds; long answers survive recogniser restarts, and repeated partial guesses are merged into one answer.</td>
-              <td>Available with a supported microphone, recorder, and transcription key.</td>
-              <td>Shown when voice input and speech synthesis are both available.</td>
+              <td>Used when its probe succeeds; restart and growing-result handling have scripted regression coverage.</td>
+              <td>Requires microphone/recorder support, permission and a transcription key.</td>
+              <td>Requires usable input and output; physical behaviour remains untested.</td>
             </tr>
             <tr>
               <th scope="row">iPhone or iPad in Safari</th>
               <td>Offered only if the recogniser proves it is alive in that context.</td>
-              <td>Available with a transcription key and microphone permission.</td>
-              <td>Conditional on the selected input path and speech synthesis.</td>
+              <td>Requires a transcription key, working recording and microphone permission.</td>
+              <td>Conditional on input and playback; physical behaviour remains untested.</td>
             </tr>
             <tr>
               <th scope="row">Installed iPhone web app</th>
               <td>Do not rely on it; the known silent recogniser is treated as unavailable.</td>
-              <td>The supported dictation route: choose Groq Whisper or OpenAI.</td>
-              <td>Available when hosted transcription and speech synthesis initialise successfully.</td>
+              <td>Configure Groq Whisper or OpenAI; test a short recording in this context.</td>
+              <td>Do not infer working playback or capture from the installed icon.</td>
             </tr>
             <tr>
-              <th scope="row">Edge or Firefox</th>
-              <td>The current app treats known dead or network-failing recognisers as unavailable.</td>
-              <td>Fallback is available where microphone recording is supported.</td>
-              <td>Conditional; the checkbox stays hidden if either input or speech output is missing.</td>
+              <th scope="row">Desktop Chrome, Edge or Firefox</th>
+              <td>The behavioural probe decides; an exposed recognition API is not enough.</td>
+              <td>Requires microphone recording and a key if browser recognition is unusable.</td>
+              <td>Requires working input and output; the stage reports a blocked path and offers Exit.</td>
             </tr>
             <tr>
               <th scope="row">Any supported browser, keyboard only</th>
@@ -189,16 +331,17 @@
 
       <p>
         The app probes behaviour rather than trusting the presence of a speech API. It
-        requires the recogniser to emit evidence that it started; otherwise it selects the
-        configured recorder-and-transcription fallback or withholds voice controls.
+        requires the recogniser to emit evidence that it started. Selecting Groq or OpenAI
+        dictation explicitly uses recording and that transcriber instead; without a usable
+        input path, the app reports the problem and keeps typing available.
       </p>
 
       <p>
         Starting the recogniser is also what asks for the microphone, so the first interview
         on a device waits for that answer rather than timing the engine. Declining, or a
         microphone already blocked for the site, is reported as blocked and is not treated as
-        a broken browser: allow it in your browser&rsquo;s site settings and start an
-        interview again. Only a recogniser that fails on its own account is remembered as
+        a broken browser: allow it in your browser&rsquo;s site settings and retry with
+        Resume, or Exit to type. Only a recogniser that fails on its own account is remembered as
         unavailable.
       </p>
 
@@ -219,13 +362,14 @@
           <q>over</q>; the app warns when a very short or common word is likely to cut an
           answer off.
         </li>
-        <li>Start or resume the interview and allow microphone access when the browser asks.</li>
+        <li>Select <strong>Start with voice</strong> and allow microphone access when the browser asks.</li>
       </ol>
 
       <div class="callout">
         <strong>Hosted transcription sends recorded audio to the service you selected.</strong>
-        Its key is stored with the other encrypted credentials. Choose keyboard only if you
-        do not want to send recorded audio for transcription.
+        Its key is stored with the other encrypted credentials. Browser recognition may
+        also use a remote service controlled by the browser. Choose keyboard only if you
+        do not want microphone audio processed remotely.
       </div>
 
       <h2 id="one-answer">Dictate one answer</h2>
@@ -237,23 +381,23 @@
         <li>Select <strong>Send</strong>.</li>
       </ol>
       <p>
-        A manual microphone tap takes control away from hands-free mode. The transcript is
-        not submitted automatically, so you can correct names or technical terms first.
-        Dictated answers are marked in the exported transcript.
+        Use Exit first if the voice stage is open. Manual dictation does not submit its
+        transcript automatically, so you can correct names or technical terms before
+        sending. Dictated answers are marked in the exported transcript.
       </p>
 
       <h2 id="hands-free">Run a hands-free interview</h2>
       <p>
-        The hands-free checkbox appears only when IdeaForge has a working voice-input path
-        and the browser can speak text. Once enabled, the loop reads the bridge and question
-        aloud, reads the suggested answers after it as a separate sentence, listens, submits
-        the answer, and continues without waiting for a tap. The suggestions are examples of
+        Start with voice from setup, or use the hands-free control in the manual interview
+        when offered. The loop reads the bridge and question aloud, then the suggested
+        answers as a separate utterance, listens, submits the completed answer and continues.
+        The suggestions are examples of
         the shape of answer the question wants, not a menu to choose from: answer in your own
         words. A question with no suggestions is read on its own.
       </p>
       <ol class="steps">
-        <li>Enable <strong>Hands-free &mdash; read each question aloud, with suggestions, and listen for the answer</strong>.</li>
-        <li>Wait until the question has finished playing before speaking.</li>
+        <li>Select <strong>Start with voice</strong>, or enable <strong>Hands-free</strong> in a manual interview.</li>
+        <li>Wait until the question and examples have finished and the stage says it is listening.</li>
         <li>Say your answer naturally; a pause does not finish it.</li>
         <li>End the answer with the configured finish word, for example <q>over</q>.</li>
         <li>Listen for the next question or a spoken wrap-up offer.</li>
@@ -262,7 +406,7 @@
       <h3 id="commands">Spoken commands</h3>
       <div class="table-wrap">
         <table>
-          <caption>Commands recognised when they are the whole utterance</caption>
+          <caption>Whole-utterance commands, only while listening</caption>
           <thead>
             <tr>
               <th scope="col">Say</th>
@@ -286,6 +430,14 @@
               <th scope="row"><q>wrap it up</q></th>
               <td>Finishes once the interview has enough recorded answers; very early requests are refused.</td>
             </tr>
+            <tr>
+              <th scope="row"><q>pause voice</q></th>
+              <td>Stops voice, retaining the draft. Resume needs a deliberate tap.</td>
+            </tr>
+            <tr>
+              <th scope="row"><q>exit voice</q></th>
+              <td>Returns to the manual interview without skipping or requesting a write-up.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -294,6 +446,11 @@
         <q>I&rsquo;d skip this one if I could</q> remains an answer. The finish word is
         terminal-only, so <q>we went over budget</q> does not end a response unless the
         configured word is actually at the end.
+      </p>
+      <p>
+        A command spoken over a reply is not heard. With hosted transcription, it is
+        recognised only after the recorded segment is transcribed. Use the buttons when
+        you need to interrupt immediately. Scratch cannot undo an answer already sent.
       </p>
 
       <h3 id="spoken-wrap">Spoken wrap-up</h3>
@@ -321,12 +478,12 @@
             <tr>
               <th scope="row">Microphone</th>
               <td>Captures dictated answers for browser recognition or hosted transcription.</td>
-              <td>Voice is withheld or an explicit denial error is shown; typing remains available and hands-free stands down.</td>
+              <td>The stage reports the failure and offers recovery or Exit; typing remains available.</td>
             </tr>
             <tr>
-              <th scope="row">Speech synthesis</th>
-              <td>Reads questions, recovery prompts, and the final result in hands-free mode.</td>
-              <td>Single-answer dictation may still work, but the hands-free checkbox is hidden.</td>
+              <th scope="row">Speech output and playback</th>
+              <td>Reads questions, recovery prompts and the result, primed from Start, Resume or Preview.</td>
+              <td>Try Preview or another voice. If neither hosted nor browser output can play, voice stops explicitly; Exit to type.</td>
             </tr>
             <tr>
               <th scope="row">Local-network access in Chrome</th>
@@ -344,9 +501,10 @@
 
       <p>
         With recorder-based transcription, IdeaForge keeps the microphone stream for the
-        current interview after it is first opened, avoiding a new permission prompt for
-        every answer. It releases the stream when the voice controller is torn down, such
-        as when you leave the interview or complete the wrap-up.
+        active voice run after it is first opened, rather than reacquiring it for every
+        answer. Pause, Exit, navigation and completion release owned microphone tracks;
+        Resume may need to acquire them again. A level monitor never feeds its microphone
+        signal to the speakers.
       </p>
 
       <h2 id="recovery">What hands-free does when it cannot hear you</h2>
@@ -354,16 +512,17 @@
         <li>After the first empty capture, it prompts you to try again without repeating the whole question.</li>
         <li>After another miss, it reads the question again.</li>
         <li>After a further miss, it skips that question and continues rather than waiting for a tap.</li>
-        <li>After repeated questions fail, it announces that hands-free has switched off.</li>
-        <li>A denied or unavailable microphone is treated as fatal and stops hands-free immediately.</li>
+        <li>After repeated questions fail, voice stops explicitly with Resume and Exit available.</li>
+        <li>A denied or unavailable microphone needs attention rather than endless retries.</li>
         <li>A recogniser that goes silent mid-answer settles with what it heard instead of hanging for ever.</li>
       </ul>
 
       <div class="callout danger">
         <strong>Do not rely on hands-free controls in a situation where a missed question
         or transcription could create a safety risk.</strong>
-        The recovery loop is designed not to strand the interface waiting for a tap, but
-        speech recognition and network transcription can still mishear, skip, or fail.
+        Transient recovery avoids unnecessary taps, but a paused or blocked voice run needs
+        an explicit action. Speech recognition and network transcription can mishear, skip
+        or fail. Set up and test voice only when it is safe to attend to the screen.
       </div>
 
       <footer class="page-footer">

@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { OPENAI_COMPAT_PRESETS } from '../src/providers/openaiCompat.js';
 import { STT_PRESETS } from '../src/voice/transcribe.js';
+import { TTS_PRESETS } from '../src/providers/tts.js';
 import { isLoopback } from '../src/providers/http.js';
 import { assembleSite, ROOT_DIRS, ROOT_FILES } from '../tools/assemble-site.mjs';
 
@@ -71,6 +72,7 @@ test('every host a provider talks to is in the CSP allowlist', () => {
     'https://api.anthropic.com',
     ...Object.values(OPENAI_COMPAT_PRESETS).map((p) => p.baseUrl),
     ...Object.values(STT_PRESETS).map((p) => p.baseUrl),
+    ...Object.values(TTS_PRESETS).map((p) => p.baseUrl),
   ];
 
   for (const url of origins) {

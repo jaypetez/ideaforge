@@ -30,8 +30,11 @@ npm run screenshots
 ```
 
 This drives the real app in headless Chrome against `tools/fixtures/walkthrough.mjs` and
-rewrites all fourteen PNGs in `docs/screenshots/` plus `docs/examples/remember-names.md`. It
-needs Chrome (`CHROME_PATH` overrides discovery) and a network connection — the app's CSP
+rewrites the theme-paired inventory in `docs/screenshots/`, including listening and paused
+voice screens, plus `docs/examples/remember-names.md`. The generator and `test/docs.test.mjs`
+own the inventory; do not copy a screenshot count forward. Voice captures use the shared
+scripted voice fixture, not a paid provider. The command needs Chrome (`CHROME_PATH`
+overrides discovery) and a network connection — the app's CSP
 loads IBM Plex from Google Fonts, and the harness prints a loud warning if the shots came out
 in fallback faces. **A run that warns about fonts is a run to throw away.**
 
@@ -53,6 +56,8 @@ Two failure modes worth recognising, because both have happened:
 
 - Shots suddenly much taller than the content, with several panels visible at once, means
   something has broken `[hidden]` in `src/ui/app.css`. That is an app bug, not a harness bug.
+- A setup or phone-width voice screenshot with clipped controls is a failure, not a crop to
+  accept. Inspect the generated images as well as the harness's geometry checks.
 - The two theme runs exporting different markdown means the frozen clock is not holding; the
   harness fails loudly on this, since it is what keeps the committed example reviewable.
 

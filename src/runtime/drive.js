@@ -9,13 +9,12 @@
 //
 // THE INVARIANT, stated so it is falsifiable:
 //
-//   From the moment driving mode is on until the user switches it off, the interview wraps,
-//   or the loop gives up out loud, it is always either speaking or listening. It never comes
-//   to rest waiting for a tap.
+//   Until the user pauses/exits, the interview wraps, or the loop explicitly stands down,
+//   speaking, listening and processing are serialized. Transient failures recover without
+//   waiting for a tap; cancellation never starts another effect.
 //
-// An empty capture, a recogniser error and a recogniser that died all `continue`. Adding a
-// `break` or a `return` to any catch here is how driving mode starts asking a driver to look
-// at the screen — which is exactly what the loop this replaced did, in two places.
+// Empty captures and transient recogniser errors follow a bounded recovery ladder. Fatal
+// failures and deliberate stops are observable, not silent exits from a supposedly live loop.
 //
 // The failure mode is deliberately a SKIPPED QUESTION rather than a stopped app. Somebody
 // overtaking a truck loses one question, not the interview.
@@ -34,6 +33,7 @@ const MAX_BLIND_SKIPS = 2;
 const MIN_TURNS_TO_WRAP = 4;
 /** Times to re-ask an unclear yes/no before carrying on regardless. */
 const CONFIRM_TRIES = 2;
+const CANCELLED = Symbol('drive stopped');
 
 const SAY = {
   miss: 'I didn’t catch that. Take your time, and say “%s” when you’re done.',
@@ -52,7 +52,7 @@ const SAY = {
 /**
  * @param {{
  *   speak:      (text: string) => Promise<void>,
- *   listen:     (opts: {prompt: string}) => Promise<string>,  // RAW, trigger included
+ *   listen:     (opts: {prompt: string, confirm?: boolean}) => Promise<string>,  // RAW, trigger included
  *   openTurn:   () => object|null,
  *   submit:     (text: string) => Promise<void>,
  *   skip:       () => Promise<void>,
@@ -61,15 +61,35 @@ const SAY = {
  *   advisory:   (reason: string) => string|null,
  *   notify:     (msg: string) => void,
  *   running:    () => boolean,
+ *   answeredCount?: () => number,
+ *   onState?:   (phase: 'speaking'|'listening'|'processing'|'recovering'|'paused'|'stopped') => void,
+ *   pause?:     () => void|Promise<void>,
+ *   exit?:      () => void|Promise<void>,
+ *   scratch?:   () => void|Promise<void>,
  *   config?:    {trigger?: string},
  * }} io
  * @returns {{run: () => Promise<'stopped'|'wrapped'|'done'>, stop: () => void}}
+ *
+ * One instance owns one run; concurrent/repeated run() calls share its promise. Resume
+ * deliberately creates a new instance. stop() invalidates pending work without waiting
+ * for it; the UI owns media shutdown and any already-started session/draft work.
+ *
+ * State notifications are synchronous, deduplicated, and precede effects. Pause/exit latch
+ * paused/stopped before awaiting their optional callbacks, then return 'stopped'. External
+ * stop does not call either command callback. Scratch is awaited before relistening.
+ *
+ * AbortError is cancellation, never recovery. Other effect failures reject after announcing
+ * stopped; listen errors recover unless denied or explicitly fatal/recoverable: false.
  */
 export function createDriveLoop(io) {
   const cfg = { ...DRIVING, ...(io.config || {}) };
   const trigger = cfg.trigger;
 
   let stopped = false;
+  let phase = null;
+  let runPromise = null;
+  let releaseStop;
+  const stoppedPromise = new Promise((resolve) => { releaseStop = resolve; });
   let misses = 0;
   let blindSkips = 0;
   let offered = false;
@@ -86,10 +106,66 @@ export function createDriveLoop(io) {
 
   const live = () => !stopped && io.running();
 
+  function checkRunning() {
+    if (!live()) throw CANCELLED;
+  }
+
+  function setState(next) {
+    if (phase === next) return;
+    phase = next;
+    io.onState?.(next);
+  }
+
+  function halt(next = 'stopped') {
+    if (stopped) return;
+    stopped = true;
+    releaseStop();
+    setState(next);
+  }
+
+  /** Race only progression, not the effect itself: a submitted turn may still settle. */
+  async function perform(next, action) {
+    checkRunning();
+    setState(next);
+    checkRunning();
+    try {
+      const result = await Promise.race([action(), stoppedPromise]);
+      if (stopped) throw CANCELLED;
+      return result;
+    } catch (err) {
+      if (stopped) throw CANCELLED;             // late rejections belong to the retired run
+      throw err;
+    }
+  }
+
   async function say(text) {
     if (!text) return;
-    io.notify(text);
-    await io.speak(text);
+    await perform('speaking', () => {
+      io.notify(text);
+      checkRunning();
+      return io.speak(text);
+    });
+  }
+
+  async function stopByCommand(kind) {
+    checkRunning();
+    halt(kind === 'pause' ? 'paused' : 'stopped');
+    await io[kind]?.();
+    return 'stopped';
+  }
+
+  const clearDraft = () => perform('processing', () => io.scratch?.());
+
+  async function handleListenError(err) {
+    checkRunning();
+    if (err === CANCELLED || err?.name === 'AbortError') throw CANCELLED;
+    if (err?.fatal === true || err?.recoverable === false) throw err;
+    if (RE_FATAL.test(`${err?.name || ''} ${err?.message || ''}`)) {
+      await say(SAY.lostMic);
+      throw CANCELLED;
+    }
+    setState('recovering');
+    checkRunning();
   }
 
   /** What gets read aloud: the bridge and the question. The chips follow, separately. */
@@ -102,17 +178,25 @@ export function createDriveLoop(io) {
    * voice, so a guess is the one mistake here with no recovery.
    */
   async function askToWrap(reason) {
+    checkRunning();
     offered = true;
     await say([io.advisory(reason), SAY.confirm].filter(Boolean).join(' '));
 
     for (let i = 0; i < CONFIRM_TRIES && live(); i++) {
       let heard = '';
       try {
-        heard = await io.listen({ prompt: SAY.confirm, confirm: true });
-      } catch {
+        heard = await perform('listening', () => io.listen({ prompt: SAY.confirm, confirm: true }));
+      } catch (err) {
+        await handleListenError(err);
         return false;                         // a failed confirm is not a yes
       }
+      checkRunning();
       const said = parseSpeech(heard, { trigger });
+      if (said.kind === 'pause' || said.kind === 'exit') {
+        await stopByCommand(said.kind);
+        return false;
+      }
+      if (said.kind === 'scratch') await clearDraft();
       if (said.kind === 'wrap') return true;
       const verdict = matchAffirmation(said.text);
       if (verdict === true) return true;
@@ -123,13 +207,16 @@ export function createDriveLoop(io) {
   }
 
   /**
-   * Nothing usable was captured. The ladder, and the only place the loop is allowed to end
-   * itself: re-prompt, then re-read the question, then give that question up — and only
-   * after several questions in a row have gone that way, conclude nobody is listening.
+   * Nothing usable was captured: re-prompt, then re-read the question, then give that
+   * question up. Only after several questions in a row have gone that way does a miss
+   * stand the loop down.
    *
    * @returns {Promise<boolean>} false to stand down
    */
   async function recoverFromMiss() {
+    checkRunning();
+    setState('recovering');
+    checkRunning();
     misses += 1;
 
     if (misses === 1) {
@@ -145,7 +232,7 @@ export function createDriveLoop(io) {
     misses = 0;
     blindSkips += 1;
     await say(SAY.giveUpOne);
-    await io.skip();
+    await perform('processing', () => io.skip());
     answers += 1;
     spokenFor = null;
 
@@ -156,16 +243,20 @@ export function createDriveLoop(io) {
     return true;
   }
 
-  async function run() {
+  async function drive() {
     while (live()) {
       const turn = io.openTurn();
+      checkRunning();
       if (!turn) return 'done';
 
       // Asked before the next question is read, or the offer arrives buried under it.
       if (!offered && answers >= 1) {
         const reason = io.offerWrap();
         if (reason) {
-          if (await askToWrap(reason)) { await io.wrap(); return 'wrapped'; }
+          if (await askToWrap(reason)) {
+            await perform('processing', () => io.wrap());
+            return 'wrapped';
+          }
           if (!live()) break;
         }
       }
@@ -184,13 +275,12 @@ export function createDriveLoop(io) {
 
       let heard = '';
       try {
-        heard = await io.listen({ prompt: turn.question });
+        heard = await perform('listening', () => io.listen({ prompt: turn.question }));
       } catch (err) {
-        if (!live()) break;
+        await handleListenError(err);
         // Everything else has already been retried inside the provider's own backoff, so
         // a second attempt here would be a third. Treat it as a miss and let the ladder
         // decide when to give up.
-        if (RE_FATAL.test((err && err.message) || '')) { await say(SAY.lostMic); return 'stopped'; }
         if (!(await recoverFromMiss())) return 'stopped';
         continue;
       }
@@ -198,6 +288,7 @@ export function createDriveLoop(io) {
 
       const said = parseSpeech(heard, { trigger });
 
+      if (said.kind === 'pause' || said.kind === 'exit') return stopByCommand(said.kind);
       if (said.kind === 'answer' && !said.text.trim()) {
         if (!(await recoverFromMiss())) return 'stopped';
         continue;
@@ -206,10 +297,14 @@ export function createDriveLoop(io) {
       blindSkips = 0;
 
       if (said.kind === 'repeat') { spokenFor = null; continue; }
-      if (said.kind === 'scratch') { await say(SAY.scratched); continue; }
+      if (said.kind === 'scratch') {
+        await clearDraft();
+        await say(SAY.scratched);
+        continue;
+      }
 
       if (said.kind === 'skip') {
-        await io.skip();
+        await perform('processing', () => io.skip());
         answers += 1;
         spokenFor = null;
         continue;
@@ -217,17 +312,32 @@ export function createDriveLoop(io) {
 
       if (said.kind === 'wrap') {
         // A misheard command must not end an interview that has nothing in it yet.
-        if (answers < MIN_TURNS_TO_WRAP) { await say(SAY.tooEarly); spokenFor = null; continue; }
-        await io.wrap();
+        const count = io.answeredCount ? io.answeredCount() : answers;
+        if (!Number.isSafeInteger(count) || count < 0) {
+          throw new Error('The answered turn count must be a nonnegative integer.');
+        }
+        if (count < MIN_TURNS_TO_WRAP) { await say(SAY.tooEarly); spokenFor = null; continue; }
+        await perform('processing', () => io.wrap());
         return 'wrapped';
       }
 
-      await io.submit(said.text);
+      await perform('processing', () => io.submit(said.text));
       answers += 1;
       spokenFor = null;
     }
     return 'stopped';
   }
 
-  return { run, stop() { stopped = true; } };
+  function run() {
+    // Defer entry until the promise is installed, including reentry from an IO callback.
+    if (!runPromise) {
+      runPromise = Promise.resolve().then(drive).catch((err) => {
+        if (err === CANCELLED || err?.name === 'AbortError') return 'stopped';
+        throw err;
+      }).finally(() => halt());
+    }
+    return runPromise;
+  }
+
+  return { run, stop() { halt(); } };
 }

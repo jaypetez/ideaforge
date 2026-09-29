@@ -129,6 +129,14 @@ into a scratch directory — packaging only, not a build step — then serves th
 loading every `test/browser/*.browser.mjs` probe from the repository in headless Chrome
 with a synthesised microphone and reporting back over HTTP.
 
+The same required command also runs `tools/browser-policy-check.mjs` in separate fresh
+profiles. Its real Web Audio and trusted-gesture checks do not inherit the original suite's
+autoplay bypass; synthetic-microphone policy cases are labelled separately. Keep this
+evidence distinct from permission UI, native recognition sharing a microphone, physical
+Android/iPhone behaviour and live hosted-speech CORS or quality. None of those is proved
+by a fake-media pass. Record unavailable physical checks rather than claiming device support,
+and never run paid speech checks without an authorised key and spending cap.
+
 Add a probe by dropping a file in `test/browser/`:
 ```js
 export default async function run(check, { subpath }) {

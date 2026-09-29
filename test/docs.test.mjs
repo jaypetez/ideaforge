@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { DIMENSIONS } from '../src/core/dimensions.js';
 import { HARD_TURN_CEILING, SOFT_TURN_CEILING } from '../src/core/engine.js';
 import { PROVIDER_CHOICES } from '../src/providers/index.js';
+import { TTS_PRESETS } from '../src/providers/tts.js';
 import { STT_PRESETS } from '../src/voice/transcribe.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -125,6 +126,8 @@ test('the guide inventory, navigation and page shell stay complete', () => {
     assert.match(html, /<main id="main">/, `${page}: missing main landmark`);
     assert.equal(new Set(pageIds).size, pageIds.length, `${page}: duplicate id`);
     assert.deepEqual(navHrefs(html), GUIDE_HREFS, `${page}: navigation drift`);
+    assert.match(html, /<ul tabindex="0" aria-label="Guide pages">/,
+      `${page}: the bounded navigation list needs an accessible keyboard scroll target`);
 
     const current = [...html.matchAll(/<a href="([^"]+)" aria-current="page">/g)]
       .map((match) => match[1]);
@@ -199,6 +202,36 @@ test('guide facts stay tied to the interview and provider registries', () => {
     assert.ok(mobile.includes(preset.label),
       `mobile guide omits transcription preset: ${preset.label}`);
   }
+  for (const preset of Object.values(TTS_PRESETS)) {
+    assert.ok(providers.includes(preset.model),
+      `provider guide omits speech model: ${preset.model}`);
+    assert.ok(providers.includes(preset.url),
+      `provider guide omits speech endpoint: ${preset.url}`);
+    for (const voice of preset.voices) {
+      assert.ok(providers.toLowerCase().includes(`<strong>${voice}</strong>`),
+        `provider guide omits speech voice: ${voice}`);
+    }
+  }
+});
+
+test('setup instructions use the disclosure names in the application', () => {
+  const app = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const sections = [
+    ['model-settings', ['getting-started.html', 'providers.html', 'local-models-and-docker.html']],
+    ['speech-options', ['getting-started.html', 'providers.html', 'mobile-and-voice.html',
+      'troubleshooting.html']],
+  ];
+  for (const [id, pages] of sections) {
+    const summary = app.match(new RegExp(
+      `<details\\b[^>]*\\bid="${id}"[^>]*>\\s*<summary>([^<]+)</summary>`,
+    ));
+    assert.ok(summary, `application disclosure is missing: ${id}`);
+    const label = summary[1].trim();
+    assert.ok(README.includes(label), `README omits disclosure name: ${label}`);
+    for (const page of pages) {
+      assert.ok(guide(page).includes(label), `${page} omits disclosure name: ${label}`);
+    }
+  }
 });
 
 test('the guide uses local assets and the README points readers to it', () => {
@@ -207,7 +240,9 @@ test('the guide uses local assets and the README points readers to it', () => {
   assert.ok(existsSync(stylesheet));
   const css = readFileSync(stylesheet, 'utf8');
   assert.doesNotMatch(css, /url\(\s*['"]?https?:/i, 'guide CSS must not load remote assets');
+  assert.doesNotMatch(css, /@import\b/i, 'guide styles must not introduce a stylesheet dependency');
   assert.match(css, /prefers-color-scheme:\s*dark/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /@media \(max-width:\s*820px\)/);
   assert.match(css, /@media print/);
 
@@ -218,6 +253,37 @@ test('the guide uses local assets and the README points readers to it', () => {
   for (const name of images.filter((file) => file.endsWith('.light.png'))) {
     assert.ok(names.has(name.replace('.light.png', '.dark.png')),
       `missing dark screenshot for ${name}`);
+  }
+});
+
+test('the generated inventory retains every manual and voice screenshot pair', () => {
+  const stems = [
+    '01-setup', '02-first-question', '03-mid-interview', '04-coverage',
+    '05-ready-to-wrap', '06-refined-prompt', '07-ideas-library',
+    '08-voice-listening', '09-voice-paused',
+  ];
+  const expected = stems.flatMap((stem) => ['light', 'dark'].map((theme) => `${stem}.${theme}.png`));
+  const missing = expected.filter((file) => !existsSync(join(ROOT, 'docs', 'screenshots', file)));
+  assert.deepEqual(missing, [], `regenerate the missing screenshot pairs: ${missing.join(', ')}`);
+});
+
+test('the README and mobile guide show both voice states with theme pairs and useful alt text', () => {
+  for (const [name, text, prefix] of [
+    ['README', README, ''],
+    ['mobile guide', guide('mobile-and-voice.html'), '../'],
+  ]) {
+    const pictures = [...text.matchAll(/<picture>[\s\S]*?<\/picture>/g)].map((match) => match[0]);
+    for (const stem of ['08-voice-listening', '09-voice-paused']) {
+      const picture = pictures.find((block) => block.includes(`src="${prefix}docs/screenshots/${stem}.light.png"`));
+      assert.ok(picture, `${name} must show ${stem}, not just link to the file`);
+      assert.ok(picture.includes(`srcset="${prefix}docs/screenshots/${stem}.dark.png"`),
+        `${name} must use the dark ${stem} variant`);
+      assert.match(picture, /media="\(prefers-color-scheme: dark\)"/);
+      const alt = picture.match(/\balt="([^"]+)"/)?.[1] || '';
+      assert.match(alt, stem.endsWith('listening') ? /listening/i : /paused/i,
+        `${name}: alt text must identify the captured voice state`);
+      assert.match(alt, /Exit/, `${name}: alt text must describe the visible exit control`);
+    }
   }
 });
 

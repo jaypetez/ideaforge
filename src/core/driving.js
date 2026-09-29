@@ -45,6 +45,8 @@ export const COMMANDS = {
             'that is enough', 'finish up', 'im done', 'i am done'],
   scratch: ['scratch that', 'scratch', 'scratch that answer', 'strike that', 'ignore that',
             'forget that', 'start over', 'let me try again', 'try again'],
+  pause:   ['pause voice', 'pause'],
+  exit:    ['exit voice'],
 };
 
 /** Filler a speaker trails after the trigger without meaning anything by it. */
@@ -139,7 +141,7 @@ function commandFor(normalized) {
  *
  * @param {string} text the raw transcript, trigger word and all
  * @param {{trigger?: string}} [opts]
- * @returns {{kind: 'repeat'|'skip'|'wrap'|'scratch'|'answer', text: string, stopped: boolean}}
+ * @returns {{kind: 'repeat'|'skip'|'wrap'|'scratch'|'pause'|'exit'|'answer', text: string, stopped: boolean}}
  *
  * `kind` and `stopped` are orthogonal on purpose: "skip this one, over" is both a command
  * and a finished utterance, and one enum would lose whichever it did not encode.

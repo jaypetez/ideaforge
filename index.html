@@ -7,7 +7,7 @@
 <meta name="description" content="An interviewer that forges a half-formed idea into a usable LLM prompt.">
 
 <!--
-  connect-src is an allowlist of the inference and transcription hosts, and nothing else.
+  connect-src is an allowlist of the inference, transcription and speech hosts.
   It is the main thing standing between a stored API key and an injected script that wants
   to post it somewhere, so add a REMOTE host only when a provider genuinely needs one.
   No unsafe-inline, no unsafe-eval, no third-party script origins: this app has zero
@@ -51,9 +51,9 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./src/ui/apple-touch-icon.png">
 <!-- Two, because one static value painted light teal chrome around the dark UI on an
-     installed phone. The colours are --accent from src/ui/app.css, both themes. -->
-<meta name="theme-color" content="#0b6169" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0d1014" media="(prefers-color-scheme: dark)">
+     installed phone. The colours match --ground in src/ui/app.css. -->
+<meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15191a" media="(prefers-color-scheme: dark)">
 <!-- 500 and 700 join 400/600 so hierarchy can come from weight rather than size alone.
      Both origins are already in the CSP; a different family or CDN would not be. -->
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,6 +145,9 @@
       placeholder is that provider's own default, which is how the tier split finally
       becomes visible to the person paying for it.
     -->
+    <details class="settings-details" id="model-settings">
+      <summary>Model options</summary>
+      <div class="settings-options">
     <div class="field" id="field-model" hidden>
       <label for="model">Model for the questions</label>
       <input id="model" list="model-list" spellcheck="false" autocomplete="off"
@@ -167,11 +170,70 @@
         a small model, so it is worth more here than on the questions.
       </p>
     </div>
+      </div>
+    </details>
 
     </div><!-- /.group -->
 
     <div class="group">
-      <h2>Voice</h2>
+      <h2>Listen and speak</h2>
+
+    <div class="field">
+      <label for="speech">Spoken replies</label>
+      <select id="speech">
+        <option value="browser">Browser voice — no extra key</option>
+        <option value="openai">OpenAI voice — optional, metered</option>
+      </select>
+      <p class="hint" id="speech-note">
+        Choose a voice you enjoy listening to. Preview it before starting.
+      </p>
+    </div>
+
+    <details class="settings-details" id="speech-options">
+      <summary>Voice and speaking pace</summary>
+      <div class="settings-options">
+    <div class="field" id="field-browser-voice">
+      <label for="browser-voice">Browser voice</label>
+      <select id="browser-voice">
+        <option value="">Automatic — browser voice for English</option>
+      </select>
+      <p class="hint">The available voices come from this browser. Network voices may send text off this device.</p>
+    </div>
+
+    <div id="field-tts" hidden>
+      <div class="field">
+        <label for="ttskey">Separate speech key</label>
+        <input type="password" id="ttskey" autocomplete="off" spellcheck="false"
+               placeholder="paste a scoped OpenAI key">
+        <p class="hint">
+          Only used for spoken replies. Your interview and transcription keys are not reused.
+          Stored encrypted on this device, but a script running on this origin could still use it.
+        </p>
+      </div>
+      <div class="field">
+        <label for="tts-voice">OpenAI voice</label>
+        <select id="tts-voice">
+          <option value="marin">Marin</option>
+          <option value="cedar">Cedar</option>
+        </select>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="tts-consent">
+        <span>I understand that spoken text goes to OpenAI and speech is metered.
+          The voice is AI-generated. Check and preview before enabling it.</span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="speech-rate">Speaking pace <output id="speech-rate-value" for="speech-rate">1.00×</output></label>
+      <input type="range" id="speech-rate" min="0.75" max="1.25" step="0.05" value="1">
+    </div>
+    <div class="btns">
+      <button type="button" class="ghost small" id="b-speech-preview">Preview voice</button>
+    </div>
+    <p class="hint" id="speech-check" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+    </details>
 
     <div class="field">
       <label for="stt">Dictation</label>
@@ -205,7 +267,8 @@
     </div><!-- /.group -->
 
     <div class="btns">
-      <button type="button" id="b-start">Start an interview</button>
+      <button type="button" id="b-start-voice">Start with voice</button>
+      <button type="button" class="ghost" id="b-start">Type instead</button>
       <button type="button" class="ghost" id="b-check">Check the key</button>
       <button type="button" class="ghost danger" id="b-forget" hidden>Forget my key</button>
     </div>
@@ -224,6 +287,25 @@
 
   <!-- ───────────────────────────────────────────────────────── interview -->
   <section id="panel-interview" hidden>
+    <section id="voice-stage" class="voice-stage" hidden aria-labelledby="voice-status" data-phase="ready">
+      <p class="voice-eyebrow">Hands-free interview</p>
+      <div id="voice-signal" class="voice-signal" aria-hidden="true">
+        <div class="voice-orbit"></div>
+        <div class="voice-bars">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <p id="voice-status" class="voice-status" role="status" aria-live="polite" aria-atomic="true">Ready</p>
+      <p id="voice-question" class="voice-question"></p>
+      <p id="voice-transcript" class="voice-transcript"></p>
+      <p id="voice-detail" class="voice-detail"></p>
+      <div class="voice-actions">
+        <button id="b-voice-pause" type="button">Pause</button>
+        <button id="b-voice-exit" type="button" class="ghost">Exit</button>
+      </div>
+      <p id="voice-backend" class="voice-backend"></p>
+    </section>
+    <div id="manual-interview">
     <p class="bridge" id="bridge" hidden></p>
     <!-- The question text is swapped on every turn. Without a live region a screen-reader
          user was never told a new one had arrived — they heard the old question, answered,
@@ -264,6 +346,7 @@
       <summary>Coverage</summary>
       <div class="rows" id="coverage"></div>
     </details>
+    </div>
   </section>
 
   <!-- ───────────────────────────────────────────────────────────── library -->

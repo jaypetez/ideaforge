@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  CREDENTIALS_VERSION, emptyKeyring, migrateCredentials, credsFor, withCreds, withStt,
+  CREDENTIALS_VERSION, emptyKeyring, migrateCredentials, credsFor, withCreds, withStt, withTts,
   hasAnyKey, maskKey,
 } from '../src/store/secrets.js';
 
@@ -104,4 +104,44 @@ test('maskKey never reveals the middle of a key', () => {
   const masked = maskKey('sk-ant-api03-must-never-appear-1234');
   assert.ok(!masked.includes('must-never'));
   assert.equal(maskKey('short'), '••••');
+});
+
+test('older keyrings default to browser speech without repurposing another key', () => {
+  const ring = migrateCredentials({
+    version: 2, active: 'openai', byKind: { openai: { apiKey: 'model-secret' } },
+    stt: { kind: 'openai', apiKey: 'dictation-secret' },
+  });
+  assert.deepEqual(ring.tts, { kind: 'browser', apiKey: '', voice: 'marin', verified: false });
+  assert.equal(credsFor(ring, 'openai').apiKey, 'model-secret');
+  assert.equal(ring.stt.apiKey, 'dictation-secret');
+});
+
+test('speech credentials survive normalisation and changes to the other providers', () => {
+  let ring = withTts(emptyKeyring(), {
+    kind: 'openai', apiKey: 'speech-secret', voice: 'cedar', verified: true,
+  });
+  ring = withCreds(ring, 'groq', { apiKey: 'model-secret' });
+  ring = withStt(ring, { kind: 'groq', apiKey: 'dictation-secret' });
+  const back = migrateCredentials(ring);
+  assert.deepEqual(back.tts, {
+    kind: 'openai', apiKey: 'speech-secret', voice: 'cedar', verified: true,
+  });
+  assert.equal(back.active, 'groq');
+  assert.equal(back.stt.apiKey, 'dictation-secret');
+});
+
+test('a speech-only key can be forgotten even with browser speech selected', () => {
+  const ring = withTts(emptyKeyring(), { kind: 'browser', apiKey: 'speech-secret' });
+  assert.equal(hasAnyKey(ring), true);
+  assert.equal(hasAnyKey(emptyKeyring()), false);
+});
+
+test('malformed speech settings cannot opt in or claim a missing key was verified', () => {
+  const ring = migrateCredentials({
+    version: 2, tts: { kind: 'remote', apiKey: 42, voice: {}, verified: true },
+  });
+  assert.deepEqual(ring.tts, { kind: 'browser', apiKey: '', voice: 'marin', verified: false });
+  assert.equal(withTts(emptyKeyring(), {
+    kind: 'openai', apiKey: 'speech-secret', verified: 'true',
+  }).tts.verified, false);
 });

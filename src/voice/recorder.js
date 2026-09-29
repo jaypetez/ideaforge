@@ -1,12 +1,13 @@
 // Microphone capture: getUserMedia + MediaRecorder, with the silence gate driving
 // hands-free auto-submit.
 //
-// The MediaStream is acquired once and kept alive for the life of the app rather than
-// re-acquired per answer. WebKit bug 215884 re-prompts for permission on a standalone
+// The MediaStream is acquired once per active voice run rather than re-acquired per answer.
+// Explicit Pause/Exit releases it. WebKit bug 215884 re-prompts for permission on a standalone
 // home-screen app more eagerly than anywhere else, and a permission dialog between every
 // question would make hands-free mode unusable.
 
-import { createSilenceGate, rmsOf, DEFAULTS } from './vad.js';
+import { createSilenceGate, DEFAULTS } from './vad.js';
+import { createMicMeter } from './mic-meter.js';
 
 /** In preference order. Safari only recently grew webm, and still prefers mp4. */
 const MIME_CANDIDATES = [
@@ -35,82 +36,94 @@ function pickMime() {
 /**
  * Holds the microphone for the session. Create once, on a user gesture.
  *
- * @returns {Promise<{record: Function, stop: Function, dispose: Function, mime: string}>}
+ * `signal` cancels pending acquisition, including a permission grant arriving after abort.
+ * @returns {Promise<{record: Function, stop: Function, abort: Function, dispose: Function,
+ *                    recording: Function, mime: string}>}
  */
-export async function createRecorder({ vad = {} } = {}) {
+export async function createRecorder({ vad = {}, signal } = {}) {
   if (!micSupported()) throw new Error('this browser cannot record audio');
 
-  let stream;
+  const input = await createMicMeter({ signal });
+  let mime;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
+    signal?.throwIfAborted();
+    mime = pickMime();
   } catch (err) {
-    throw new Error(describeMicError(err));
+    await input.dispose();
+    throw err;
   }
-
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioCtx();
-  const source = ctx.createMediaStreamSource(stream);
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 1024;
-  source.connect(analyser);
-  const buf = new Uint8Array(analyser.fftSize);
-
-  const mime = pickMime();
   let active = null;
+  let disposed = false;
 
   /**
    * Record until silence, or until stop() is called.
    *
-   * @param {{onLevel?: Function, onSilence?: Function, autoStop?: boolean}} opts
+   * @param {{onLevel?: Function, onStart?: Function, onSilence?: Function, autoStop?: boolean}} opts
    * @returns {Promise<Blob>}
    */
-  function record({ onLevel, autoStop = true, ...gateOpts } = {}) {
+  function record({ onLevel, onStart, autoStop = true, ...gateOpts } = {}) {
+    if (disposed) throw new Error('The microphone recorder has been disposed.');
     if (active) throw new Error('already recording');
-    // Safari suspends the context when the tab backgrounds and does not resume it itself.
-    if (ctx.state === 'suspended') ctx.resume();
 
-    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const rec = new MediaRecorder(input.stream, mime ? { mimeType: mime } : undefined);
     const chunks = [];
-    const gate = createSilenceGate({ ...DEFAULTS, ...gateOpts });
-    let raf = 0;
+    const gate = createSilenceGate({ ...DEFAULTS, ...vad, ...gateOpts });
     let settled = false;
+    let stopping = false;
 
     return new Promise((resolve, reject) => {
-      const finish = () => {
+      const finish = (err = null, discard = false) => {
         if (settled) return;
         settled = true;
-        cancelAnimationFrame(raf);
+        input.stop();
         active = null;
-        resolve(new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' }));
+        rec.onstart = rec.ondataavailable = rec.onstop = rec.onerror = null;
+        if (err) reject(err);
+        else resolve(new Blob(discard ? [] : chunks, { type: rec.mimeType || mime || 'audio/webm' }));
       };
-
-      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-      rec.onstop = finish;
-      rec.onerror = (e) => {
+      const stop = () => {
+        if (settled || stopping) return;
+        stopping = true;
+        input.stop();
+        try {
+          if (rec.state !== 'inactive') rec.stop();
+        } catch (err) { finish(err); }
+      };
+      const fail = (err) => {
         if (settled) return;
-        settled = true;
-        cancelAnimationFrame(raf);
-        active = null;
-        reject(new Error(`recording failed: ${(e.error && e.error.name) || 'unknown'}`));
+        finish(err);
+        try { if (rec.state !== 'inactive') rec.stop(); } catch (stopError) {
+          console.warn('Could not stop the failed microphone recording.', stopError);
+        }
       };
 
-      const tick = () => {
-        if (settled) return;
-        analyser.getByteTimeDomainData(buf);
-        const rms = rmsOf(buf);
-        // Push first, then report: otherwise the state handed to onLevel always lags the
-        // sample by one frame and a caller can never observe the terminal `done`.
-        const verdict = gate.push(rms, performance.now());
-        if (onLevel) onLevel(rms, gate.state());
-        if (verdict === 'done' && autoStop) { safeStop(rec); return; }
-        raf = requestAnimationFrame(tick);
+      rec.ondataavailable = (e) => { if (!settled && e.data?.size) chunks.push(e.data); };
+      rec.onstart = () => {
+        if (settled || stopping) return;
+        try { onStart?.(); } catch (err) { fail(err); }
       };
+      rec.onstop = () => finish();
+      rec.onerror = (e) => fail(new Error(`recording failed: ${e.error?.name || 'unknown'}`));
 
-      active = { rec, stop: () => safeStop(rec), gate };
-      rec.start(250);
-      raf = requestAnimationFrame(tick);
+      active = {
+        stop,
+        abort() {
+          stop();
+          finish(null, true);
+        },
+        get stopping() { return stopping; },
+      };
+      try {
+        rec.start(250);
+        if (settled || stopping) return;
+        input.start((rms) => {
+          if (settled || stopping) return;
+          // Report the state of THIS sample, including a terminal gate verdict.
+          const verdict = gate.push(rms, performance.now());
+          if (onLevel) onLevel(rms, gate.state());
+          if (verdict === 'done' && autoStop) stop();
+        }, fail);
+      } catch (err) { fail(err); }
     });
   }
 
@@ -119,30 +132,13 @@ export async function createRecorder({ vad = {} } = {}) {
     record,
     /** End the current recording early; the record() promise resolves with what was captured. */
     stop() { if (active) active.stop(); },
-    recording: () => !!active,
+    /** Discard the current recording and ignore any late data/stop events. */
+    abort() { if (active) active.abort(); },
+    recording: () => !!active && !active.stopping,
     dispose() {
-      if (active) safeStop(active.rec);
-      stream.getTracks().forEach((t) => t.stop());
-      ctx.close().catch(() => {});
+      disposed = true;
+      if (active) active.stop();
+      return input.dispose();
     },
   };
-}
-
-function safeStop(rec) {
-  try { if (rec.state !== 'inactive') rec.stop(); } catch { /* already stopping */ }
-}
-
-/** getUserMedia's error names are terse; the user needs to know what to actually do. */
-function describeMicError(err) {
-  const name = (err && err.name) || '';
-  if (name === 'NotAllowedError' || name === 'SecurityError') {
-    return 'Microphone access was denied. Allow it in the site settings and try again.';
-  }
-  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-    return 'No microphone was found on this device.';
-  }
-  if (name === 'NotReadableError') {
-    return 'The microphone is in use by another app.';
-  }
-  return `Could not open the microphone (${name || 'unknown error'}).`;
 }

@@ -22,16 +22,26 @@ const DEFAULTS = {
   trigger: '',
   /** Whether hands-free was on last time, so a regular driver is not re-ticking a box. */
   handsFree: false,
+  speechVoice: '',
+  speechRate: 1,
 };
 
-/** @returns {{trigger: string, handsFree: boolean}} never throws, never null */
+export function speechPreferences(value = {}) {
+  return {
+    speechVoice: typeof value.speechVoice === 'string' ? value.speechVoice.slice(0, 512) : '',
+    speechRate: Number.isFinite(value.speechRate)
+      && value.speechRate >= 0.75 && value.speechRate <= 1.25 ? value.speechRate : 1,
+  };
+}
+
+/** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number}} */
 export function loadPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
     const stored = JSON.parse(raw);
     if (!stored || typeof stored !== 'object') return { ...DEFAULTS };
-    return { ...DEFAULTS, ...stored };
+    return { ...DEFAULTS, ...stored, ...speechPreferences(stored) };
   } catch {
     return { ...DEFAULTS };
   }
@@ -40,6 +50,7 @@ export function loadPrefs() {
 /** Merge and write. Silent on failure: a preference is not worth an error message. */
 export function savePrefs(patch) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...loadPrefs(), ...patch }));
+    const next = { ...loadPrefs(), ...patch };
+    localStorage.setItem(KEY, JSON.stringify({ ...next, ...speechPreferences(next) }));
   } catch { /* private window, or the quota is full of something that matters more */ }
 }

@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./" aria-current="page">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -48,40 +48,48 @@
       <p class="eyebrow">From a rough thought to a usable prompt</p>
       <h1>Ask the questions the idea still needs.</h1>
       <p class="lede">
-        IdeaForge interviews you one question at a time, tracks what is still thin, and
-        writes a Markdown prompt that carries your examples, constraints, preferences, open
-        questions, and full transcript.
+        Speak or type one answer at a time. IdeaForge tracks what is still thin, then
+        writes a Markdown prompt with your examples, constraints, preferences, open
+        questions and full transcript.
       </p>
       <div class="hero-actions">
         <a class="button-link primary" href="../">Open IdeaForge</a>
         <a class="button-link" href="./getting-started.html">Read the quick start</a>
       </div>
 
-      <picture>
-        <source media="(prefers-color-scheme: dark)"
-                srcset="../docs/screenshots/03-mid-interview.dark.png">
-        <img class="hero-shot"
-             src="../docs/screenshots/03-mid-interview.light.png"
-             alt="An IdeaForge interview showing a grounded follow-up question, answer chips,
-                  a text box, and a coverage meter.">
-      </picture>
+      <figure class="screenshot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)"
+                  srcset="../docs/screenshots/03-mid-interview.dark.png">
+          <img class="hero-shot"
+               src="../docs/screenshots/03-mid-interview.light.png"
+               alt="A typed IdeaForge interview showing a grounded follow-up question,
+                    suggestion chips, an answer box and a coverage meter.">
+        </picture>
+        <figcaption>
+          Type instead keeps the answer box and coverage in view. Start with voice
+          hides those controls until you choose Exit; the interview itself stays the same.
+        </figcaption>
+      </figure>
 
       <div class="callout">
-        <strong>Private by design.</strong>
-        IdeaForge has no account, analytics, or application server. Model requests go
-        directly from your browser to the provider you choose. Sessions stay in your
-        browser until you export, share, or delete them.
+        <strong>No account or application server.</strong>
+        Saved sessions stay in this browser. Model context, optional recorded dictation
+        and optional hosted speech go directly to the selected services. Browser
+        recognition and network voices may also use remote processing. Read
+        <a href="./privacy-and-security.html">what leaves the device</a> before sharing
+        sensitive material.
       </div>
 
       <h2 id="choose-a-path">Choose a path</h2>
       <div class="card-grid">
         <a class="card" href="./getting-started.html">
           <strong>Start your first interview</strong>
-          <span>Pick a provider, answer the seed question, and understand the result.</span>
+          <span>Pick a provider, choose voice or typing, and answer the opening question.</span>
         </a>
         <a class="card" href="./mobile-and-voice.html">
           <strong>Use it on a phone</strong>
-          <span>Install the web app, dictate answers, or run a hands-free interview.</span>
+          <span>Take turns by voice, pause with your draft intact, or return to text.</span>
         </a>
         <a class="card" href="./ideas-library.html">
           <strong>Keep and move your ideas</strong>
@@ -89,7 +97,7 @@
         </a>
         <a class="card" href="./providers.html">
           <strong>Choose a model provider</strong>
-          <span>Compare hosted, local, and Claude-viewer paths without weakening privacy.</span>
+          <span>Keep question generation, dictation and spoken replies separate.</span>
         </a>
         <a class="card" href="./local-models-and-docker.html">
           <strong>Run locally</strong>

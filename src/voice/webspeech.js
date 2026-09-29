@@ -78,6 +78,14 @@ export function forgetVerdict() {
   try { localStorage.removeItem(VERDICT_KEY); } catch { /* private window */ }
 }
 
+function setupAbortError() {
+  return new DOMException('Voice setup cancelled.', 'AbortError');
+}
+
+export function throwIfVoiceSetupAborted(signal) {
+  if (signal?.aborted) throw setupAbortError();
+}
+
 /**
  * Whether the browser is about to ask for the microphone, so the probe can tell a broken
  * engine from an unanswered question.
@@ -85,29 +93,50 @@ export function forgetVerdict() {
  * Firefox and Safari do not accept 'microphone' here and throw, which is why the unknown
  * case must behave exactly as before: those are the browsers the short budget and the
  * cached verdict were written for.
+ *
+ * @param {{signal?: AbortSignal}} [opts] Cancels waiting, not the browser's permission query.
  */
-export async function micPermissionState() {
-  try {
-    if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
-    const status = await navigator.permissions.query({ name: 'microphone' });
-    return (status && status.state) || 'unknown';
-  } catch {
-    return 'unknown';
-  }
+export function micPermissionState({ signal } = {}) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (state) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', cancel);
+      if (signal?.aborted) reject(setupAbortError());
+      else resolve(state);
+    };
+    const cancel = () => done('unknown');
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) { cancel(); return; }
+    try {
+      if (!navigator.permissions || !navigator.permissions.query) { done('unknown'); return; }
+      const query = navigator.permissions.query({ name: 'microphone' });
+      Promise.resolve(query).then(
+        (status) => { if (!settled) done((status && status.state) || 'unknown'); },
+        () => done('unknown'),
+      );
+    } catch {
+      done('unknown');
+    }
+  });
 }
 
 /**
  * Prove the engine is alive, rather than merely present.
  *
- * @param {{lang?: string, force?: boolean, probeMs?: number, promptMs?: number}} [opts]
+ * @param {{lang?: string, force?: boolean, probeMs?: number, promptMs?: number,
+ *          signal?: AbortSignal}} [opts]
  *   force re-probes past a cached verdict; the two budgets are injectable for the same
  *   reason `deafMs` is — the twenty-second one is otherwise untestable in any suite anyone
- *   would be willing to wait for.
+ *   would be willing to wait for. Caller cancellation rejects AbortError without caching
+ *   a verdict, including while a permission query is still pending.
  * @returns {Promise<'alive'|'dead'>}
  */
 export async function probeWebSpeech({
-  lang = 'en-US', force = false, probeMs = PROBE_MS, promptMs = PROMPT_MS,
+  lang = 'en-US', force = false, probeMs = PROBE_MS, promptMs = PROMPT_MS, signal,
 } = {}) {
+  throwIfVoiceSetupAborted(signal);
   const SR = Impl();
   if (!SR) return 'dead';
   if (!force) {
@@ -120,29 +149,48 @@ export async function probeWebSpeech({
   // on screen, and 'dead' was cached for the origin for ever. So when a prompt is pending,
   // the probe waits for a person rather than for an engine, and any 'dead' it reaches is
   // reported but NOT remembered — the answer can change the next time we ask.
-  const permission = await micPermissionState();
+  const permission = await micPermissionState({ signal });
+  throwIfVoiceSetupAborted(signal);
   const pending = permission === 'prompt';
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
-    let rec;
+    let rec = null;
+    let timer = null;
+    const releaseRecognizer = () => {
+      const current = rec;
+      rec = null;
+      if (!current) return;
+      current.onstart = current.onaudiostart = current.onresult = current.onerror = current.onend = null;
+      try { current.abort(); } catch (err) {
+        if (err.name !== 'InvalidStateError') console.warn('Could not release the speech recognition probe.', err);
+      }
+    };
     const done = (verdict, { cache = true } = {}) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      try { if (rec) { rec.onend = null; rec.abort(); } } catch { /* nothing to abort */ }
+      signal?.removeEventListener('abort', cancel);
+      releaseRecognizer();
+      if (signal?.aborted) { reject(setupAbortError()); return; }
       if (cache) remember(verdict);
       resolve(verdict);
     };
+    const cancel = () => done(null, { cache: false });
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) { cancel(); return; }
 
-    const timer = setTimeout(() => done('dead', { cache: !pending }), pending ? promptMs : probeMs);
+    timer = setTimeout(() => done('dead', { cache: !pending }), pending ? promptMs : probeMs);
 
     try {
+      throwIfVoiceSetupAborted(signal);
       rec = new SR();
     } catch {
       done('dead');
       return;
     }
+    // A constructor can synchronously cancel before its instance has been assigned.
+    if (settled || signal?.aborted) { cancel(); releaseRecognizer(); return; }
     rec.lang = lang;
     rec.interimResults = false;
     rec.continuous = false;
@@ -162,7 +210,10 @@ export async function probeWebSpeech({
     };
     rec.onend = () => done('dead', { cache: !pending });
 
-    try { rec.start(); } catch { done('dead', { cache: !pending }); }
+    try {
+      throwIfVoiceSetupAborted(signal);
+      rec.start();
+    } catch { done('dead', { cache: !pending }); }
   });
 }
 
@@ -395,12 +446,13 @@ export function assembleTranscript(results = []) {
  * above, which keeps one definition of the rule and gives the recorder path the same one.
  *
  * @param {{lang?: string, onInterim?: Function, autoStop?: boolean, deafMs?: number,
- *          isComplete?: (text: string) => boolean, settleMs?: number}} opts
+ *          isComplete?: (text: string) => boolean, settleMs?: number,
+ *          onStart?: Function, onAudioError?: Function}} opts
  * @returns {{promise: Promise<string>, stop: Function, abort: Function}}
  */
 export function listenViaWebSpeech({
   lang = 'en-US', onInterim, autoStop = false, deafMs = DEAF_MS,
-  isComplete = null, settleMs = 600,
+  isComplete = null, settleMs = 600, onStart, onAudioError,
 } = {}) {
   const SR = Impl();
   if (!SR) throw new Error('no speech recognition in this browser');
@@ -414,6 +466,7 @@ export function listenViaWebSpeech({
   let settled = false;
   let deaf = null;
   let settling = null;
+  let finishing = null;
 
   /** Resolve or reject exactly once, and stop watching. */
   function settle(fn) {
@@ -421,6 +474,7 @@ export function listenViaWebSpeech({
     settled = true;
     clearTimeout(deaf);
     clearTimeout(settling);
+    clearTimeout(finishing);
     fn();
   }
 
@@ -489,7 +543,7 @@ export function listenViaWebSpeech({
     alive();
     const so = now();
     if (onInterim) onInterim(so.text);
-    if (isComplete) judge(so.text, so.settled);
+    if (isComplete && wantMore) judge(so.text, so.settled);
   };
 
   /**
@@ -521,28 +575,44 @@ export function listenViaWebSpeech({
 
   /** End the capture, keeping whatever the engine has flushed by the time it stops. */
   function finishNow() {
+    clearTimeout(settling);
+    clearTimeout(finishing);
     try { rec.stop(); } catch { /* already stopped; onend will settle it */ }
     // A stop that produces no onend must not strand the answer.
-    setTimeout(() => settle(() => resolve(heard())), 400);
+    if (!settled) finishing = setTimeout(() => {
+      rec.onend = null;
+      try { rec.abort(); } catch (err) {
+        if (err.name !== 'InvalidStateError') console.warn('Could not release speech recognition.', err);
+      }
+      settle(() => resolve(heard()));
+    }, 400);
   }
 
   rec.onerror = (ev) => {
+    if (settled) return;
     alive();
     const kind = ev && ev.error;
+    if (kind === 'audio-capture') onAudioError?.();
     if (kind === 'no-speech' || kind === 'aborted') return;   // onend will settle it
     wantMore = false;
     // A mid-session failure on an engine that had been working: keep whatever was heard
     // rather than throwing away a half-finished answer.
     if (heard()) return;
-    settle(() => reject(new Error(kind === 'not-allowed'
+    settle(() => reject(Object.assign(new Error(kind === 'not-allowed'
       ? 'Microphone access was denied.'
-      : `Speech recognition failed (${kind || 'unknown'}).`)));
+      : `Speech recognition failed (${kind || 'unknown'}).`), { code: kind })));
+    try { rec.abort(); } catch (err) {
+      if (err.name !== 'InvalidStateError') console.warn('Could not release speech recognition.', err);
+    }
   };
 
-  rec.onstart = alive;
-  rec.onaudiostart = alive;
+  rec.onstart = rec.onaudiostart = () => {
+    alive();
+    if (!settled && wantMore) onStart?.();
+  };
 
   rec.onend = () => {
+    if (settled) return;
     // In hands-free mode the engine's endpoint IS the end of the answer — but only once
     // it has actually heard something, otherwise Android's habit of ending every few
     // seconds would return an empty answer before the user finished thinking.
@@ -562,7 +632,13 @@ export function listenViaWebSpeech({
 
   return {
     promise,
-    stop() { wantMore = false; try { rec.stop(); } catch { /* already stopped */ } },
-    abort() { wantMore = false; try { rec.abort(); } catch { /* already stopped */ } },
+    stop() { if (!settled) { wantMore = false; finishNow(); } },
+    abort() {
+      wantMore = false;
+      settle(() => resolve(''));
+      try { rec.abort(); } catch (err) {
+        if (err.name !== 'InvalidStateError') console.warn('Could not release speech recognition.', err);
+      }
+    },
   };
 }

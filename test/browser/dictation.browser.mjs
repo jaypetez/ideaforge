@@ -39,6 +39,279 @@ function within(promise, ms, label) {
   ]);
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const outcome = (promise) => promise.then((value) => ({ value }), (error) => ({ error }));
+
+async function until(predicate, label, ms = 6000) {
+  const end = performance.now() + ms;
+  while (!predicate()) {
+    if (performance.now() > end) throw new Error(`timed out: ${label}`);
+    await wait(20);
+  }
+}
+
+/** Real recording, deferred STT. Only the harness's same-origin progress reports pass through. */
+async function withCaptureRequests(fn, { ignoreAbort = false } = {}) {
+  const realFetch = globalThis.fetch;
+  const RealRecorder = window.MediaRecorder;
+  const realAcquire = navigator.mediaDevices.getUserMedia;
+  const seen = { requests: [], streams: [], recordings: 0, events: [] };
+  window.MediaRecorder = function (...args) {
+    seen.recordings += 1;
+    const recorder = new RealRecorder(...args);
+    recorder.addEventListener('start', () => seen.events.push('capture-start'));
+    return recorder;
+  };
+  window.MediaRecorder.isTypeSupported = RealRecorder.isTypeSupported.bind(RealRecorder);
+  navigator.mediaDevices.getUserMedia = async (...args) => {
+    const stream = await realAcquire.apply(navigator.mediaDevices, args);
+    seen.streams.push(stream);
+    return stream;
+  };
+  globalThis.fetch = (url, init) => {
+    if (url === '/__result') return realFetch(url, init);
+    if (!String(url).endsWith('/audio/transcriptions')) {
+      throw new Error('unexpected request in the transcription fixture');
+    }
+    seen.events.push('request-start');
+    let resolve, reject;
+    const reply = new Promise((res, rej) => { resolve = res; reject = rej; });
+    const cancel = () => reject(init.signal.reason);
+    if (!ignoreAbort) init.signal.addEventListener('abort', cancel, { once: true });
+    seen.requests.push({
+      signal: init.signal,
+      reply(text, status = 200) {
+        resolve({ ok: status === 200, status, statusText: 'scripted', headers: { get: () => null },
+          json: async () => status === 200 ? { text } : { error: { message: text } } });
+      },
+      cancel: () => reject(new DOMException('fixture finished', 'AbortError')),
+    });
+    return reply.finally(() => init.signal.removeEventListener('abort', cancel));
+  };
+  try { await fn(seen); } finally {
+    globalThis.fetch = realFetch;
+    window.MediaRecorder = RealRecorder;
+    navigator.mediaDevices.getUserMedia = realAcquire;
+    seen.requests.forEach((request) => request.cancel());
+    seen.streams.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
+  }
+}
+
+const tracksEnded = (seen) => seen.streams.length > 0
+  && seen.streams.every((stream) => stream.getTracks().every((track) => track.readyState === 'ended'));
+
+async function recorderCancellationChecks(check) {
+  const config = { stt: { kind: 'groq', apiKey: 'not-a-real-key' }, preferRecorder: true };
+  const gate = { silenceMs: 400, minSpeechMs: 150, maxMs: 2500 };
+  const segmented = { isComplete: () => false, gate, maxSegments: 3 };
+
+  for (const action of ['stop', 'pause', 'abort', 'dispose']) {
+    await withCaptureRequests(async (seen) => {
+      const voice = await createVoice(config);
+      try {
+        await voice.ensureMic();
+        let levels = 0;
+        const phases = [];
+        const heard = voice.listen({
+          ...segmented, gate: { ...gate, silenceMs: 8000, maxMs: 10000 },
+          onLevel: () => { levels += 1; },
+          onPhase: (phase) => phases.push(phase),
+        });
+        await until(() => levels > 0, 'first recorder level');
+        await wait(900);
+        const closing = voice[action]();
+        const stoppedAt = levels;
+        const retained = action === 'stop' || action === 'pause';
+        if (action === 'pause' || action === 'dispose') {
+          check(`${action} while recording releases its tracks synchronously`, tracksEnded(seen));
+        }
+        if (retained) {
+          await until(() => seen.requests.length === 1, 'stopped segment transcription');
+          seen.requests[0].reply('keep this single segment');
+        }
+        const text = await within(heard, 2000, action + ' during recording');
+        await wait(80);
+        check(`${action} during recording never starts a subsequent segment`,
+          seen.recordings === 1 && seen.requests.length === (retained ? 1 : 0));
+        check(`${action} immediately stops recorder levels and ${retained ? 'retains' : 'discards'} its text`,
+          levels === stoppedAt && text === (retained ? 'keep this single segment' : ''));
+        check(`${action} reports no late recorder phase after standing down`,
+          phases.join(',') === (action === 'stop' ? 'listening,transcribing' : 'listening'),
+          phases.join(','));
+        if (action === 'pause') {
+          check('pause during real recording returns the captured audio as an unsent draft',
+            await closing === 'keep this single segment');
+        }
+      } finally { await voice.dispose(); }
+    });
+  }
+
+  await withCaptureRequests(async (seen) => {
+    const voice = await createVoice(config);
+    try {
+      const heard = voice.listen(segmented);
+      await until(() => seen.requests.length === 1, 'pending STT before stop');
+      voice.stop();
+      seen.requests[0].reply('the part already recorded');
+      check('stop during STT retains that result without opening a new recorder segment',
+        await within(heard, 2000, 'stop during STT') === 'the part already recorded'
+          && seen.recordings === 1 && !seen.requests[0].signal.aborted);
+      check('pause after a settled capture does not duplicate a previously returned answer',
+        await voice.pause() === '' && tracksEnded(seen));
+    } finally { await voice.dispose(); }
+  });
+
+  await withCaptureRequests(async (seen) => {
+    const voice = await createVoice(config);
+    try {
+      const interims = [];
+      const heard = voice.listen({
+        ...segmented, onInterim: (text) => interims.push(text),
+        onPhase: (phase) => seen.events.push(phase),
+      });
+      await until(() => seen.requests.length === 1, 'first recorder segment');
+      check('recorder phases follow real capture start and an actual transcription request',
+        seen.events.join(',') === 'capture-start,listening,request-start,transcribing',
+        seen.events.join(','));
+      seen.requests[0].reply('the first segment');
+      await until(() => seen.requests.length === 2, 'pending STT before pause');
+      const expected = 'capture-start,listening,request-start,transcribing,'
+        + 'capture-start,listening,request-start,transcribing';
+      check('the next recorder segment returns to listening only when capture actually restarts',
+        seen.events.join(',') === expected, seen.events.join(','));
+      const draft = voice.pause();
+      let settled = false;
+      draft.then(() => { settled = true; });
+      await wait(30);
+      check('pause releases recorder tracks immediately but permits started transcription to finish',
+        tracksEnded(seen) && !seen.requests[1].signal.aborted && !settled);
+      seen.requests[1].reply('and its finalized unsent continuation');
+      check('paused transcription returns only the unsent draft with no late interim or next segment',
+        await heard === 'the first segment and its finalized unsent continuation'
+          && await draft === 'the first segment and its finalized unsent continuation'
+          && interims.length === 1 && interims[0] === 'the first segment'
+          && seen.recordings === 2 && seen.requests.length === 2);
+      check('a paused STT completion cannot restore a listening or transcribing phase',
+        seen.events.join(',') === expected, seen.events.join(','));
+    } finally { await voice.dispose(); }
+  });
+
+  for (const action of ['abort', 'dispose']) {
+    await withCaptureRequests(async (seen) => {
+      const voice = await createVoice(config);
+      try {
+        const interims = [];
+        const phases = [];
+        const heard = voice.listen({
+          ...segmented, onInterim: (text) => interims.push(text),
+          onPhase: (phase) => phases.push(phase),
+        });
+        await until(() => seen.requests.length === 1, 'pending STT before ' + action);
+        voice[action]();
+        check(`${action} forwards cancellation to pending STT and discards the capture promptly`,
+          seen.requests[0].signal.aborted && await within(heard, 500, action + ' STT') === '');
+        await wait(50);
+        check(`${action} cannot publish a late segment or start another recording`,
+          seen.recordings === 1 && seen.requests.length === 1 && interims.length === 0);
+        check(`${action} during STT cannot emit a late phase`,
+          phases.join(',') === 'listening,transcribing', phases.join(','));
+        if (action === 'dispose') {
+          check('disposal releases recorder resources while STT is pending', tracksEnded(seen));
+          const again = await outcome(voice.listen());
+          check('a disposed STT controller is terminal', /disposed/.test(again.error?.message || ''));
+        }
+      } finally { await voice.dispose(); }
+    });
+  }
+
+  await withCaptureRequests(async (seen) => {
+    const voice = await createVoice(config);
+    try {
+      const interims = [];
+      const phases = [];
+      const first = voice.listen({
+        ...segmented, onInterim: (text) => interims.push(text),
+        onPhase: (phase) => phases.push(phase),
+      });
+      await until(() => seen.requests.length === 1, 'uncancellable STT');
+      voice.abort();
+      check('abort settles even if a transcription transport ignores its signal',
+        await within(first, 500, 'uncancellable STT abort') === '');
+      let levels = 0;
+      const second = voice.listen({
+        autoStop: false, onLevel: () => { levels += 1; }, onInterim: (text) => interims.push(text),
+      });
+      await until(() => levels > 2, 'new capture after abort');
+      seen.requests[0].reply('stale text must not escape');
+      const before = levels;
+      await wait(900);
+      check('a late cancelled STT reply cannot stop or overwrite a later capture',
+        levels > before && interims.length === 0 && seen.recordings === 2
+          && phases.join(',') === 'listening,transcribing');
+      voice.stop();
+      await until(() => seen.requests.length === 2, 'new capture transcription');
+      seen.requests[1].reply('only the new capture survives');
+      check('a controller remains reusable after abort without leaking the old answer',
+        await second === 'only the new capture survives' && seen.streams.length === 1);
+    } finally { await voice.dispose(); }
+  }, { ignoreAbort: true });
+
+  await withCaptureRequests(async (seen) => {
+    const voice = await createVoice(config);
+    try {
+      const heard = outcome(voice.listen(segmented));
+      await until(() => seen.requests.length === 1, 'STT failure during pause');
+      const draft = outcome(voice.pause());
+      seen.requests[0].reply('scripted invalid transcription key', 401);
+      const failure = await heard;
+      const pausedFailure = await draft;
+      check('pause preserves a real transcription error instead of reporting a successful empty draft',
+        failure.error?.code === 'auth' && pausedFailure.error === failure.error && tracksEnded(seen));
+    } finally { await voice.dispose(); }
+  });
+
+  for (const phase of ['listening', 'transcribing']) {
+    for (const action of ['abort', 'dispose']) {
+      await withCaptureRequests(async (seen) => {
+        const voice = await createVoice(config);
+        try {
+          const phases = [];
+          const heard = voice.listen({
+            ...segmented,
+            onPhase: (next) => {
+              phases.push(next);
+              if (next === phase) voice[action]();
+            },
+          });
+          check(`${action} from the ${phase} callback settles without starting another capture`,
+            await within(heard, 6000, 'phase cancellation') === '' && seen.recordings === 1);
+          await wait(40);
+          check(`${action} from the ${phase} callback cannot emit later phases or start extra STT`,
+            phases.join(',') === (phase === 'listening' ? 'listening' : 'listening,transcribing')
+              && seen.requests.length === (phase === 'listening' ? 0 : 1)
+              && seen.requests.every((request) => request.signal.aborted),
+            phases.join(','));
+        } finally { await voice.dispose(); }
+      });
+    }
+  }
+
+  await withCaptureRequests(async (seen) => {
+    const voice = await createVoice(config);
+    try {
+      const phases = [];
+      const heard = voice.listen({
+        ...segmented, gate: { ...gate, maxMs: 1 },
+        onPhase: (phase) => phases.push(phase),
+      });
+      const text = await heard;
+      check('a segment without usable speech never announces a transcription request',
+        text === '' && seen.requests.length === 0 && !phases.includes('transcribing'),
+        JSON.stringify({ text, phases, requests: seen.requests.length }));
+    } finally { await voice.dispose(); }
+  });
+}
+
 export default async function run(check) {
   fake.install(window, { speakMs: 10 });
 
@@ -325,6 +598,48 @@ export default async function run(check) {
     const aborted = await within(thrown.promise, 3000, 'abort()');
     check('aborting discards the capture', aborted === '', JSON.stringify(aborted));
 
+    const finalToDiscard = heard([{ at: 10, final: 'even a settled final must be discarded' }],
+      { autoStop: false });
+    await wait(40);
+    finalToDiscard.abort();
+    check('aborting discards settled finals as well as interims',
+      await finalToDiscard.promise === '');
+
+    const OriginalRecognition = window.SpeechRecognition;
+    const OriginalWebkitRecognition = window.webkitSpeechRecognition;
+    let starts = 0;
+    let aborts = 0;
+    let stuck;
+    class NeverEndsRecognition {
+      constructor() { stuck = this; }
+      start() {
+        starts += 1;
+        this.onstart?.();
+        const result = [{ transcript: 'keep the settled words', confidence: 0.9 }];
+        result.isFinal = true;
+        this.onresult?.({ resultIndex: 0, results: [result] });
+      }
+      stop() {}
+      abort() { aborts += 1; }
+    }
+    window.SpeechRecognition = window.webkitSpeechRecognition = NeverEndsRecognition;
+    try {
+      const capture = listenViaWebSpeech({ autoStop: false, deafMs: 0 });
+      capture.stop();
+      const text = await within(capture.promise, 1500, 'stop without onend');
+      stuck.onend?.();
+      check('an explicit stop settles and releases an engine that never sends onend',
+        text === 'keep the settled words' && aborts === 1 && starts === 1);
+      const discard = listenViaWebSpeech({ autoStop: false, deafMs: 0 });
+      discard.abort();
+      stuck.onend?.();
+      check('an explicit abort settles immediately and a late onend cannot restart it',
+        await within(discard.promise, 500, 'abort without onend') === '' && starts === 2);
+    } finally {
+      window.SpeechRecognition = OriginalRecognition;
+      window.webkitSpeechRecognition = OriginalWebkitRecognition;
+    }
+
     // ── the recorder path, which has no live text ──────────────────────────
     // A transcript only exists after the HTTP round trip, so the trigger cannot end a
     // recording the way it ends a Web Speech session. The gate ends a SEGMENT on silence
@@ -338,6 +653,10 @@ export default async function run(check) {
       const real = globalThis.fetch;
       const calls = [];
       globalThis.fetch = async (url, init) => {
+        if (url === '/__result') return real(url, init);
+        if (!String(url).endsWith('/audio/transcriptions')) {
+          throw new Error('unexpected request in the transcription fixture');
+        }
         calls.push({ url, init });
         const text = parts[Math.min(calls.length - 1, parts.length - 1)];
         return { ok: true, status: 200, statusText: 'OK', headers: { get: () => null },
@@ -388,6 +707,8 @@ export default async function run(check) {
     });
     byRecorder.dispose();
 
+    await recorderCancellationChecks(check);
+
     // ── the synthesiser ────────────────────────────────────────────────────
 
     check('the fake synthesiser reports itself supported', ttsSupported());
@@ -413,7 +734,8 @@ export default async function run(check) {
     check('...and it was the cap that freed it, not a quiet completion',
       !deadlocked && waited > 1000
         && dropped.synthesis.spoken.length === 1
-        && dropped.synthesis.spoken[0].endedAt === null, `${waited}ms, never ended`);
+        && dropped.synthesis.cancels >= 2 && !window.speechSynthesis.speaking,
+      `${waited}ms, timed-out playback cancelled`);
 
     // Cancelling errors the in-flight utterance rather than ending it — Chrome's real
     // behaviour, and the path a barge-in takes. speakMs is set far beyond the deadline so

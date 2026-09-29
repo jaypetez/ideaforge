@@ -451,8 +451,8 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     url: 'about:blank',
     extraArgs: [
       '--remote-debugging-port=0',
-      // The voice probe constructs a recogniser on every interview start even with
-      // dictation off. Grant rather than prompt, so nothing waits on a dialog.
+      // Hands-free meters a synthetic microphone alongside its scripted recogniser.
+      // Permission UI is a separate device check, not part of this unattended run.
       '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
     ],
   });

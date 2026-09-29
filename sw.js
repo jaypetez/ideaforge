@@ -12,7 +12,7 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v7';
+const CACHE = 'ideaforge-v8';
 const GUIDE_PATH = new URL('./guide/', self.location.href).pathname;
 const GUIDE_SCREENSHOTS_PATH = new URL('./docs/screenshots/', self.location.href).pathname;
 
@@ -23,6 +23,7 @@ const SHELL = [
   './src/version.js',
   './src/ui/app.css',
   './src/ui/app.js',
+  './src/ui/voice-stage.js',
   './src/ui/install.js',
   './src/ui/library.js',
   './src/ui/share.js',
@@ -52,6 +53,7 @@ const SHELL = [
   './src/providers/anthropic.js',
   './src/providers/openaiCompat.js',
   './src/providers/artifact.js',
+  './src/providers/tts.js',
   './src/store/db.js',
   './src/store/prefs.js',
   './src/store/secrets.js',
@@ -62,6 +64,9 @@ const SHELL = [
   './src/voice/webspeech.js',
   './src/voice/transcribe.js',
   './src/voice/speak.js',
+  './src/voice/output.js',
+  './src/voice/playback.js',
+  './src/voice/mic-meter.js',
 ];
 
 self.addEventListener('install', (event) => {

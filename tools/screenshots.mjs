@@ -41,6 +41,7 @@ const MAX_SHOT_HEIGHT = 1700;
 /** 2026-09-13T09:00:00Z. Any fixed instant will do; it only has to stop moving. */
 const FIXED_NOW = Date.parse('2026-09-13T09:00:00Z');
 const STEP_TIMEOUT = 20000;
+const VOICE_FIXTURE = await readFile(join(ROOT, 'test', 'browser', 'fixtures', 'fake-voice.js'), 'utf8');
 
 // ─────────────────────────────────────────────────────── a minimal CDP client
 
@@ -103,11 +104,30 @@ class CDP {
 
 /** Runs before any of the app's own modules, and outside the page CSP. */
 function bootstrap(theme) {
-  return `(() => {
+  return `${VOICE_FIXTURE}\n(() => {
   const TURNS = ${JSON.stringify(TURNS)};
   const SYNTHESIS = ${JSON.stringify(SYNTHESIS)};
   Date.now = () => ${FIXED_NOW};
   window.__trace = [];
+  window.__FakeVoice.install(window, {
+    speakMs: 40,
+    script: [[
+      { at: 40, interim: 'A calmer way to remember' },
+      { at: 180, final: 'A calmer way to remember the people I meet.' }
+    ]]
+  });
+  // The voice capture is scripted too: a fixed microphone sample makes bar geometry
+  // reproducible rather than photographing a different phase of the synthetic tone.
+  const Audio = window.AudioContext || window.webkitAudioContext;
+  if (Audio) {
+    const createAnalyser = Audio.prototype.createAnalyser;
+    Audio.prototype.createAnalyser = function () {
+      const analyser = createAnalyser.call(this);
+      analyser.getFloatTimeDomainData = (data) => data.fill(0.075);
+      analyser.getByteTimeDomainData = (data) => data.fill(137);
+      return analyser;
+    };
+  }
 
   window.claude = {
     use: async (capability) => {
@@ -191,13 +211,34 @@ class App {
     return height;
   }
 
-  async shot(name) {
-    const height = await this.fit();
+  async shot(name, { width = WIDTH, height: fixedHeight = null } = {}) {
+    if (fixedHeight != null) {
+      await this.cdp.send('Emulation.setDeviceMetricsOverride', {
+        width, height: fixedHeight, deviceScaleFactor: SCALE, mobile: false,
+      });
+    }
+    const height = fixedHeight == null ? await this.fit() : fixedHeight;
+    if (name === '01-setup') {
+      const bottom = await this.eval(`Math.max(...['b-start-voice', 'b-start', 'version']
+        .map((id) => document.getElementById(id).getBoundingClientRect().bottom))`);
+      if (bottom > height) throw new Error('the setup screenshot would clip its start controls or footer');
+    }
+    if (name.startsWith('08-') || name.startsWith('09-')) {
+      const layout = await this.eval(`({
+        right: document.documentElement.scrollWidth,
+        width: document.documentElement.clientWidth,
+        bottom: Math.max(...['b-voice-pause', 'b-voice-exit', 'voice-backend']
+          .map((id) => document.getElementById(id).getBoundingClientRect().bottom))
+      })`);
+      if (layout.right > layout.width || layout.bottom > height) {
+        throw new Error('the phone-width voice stage would clip its controls or backend label');
+      }
+    }
     const { data } = await this.cdp.send('Page.captureScreenshot', { format: 'png' });
     const file = join(SHOT_DIR, `${name}.${this.theme}.png`);
     const bytes = Buffer.from(data, 'base64');
     await writeFile(file, bytes);
-    this.written.push({ file, bytes: bytes.length, px: pngSize(bytes), css: `${WIDTH}x${height}` });
+    this.written.push({ file, bytes: bytes.length, px: pngSize(bytes), css: `${width}x${height}` });
     // Back to the working viewport, so the next step lays out the way the driver expects.
     await this.cdp.send('Emulation.setDeviceMetricsOverride', {
       width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false,
@@ -235,7 +276,11 @@ function pngSize(buf) {
 
 async function run(theme, chrome, port) {
   const browser = launchChrome(chrome, {
-    extraArgs: ['--remote-debugging-port=0', '--hide-scrollbars', '--mute-audio'],
+    extraArgs: [
+      '--remote-debugging-port=0', '--hide-scrollbars', '--mute-audio',
+      '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
+      '--autoplay-policy=no-user-gesture-required',
+    ],
     url: 'about:blank',
   });
 
@@ -338,6 +383,29 @@ async function run(theme, chrome, port) {
     await app.shot('07-ideas-library');
 
     const trace = await app.eval('window.__trace');
+    await app.eval(`document.getElementById('b-library-new').click()`);
+    await app.waitFor(`!document.getElementById('panel-setup').hidden`, 'setup for the voice capture');
+    await app.eval(`(() => {
+      const s = document.getElementById('stt');
+      s.value = 'browser';
+      s.dispatchEvent(new Event('change'));
+      document.getElementById('b-start-voice').click();
+    })()`);
+    await app.waitFor(
+      `!document.getElementById('voice-stage').hidden
+       && document.getElementById('voice-stage').dataset.phase === 'listening'
+       && document.getElementById('voice-stage').dataset.hasLevel === 'true'
+       && document.getElementById('voice-transcript').textContent.includes('people I meet')`,
+      'a real voice-stage capture',
+    );
+    await app.shot('08-voice-listening', { width: 390, height: 844 });
+    await app.eval(`document.getElementById('b-voice-pause').click()`);
+    await app.waitFor(
+      `document.getElementById('voice-stage').dataset.phase === 'paused'
+       && !document.getElementById('b-voice-pause').disabled`,
+      'voice pause and draft finalisation',
+    );
+    await app.shot('09-voice-paused', { width: 390, height: 844 });
     const err = await app.eval(
       `document.getElementById('err').hidden ? '' : document.getElementById('err').textContent`,
     );
