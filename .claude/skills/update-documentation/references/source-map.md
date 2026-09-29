@@ -50,6 +50,10 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and
   [`CONTRIBUTING.md`](../../../../CONTRIBUTING.md). Re-check the development guide, skills,
   and review adapters.
+- **Optional browser MCP.** Source:
+  [`.mcp.json`](../../../../.mcp.json) and
+  [`tools/playwright-mcp.mjs`](../../../../tools/playwright-mcp.mjs). Re-check the
+  Copilot instructions, `CONTRIBUTING.md`, and `test/agent-support.test.mjs`.
 - **Skill and agent structure.** Source:
   [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs), plus
   `.claude/skills/`, `.claude/agents/`, and `.github/agents/`. Re-check assistant guidance
