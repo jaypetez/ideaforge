@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { monitorProbe, parseOptions, selectProbes } from '../../tools/browser-check.mjs';
+import {
+  attachReporter, createReporter, monitorProbe, parseOptions, REPORT_BINDING, selectProbes,
+} from '../../tools/browser-check.mjs';
 
 const PROBE = 'voice-stage.browser.mjs';
 const OTHER = 'turn-lifecycle.browser.mjs';
@@ -119,4 +121,83 @@ test('completion cancels both timers and never contaminates the next probe', asy
   assert.equal((await next.promise).error, null);
   t.mock.timers.tick(1000000);
   assert.deepEqual(first.progress, [result('done')]);
+});
+
+test('worker-controlled fetch failures cannot take down reporting or hide a failed assertion', async (t) => {
+  t.mock.method(globalThis, 'fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+  await assert.rejects(fetch('/__result'), /Failed to fetch/);
+  const emitted = [];
+  const reporter = createReporter(PROBE, (message) => emitted.push(JSON.parse(message)));
+  reporter.record(result('behavior completed'));
+  reporter.record(result('real failure', false, 'must stay visible'));
+  reporter.complete();
+  assert.equal(globalThis.fetch.mock.callCount(), 1, 'reporting must not use the application fetch path');
+  assert.deepEqual(emitted.map((message) => message.done), [false, false, true]);
+  assert.deepEqual(emitted.at(-1).results, [
+    result('behavior completed'), result('real failure', false, 'must stay visible'),
+  ]);
+});
+
+test('an emitter failure latches and cannot be retried into apparent completion', () => {
+  const failure = new Error('report channel unavailable');
+  let attempts = 0;
+  const reporter = createReporter(PROBE, () => { attempts++; throw failure; });
+  assert.throws(() => reporter.record(result('first')), (error) => error === failure);
+  assert.throws(() => reporter.record(result('second')), (error) => error === failure);
+  assert.throws(() => reporter.complete(), (error) => error === failure);
+  assert.equal(attempts, 1, 'there is no automatic retry or success-shaped fallback');
+});
+
+function reportChannel() {
+  const handlers = new Map();
+  return {
+    ws: new EventTarget(),
+    commands: [],
+    on(name, handler) { handlers.set(name, handler); return () => handlers.delete(name); },
+    async send(method, params) { this.commands.push({ method, params }); },
+    emit(message) {
+      handlers.get('Runtime.bindingCalled')?.({
+        name: REPORT_BINDING, payload: typeof message === 'string' ? message : JSON.stringify(message),
+      });
+    },
+  };
+}
+
+test('CDP reporting preserves ordered assertions and waits for an explicit completion', async (t) => {
+  const monitor = monitored(t);
+  const channel = reportChannel();
+  const dispose = await attachReporter(channel, monitor);
+  assert.deepEqual(channel.commands, [
+    { method: 'Runtime.enable', params: undefined },
+    { method: 'Runtime.addBinding', params: { name: REPORT_BINDING } },
+  ]);
+  channel.emit(payload([result('first', false, 'actual probe failure')]));
+  channel.emit(payload([result('first', false, 'actual probe failure'), result('second')], true));
+  const outcome = await monitor.promise;
+  assert.equal(outcome.error, null);
+  assert.equal(outcome.results[0].ok, false);
+  dispose();
+  channel.ws.dispatchEvent(new Event('close'));
+  assert.equal((await monitor.promise).error, null, 'normal teardown cannot invalidate completed results');
+});
+
+test('a broken CDP reporting connection fails closed with partial results', async (t) => {
+  const monitor = monitored(t);
+  const channel = reportChannel();
+  const dispose = await attachReporter(channel, monitor);
+  channel.emit(payload([result('last completed claim')]));
+  channel.ws.dispatchEvent(new Event('close'));
+  const outcome = await monitor.promise;
+  assert.match(outcome.error.message, /report channel closed/);
+  assert.deepEqual(outcome.results, [result('last completed claim')]);
+  dispose();
+});
+
+test('invalid binding data fails the reporting channel rather than being ignored', async (t) => {
+  const monitor = monitored(t);
+  const channel = reportChannel();
+  const dispose = await attachReporter(channel, monitor);
+  channel.emit('{invalid JSON');
+  assert.match((await monitor.promise).error.message, /invalid browser report/);
+  dispose();
 });

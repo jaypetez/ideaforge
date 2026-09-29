@@ -7,9 +7,10 @@
 //
 // Two deliberate choices, both learned the hard way:
 //
-//   Results come back over HTTP, not by scraping the DOM. Chrome's --dump-dom snapshots
-//   the page before async work finishes, so a probe that awaits IndexedDB reports nothing
-//   and looks like a failure.
+//   Results use a browser-protocol binding, outside the page's fetch/service-worker
+//   lifecycle. A worker stopped by an app probe can cancel the runner's own HTTP reports.
+//   Chrome's --dump-dom also snapshots before async work finishes, so neither is a safe
+//   reporting channel for probes that await browser APIs.
 //
 //   No --virtual-time-budget. It fast-forwards timers while real IndexedDB and media I/O
 //   keep taking real time, which silently truncates probes and reports empty results as
@@ -40,6 +41,7 @@ const TIMEOUT_MS = Number(process.env.BROWSER_CHECK_TIMEOUT || 180000);
 const REQUIRED = process.argv.includes('--required') || Boolean(process.env.BROWSER_CHECK_REQUIRED);
 /** The app is also served here, so probes can verify it works on a GitHub Pages subpath. */
 const SUBPATH = '/subpath-check/';
+export const REPORT_BINDING = '__ideaforgeReport';
 
 export function parseOptions(args) {
   let probe = null;
@@ -75,30 +77,67 @@ async function probeNames() {
   return files.filter((f) => f.endsWith('.browser.mjs')).sort();
 }
 
-/** Each page owns one probe; assertions are posted while it runs, not only after it returns. */
-function runnerHtml(probe) {
+/** Serialized into the runner; the emitter is captured before a probe can replace globals. */
+export function createReporter(probe, emit) {
+  const results = [];
+  let failed = false;
+  let failure;
+  function send(done) {
+    if (failed) throw failure;
+    try {
+      emit(JSON.stringify({ probe, done, results }));
+    } catch (error) {
+      failed = true;
+      failure = error;
+      throw error;
+    }
+  }
+  return {
+    results,
+    record(result) { results.push(result); send(false); },
+    complete() { send(true); },
+  };
+}
+
+/** Receive ordered reports independently of page networking; a broken channel is fatal. */
+export async function attachReporter(cdp, monitor) {
+  const closed = () => monitor.fail(new Error('browser report channel closed before completion'));
+  cdp.ws.addEventListener('close', closed);
+  const unsubscribe = cdp.on('Runtime.bindingCalled', ({ name, payload }) => {
+    if (name !== REPORT_BINDING) return;
+    try {
+      if (!monitor.accept(JSON.parse(payload))) {
+        monitor.fail(new Error('browser report channel received an invalid or unexpected report'));
+      }
+    } catch (error) {
+      monitor.fail(new Error(`invalid browser report: ${error.message}`, { cause: error }));
+    }
+  });
+  const dispose = () => {
+    unsubscribe();
+    cdp.ws.removeEventListener('close', closed);
+  };
+  try {
+    await cdp.send('Runtime.enable');
+    await cdp.send('Runtime.addBinding', { name: REPORT_BINDING });
+    return dispose;
+  } catch (error) {
+    dispose();
+    throw error;
+  }
+}
+
+/** Each page owns one probe; assertions are emitted while it runs, not only at the end. */
+export function runnerHtml(probe) {
   return [
     '<!doctype html><meta charset="utf-8"><title>browser checks</title>',
     '<body><pre id="log">running</pre>',
     '<script type="module">',
     `const probe = ${JSON.stringify(probe)};`,
-    'const results = [];',
-    'let reports = Promise.resolve();',
-    'let reportError = null;',
-    'function report(done = false) {',
-    '  const body = JSON.stringify({ probe, done, results });',
-    '  reports = reports.then(async () => {',
-    '    const response = await fetch("/__result", { method: "POST",',
-    '      headers: { "content-type": "application/json" }, body,',
-    '      signal: AbortSignal.timeout(10000) });',
-    '    if (!response.ok) throw new Error("result reporting returned HTTP " + response.status);',
-    '  }).catch((error) => { reportError = String(error.stack || error); });',
-    '  return reports;',
-    '}',
+    `const reporter = (${createReporter.toString()})(probe, globalThis.${REPORT_BINDING}.bind(globalThis));`,
     'function record(result) {',
-    '  results.push(result);',
-    '  document.getElementById("log").textContent = results.length + " checks: " + result.name;',
-    '  report();',
+    '  reporter.record(result);',
+    '  document.getElementById("log").textContent = reporter.results.length + " checks: " + result.name;',
     '}',
     // A CSP violation never throws; it only fires this event. Without listening, a broken
     // policy looks exactly like a passing run.
@@ -119,9 +158,7 @@ function runnerHtml(probe) {
     '} catch (err) {',
     '  check("probe threw", false, (err && err.stack) || String(err));',
     '}',
-    'await reports;',
-    'if (reportError) check("progress reporting failed", false, reportError);',
-    'await report(true);',
+    'reporter.complete();',
     '</script>',
   ].join('\n');
 }
@@ -163,8 +200,7 @@ export function monitorProbe(probe, { timeoutMs, overallDeadline, onResults = ()
     promise,
     fail: finish,
     accept(payload) {
-      // A late POST from a browser already torn down belongs to neither the next probe nor
-      // its watchdog. The server rejects it rather than counting it as progress.
+      // A late report belongs to neither the next probe nor its watchdog.
       if (finished || payload?.probe !== probe) return false;
       if (typeof payload.done !== 'boolean' || !Array.isArray(payload.results)
           || payload.results.length < results.length
@@ -191,25 +227,12 @@ export function monitorProbe(probe, { timeoutMs, overallDeadline, onResults = ()
   };
 }
 
-async function serve(probes, siteRoot, onResults, onError, onResponse) {
+async function serve(probes, siteRoot, onResponse) {
   return serveRepo({
     root: siteRoot,
     onResponse,
     async before(req, res, url) {
       let path = decodeURIComponent(url.pathname);
-
-      if (req.method === 'POST' && path === '/__result') {
-        try {
-          const chunks = [];
-          for await (const c of req) chunks.push(c);
-          const accepted = onResults(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-          res.writeHead(accepted ? 204 : 409).end();
-        } catch (error) {
-          onError(new Error(`could not receive browser results: ${error.message}`, { cause: error }));
-          res.writeHead(400).end('invalid browser results');
-        }
-        return { handled: true };
-      }
 
       if (path.startsWith('/test/browser/')) return { path, root: ROOT };
 
@@ -235,6 +258,7 @@ async function main() {
     console.log('Usage: node tools\\browser-check.mjs [--required] [--probe <name.browser.mjs>]\n'
       + 'Omit --probe to run every browser probe. Names must match exactly; unknown names fail.\n'
       + 'Every run with Chrome includes the independent audio-policy checks, including focused runs.\n'
+      + 'Results use CDP rather than the page fetch/service-worker path.\n'
       + 'BROWSER_CHECK_TIMEOUT sets the per-probe no-progress budget (default 180000ms).\n'
       + 'BROWSER_CHECK_TRACE writes pre-document CDP and server diagnostics to a new JSONL file.\n'
       + 'The overall budget is 180000ms for policy/startup plus that budget per selected probe.');
@@ -312,9 +336,7 @@ async function main() {
     }
     siteDir = await mkdtemp(join(tmpdir(), 'ideaforge-browser-site-'));
     await assembleSite({ outDir: siteDir, clean: false });
-    server = await serve(probes, siteDir,
-      (posted) => monitor?.accept(posted) || false, (error) => monitor?.fail(error),
-      traceStream ? (event) => trace('server', event) : undefined);
+    server = await serve(probes, siteDir, traceStream ? (event) => trace('server', event) : undefined);
     const { port } = server.address();
 
     // Separate fresh profiles: the synthetic-media suite's autoplay bypass cannot prove
@@ -327,6 +349,7 @@ async function main() {
     for (const probe of probes) {
       let browser = null;
       let cdp = null;
+      let detachReporter = null;
       let outcome;
       activeProbe = probe;
       issues.length = 0;
@@ -336,10 +359,10 @@ async function main() {
       try {
         const url = 'http://127.0.0.1:' + port + '/__run.html?probe=' + encodeURIComponent(probe);
         browser = launchChrome(chrome, {
-          url: traceStream ? 'about:blank' : url,
+          url: 'about:blank',
           // Grant and synthesise a microphone so the recorder and the silence gate run for real.
           extraArgs: [
-            ...(traceStream ? ['--remote-debugging-port=0'] : []),
+            '--remote-debugging-port=0',
             '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
             '--autoplay-policy=no-user-gesture-required',
           ],
@@ -349,18 +372,19 @@ async function main() {
         browser.child.once('error', (error) => active.fail(error));
         browser.child.once('exit', (code, signal) =>
           active.fail(new Error(`Chrome exited before ${probe} completed (${signal || code})`)));
-        if (traceStream) {
-          cdp = await connectChrome(browser);
-          await observeChrome(cdp, trace);
-          trace('launch', { profile: browser.profile, pid: browser.child.pid });
-          await cdp.send('Page.bringToFront');
-          await cdp.send('Page.navigate', { url });
-        }
+        cdp = await connectChrome(browser);
+        detachReporter = await attachReporter(cdp, active);
+        await cdp.send('Page.enable');
+        if (traceStream) await observeChrome(cdp, trace);
+        trace('launch', { profile: browser.profile, pid: browser.child.pid });
+        await cdp.send('Page.bringToFront');
+        await cdp.send('Page.navigate', { url });
         outcome = await monitor.promise;
       } catch (error) {
         monitor.fail(error);
         outcome = await monitor.promise;
       } finally {
+        detachReporter?.();
         cdp?.close();
         monitor = null;
         browser?.kill();

@@ -89,7 +89,9 @@ source wins over prose, and a generated artifact wins over a description of that
   [`test/browser/audio-policy.probe.mjs`](../../../../test/browser/audio-policy.probe.mjs).
   Re-check delivery guidance: real Web Audio/trusted-gesture checks are separate from the
   synthetic-media/autoplay-bypassed suite, and neither is physical-mobile or live-provider
-  evidence.
+  evidence. The main browser harness reports assertions through a CDP binding rather than
+  page fetch, so the reporting channel is independent of the service worker under test.
+  Missing or malformed reporting still fails the run.
 - **Generated screenshot inventory.** Sources:
   [`tools/screenshots.mjs`](../../../../tools/screenshots.mjs) and
   [`test/docs.test.mjs`](../../../../test/docs.test.mjs). Preserve the existing 01-07

@@ -127,7 +127,9 @@ The rung that covers everything Node cannot see. `tools/browser-check.mjs` first
 `assembleSite` in `tools/assemble-site.mjs`, which copies the canonical publishable tree
 into a scratch directory — packaging only, not a build step — then serves that tree while
 loading every `test/browser/*.browser.mjs` probe from the repository in headless Chrome
-with a synthesised microphone and reporting back over HTTP.
+with a synthesised microphone. Results use a Chrome DevTools Protocol (CDP) binding rather
+than page fetch, keeping the reporting channel outside the service worker being tested.
+Lost reporting connections and malformed reports still fail the run.
 
 The same required command also runs `tools/browser-policy-check.mjs` in separate fresh
 profiles. Its real Web Audio and trusted-gesture checks do not inherit the original suite's
@@ -346,8 +348,8 @@ Every one of these has already bitten someone here.
 
 
 - **`--dump-dom` lies about async work.** It snapshots before IndexedDB or `fetch` settles,
-  so a page that works fine reports empty. Have the page POST its results instead — which is
-  what `tools/browser-check.mjs` does.
+  so a page that works fine reports empty. Stream assertions through the harness's CDP
+  channel instead, as `tools/browser-check.mjs` does.
 - **`--virtual-time-budget` lies harder.** It fast-forwards timers while real I/O still takes
   real time, silently truncating the run. Never use it for anything touching storage or
   media. A "boot produced nothing" result from it is almost always the flag, not your code.
