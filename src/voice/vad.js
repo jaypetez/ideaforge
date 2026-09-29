@@ -140,6 +140,29 @@ export function createSilenceGate(opts = {}) {
   };
 }
 
+/**
+ * Sustained speech energy at the level meter with not one word from the recogniser.
+ *
+ * Long enough that a desktop engine, which shows its first interim well under a second into
+ * speech, never gets near it; short enough that a driver loses a sentence, not the answer.
+ */
+export const STARVED_SPEECH_MS = 2500;
+
+/**
+ * Is the level meter starving native recognition of the microphone?
+ *
+ * On Android Chrome a page-held `getUserMedia` track and the platform recogniser cannot both
+ * hear: the meter's bars move with the voice while the recogniser receives silence, raises no
+ * error, and restarts every few seconds with no result. Nothing reports it, so it is judged
+ * the only way this app judges an engine — by behaviour. The meter heard someone talk for
+ * seconds and the recogniser heard nothing. A false positive costs the bars, never the words.
+ *
+ * @param {{speechMs?: number, heardWords?: boolean}} evidence
+ */
+export function meterStarvesRecognition({ speechMs = 0, heardWords = false } = {}) {
+  return !heardWords && speechMs >= STARVED_SPEECH_MS;
+}
+
 /** RMS of a time-domain buffer, 0..1. Uint8 samples are centred on 128. */
 export function rmsOf(bytes) {
   let sum = 0;

@@ -269,8 +269,11 @@ show the same browser flow.
 
 The browser recogniser is the no-extra-key dictation path when its live probe succeeds.
 IdeaForge handles recogniser restarts and Android-style growing final results, so repeated
-guesses can be folded into one answer rather than counted as separate sentences. That logic
-has scripted coverage; the redesign has not been physically tested on an Android phone.
+guesses can be folded into one answer rather than counted as separate sentences. If the
+level bars move but no words appear, the bars are starving the recogniser of the
+microphone. After a few seconds IdeaForge turns them off and listens again, so repeat that
+first sentence. That logic has scripted coverage; the redesign has not been physically
+tested on an Android phone.
 
 ### iPhone
 

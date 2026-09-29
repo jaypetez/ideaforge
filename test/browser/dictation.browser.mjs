@@ -819,6 +819,24 @@ export default async function run(check) {
     check('...and it resolves rather than rejecting, because a dead engine is a small loss',
       !deafHung && typeof deafText === 'string', JSON.stringify(deafText));
 
+    // Android's deaf engine is not silent: it starts, reports no-speech and ends every few
+    // seconds, and the capture restarts it. Counting those events as proof of life pushed
+    // the deadline back on every restart, so a recogniser that never heard a word — the
+    // hands-free "over" that did nothing — listened for ever instead of reaching the miss
+    // ladder. Only a result proves the engine can hear.
+    const cycling = Array.from({ length: 60 }, () => [{ at: 40, error: 'no-speech' }, { at: 50, end: true }]);
+    fake.script(cycling);
+    const cycleStart = performance.now();
+    const cycleStarts = fake.recognition.startCount;
+    const cycled = await outcome(within(
+      listenViaWebSpeech({ autoStop: false, deafMs: 400, isComplete: (t) => endsWithTrigger(t) }).promise,
+      2000, 'a recogniser that restarts without ever hearing a word'));
+    const restarts = fake.recognition.startCount - cycleStarts;
+    check('an engine that keeps restarting with no result still reaches the deaf deadline',
+      cycled.value === '' && restarts > 2,
+      cycled.error ? cycled.error.message : `${Math.round(performance.now() - cycleStart)}ms, ${restarts} sessions`);
+    fake.script([]);
+
     // ── stop() and abort() ─────────────────────────────────────────────────
 
     const pressToTalk = heard([

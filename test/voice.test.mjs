@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createSilenceGate, rmsOf, DEFAULTS, DRIVING_GATE, CONFIRM_GATE,
+  meterStarvesRecognition, STARVED_SPEECH_MS,
 } from '../src/voice/vad.js';
 import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from '../src/voice/transcribe.js';
 import { assembleTranscript } from '../src/voice/webspeech.js';
@@ -581,4 +582,24 @@ test('only a final the engine stands behind is settled', () => {
   assert.equal(assembleTranscript([F('we went'), live(' over')]).settled, false);
   assert.equal(assembleTranscript([z('we'), F('we went over')]).settled, true,
     'the confirmed final at the end of an Android session settles it');
+});
+
+// The hands-free "over" that did nothing on Android: the page's level meter held the
+// microphone, the recogniser heard silence and never raised an error. The verdict is the
+// disagreement between the two, so it must never fire while any word has arrived.
+test('a meter that hears seconds of speech the recogniser never transcribed is starving it', () => {
+  assert.equal(meterStarvesRecognition({ speechMs: STARVED_SPEECH_MS, heardWords: false }), true);
+  assert.equal(meterStarvesRecognition({ speechMs: STARVED_SPEECH_MS - 1, heardWords: false }), false,
+    'a sentence still being started is not starvation');
+  assert.equal(meterStarvesRecognition({ speechMs: 60000, heardWords: true }), false,
+    'a recogniser that has produced any word can hear, however long the answer');
+  assert.equal(meterStarvesRecognition({}), false);
+});
+
+test('the starvation verdict waits past the speech a gate needs before it judges anything', () => {
+  // Desktop engines show a first interim well inside this; a gate's minimum speech is the
+  // least an answer can be, so the verdict never lands before an answer could have begun.
+  for (const gate of [DEFAULTS, DRIVING_GATE, CONFIRM_GATE]) {
+    assert.ok(STARVED_SPEECH_MS > (gate.minSpeechMs ?? DEFAULTS.minSpeechMs));
+  }
 });

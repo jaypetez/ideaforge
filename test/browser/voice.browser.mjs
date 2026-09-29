@@ -12,6 +12,7 @@ import { probeWebSpeech, forgetVerdict, cachedVerdict, webSpeechPresent } from '
 import { createRecorder, micSupported } from '../../src/voice/recorder.js';
 import { createVoice } from '../../src/voice/index.js';
 import { ttsSupported } from '../../src/voice/speak.js';
+import { endsWithTrigger } from '../../src/core/driving.js';
 
 /** Stand in for a recogniser that reports itself present and then does nothing. */
 class SilentRecognition {
@@ -593,6 +594,72 @@ async function nativeLevelChecks(check) {
             && /cannot share/.test(unavailable[0]) && tracksEnded(seen));
       } finally { await voice.dispose(); }
     });
+
+    // Android's version of that conflict says nothing. While the page's meter holds the
+    // microphone the recogniser starts, hears silence, ends and is restarted, with no
+    // audio-capture error — so hands-free listened for ever while the bars moved with the
+    // driver's voice, and "over" was never heard because no word was. The only evidence is
+    // the disagreement: the meter heard speech for seconds and the recogniser heard nothing.
+    {
+      const starvedSource = new AudioContext();
+      const tone = starvedSource.createOscillator();
+      const level = starvedSource.createGain();
+      const out = starvedSource.createMediaStreamDestination();
+      level.gain.value = 0;
+      tone.connect(level).connect(out);
+      tone.start();
+      await starvedSource.resume();
+      try {
+        await withMedia({ acquire: async () => out.stream.clone() }, async (seen) => {
+          const voice = await createVoice();
+          try {
+            const metered = () => seen.streams.some((stream) =>
+              stream.getAudioTracks().some((track) => track.readyState === 'live'));
+            fake.starveWhile(metered, 250);
+            // Android drafts: each already final, at a new index, with no confidence behind it.
+            // The first lands after the meter has opened, as a driver's first word does.
+            const drafts = (texts) => texts.map((t, n) => ({ at: 300 + n * 30, final: t, confidence: 0 }));
+            fake.script([drafts(['it', 'it should', 'it should be fast', 'it should be fast over'])]);
+            const samples = [];
+            const unavailable = [];
+            const started = fake.recognition.startCount;
+            const heard = voice.listen({
+              autoStop: false, settleMs: 100,
+              isComplete: (text) => endsWithTrigger(text),
+              onLevel: (rms) => samples.push(rms),
+              onLevelUnavailable: (reason) => unavailable.push(reason),
+            });
+            await until(() => samples.length >= 8, 'calibrating on silence');
+            level.gain.value = 0.4;                 // the driver starts talking
+            const text = await within(heard, 'a starved recogniser', 6000);
+            const starvedSessions = fake.recognition.sessions.slice(started).filter((s) => s.starved);
+            check('a meter that starves Android recognition is detected by behaviour, not by platform',
+              starvedSessions.length >= 2 && unavailable.length === 1
+                && /level bars/.test(unavailable[0]), `${starvedSessions.length} starved; ${unavailable.join('; ')}`);
+            check('...the microphone is released to the recogniser, and the trigger word then ends the answer',
+              text === 'it should be fast over' && tracksEnded(seen), JSON.stringify(text));
+
+            fake.script([drafts(['next', 'next answer over'])]);
+            const next = await within(voice.listen({
+              autoStop: false, settleMs: 100, isComplete: (t) => endsWithTrigger(t),
+              onLevel: (rms) => samples.push(rms),
+              onLevelUnavailable: (reason) => unavailable.push(reason),
+            }), 'the next starved-free answer', 3000);
+            check('...and later questions skip the meter instead of starving again',
+              next === 'next answer over' && seen.requests === 1
+                && fake.recognition.sessions.slice(started).filter((s) => s.starved).length
+                  === starvedSessions.length, `${seen.requests} acquisitions`);
+          } finally {
+            fake.starveWhile(null);
+            await voice.dispose();
+          }
+        });
+      } finally {
+        tone.stop();
+        out.stream.getTracks().forEach((track) => track.stop());
+        await starvedSource.close();
+      }
+    }
 
     await withMedia({
       configureContext: (ctx) => {

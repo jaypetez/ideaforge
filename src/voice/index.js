@@ -17,7 +17,7 @@ import {
 } from './webspeech.js';
 import { createRecorder, micSupported } from './recorder.js';
 import { createMicMeter } from './mic-meter.js';
-import { createSilenceGate } from './vad.js';
+import { createSilenceGate, meterStarvesRecognition } from './vad.js';
 import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from './transcribe.js';
 import { speak, cancelSpeech, primeSpeech, ttsSupported } from './speak.js';
 
@@ -167,7 +167,12 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
       meter.start((rms) => {
         if (!listening(op)) return;
         gate.push(rms, performance.now());
-        opts.onLevel(rms, gate.state());
+        const state = gate.state();
+        if (meterStarvesRecognition({ speechMs: state.speechMs, heardWords: op.heardWords })) {
+          op.starved?.();
+          return;
+        }
+        opts.onLevel(rms, state);
       }, (err) => disableMeter(op, opts, err.message));
     }).catch((err) => {
       clearTimeout(op.meterTimer);
@@ -278,9 +283,24 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
       let retried = false;
       for (;;) {
         let retryWithoutMeter = false;
+        let starved = false;
+        // A starved recogniser fails silently rather than with `audio-capture`: the meter
+        // hears speech, the recogniser hears nothing and just restarts. Nothing was heard, so
+        // the session is thrown away and begun again with the microphone released to it.
+        op.starved = () => {
+          if (retried || retryWithoutMeter || !listening(op)) return;
+          retryWithoutMeter = starved = true;
+          disableMeter(op, opts,
+            'The microphone cannot feed level monitoring and dictation at once here. '
+            + 'Dictation continues without the level bars.');
+          op.session?.abort();
+        };
         op.session = listenViaWebSpeech({
           lang,
-          onInterim: (text) => { if (listening(op)) opts.onInterim?.(text); },
+          onInterim: (text) => {
+            if (text && text.trim()) op.heardWords = true;
+            if (listening(op)) opts.onInterim?.(text);
+          },
           onStart: () => {
             reportPhase(op, opts, 'listening');
             startLevels(op, opts);
@@ -298,14 +318,18 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
         });
         if (op.aborted) op.session.abort();
         else if (op.stopped) op.session.stop({ preserveDraft: op.preserveDraft });
+        let text;
         try {
-          return await op.session.promise;
+          text = await op.session.promise;
         } catch (err) {
           if (err.code !== 'audio-capture' || !retryWithoutMeter || retried || !listening(op)) throw err;
           retried = true;
+          continue;
         } finally {
           op.session = null;
         }
+        if (starved && !retried && listening(op)) { retried = true; continue; }
+        return text;
       }
     }
 

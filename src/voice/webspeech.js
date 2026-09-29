@@ -480,7 +480,11 @@ export function listenViaWebSpeech({
   }
 
   /**
-   * Any event at all is proof of life; the deadline restarts from it.
+   * A result is proof the engine can hear; the deadline restarts from it, and from nothing
+   * else. Starts, restarts and `no-speech` errors once counted too, and that is exactly the
+   * lifecycle of an Android recogniser that hears nothing: it ends every few seconds, is
+   * restarted, and each restart pushed the deadline back — so a deaf capture listened for
+   * ever, and "over" was never heard because no word ever was.
    *
    * Giving up RESOLVES with whatever was heard rather than rejecting, because a dead engine
    * is a small loss and not an error — the same judgement speak.js makes about an utterance
@@ -592,7 +596,6 @@ export function listenViaWebSpeech({
 
   rec.onerror = (ev) => {
     if (settled) return;
-    alive();
     const kind = ev && ev.error;
     if (kind === 'audio-capture') onAudioError?.();
     if (kind === 'no-speech' || kind === 'aborted') return;   // onend will settle it
@@ -609,7 +612,6 @@ export function listenViaWebSpeech({
   };
 
   rec.onstart = rec.onaudiostart = () => {
-    alive();
     if (!settled && wantMore) onStart?.();
   };
 
@@ -624,7 +626,7 @@ export function listenViaWebSpeech({
       session = [];
       sessionNo += 1;
       sessionSentInterim = false;
-      try { rec.start(); alive(); return; } catch { /* fall through and settle */ }
+      try { rec.start(); return; } catch { /* fall through and settle */ }
     }
     settle(() => resolve(answer()));
   };
