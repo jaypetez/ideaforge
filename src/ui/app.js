@@ -927,6 +927,7 @@ async function submitAndAdvance(text, source) {
 async function send(text, source) {
   const body = String(text == null ? els.answer.value : text).trim();
   if (!body || state.busy) return;
+  if (state.voiceMode === 'manual' && state.voice && !els.listening.hidden) state.voice.abort();
   await submitAndAdvance(body, source || state.answerSource);
 }
 
@@ -1142,6 +1143,7 @@ async function listenOnce({ prompt, autoStop }) {
       onInterim: (t) => {
         if (!ownsTurn()) return;
         els.answer.value = t;
+        state.answerSource = 'voice';
         queueDraftSave();
       },
       onLevel: (rms) => {

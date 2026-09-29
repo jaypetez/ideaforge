@@ -1289,7 +1289,42 @@ export default async function run(check) {
     }
   });
 
-  for (const move of ['stay', 'navigate', 'advance']) {
+  for (const via of ['button', 'ctrl', 'meta']) {
+    await withApp(check, `sending live browser dictation through ${via}`, async (app) => {
+      const session = await startTypedDraft(app, check);
+      if (!session) return;
+      app.$('b-mic').click();
+      const capture = await expect(app, check, 'manual recognition owns live input before sending', () =>
+        app.recognition.current() && app.mic.tracks().some((track) => track.readyState === 'live')
+          && app.recognition.current());
+      if (!capture) return;
+      const answer = 'A pocket notebook reminds me of the people I meet at conferences.';
+      capture._step({ final: answer, confidence: 0.9 });
+      if (!(await expect(app, check, 'the current spoken words are visible before Send',
+        () => app.$('answer').value === answer))) return;
+      if (via === 'button') app.$('b-send').click();
+      else app.$('answer').dispatchEvent(new app.win.KeyboardEvent('keydown', {
+        key: 'Enter', ctrlKey: via === 'ctrl', metaKey: via === 'meta',
+        bubbles: true, cancelable: true,
+      }));
+      const call = await expect(app, check, 'manual Send commits the visible words exactly once',
+        () => app.model.calls.length === 1 && app.model.calls[0]);
+      if (!call) return;
+      const saved = await within(loadSession(session.id), 'reading the live dictated submission');
+      check('sending visible dictation preserves its voice provenance without a transcription request',
+        saved.turns[0].answer === answer && saved.turns[0].answerSource === 'voice'
+          && app.requests.length === 0, JSON.stringify(saved.turns[0]));
+      if (!(await expect(app, check, 'Send releases recognition and microphone before the next question',
+        () => liveCaptures(app).length === 0 && app.mic.allStopped()
+          && !visible(app.$('listening')) && !app.$('handsfree').disabled))) return;
+      call.release();
+      await expect(app, check, 'the next question is editable without an orphaned listener',
+        () => app.$('question').textContent === NEXT_QUESTION && !app.$('answer').disabled
+          && app.$('answer').value === '' && !visible(app.$('listening')) && app.mic.allStopped());
+    });
+  }
+
+  for (const move of ['stay', 'navigate', 'advance', 'send-live']) {
     await withApp(check, `manual recorder loss: ${move}`,
       async (app) => {
         const transcript = 'saved before the microphone ended';
@@ -1332,6 +1367,7 @@ export default async function run(check) {
             method: options.method,
             authorization: new app.win.Headers(options.headers).get('authorization'),
             audio: options.body.get('file'),
+            signal: options.signal,
           };
           await responseReady;
           const response = new app.win.Response(JSON.stringify({ text: transcript }), {
@@ -1359,6 +1395,28 @@ export default async function run(check) {
           check('input-loss precondition comes from native audio, not a fabricated transcript',
             gate.state().heardSpeech && seen.bytes > 1600 && app.requests.length === 0,
             `${seen.samples} real analyser samples; ${seen.bytes} recorded bytes`);
+          if (move === 'send-live') {
+            const replacement = 'I choose this typed answer instead of the unfinished recording.';
+            app.$('answer').value = replacement;
+            app.$('answer').dispatchEvent(new app.win.Event('input'));
+            app.$('b-send').click();
+            const call = await expect(app, check, 'a typed answer can be sent while real audio is still recording',
+              () => app.model.calls.length === 1 && app.model.calls[0]);
+            if (!call) return;
+            if (!(await expect(app, check, 'Send releases the active recorder without waiting for Stop',
+              () => app.mic.allStopped() && recorders[0].state === 'inactive'
+                && !visible(app.$('listening')) && !app.$('handsfree').disabled))) return;
+            await within(captureOperation, 'cancelling the superseded manual recorder');
+            const saved = await within(loadSession(session.id), 'reading the replacement answer');
+            check('discarded manual audio creates no transcription request and preserves the typed answer',
+              app.requests.length === 0 && seen.request === null && saved.turns[0].answer === replacement
+                && saved.turns[0].answerSource === 'typed', detail(app));
+            call.release();
+            await expect(app, check, 'the next question has no leftover recorder or draft',
+              () => app.$('question').textContent === NEXT_QUESTION && !app.$('answer').disabled
+                && app.$('answer').value === '' && app.mic.allStopped() && !visible(app.$('listening')));
+            return;
+          }
           app.expectedRequestUrl = endpoint;
           app.expectedRequests = 1;
           app.mic.tracks().forEach((track) => track.stop());
@@ -1391,6 +1449,8 @@ export default async function run(check) {
             const call = await expect(app, check, 'a typed replacement advances while the old transcription is held',
               () => app.model.calls.length === 1 && app.model.calls[0]);
             if (!call) return;
+            check('Send also cancels an already-started transcription',
+              seen.request.signal.aborted);
             call.release();
             current = await expect(app, check, 'the same interview reaches its next unanswered question', async () => {
               const saved = await within(loadSession(session.id), 'reading the advanced interview');
