@@ -203,8 +203,8 @@
     paused: false,
     getVoices() {
       // Non-empty on the FIRST call, which short-circuits voicesReady's `voiceschanged`
-      // wait in speak.js and exercises pickVoice's localService preference.
-      return [{ name: 'Fake', lang: 'en-US', localService: true, default: true }];
+      // wait in speak.js and exercises the browser's locale/default selection.
+      return [{ name: 'Fake', voiceURI: 'fake:en-US', lang: 'en-US', localService: true, default: true }];
     },
     addEventListener() {},
     removeEventListener() {},
@@ -214,6 +214,11 @@
       fakeSynthesis.speaking = true;
       fakeSynthesis._live = u;
       fakeSynthesis._record = record;
+      setTimeout(() => {
+        if (fakeSynthesis._live === u && record.endedAt === null && u.onstart) {
+          u.onstart({});
+        }
+      }, 0);
 
       // Chrome silently drops an utterance that outlasts its ~15s watchdog and never fires
       // onend. speak.js caps its own wait for exactly this; `dropUtterance` proves the cap
@@ -223,9 +228,11 @@
       // Asynchronously, always. A synchronous onend hides ordering bugs.
       setTimeout(() => {
         record.endedAt = performance.now();
-        fakeSynthesis.speaking = false;
-        fakeSynthesis._live = null;
-        fakeSynthesis._record = null;
+        if (fakeSynthesis._live === u) {
+          fakeSynthesis.speaking = false;
+          fakeSynthesis._live = null;
+          fakeSynthesis._record = null;
+        }
         if (u.onend) u.onend({});
       }, config.speakMs);
     },

@@ -62,6 +62,35 @@ function scriptedIo(outcomes, opts = {}) {
 const ANSWER = (text) => ({ text });
 const NOTHING = { text: '' };
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+/** Hold one real scripted effect at its completion, without clocks or polling. */
+function deferEffect(io, name, when = () => true) {
+  const started = deferred();
+  const outcome = deferred();
+  const original = io[name];
+  let pending;
+  io[name] = (...args) => {
+    if (pending || !when(...args)) return original(...args);
+    pending = Promise.resolve(original(...args)).then(() => outcome.promise);
+    started.resolve();
+    return pending;
+  };
+  return { started: started.promise, resolve: outcome.resolve, reject: outcome.reject,
+    get promise() { return pending; } };
+}
+
+function trackStates(s) {
+  const states = [];
+  s.io.onState = (phase) => { states.push(phase); s.log.push(['state', phase]); };
+  return states;
+}
+
 test('an answer is spoken to and then submitted', async () => {
   const s = scriptedIo([ANSWER('a tool for remembering names over')], { turns: 1 });
   await createDriveLoop(s.io).run();
@@ -248,6 +277,53 @@ test('"wrap it up" is honoured once the interview has substance', async () => {
   assert.equal(s.only('wrap').length, 1);
 });
 
+test('a resumed loop uses session history for immediate wrap eligibility', async () => {
+  const s = scriptedIo([
+    ANSWER('wrap it up'), { text: 'still waiting', stopAfter: 2 },
+  ]);
+  s.io.answeredCount = () => 4;
+  assert.equal(await createDriveLoop(s.io).run(), 'wrapped');
+  assert.equal(s.only('wrap').length, 1);
+  assert.deepEqual(s.only('submit'), []);
+});
+
+for (const command of ['one more answer over', 'skip this one']) {
+  test(`persisted progress includes a resumed ${command} before wrapping`, async () => {
+    const s = scriptedIo([
+      ANSWER(command), ANSWER('wrap it up'), { text: 'still waiting', stopAfter: 3 },
+    ]);
+    s.io.answeredCount = () => 3 + s.only('submit').length + s.only('skip').length;
+    assert.equal(await createDriveLoop(s.io).run(), 'wrapped');
+    assert.equal(s.only('wrap').length, 1);
+  });
+}
+
+test('invalid persisted progress cannot bypass the wrap safety floor', async () => {
+  const s = scriptedIo([ANSWER('wrap it up'), { text: '', stopAfter: 2 }]);
+  s.io.answeredCount = () => NaN;
+  await assert.rejects(createDriveLoop(s.io).run(), /nonnegative integer/);
+  assert.deepEqual(s.only('wrap'), []);
+});
+
+test('a bare finish word submits a retained draft instead of counting as a miss', async () => {
+  const s = scriptedIo([ANSWER('over')], { turns: 1 });
+  s.io.hasDraft = () => true;
+  await createDriveLoop(s.io).run();
+  assert.deepEqual(s.only('submit'), ['']);
+  assert.deepEqual(s.only('skip'), []);
+});
+
+for (const capture of [NOTHING, { kind: 'throw', message: 'temporary network failure' }]) {
+  test(`repeated ${capture.kind || 'empty'} captures never skip a retained draft`, async () => {
+    const s = scriptedIo([capture], { turns: 1 });
+    s.io.hasDraft = () => true;
+    assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+    assert.deepEqual(s.only('skip'), []);
+    assert.deepEqual(s.only('submit'), []);
+    assert.match(s.said().at(-1), /draft.*still here/i);
+  });
+}
+
 // ── the wrap offer ───────────────────────────────────────────────────────────
 
 test('reaching coverage asks, out loud, and wraps on a yes', async () => {
@@ -295,3 +371,316 @@ test('running out of questions ends the loop cleanly', async () => {
   const s = scriptedIo([ANSWER('the only one over')], { turns: 1 });
   assert.equal(await createDriveLoop(s.io).run(), 'done');
 });
+
+// Lifecycle observers never own progression. The loop checks cancellation again after
+// calling one, because a Pause/Exit handler can synchronously stop that very operation.
+
+test('states follow half-duplex effects and keep question and examples separate', async () => {
+  const s = scriptedIo([ANSWER('an answer over')], { turns: 1, chips: ['an example'] });
+  trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(s.log.filter(([kind]) => kind !== 'notify'), [
+    ['state', 'speaking'], ['speak', 'q0'], ['speak', 'For example: an example.'],
+    ['state', 'listening'], ['listen', 'text'],
+    ['state', 'processing'], ['submit', 'an answer'], ['state', 'stopped'],
+  ]);
+});
+
+test('transient recovery reports recovering and resumes without a tap', async () => {
+  const s = scriptedIo([
+    { kind: 'throw', message: 'Speech recognition failed (network).' }, ANSWER('back over'),
+  ], { turns: 1 });
+  const states = trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(states, [
+    'speaking', 'listening', 'recovering', 'speaking', 'listening', 'processing', 'stopped',
+  ]);
+  assert.deepEqual(s.only('submit'), ['back']);
+  assert.doesNotMatch(s.said().join(' '), /\btap\b|\btype\b|\bkeyboard\b/i);
+});
+
+test('bounded empty-capture recovery ends in an observable stopped state', async () => {
+  const s = scriptedIo([NOTHING], { turns: 20 });
+  const states = trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+  assert.equal(s.only('listen').length, 6);
+  assert.equal(s.only('skip').length, 2);
+  assert.equal(states.filter((phase) => phase === 'recovering').length, 6);
+  assert.equal(states.at(-1), 'stopped');
+});
+
+for (const [text, command, phase] of [
+  ['pause', 'pause', 'paused'], ['pause voice, over', 'pause', 'paused'],
+  ['exit voice', 'exit', 'stopped'],
+]) {
+  test(`"${text}" stands down without submitting, skipping or wrapping`, async () => {
+    const s = scriptedIo([ANSWER(text)], { turns: 1 });
+    const states = trackStates(s);
+    const loop = createDriveLoop(s.io);
+    s.io[command] = () => { s.log.push([command]); loop.stop(); };
+
+    assert.equal(await loop.run(), 'stopped');
+    assert.deepEqual(states, ['speaking', 'listening', phase]);
+    assert.deepEqual(s.only('submit'), []);
+    assert.deepEqual(s.only('skip'), []);
+    assert.deepEqual(s.only('wrap'), []);
+    assert.equal(s.only(command).length, 1);
+    assert.equal(s.only('listen').length, 1);
+    assert.deepEqual(s.said(), ['q0'], 'standing down does not start farewell speech');
+
+    const stoppedLog = s.log.slice();
+    loop.stop();
+    assert.equal(await loop.run(), 'stopped');
+    assert.deepEqual(s.log, stoppedLog, 'a stopped instance never restarts');
+  });
+}
+
+test('legacy IO needs no lifecycle or command callbacks', async () => {
+  for (const command of ['pause voice', 'exit voice']) {
+    const s = scriptedIo([ANSWER(command)], { turns: 1 });
+    assert.equal(await createDriveLoop(s.io).run(), 'stopped', command);
+    assert.deepEqual(s.only('submit'), [], command);
+    assert.deepEqual(s.only('skip'), [], command);
+  }
+  const s = scriptedIo([ANSWER('scratch that'), ANSWER('legacy answer over')], { turns: 1 });
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(s.only('submit'), ['legacy answer']);
+});
+
+test('command phrases inside answers and a stop finish word still submit normally', async () => {
+  const answers = ['pause voice playback during calls', 'the button should say exit voice',
+    'we should stop voice playback before listening'];
+  const s = scriptedIo(answers.map((text) => ANSWER(`${text} stop`)),
+    { turns: answers.length, config: { trigger: 'stop' } });
+  s.io.pause = s.io.exit = () => assert.fail('an answer is not a stand-down command');
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(s.only('submit'), answers);
+});
+
+test('scratch clears a retained draft before speaking and relistening', async () => {
+  const s = scriptedIo([ANSWER('scratch that'), ANSWER('a replacement over')], { turns: 1 });
+  let draft = 'the retained answer';
+  const originalListen = s.io.listen;
+  s.io.listen = async (...args) => {
+    if (s.only('listen').length) assert.equal(draft, '');
+    return originalListen(...args);
+  };
+  s.io.scratch = async () => { draft = ''; s.log.push(['scratch']); };
+  const states = trackStates(s);
+
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(s.kinds().filter((kind) => !['state', 'notify'].includes(kind)),
+    ['speak', 'listen', 'scratch', 'speak', 'listen', 'submit']);
+  assert.deepEqual(states, [
+    'speaking', 'listening', 'processing', 'speaking', 'listening', 'processing', 'stopped',
+  ]);
+  assert.deepEqual(s.only('submit'), ['a replacement']);
+  assert.equal(s.said().filter((text) => text === 'q0').length, 1);
+});
+
+for (const command of ['pause', 'exit']) {
+  test(`${command} during wrap confirmation stands down without accepting or declining`, async () => {
+    const s = scriptedIo([ANSWER('one over'), ANSWER(`${command} voice`)],
+      { turns: 3, offerAt: 1 });
+    const states = trackStates(s);
+    s.io[command] = () => s.log.push([command]);
+
+    assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+    assert.deepEqual(s.only('submit'), ['one']);
+    assert.deepEqual(s.only('skip'), []);
+    assert.deepEqual(s.only('wrap'), []);
+    assert.equal(s.only(command).length, 1);
+    assert.equal(states.at(-1), command === 'pause' ? 'paused' : 'stopped');
+    assert.doesNotMatch(s.said().join(' '), /carrying on|Sorry/);
+    assert.equal(s.only('listen').length, 2);
+  });
+}
+
+test('scratch during confirmation clears the draft but keeps the bounded yes/no exchange', async () => {
+  const s = scriptedIo([ANSWER('one over'), ANSWER('scratch that'), ANSWER('yes')],
+    { turns: 3, offerAt: 1 });
+  s.io.scratch = () => s.log.push(['scratch']);
+  assert.equal(await createDriveLoop(s.io).run(), 'wrapped');
+  assert.equal(s.only('scratch').length, 1);
+  assert.deepEqual(s.only('submit'), ['one']);
+  assert.equal(s.only('wrap').length, 1);
+  const scratch = s.kinds().indexOf('scratch');
+  assert.deepEqual(s.log.slice(scratch).filter(([kind]) => kind !== 'notify').map(([kind]) => kind),
+    ['scratch', 'speak', 'listen', 'wrap']);
+});
+
+test('a transient confirmation failure carries on but never treats failure as yes', async () => {
+  const s = scriptedIo([
+    ANSWER('one over'), { kind: 'throw', message: 'network' }, ANSWER('two over'),
+  ], { turns: 2, offerAt: 1 });
+  const states = trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'done');
+  assert.deepEqual(s.only('submit'), ['one', 'two']);
+  assert.deepEqual(s.only('wrap'), []);
+  assert.ok(states.includes('recovering'));
+  assert.equal(s.said().filter((text) => /Shall I write it up/.test(text)).length, 1);
+});
+
+test('a denied microphone during confirmation stands down instead of retrying the question', async () => {
+  const s = scriptedIo([
+    ANSWER('one over'), { kind: 'throw', message: 'Microphone access was denied.' },
+    ANSWER('must not be heard over'),
+  ], { turns: 2, offerAt: 1 });
+  const states = trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+  assert.deepEqual(s.only('submit'), ['one']);
+  assert.deepEqual(s.only('wrap'), []);
+  assert.equal(s.only('listen').length, 2);
+  assert.equal(states.at(-1), 'stopped');
+});
+
+test('a wrap confirmation publishes processing before wrapping and then stops', async () => {
+  const s = scriptedIo([ANSWER('one over'), ANSWER('yes')], { turns: 3, offerAt: 1 });
+  const states = trackStates(s);
+  assert.equal(await createDriveLoop(s.io).run(), 'wrapped');
+  assert.deepEqual(states, [
+    'speaking', 'listening', 'processing', 'speaking', 'listening', 'processing', 'stopped',
+  ]);
+  assert.deepEqual(s.log.slice(-3), [['state', 'processing'], ['wrap'], ['state', 'stopped']]);
+});
+
+const CONFIRM = { turns: 3, offerAt: 1 };
+for (const { label, effect, outcomes, options, when, result = 'late answer over' } of [
+  { label: 'question speech', effect: 'speak' },
+  { label: 'example speech', effect: 'speak', options: { chips: ['an example'] },
+    when: (text) => text.startsWith('For example:') },
+  { label: 'answer capture', effect: 'listen' },
+  { label: 'answer submission', effect: 'submit' },
+  { label: 'skipping', effect: 'skip', outcomes: [ANSWER('skip this one')] },
+  { label: 'recovery speech', effect: 'speak', outcomes: [NOTHING],
+    when: (text) => /didn.t catch/.test(text) },
+  { label: 'draft clearing', effect: 'scratch', outcomes: [ANSWER('scratch that')] },
+  { label: 'confirmation speech', effect: 'speak', options: CONFIRM,
+    when: (text) => /Shall I write it up/.test(text) },
+  { label: 'confirmation capture', effect: 'listen', options: CONFIRM,
+    outcomes: [ANSWER('one over'), ANSWER('yes')], when: (opts) => opts.confirm, result: 'yes' },
+  { label: 'confirmation retry', effect: 'speak', options: CONFIRM,
+    outcomes: [ANSWER('one over'), ANSWER('unclear')], when: (text) => /Sorry/.test(text) },
+  { label: 'wrapping', effect: 'wrap', options: CONFIRM,
+    outcomes: [ANSWER('one over'), ANSWER('yes')] },
+]) {
+  for (const late of ['resolve', 'reject']) {
+    test(`external stop during ${label} ignores a late ${late} without waiting for it`, async () => {
+      const s = scriptedIo(outcomes || [ANSWER('an answer over')], { turns: 3, ...options });
+      s.io.scratch = () => s.log.push(['scratch']);
+      const states = trackStates(s);
+      const held = deferEffect(s.io, effect, when);
+      const loop = createDriveLoop(s.io);
+      const run = loop.run();
+      await held.started;
+      loop.stop();
+
+      assert.equal(await run, 'stopped', 'stop must not wait for the abandoned effect');
+      assert.equal(states.at(-1), 'stopped');
+      const stoppedLog = s.log.slice();
+      if (late === 'resolve') {
+        held.resolve(result);
+        await held.promise;
+      } else {
+        held.reject(new Error('late failure'));
+        await assert.rejects(held.promise, /late failure/);
+      }
+      loop.stop();
+      assert.equal(await loop.run(), 'stopped');
+      assert.deepEqual(s.log, stoppedLog, 'no late speech, capture, command, mutation or state');
+    });
+  }
+}
+
+test('concurrent run calls share one half-duplex loop', async () => {
+  const s = scriptedIo([ANSWER('one over')], { turns: 1 });
+  const held = deferEffect(s.io, 'speak');
+  const loop = createDriveLoop(s.io);
+  const first = loop.run();
+  const second = loop.run();
+  assert.equal(first, second);
+  await held.started;
+  assert.deepEqual(s.kinds(), ['notify', 'speak']);
+  held.resolve();
+  assert.equal(await first, 'done');
+  assert.equal(await second, 'done');
+  assert.equal(s.only('submit').length, 1);
+});
+
+test('stopping before run is idempotent and never invokes command callbacks', async () => {
+  const s = scriptedIo([ANSWER('one over')]);
+  const states = trackStates(s);
+  s.io.pause = s.io.exit = s.io.scratch = () => assert.fail('stop is not a spoken command');
+  const loop = createDriveLoop(s.io);
+  loop.stop();
+  loop.stop();
+  assert.equal(await loop.run(), 'stopped');
+  assert.deepEqual(states, ['stopped']);
+  assert.deepEqual(s.log, [['state', 'stopped']]);
+});
+
+for (const phase of ['speaking', 'listening', 'processing', 'recovering']) {
+  test(`stopping in the ${phase} observer prevents the announced effect`, async () => {
+    const s = scriptedIo(phase === 'recovering' ? [NOTHING] : [ANSWER('one over')]);
+    const loop = createDriveLoop(s.io);
+    let stoppedLog;
+    s.io.onState = (next) => {
+      s.log.push(['state', next]);
+      if (next === phase) { loop.stop(); stoppedLog = s.log.slice(); }
+    };
+    assert.equal(await loop.run(), 'stopped');
+    assert.deepEqual(s.log, stoppedLog);
+  });
+}
+
+test('stopping from a speech notification prevents playback', async () => {
+  const s = scriptedIo([ANSWER('one over')]);
+  const loop = createDriveLoop(s.io);
+  s.io.notify = () => loop.stop();
+  assert.equal(await loop.run(), 'stopped');
+  assert.deepEqual(s.log, []);
+});
+
+for (const effect of ['speak', 'listen', 'submit']) {
+  test(`an AbortError from ${effect} stops without recovery or fallback speech`, async () => {
+    const s = scriptedIo([ANSWER('one over')]);
+    const states = trackStates(s);
+    const original = s.io[effect];
+    s.io[effect] = async (...args) => {
+      await original(...args);
+      throw Object.assign(new Error('cancelled'), { name: 'AbortError' });
+    };
+    assert.equal(await createDriveLoop(s.io).run(), 'stopped');
+    assert.equal(states.at(-1), 'stopped');
+    assert.ok(!states.includes('recovering'));
+    assert.equal(s.only(effect).length, 1);
+    assert.deepEqual(s.said(), ['q0']);
+  });
+}
+
+for (const effect of ['speak', 'submit', 'scratch']) {
+  test(`an active ${effect} failure is surfaced with an observable stand-down`, async () => {
+    const s = scriptedIo([ANSWER(effect === 'scratch' ? 'scratch that' : 'one over')]);
+    const states = trackStates(s);
+    s.io[effect] = async () => { throw new Error('effect failed'); };
+    await assert.rejects(createDriveLoop(s.io).run(), /effect failed/);
+    assert.equal(states.at(-1), 'stopped');
+    assert.ok(!states.includes('recovering'));
+    assert.deepEqual(s.only('skip'), []);
+  });
+}
+
+for (const flag of [{ fatal: true }, { recoverable: false }]) {
+  test(`an explicitly unrecoverable capture is not retried: ${JSON.stringify(flag)}`, async () => {
+    const s = scriptedIo([ANSWER('one over')]);
+    const states = trackStates(s);
+    s.io.listen = async () => {
+      s.log.push(['listen']);
+      throw Object.assign(new Error('Voice input is not configured.'), flag);
+    };
+    await assert.rejects(createDriveLoop(s.io).run(), /not configured/);
+    assert.equal(s.only('listen').length, 1);
+    assert.deepEqual(s.only('skip'), []);
+    assert.equal(states.at(-1), 'stopped');
+  });
+}

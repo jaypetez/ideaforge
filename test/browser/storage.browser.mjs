@@ -2,7 +2,9 @@
 // and the whole point of the key store is a non-extractable CryptoKey, which is a browser
 // primitive with no Node equivalent that behaves the same way.
 
-import { saveCredentials, loadCredentials, clearCredentials, maskKey } from '../../src/store/secrets.js';
+import {
+  saveCredentials, loadCredentials, clearCredentials, maskKey, withTts,
+} from '../../src/store/secrets.js';
 import {
   importSessions, saveSession, loadSession, listSessions, newSessionId,
 } from '../../src/store/sessions.js';
@@ -15,6 +17,7 @@ import { loadPrefs, savePrefs } from '../../src/store/prefs.js';
 import { openDb } from '../../src/store/db.js';
 
 const SECRET = 'gsk_this_value_must_never_appear_at_rest';
+const SPEECH_SECRET = 'tts_this_different_value_must_never_appear_at_rest';
 const DB_NAME = 'ideaforge';
 const DB_DEADLINE_MS = 4000;
 
@@ -74,11 +77,21 @@ export default async function run(check) {
     back && back.version === 2 && back.byKind.groq.apiKey === SECRET);
   check('…and the dictation key comes across with them',
     back && back.stt && back.stt.apiKey === SECRET);
+  check('older credentials do not opt into hosted speech',
+    back.tts.kind === 'browser' && back.tts.apiKey === '' && back.tts.verified === false);
+  await saveCredentials(withTts(back, {
+    kind: 'openai', apiKey: SPEECH_SECRET, voice: 'cedar', verified: true,
+  }));
+  const speechBack = await loadCredentials();
+  check('speech credentials survive encryption without replacing the other keys',
+    speechBack.tts.apiKey === SPEECH_SECRET && speechBack.tts.verified
+      && speechBack.byKind.groq.apiKey === SECRET && speechBack.stt.apiKey === SECRET);
   check('maskKey never reveals the middle', !maskKey(SECRET).includes('must_never'), maskKey(SECRET));
 
   const blob = await rawRecord('credentials');
   const atRest = new TextDecoder().decode(new Uint8Array(blob.ciphertext));
   check('the key is ciphertext at rest, never plaintext', !atRest.includes(SECRET));
+  check('the speech key is also ciphertext at rest', !atRest.includes(SPEECH_SECRET));
   check('an IV is stored alongside it', blob.iv && blob.iv.length === 12);
 
   const wrapping = await rawRecord('wrapping-key');
@@ -139,6 +152,7 @@ export default async function run(check) {
 
   const backup = buildBackup(await listSessions(), { now: Date.now() });
   check('a library backup never includes the stored API key', !backup.includes(SECRET));
+  check('a library backup never includes the separate speech key', !backup.includes(SPEECH_SECRET));
   const parsedBackup = parseBackup(backup);
   const duplicate = await importSessions(parsedBackup.sessions, { now: Date.now() });
   check('importing the same backup does not duplicate a session',
@@ -179,10 +193,15 @@ export default async function run(check) {
   savePrefs({ handsFree: true });
   check('hands-free is remembered between trips', loadPrefs().handsFree === true);
   check('...without losing the finish word', loadPrefs().trigger === 'finished');
+  savePrefs({ speechVoice: 'device:voice', speechRate: 0.85 });
+  check('voice and pace preferences survive a reload independently of credentials',
+    loadPrefs().speechVoice === 'device:voice' && loadPrefs().speechRate === 0.85);
 
   await clearCredentials();
   check('forgetting the API key leaves the finish word alone',
     loadPrefs().trigger === 'finished', loadPrefs().trigger);
+  check('forgetting keys also leaves nonsecret speech preferences alone',
+    loadPrefs().speechVoice === 'device:voice' && loadPrefs().speechRate === 0.85);
 
   // ── upgrades and recovery ────────────────────────────────────────────────
   let sawVersionchange = false;

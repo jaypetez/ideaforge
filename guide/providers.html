@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Providers | IdeaForge guide</title>
   <meta name="description"
-        content="Choose an IdeaForge model and dictation provider, validate keys, and understand what is stored and sent.">
+        content="Choose separate providers for IdeaForge questions, dictation and spoken replies, and understand their keys and checks.">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'self'; img-src 'self' data:;
                  base-uri 'none'; form-action 'none'">
@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -45,20 +45,20 @@
     </nav>
 
     <main id="main">
-      <p class="eyebrow">Model and dictation connections</p>
+      <p class="eyebrow">Questions, dictation and spoken replies</p>
       <h1>Choose where the interview runs.</h1>
       <p class="lede">
         IdeaForge calls the selected provider directly from your browser. There is no
         IdeaForge proxy, account, or application server between the page and the model.
-        Hosted providers need their own API key; local providers need a loopback server and
-        an installed model.
+        Question generation, dictation and spoken replies are separate choices.
+        A local question model does not make a hosted transcriber or a network voice local.
       </p>
 
       <div class="callout">
-        <strong>Use the Check button before a real interview.</strong>
+        <strong>The connection check tests the question provider, not speech.</strong>
         For a hosted provider it validates the key. For a local provider it checks the
-        server and reads its model list. This separates setup failures from an interview
-        that has already started.
+        server and reads its model list. Use the separate voice preview for playback;
+        passing a model check does not enable hosted speech.
       </div>
 
       <h2 id="current-choices">Current provider choices</h2>
@@ -153,8 +153,10 @@
 
       <h2 id="choosing-models">Choosing the models</h2>
       <p>
-        Every provider except the Claude viewer offers two model fields, because an
-        interview does not spend its calls evenly. Each question is one call, and there are
+        Expand <strong>Model options</strong> for the two model fields available with
+        every provider except the Claude viewer. It starts collapsed for hosted providers
+        and opens automatically for local providers, where a question model is required.
+        An interview does not spend its calls evenly. Each question is one call, and there are
         usually around a dozen. The wrap-up is a single call that reads the whole transcript
         and produces the refined prompt. Those are different jobs, so IdeaForge lets you
         answer them separately.
@@ -233,8 +235,8 @@
       <h2 id="keyring">How saved credentials behave</h2>
       <ul class="checklist">
         <li>
-          One encrypted keyring stores a separate record for each inference provider, plus
-          the selected transcription provider and its key.
+          One encrypted keyring stores a record for each inference provider, the selected
+          transcription provider and its key, and an independent speech record.
         </li>
         <li>
           Switching providers does not overwrite the key saved for the previous provider.
@@ -252,7 +254,7 @@
         </li>
         <li>
           <strong>Forget my key</strong> removes the whole stored credential payload and
-          its wrapping key, including inference and transcription keys for every provider.
+          its wrapping key, including inference, transcription and speech keys.
           It does not revoke a key at the provider; revoke it there as well when needed.
         </li>
       </ul>
@@ -310,19 +312,79 @@
       </div>
 
       <p>
-        The app tests the browser recogniser by behaviour rather than by the mere presence
-        of an API. If it cannot prove that recognition works, it uses the selected hosted
-        transcriber when one is configured, or keeps the keyboard as the reliable fallback.
-        See <a href="./mobile-and-voice.html">Mobile and voice</a> for platform details.
+        The browser-recognition choice uses a behavioural probe, not the mere presence of
+        an API. Selecting Groq or OpenAI dictation explicitly uses recording and that
+        service. Browser recognition itself is not guaranteed local or offline.
+        See <a href="./mobile-and-voice.html#support">Mobile and voice</a> for platform
+        conditions and the untested physical-device limits.
+      </p>
+
+      <h2 id="spoken-replies">Spoken replies are a third, independent choice</h2>
+      <p>
+        <strong>Browser voice</strong> is the default and needs no extra IdeaForge key.
+        Expand <strong>Voice and speaking pace</strong> for the picker and preview.
+        The picker lists the voices exposed by the browser and labels their language and
+        on-device or network status. Preview a voice and adjust Speaking pace before
+        starting. Network voices may send spoken text off the device; a local label is not
+        a guarantee that the whole voice interview works offline.
+      </p>
+      <p>
+        Optional <strong>OpenAI voice</strong> uses <code>gpt-4o-mini-tts</code> with
+        <strong>Marin</strong> or <strong>Cedar</strong>. The adapter sends short text
+        chunks directly to <code>https://api.openai.com/v1/audio/speech</code> and plays
+        buffered WAV audio through Web Audio. It is not a streaming or realtime
+        conversation service and does not add a proxy.
+      </p>
+      <ol class="steps">
+        <li>
+          Choose OpenAI under <strong>Spoken replies</strong>.
+          <strong>Voice and speaking pace</strong> opens automatically; enter a
+          <strong>Separate speech key</strong> there. IdeaForge never borrows your inference or
+          transcription key for speech, even when both use OpenAI.
+        </li>
+        <li>
+          Choose the voice and confirm that it is AI-generated, spoken text is sent to
+          OpenAI and speech usage is metered. Set an appropriate limit with the provider.
+        </li>
+        <li>
+          Press <strong>Check and preview OpenAI voice</strong>. This makes a real, metered
+          request for a short sample and must play through the hosted backend successfully.
+          A cancelled or failed check cannot pass by falling back to browser speech.
+        </li>
+        <li>
+          Only after that success may the interview use hosted replies. A changed speech
+          key or hosted voice needs a new check. Until checked, the app uses browser speech
+          and explains why.
+        </li>
+      </ol>
+      <div class="callout warning">
+        <strong>Live hosted speech is not developer-verified for this redesign.</strong>
+        No authorised live key or spending cap was supplied. Direct-browser CORS and
+        voice quality remain unverified; the per-browser preview gate is not a universal
+        compatibility guarantee. Choosing this option is not evidence that its API is
+        reachable in every browser.
+      </div>
+      <p>
+        The speech key, selected hosted voice and successful-check status are saved in the
+        encrypted keyring. Browser voice and pace are non-secret device preferences.
+        None is included in session backups. Generated audio is kept in memory for playback,
+        not in the interview database or a persistent audio cache.
       </p>
 
       <h2 id="failure-behaviour">What happens when a provider fails</h2>
       <p>
-        Provider adapters translate service-specific failures into one shared set of
+        Inference and transcription adapters translate service-specific failures into one shared set of
         authentication, rate-limit, overload, network, timeout, response, cancellation, and
         configuration errors. Transient rate-limit, overload, and network failures are
         retried with backoff. Authentication, invalid configuration, unusable model output,
         and the request deadline require a user or model change instead.
+      </p>
+      <p>
+        Hosted speech has a different failure policy: it does not silently retry a failed
+        paid request. During an interview it visibly falls back to browser speech and
+        displays the backend actually used. Cancellation never starts fallback playback.
+        If browser speech also fails, the voice stage offers recovery or Exit rather than
+        pretending the reply played.
       </p>
       <p>
         A failed question does not dead-end the interview. IdeaForge uses a built-in
@@ -383,6 +445,12 @@
         <a href="https://github.com/jaypetez/ideaforge/blob/main/src/ui/app.js"><code>src/ui/app.js</code></a>,
         and hosted dictation by
         <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/transcribe.js"><code>src/voice/transcribe.js</code></a>.
+        Hosted speech is defined by <code>TTS_PRESETS</code> and <code>createTTSProvider</code> in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/tts.js"><code>src/providers/tts.js</code></a>;
+        its no-fallback check and visible degradation are owned by
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/output.js"><code>src/voice/output.js</code></a>.
+      </p>
+      <p>
         GitHub Models and Copilot chat are deliberately not provider choices; the rationale
         is recorded beside the registry in <code>src/providers/index.js</code>.
       </p>

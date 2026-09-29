@@ -53,9 +53,9 @@ browser checks and Pages, and leaves the probes on the repository tree.
 ```
 src/core/       pure: no DOM, no network, no clock, no randomness
 src/runtime/    orchestration: provider and `now` are INJECTED, never reached for
-src/providers/  the only directory allowed to touch the network
+src/providers/  inference and hosted speech requests, shared HTTP policy
 src/store/      IndexedDB sessions + the encrypted API key
-src/voice/      microphone, transcription, speech synthesis
+src/voice/      microphone, transcription requests, native speech and playback
 src/ui/         the app shell (the only place that touches the DOM)
 guide/          static public documentation, published beside the app
 ```
@@ -138,7 +138,7 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   load-bearing.** `tools/screenshots.mjs` produces the light and dark README pairs by setting
   `documentElement.dataset.theme` — it does **not** emulate `prefers-color-scheme`. Delete
   `:root[data-theme="dark"] { color-scheme: dark }` and both runs render identically, shipping
-  fourteen PNGs that are the same image twice with a green suite. `test/browser/app.browser.mjs`
+  light/dark PNG pairs that are the same image twice with a green suite. `test/browser/app.browser.mjs`
   now asserts the two themes compute different backgrounds; that is the only thing catching it.
 - **`color-scheme` is not decoration.** Without it the native select, the scrollbars and the
   file picker stay light inside a dark page.
@@ -154,6 +154,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
   `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
   any of them breaks the harness, sometimes by hanging rather than failing.
+- **Setup disclosures are real UI, not screenshot overrides.** `Model options` opens for
+  local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
+  speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,
+  spoken-replies choice, dictation, finish word and start actions stay outside them.
+  `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
+  app layout when that gate fails; do not hide required controls just for a capture.
 - **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
   warns forever otherwise, and a run that warns about fonts is a run to throw away.
 
@@ -215,6 +221,48 @@ correct itself rather than staying deaf.
 
 Use the `change-voice-and-driving` skill for the complete change and validation procedure.
 
+## Voice presentation and spoken output
+
+- **The voice stage is presentation, not another route or interview.**
+  `createVoiceStage` in `src/ui/voice-stage.js` renders the in-place `#voice-stage`;
+  `src/ui/app.js` owns visibility and hides the manual composer, coverage and navigation.
+  The renderer has no timers. Its bars move only from microphone samples supplied by
+  `src/voice/index.js`; missing levels are reported, not fabricated. A native speaking
+  indicator is not an output waveform.
+- **Pause stops effects, not history.** `pauseVoice` releases microphone tracks, cancels
+  speech and preserves captured draft text. Pending transcription may finish for that
+  draft; an already-submitted model request may settle for its originating idea. Neither
+  may start another capture while paused. Resume needs a deliberate tap, not a hidden
+  listener. Exit returns to the manual interview, or the document view when writing/done,
+  without skipping or requesting a wrap-up; cancelled unfinished audio is reported.
+- **A busy flag is not an identity guard.** `sessionWork`, `currentView` and `voiceEpoch`
+  in `src/ui/app.js` separate session work, navigation and retired voice runs. Delayed
+  effects must not write another idea's draft or restart a cancelled conversation.
+- **Native speech remains the default.** `src/voice/speak.js` resolves current voices,
+  applies the selected identifier and pace, and reports a missing selection or failed
+  utterance. The browser's local/network label is not a quality ranking or an offline
+  guarantee. Keep full captions; do not require word-boundary events.
+- **Hosted speech needs its own permission and secret.** `withTts` in
+  `src/store/secrets.js` keeps its key, voice and successful-check status independent of
+  inference and STT. `src/store/prefs.js` owns non-secret browser voice and pace. Preserve
+  speech records through keyring normalisation and include them in Forget, never backups.
+- **A fallback cannot pass the hosted check.** `previewSpeech` in `src/ui/app.js` requires
+  a separate key and consent to synthetic speech, text transfer and metered usage.
+  `createSpeechOutput.check` in `src/voice/output.js` must complete on the selected backend
+  before `readSpeechFromForm` permits hosted replies. Key or hosted-voice changes require
+  a new check. A live failure can visibly fall back to browser speech; cancellation cannot.
+- **Prime output before yielding the gesture.** Start, Resume and Preview prime speech
+  synchronously. `src/voice/playback.js` owns the bounded Web Audio context and buffered
+  audio lifetime; `src/providers/tts.js` owns the fixed endpoint and bounded requests.
+  No streaming claim, persistent audio cache, background wake word or voice barge-in.
+
+The optional hosted path has no developer-verified live CORS or voice-quality result for
+this redesign: no authorised key or spending cap was supplied. Its preview gate tests a
+particular browser attempt, not general compatibility. Physical Android/iPhone checks
+remain unperformed. The separate real-audio policy checks in
+`tools/browser-policy-check.mjs` supplement scripted media tests; they do not prove native
+recognition contention, real permission UI or physical-device behaviour.
+
 ## Driving mode: the rules that fail silently
 
 The hands-free loop lives in `src/runtime/drive.js`, with the matching in
@@ -222,16 +270,16 @@ The hands-free loop lives in `src/runtime/drive.js`, with the matching in
 the loop's correctness is about *sequencing* and sequencing tested through a browser is slow
 enough that the eighth failure case never gets written.
 
-- **The invariant is that it never comes to rest waiting for a tap.** An empty capture, a
-  recogniser error and a recogniser that died all `continue`. Adding a `break` or a `return`
-  to any catch in `drive.js` is how driving mode starts asking a driver to look at the
-  screen — which is what the loop it replaced did, in two places. The failure mode is a
-  *skipped question*, not a stopped app.
+- **Speaking, listening and processing are serial until an explicit stop.**
+  Transient misses use bounded retry/repeat/skip recovery without unnecessary taps.
+  Pause, Exit, cancellation or a fatal input/output failure stands down observably;
+  no retired run may start another effect. `createDriveLoop.stop()` invalidates progression,
+  while the UI owns resource shutdown. Resume constructs a new run after a tap.
 - **The trigger word is terminal-only, and a command must be the whole utterance.** "Over"
   is an ordinary word — *over budget*, *over the years* — but almost never the last one.
   Matched anywhere it truncates answers invisibly. A command matched *inside* a sentence eats
   the whole answer, so `"I'd skip this one if I could"` has to stay an answer.
-- **`matchCommand` returns empty text for a command**, which is what makes it structurally
+- **`parseSpeech` returns empty text for a command**, which is what makes it structurally
   impossible for one to reach `submitAnswer` — where `RE_REFUSAL` in `engine.js` already
   matches "skip this" and would cap that dimension's coverage. The command would appear to
   work and quietly damage the interview.
@@ -249,9 +297,9 @@ enough that the eighth failure case never gets written.
   count. Joining them into one string is the obvious simplification and reintroduces the bug
   below: four fourteen-word chips plus a question clears the watchdog on its own, and the
   whole turn goes silent with no error.
-- **`speak.js` caps its own wait**, so anything long must go through `speechChunks`. A
-  six-hundred-word prompt read as one utterance is abandoned partway through by Chrome with
-  no error at all.
+- **`speak.js` caps its own wait.** `splitSpeechText` builds on `speechChunks` and enforces
+  character boundaries even on long unbroken text; native output also sizes chunks for
+  the selected rate. Never bypass that path with a whole prompt in one utterance.
 - **The deaf watchdog in `webspeech.js` resolves, never rejects.** An engine that emits one
   interim and then goes silent used to leave the promise unsettled for ever. It is the same
   installed-iOS failure `probeWebSpeech` guards the *start* against, arriving later than the

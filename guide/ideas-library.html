@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -203,7 +203,7 @@
       <p>
         A library backup includes every stored session, including active, completed, and
         archived ideas, along with tags, drafts, coverage, and transcripts. It does not
-        contain provider or transcription API keys.
+        contain inference, transcription or speech keys, device voice preferences or audio.
       </p>
       <div class="callout danger">
         <strong>The backup is not encrypted.</strong>
@@ -255,7 +255,7 @@
         <li>Transfer the JSON file using a method you trust.</li>
         <li>Open IdeaForge on the destination device and import the backup.</li>
         <li>Confirm the expected active, completed, and archived ideas are present.</li>
-        <li>Configure provider and transcription keys separately; they are intentionally absent from the backup.</li>
+        <li>Configure inference, dictation and spoken replies separately; keys and speech-preview approval are absent from the backup.</li>
       </ol>
 
       <p>
@@ -317,12 +317,16 @@
           </thead>
           <tbody>
             <tr>
-              <th scope="row">Start an interview</th>
+              <th scope="row">Start with voice or Type instead</th>
               <td>Creates and saves a new session with the seed question.</td>
             </tr>
             <tr>
               <th scope="row">Type an answer</th>
               <td>Saves an unfinished draft after a short pause; sending records the answer in the transcript.</td>
+            </tr>
+            <tr>
+              <th scope="row">Pause voice</th>
+              <td>Releases the microphone and keeps an unsubmitted draft; already captured audio may finish transcription for that idea.</td>
             </tr>
             <tr>
               <th scope="row">Wrap up</th>
@@ -338,7 +342,7 @@
             </tr>
             <tr>
               <th scope="row">Forget my key</th>
-              <td>Deletes the encrypted credential payload and wrapping key; interviews and finish-word preferences remain.</td>
+              <td>Deletes the inference, transcription and speech keyring and wrapping key; interviews and non-secret voice preferences remain.</td>
             </tr>
             <tr>
               <th scope="row">Clear browser site data</th>

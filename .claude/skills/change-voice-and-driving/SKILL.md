@@ -17,16 +17,25 @@ Read:
 - `src/core/driving.js`, `src/runtime/drive.js`, and the relevant `src/voice/` module
 - `test/driving.test.mjs`, `test/drive-loop.test.mjs`, `test/voice.test.mjs`
 - `test/browser/dictation.browser.mjs`, `test/browser/driving.browser.mjs`,
-  `test/browser/voice.browser.mjs`, and `test/browser/fixtures/fake-voice.js`
+  `test/browser/voice.browser.mjs`, `test/browser/voice-stage.browser.mjs`,
+  `test/browser/speech-output.browser.mjs`, and `test/browser/fixtures/fake-voice.js`
 
 Keep matching and state transitions pure. Browser APIs belong in `src/voice/` or `src/ui/`;
 `src/core/` and `src/runtime/` still receive dependencies and time.
 
 ## 2. Preserve the sequencing guarantees
 
-- The hands-free loop must never come to rest waiting for a tap.
-- Empty capture, transient error, and a recogniser that goes silent all continue or stand down
-  explicitly; they do not strand the interview.
+- Transient misses recover without a tap. Empty capture, transient error, and a recogniser
+  that goes silent continue through the bounded recovery ladder or stand down explicitly.
+- Deliberate Pause, Exit, and fatal input/output failures are explicit stops, not transient
+  retries. Pause releases the microphone and retains the draft; Resume requires a fresh tap.
+  Never leave a hidden microphone listening for a resume command.
+- Cancelling setup must stop the initial recognition probe as well as active capture.
+- Resume reads wrap eligibility from the session, not from the lifetime of a fresh loop.
+- A bare finish word can send a retained draft without inventing new answer text or changing
+  its typed/chip provenance. Repeated misses must not silently skip and erase retained words.
+- Manual dictation releases its input after that capture. Reuse between active hands-free
+  turns is a separate lifetime, never permission to leave the manual microphone open.
 - A trigger word is terminal-only. A command must occupy the whole utterance.
 - A matched command carries empty answer text so it cannot reach `submitAnswer`.
 - A trigger in an interim, or in a final without confidence, arms settlement; it does not
@@ -51,7 +60,8 @@ already final, with confidence 0, and no interim anywhere in that session — sc
 consecutive `final` steps with `confidence: 0` and no `interim` steps.
 
 `window.speechSynthesis` is readonly in module code. Replace it with
-`Object.defineProperty`, not assignment.
+`Object.defineProperty`, not assignment. Speech fixtures must emit asynchronous start and end
+events, and late cancelled events must not change a newer utterance's state.
 
 ## 4. Test the pure behavior first
 
@@ -61,9 +71,9 @@ Choose the smallest focused command:
 node --test test/driving.test.mjs test/drive-loop.test.mjs test/voice.test.mjs
 ```
 
-Add tests that assert ordering and user-visible recovery, not implementation details. The
-most important failure assertion is that no recovery path asks a hands-free user to tap or
-type.
+Add tests that assert ordering and user-visible recovery, not implementation details.
+Transient recovery must not ask for a tap or typed answer. Explicit Pause/Exit/fatal stops
+must not restart secretly, and a fresh Resume must preserve the session and unsent draft.
 
 ## 5. Prove browser behavior
 

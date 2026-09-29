@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -49,9 +49,10 @@
       <h1>Know what stays local and what does not.</h1>
       <p class="lede">
         IdeaForge is a static browser application with no account, sync service, analytics,
-        or application backend. Sessions stay in browser storage. Model context and optional
-        audio go directly to the provider you choose. Exports and backups leave only when
-        you explicitly create, copy, download, or share them.
+        or application backend. Sessions stay in browser storage. Model context, optional
+        recorded dictation and optional spoken text go directly to their selected services.
+        Browser recognition and network voices may also process content remotely. Exports
+        and backups leave only when you explicitly create, copy, download or share them.
       </p>
 
       <div class="callout">
@@ -90,14 +91,15 @@
               </td>
             </tr>
             <tr>
-              <td><strong>Inference and transcription keys</strong></td>
+              <td><strong>Inference, transcription and speech keys</strong></td>
               <td>
                 One AES-GCM encrypted credential payload in IndexedDB, with a
                 non-extractable wrapping <code>CryptoKey</code> stored beside it.
               </td>
               <td>
-                Attached only to requests for the selected inference or transcription
-                provider. Keys are excluded from session backups and Markdown exports.
+                Attached by the relevant adapter to its selected provider. The speech key
+                is independent and is never borrowed from inference or transcription.
+                Keys are excluded from session backups and Markdown exports.
               </td>
               <td>
                 Use <strong>Forget my key</strong>, clear site data, and revoke the key at
@@ -119,10 +121,15 @@
             <tr>
               <td><strong>Device preferences</strong></td>
               <td>
-                Plain localStorage. This includes the hands-free finish word and whether
-                hands-free mode was enabled.
+                Plain localStorage: the finish word, hands-free preference, browser voice
+                identifier, speaking pace and a separate hosted-speech permission flag.
+                The hosted speech choice, voice, key and
+                successful-check status belong to the encrypted keyring instead.
               </td>
-              <td>Not sent by IdeaForge as interview data.</td>
+              <td>
+                Voice and pace configure the chosen speech output; they are not interview
+                content. Preferences are excluded from backups.
+              </td>
               <td>Change the setting, or clear this site's browser data.</td>
             </tr>
             <tr>
@@ -138,6 +145,22 @@
               <td>
                 The app releases the recording after transcription. Provider-side retention
                 is governed by that provider's account and policy.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Spoken text and generated audio</strong></td>
+              <td>
+                Captions on screen and audio temporarily in memory. Generated audio is
+                not added to sessions, backups or a persistent audio cache.
+              </td>
+              <td>
+                Consented, checked OpenAI speech sends the text being read aloud directly
+                to OpenAI. Browser network voices may send text to a service controlled
+                by the browser; no IdeaForge speech key is used for that path.
+              </td>
+              <td>
+                Playback resources are released on teardown. Provider-side retention is
+                governed by the service, not by deleting an idea locally.
               </td>
             </tr>
             <tr>
@@ -174,7 +197,7 @@
 
       <h2 id="network-boundary">Network boundary</h2>
       <p>
-        Model and transcription traffic travels from the browser to the configured provider;
+        Model, transcription and hosted speech traffic travels directly to the configured provider;
         it does not transit an IdeaForge server. Hosted inference is allowlisted to Anthropic,
         OpenAI, Groq, and OpenRouter. Local inference is allowed only on
         <code>localhost</code> and <code>127.0.0.1</code>, on any port. A typed arbitrary
@@ -195,12 +218,49 @@
       </p>
 
       <div class="callout warning">
-        <strong>A local chat model does not automatically make dictation local.</strong>
+        <strong>A local chat model does not make the whole voice session local.</strong>
         If Ollama is selected for inference but Groq or OpenAI is selected for dictation,
-        interview text stays with the local model while recorded audio is sent to the hosted
-        transcription provider. Choose browser recognition or turn dictation off if that
-        distinction matters.
+        recorded audio still goes to the hosted transcriber. OpenAI speech sends narrated
+        text, which can include details of the idea, to OpenAI. Browser recognition and
+        network voices can also require remote processing. Typing with speech unused avoids
+        those voice paths; choosing browser voice alone is not an offline or local-only promise.
       </div>
+
+      <h2 id="speech-output">Consent and the separate speech key</h2>
+      <p>
+        Browser speech is the default. Optional OpenAI speech requires a separately entered
+        key, consent to metered text transfer and the AI-generated voice, and a successful
+        <strong>Check and preview OpenAI voice</strong> action. The preview itself is a
+        paid-provider request. It must succeed through the hosted backend; a browser
+        fallback never counts as a passed check.
+      </p>
+      <p>
+        Withdrawing consent or selecting browser speech disables hosted output immediately
+        and saves the withdrawal without waiting for Start. Both the separate permission
+        flag and the checked keyring state must allow it. A new successful preview is
+        required to enable it again; storage failures are reported explicitly.
+      </p>
+      <p>
+        The permission is for spoken output, not a new source of interview questions or
+        dictation. It does not change model tiers, reuse the inference/STT key, or upload
+        an audio recording to generate speech. Questions, examples, recovery messages and
+        the final prompt may contain personal material, so treat the text read aloud as
+        provider-bound content.
+      </p>
+      <p>
+        The adapter uses a fixed endpoint, bounded requests, no redirects and no persistent
+        audio cache. During a voice run, a hosted failure is reported and falls back to the
+        browser voice; cancellation does not trigger another request or fallback speech.
+        These controls are not a claim of live API compatibility. No authorised live
+        speech key or spending cap was supplied for this redesign, so hosted CORS and
+        voice quality remain unverified by the developer.
+      </p>
+      <p>
+        Pause releases the microphone and stops playback. Already captured audio may
+        finish transcription to preserve a draft; a request sent before pausing is not
+        withdrawn from its provider by turning off the microphone. Resume requires a tap.
+        Exit preserves transcribed words and reports cancellation of unfinished audio.
+      </p>
 
       <h2 id="credential-protection">What credential encryption protects</h2>
       <p>
@@ -211,9 +271,9 @@
       </p>
       <p>
         A non-extractable key can be used for encryption and decryption by this origin, but
-        Web Crypto will not export its raw bytes. This improves the result of device theft,
-        profile-directory inspection, or a copied disk: the credential payload is not a
-        readable API key file.
+        Web Crypto will not export its raw bytes.         The stored payload is therefore not a plaintext API key file. Non-extractable
+        describes what the Web Crypto API will export; it is not a guarantee against
+        someone who controls the browser, operating system or an unlocked profile.
       </p>
       <p>
         MDN documents
@@ -274,7 +334,7 @@
       </p>
       <ul>
         <li>Only same-origin GET requests are considered for caching.</li>
-        <li>Provider and transcription requests are cross-origin POSTs and are ignored.</li>
+        <li>Cross-origin provider, transcription and hosted speech requests are ignored.</li>
         <li>The public guide is explicitly excluded from the app-shell fetch handler.</li>
         <li>
           A navigation can fall back to cached <code>index.html</code>; a missing non-page
@@ -291,6 +351,11 @@
         using broad browser reset controls. MDN's
         <a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers">service-worker guide</a>
         explains the underlying lifecycle.
+      </p>
+      <p>
+        A cached app shell does not make speech offline. Hosted transcription and speech
+        still need their services, and browser recognition or network voices may need a
+        connection too. The static guide and its screenshots are outside the app-shell cache.
       </p>
 
       <h2 id="session-retention">Session retention, deletion, and recovery</h2>
@@ -340,8 +405,10 @@
           <strong>Claude (this viewer)</strong>, which needs no key.
         </li>
         <li>
-          On a borrowed or shared device, use <strong>Forget my key</strong> before leaving,
-          then revoke the credential at the provider if another person may have used it.
+          On a borrowed or shared device, use <strong>Forget my key</strong> before leaving.
+          This clears the saved inference, transcription and speech keyring, not your
+          interviews or non-secret voice preferences. Revoke credentials at their providers
+          if another person may have used them.
         </li>
         <li>
           Never include an API key, session backup, or sensitive transcript in a public bug
@@ -368,6 +435,14 @@
         <a href="https://github.com/jaypetez/ideaforge/blob/main/src/store/sessions.js"><code>src/store/sessions.js</code></a>,
         and key-free backup serialisation is in
         <a href="https://github.com/jaypetez/ideaforge/blob/main/src/core/backup.js"><code>src/core/backup.js</code></a>.
+      </p>
+      <p>
+        The hosted speech request boundary is in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/providers/tts.js"><code>src/providers/tts.js</code></a>.
+        In-memory playback and cleanup are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/playback.js"><code>src/voice/playback.js</code></a>,
+        while the consent and successful-preview gate are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/ui/app.js"><code>src/ui/app.js</code></a>.
       </p>
       <p>
         The application CSP and outbound host list are in

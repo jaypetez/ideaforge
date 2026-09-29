@@ -16,11 +16,45 @@ For user-facing storage, backup, key and cleanup guidance, see the
 ## What this app is, security-wise
 
 IdeaForge is a static page with **no server and no dependencies**. It runs entirely in
-your browser. The only requests carrying an API key, transcript or idea content go to the
-inference and transcription provider you choose. The app shell also loads the IBM Plex
-stylesheet and font files from Google Fonts; those requests carry ordinary browser request
-metadata, not IdeaForge content. There is no analytics or telemetry. A prompt or backup only
-leaves the app when you explicitly share or export it.
+your browser. Inference, transcription and optional hosted speech requests go directly to
+their selected providers, without an IdeaForge proxy. Browser recognition and network
+speech voices may also send audio or spoken text to services controlled by the browser.
+Neither native speech nor recognition is promised to work offline.
+
+The app shell also loads the IBM Plex stylesheet and font files from Google Fonts; those
+requests carry ordinary browser request metadata, not IdeaForge content. The static guide
+uses only local assets and system fonts. There is no analytics or telemetry. Exports and
+backups are created only by explicit actions; their underlying idea content can already have
+been sent to a selected model, transcriber or speech service.
+
+## Optional hosted speech
+
+Browser speech is the default. OpenAI speech requires a **separate speech key**, consent to
+metered text transfer and an AI-generated voice, and a successful in-app check and preview.
+It never reuses an inference or transcription key. The preview makes a real provider
+request; a failed preview cannot pass by playing browser speech instead.
+
+Withdrawal is immediate: a separate device permission flag is cleared and the encrypted
+keyring's verification is revoked without waiting for another Start. Both gates must permit
+hosted output. A new successful preview is required to enable it again. If storage fails,
+the current page still blocks hosted output and reports that the withdrawal could not be
+fully saved; it does not claim persistence succeeded.
+
+`src/providers/tts.js` fixes the endpoint and permitted voices, bounds the request and audio
+response, omits cookies and rejects redirects. `src/voice/output.js` handles visible browser
+fallback after a hosted failure, but cancellation never starts fallback playback.
+`src/voice/playback.js` holds generated audio in memory, not in sessions or a persistent
+audio cache. Spoken text can include personal details from questions and the final prompt;
+provider-side retention remains outside IdeaForge's control.
+
+No authorised live speech key or spending cap was supplied for this redesign. Live hosted
+CORS and voice quality remain unverified by the developer. A successful user preview is
+evidence for that browser and attempt, not a general compatibility or security guarantee.
+
+Pause releases owned microphone tracks and stops playback, but captured audio may still
+finish transcription and a model request already sent may settle for its original idea.
+Pausing does not recall data already transferred. Exit keeps transcribed words and reports
+when an unfinished audio segment was cancelled.
 
 ## Your interviews and backups
 
@@ -29,21 +63,22 @@ to be available to the app for search, resume and export, and there is no accoun
 or server-held key in this browser-only design.
 
 **Back up ideas** writes the full active and archived library to an unencrypted JSON file.
-It deliberately excludes API keys and device preferences. Anyone who can read the backup
-can read the interviews, so store and share it like any other personal document.
+It deliberately excludes inference, transcription and speech keys, device preferences and
+audio. Anyone who can read the backup can read the interviews, so store and share it like
+any other personal document.
 
 **Share .md** hands one finished export to the operating system share sheet after an
 explicit button press. The destination the user chooses then owns that copy.
 
-## Your API key: what is and is not protected
+## Your API keys: what is and is not protected
 
-The key you paste is encrypted with AES-GCM and stored in IndexedDB. The key that
-decrypts it is generated **non-extractable**, so it can be used from this origin but its
-raw bytes cannot be read out — not from the console, not by an extension reading the
-profile directory, not from a copied disk.
+The credential keyring is encrypted with AES-GCM and stored in IndexedDB. Its wrapping
+`CryptoKey` is generated **non-extractable**: Web Crypto can use it for this origin but
+will not export its raw bytes. The independent speech record uses this same storage boundary.
 
-**What that defends against:** someone with your device or a copy of its disk. The API key
-is never written in plaintext.
+**What that provides:** the app stores ciphertext rather than a plaintext API-key file.
+Non-extractable is an API restriction, not a guarantee against control of the browser,
+operating system, extensions or an unlocked profile.
 
 **What it does not defend against:** a malicious script running on this origin. Such a
 script could call `decrypt()` exactly as the app does. There is no browser mechanism that
@@ -56,8 +91,8 @@ The mitigations that actually matter here are structural:
   `style-src` permits inline style and permits only Google Fonts as a remote stylesheet
   origin.
 - **Zero dependencies.** No npm packages, no CDN scripts, no analytics. A supply-chain
-  compromise is the realistic way a script ends up on a page like this one, and this
-  project has no supply chain to compromise.
+  compromise in third-party JavaScript is one route this removes; it does not make the
+  browser or the system serving the page immune to compromise.
 
 ## What you should do
 
@@ -67,6 +102,8 @@ The mitigations that actually matter here are structural:
   with can read the page source. Inside a Claude viewer, use the built-in provider, which
   needs no key at all.
 - Use **Forget my key** in Settings when you are done on a shared or borrowed device.
+  It removes all saved inference, transcription and speech credentials, including the
+  wrapping key. It does not revoke them at their providers or delete your interviews.
 - Never paste a key into a GitHub issue. If you do, revoke it immediately.
 
 ## Scope

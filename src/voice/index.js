@@ -13,9 +13,12 @@
 
 import {
   probeWebSpeech, listenViaWebSpeech, webSpeechPresent, forgetVerdict, micPermissionState,
+  throwIfVoiceSetupAborted,
 } from './webspeech.js';
 import { createRecorder, micSupported } from './recorder.js';
-import { createTranscriber, STT_PRESETS } from './transcribe.js';
+import { createMicMeter } from './mic-meter.js';
+import { createSilenceGate } from './vad.js';
+import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from './transcribe.js';
 import { speak, cancelSpeech, primeSpeech, ttsSupported } from './speak.js';
 
 export { STT_PRESETS } from './transcribe.js';
@@ -23,18 +26,22 @@ export { primeSpeech, ttsSupported, cancelSpeech } from './speak.js';
 export { forgetVerdict } from './webspeech.js';
 
 /**
- * @param {{stt?: object, lang?: string, preferRecorder?: boolean}} opts
+ * @param {{stt?: object, lang?: string, preferRecorder?: boolean, signal?: AbortSignal}} opts
  *   stt — credentials for the transcription fallback; without them, voice is Web-Speech-only
+ *   signal — construction only; rejects AbortError and releases the probe on cancellation.
+ *   Once returned, the controller's abort/pause/dispose methods own active capture.
  * @returns {Promise<object>} the voice controller
  */
-export async function createVoice({ stt = null, lang = 'en-US', preferRecorder = false } = {}) {
+export async function createVoice({ stt = null, lang = 'en-US', preferRecorder = false, signal } = {}) {
+  throwIfVoiceSetupAborted(signal);
   const transcriber = stt && stt.apiKey ? createTranscriber({ ...stt, language: shortLang(lang) }) : null;
 
   let mode = 'none';
   let reason = null;
   const browserOk = !preferRecorder
     && webSpeechPresent()
-    && (await probeWebSpeech({ lang })) === 'alive';
+    && (await probeWebSpeech({ lang, signal })) === 'alive';
+  throwIfVoiceSetupAborted(signal);
 
   if (browserOk) {
     mode = 'webspeech';
@@ -47,7 +54,9 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
     // sends people hunting for a browser bug that is not there: a blocked microphone fails
     // exactly like a broken engine from in here, and it is the one cause the reader can
     // actually fix. Check it before blaming the platform.
-    reason = (await micPermissionState()) === 'denied'
+    const permission = await micPermissionState({ signal });
+    throwIfVoiceSetupAborted(signal);
+    reason = permission === 'denied'
       ? 'The microphone is blocked for this site. Allow it in your browser’s site settings ' +
         'and start an interview again, or add a transcription key in Settings to dictate instead.'
       : webSpeechPresent()
@@ -56,30 +65,164 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
         : 'This browser has no built-in dictation. Add a transcription key in Settings to dictate.';
   }
 
-  let recorder = null;
-  let session = null;
-  let aborted = false;
+  let input = null;
+  let acquisition = null;
+  let capture = null;
+  let disposed = false;
+  let paused = false;
+  let pausePromise = null;
+  let disposal = null;
+  let meterUnavailable = null;
+  let interruptedDraft = '';
+
+  function assertOpen() {
+    if (disposed) throw new Error('The voice controller has been disposed.');
+    if (paused) throw new Error('Voice input is paused. Create a new controller to resume.');
+  }
+
+  const listening = (op) => capture === op && !op.stopped && !op.aborted;
+
+  function reportPhase(op, opts, phase) {
+    if (!opts.onPhase || capture !== op || op.settled || op.aborted || paused || disposed
+      || (phase === 'listening' && op.stopped) || op.phase === phase) return;
+    op.phase = phase;
+    try { opts.onPhase(phase); } catch (err) {
+      op.aborted = op.stopped = true;
+      op.transcription.abort();
+      op.session?.abort();
+      finishCapture(op, '', err);
+    }
+  }
+
+  function cancelAcquisition() {
+    const pending = acquisition;
+    acquisition = null;
+    pending?.controller.abort();
+  }
+
+  async function getInput() {
+    assertOpen();
+    if (input) return input;
+    if (!acquisition) {
+      const pending = { controller: new AbortController(), promise: null };
+      acquisition = pending;
+      pending.promise = (async () => {
+        const owner = await (mode === 'recorder' ? createRecorder : createMicMeter)({
+          signal: pending.controller.signal,
+        });
+        if (pending.controller.signal.aborted || disposed || paused || acquisition !== pending) {
+          await owner.dispose();
+          throw new DOMException('Microphone acquisition cancelled.', 'AbortError');
+        }
+        input = owner;
+        return owner;
+      })().finally(() => {
+        if (acquisition === pending) acquisition = null;
+      });
+    }
+    return acquisition.promise;
+  }
+
+  function releaseInput() {
+    cancelAcquisition();
+    const owner = input;
+    input = null;
+    return owner ? owner.dispose() : Promise.resolve();
+  }
+
+  function stopLevels(op) {
+    clearTimeout(op.meterTimer);
+    if (mode === 'webspeech') input?.stop();
+  }
+
+  function reportUnavailable(op, opts, reason) {
+    if (!listening(op) || op.levelReported) return;
+    op.levelReported = true;
+    if (opts.onLevelUnavailable) opts.onLevelUnavailable(reason);
+    else console.warn('Microphone levels unavailable:', reason);
+  }
+
+  function disableMeter(op, opts, reason) {
+    meterUnavailable = reason;
+    stopLevels(op);
+    releaseInput();
+    reportUnavailable(op, opts, reason);
+  }
+
+  function startLevels(op, opts) {
+    if (!opts.onLevel || op.meterStarted || !listening(op)) return;
+    op.meterStarted = true;
+    if (meterUnavailable) {
+      reportUnavailable(op, opts, meterUnavailable);
+      return;
+    }
+    const gate = createSilenceGate(opts.gate || {});
+    op.meterTimer = setTimeout(() => {
+      if (listening(op)) disableMeter(op, opts,
+        'Microphone level monitoring did not start. Dictation can continue without it.');
+    }, 1500);
+    getInput().then((meter) => {
+      clearTimeout(op.meterTimer);
+      if (!listening(op) || meterUnavailable) return;
+      meter.start((rms) => {
+        if (!listening(op)) return;
+        gate.push(rms, performance.now());
+        opts.onLevel(rms, gate.state());
+      }, (err) => disableMeter(op, opts, err.message));
+    }).catch((err) => {
+      clearTimeout(op.meterTimer);
+      if (listening(op) && !meterUnavailable) disableMeter(op, opts, err.message);
+    });
+  }
 
   /** One recording, transcribed. Resolves '' for anything too short to be an answer. */
-  async function recordOnce(opts, gate) {
-    session = { stop: () => recorder.stop(), abort: () => recorder.stop() };
+  async function recordOnce(op, recorder, opts, gate) {
+    const session = { stop: () => recorder.stop(), abort: () => recorder.abort() };
+    op.session = session;
     let state = null;
     let blob;
+    let inputError = null;
     try {
       blob = await recorder.record({
         autoStop: opts.autoStop !== false,
-        onLevel: (rms, s) => { state = s; if (opts.onLevel) opts.onLevel(rms, s); },
+        onLevel: (rms, s) => {
+          state = s;
+          if (listening(op) && opts.onLevel) opts.onLevel(rms, s);
+        },
         ...(gate || {}),
+        onStart: () => reportPhase(op, opts, 'listening'),
+        onLevelUnavailable: (reason) => {
+          // Earlier positive evidence is still valid; earlier quiet cannot judge unmetered audio.
+          if (!state?.heardSpeech) state = null;
+          reportUnavailable(op, opts, reason);
+        },
       });
+    } catch (err) {
+      if (err.code !== 'audio-capture' || !(err.audio instanceof Blob)) throw err;
+      inputError = err;
+      blob = err.audio;
     } finally {
-      session = null;
+      if (op.session === session) op.session = null;
     }
     // A quarter-second of nothing is a mis-tap, not an answer worth paying to transcribe.
-    if (!blob || blob.size < 1600) return { text: '', state };
+    if (op.aborted || !blob || blob.size < 1600 || state?.heardSpeech === false) {
+      return { text: '', state, error: inputError };
+    }
     const t = createTranscriber({
       ...stt, language: shortLang(lang), prompt: opts.prompt || undefined,
     });
-    return { text: await t.transcribe(blob), state };
+    const request = t.transcribe(blob, { signal: op.transcription.signal });
+    // The request starts before notifying: a cancelling observer must not announce work
+    // that never began. Oversized audio is rejected by the adapter before any request.
+    if (blob.size <= MAX_AUDIO_BYTES) reportPhase(op, opts, 'transcribing');
+    let text;
+    try { text = await request; } catch (err) {
+      if (!inputError) throw err;
+      inputError.cause = err;
+      inputError.message += ` Transcription failed: ${err.message}`;
+      return { text: '', state, error: inputError };
+    }
+    return { text: op.aborted ? '' : text, state, error: inputError };
   }
 
   /**
@@ -96,24 +239,29 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
    * budget runs out. `heardSpeech` is checked BEFORE transcribing, so silence is never
    * paid for.
    */
-  async function recordUntilComplete(opts) {
+  async function recordUntilComplete(op, recorder, opts) {
     const gate = opts.gate || {};
     const maxSegments = opts.maxSegments || 6;
     let text = '';
 
     for (let seg = 0; seg < maxSegments; seg++) {
+      if (op.stopped || op.aborted) break;
       // Each later segment is primed with the question plus what has already been heard,
       // which measurably helps a transcriber with names and jargon it has just met.
-      const { text: part, state } = await recordOnce(
+      const { text: part, error } = await recordOnce(
+        op, recorder,
         { ...opts, autoStop: true, prompt: `${opts.prompt || ''} ${text}`.trim().slice(-800) },
         gate,
       );
-      if (aborted) break;
-      if (!state || !state.heardSpeech) break;   // nothing said: do not pay to transcribe it
+      if (op.aborted) return '';
+      if (part?.trim()) text = text ? `${text} ${part.trim()}` : part.trim();
+      if (error) throw Object.assign(error, { draft: text });
       if (!part || !part.trim()) break;          // real audio, no words: the mic is hearing noise
 
-      text = text ? `${text} ${part.trim()}` : part.trim();
+      if (op.stopped) break;                    // keep this segment, never begin the next
       if (opts.onInterim) opts.onInterim(text);
+      if (op.aborted) return '';
+      if (op.stopped) break;
       if (opts.isComplete(text)) break;
     }
     return text;
@@ -121,8 +269,98 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
 
   /** Acquire the microphone once, on a user gesture, and keep it. */
   async function ensureMic() {
-    if (mode !== 'recorder' || recorder) return;
-    recorder = await createRecorder();
+    assertOpen();
+    if (mode === 'recorder') await getInput();
+  }
+
+  async function runCapture(op, opts) {
+    if (mode === 'webspeech') {
+      let retried = false;
+      for (;;) {
+        let retryWithoutMeter = false;
+        op.session = listenViaWebSpeech({
+          lang,
+          onInterim: (text) => { if (listening(op)) opts.onInterim?.(text); },
+          onStart: () => {
+            reportPhase(op, opts, 'listening');
+            startLevels(op, opts);
+          },
+          onAudioError: () => {
+            if (!listening(op) || !op.meterStarted || meterUnavailable) return;
+            retryWithoutMeter = true;
+            disableMeter(op, opts,
+              'This browser cannot share the microphone for level monitoring. Dictation continues without it.');
+          },
+          autoStop: opts.autoStop !== false,
+          isComplete: opts.isComplete || null,
+          ...(opts.settleMs == null ? {} : { settleMs: opts.settleMs }),
+          ...(opts.deafMs == null ? {} : { deafMs: opts.deafMs }),
+        });
+        if (op.aborted) op.session.abort();
+        else if (op.stopped) op.session.stop({ preserveDraft: op.preserveDraft });
+        try {
+          return await op.session.promise;
+        } catch (err) {
+          if (err.code !== 'audio-capture' || !retryWithoutMeter || retried || !listening(op)) throw err;
+          retried = true;
+        } finally {
+          op.session = null;
+        }
+      }
+    }
+
+    let recorder;
+    try { recorder = await getInput(); } catch (err) {
+      if (op.stopped && err.name === 'AbortError') return '';
+      throw err;
+    }
+    if (op.stopped || op.aborted) return '';
+    if (!opts.isComplete) {
+      const { text, error } = await recordOnce(op, recorder, opts, opts.gate);
+      if (error) throw Object.assign(error, { draft: text });
+      return text;
+    }
+    return recordUntilComplete(op, recorder, opts);
+  }
+
+  function finishCapture(op, text, err = null) {
+    if (op.settled) return;
+    op.settled = true;
+    if (capture === op) {
+      stopLevels(op);
+      cancelAcquisition();
+      if (err?.code === 'audio-capture' && err.fatal) {
+        interruptedDraft = err.draft || '';
+        releaseInput();
+      }
+      capture = null;
+    }
+    if (err) op.reject(err);
+    else op.resolve(text);
+  }
+
+  function stop({ preserveDraft = false } = {}) {
+    const op = capture;
+    if (op) {
+      op.stopped = true;
+      op.preserveDraft ||= preserveDraft;
+      stopLevels(op);
+      op.session?.stop({ preserveDraft: op.preserveDraft });
+    }
+    cancelAcquisition();
+  }
+
+  function abort() {
+    interruptedDraft = '';
+    const op = capture;
+    if (op) {
+      op.aborted = op.stopped = true;
+      op.transcription.abort();
+      stopLevels(op);
+      op.session?.abort();
+      finishCapture(op, '');
+    }
+    cancelAcquisition();
   }
 
   return {
@@ -139,43 +377,54 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
     /**
      * Capture one answer.
      *
-     * @param {{onInterim?: Function, onLevel?: Function, prompt?: string, autoStop?: boolean}} opts
+     * Levels are measured only while listening. If native recognition cannot share the mic,
+     * onLevelUnavailable explains why; recognition remains usable without a level display.
+     * onPhase reports actual capture/request starts, never pending permission or paused work.
+     * Recorder input loss rejects a fatal audio-capture error with its draft; pause() can
+     * retrieve that draft after the failure, without submitting or reopening the microphone.
+     * @param {{onInterim?: Function, onLevel?: Function, onLevelUnavailable?: Function,
+     *          onPhase?: (phase: 'listening'|'transcribing') => void,
+     *          prompt?: string, autoStop?: boolean}} opts
      * @returns {Promise<string>} the transcript, '' if nothing was said
      */
     async listen(opts = {}) {
+      assertOpen();
       if (mode === 'none') throw new Error('no voice input is available in this browser');
-      aborted = false;
-
-      if (mode === 'webspeech') {
-        session = listenViaWebSpeech({
-          lang,
-          onInterim: opts.onInterim,
-          autoStop: opts.autoStop !== false,
-          isComplete: opts.isComplete || null,
-          ...(opts.settleMs == null ? {} : { settleMs: opts.settleMs }),
-          ...(opts.deafMs == null ? {} : { deafMs: opts.deafMs }),
-        });
-        try {
-          return await session.promise;
-        } finally {
-          session = null;
-        }
-      }
-
-      await ensureMic();
-      // Without `isComplete` this is the press-to-talk contract: one recording, one
-      // transcription, whatever the gate decided. Unchanged.
-      if (!opts.isComplete) return (await recordOnce(opts)).text;
-      return recordUntilComplete(opts);
+      if (capture) throw new Error('already listening');
+      interruptedDraft = '';
+      const op = {
+        stopped: false, aborted: false, settled: false, session: null, preserveDraft: false,
+        transcription: new AbortController(), meterTimer: null, meterStarted: false,
+        levelReported: false, phase: null, resolve: null, reject: null, promise: null,
+      };
+      op.promise = new Promise((resolve, reject) => { op.resolve = resolve; op.reject = reject; });
+      capture = op;
+      runCapture(op, opts).then(
+        (text) => finishCapture(op, op.aborted ? '' : text),
+        (err) => finishCapture(op, '', err),
+      );
+      return op.promise;
     },
 
-    /** End the current capture early and keep what was heard. */
-    stop() { if (session) session.stop(); },
-    /** Throw away the current capture, including any segments still to come. */
-    abort() {
-      aborted = true;
-      if (session && session.abort) session.abort();
-      session = null;
+    /** Keep this capture, including pending transcription, but never record another segment. */
+    stop,
+    /** Discard this capture, cancel transcription, and suppress all late output. */
+    abort,
+
+    /** Release input immediately; finish only this draft. Resume uses a fresh controller. */
+    async pause() {
+      if (!pausePromise) {
+        paused = true;
+        const draft = (capture?.promise || Promise.resolve(interruptedDraft)).catch((err) => {
+          if (err.code === 'audio-capture' && err.fatal && !err.cause
+            && typeof err.draft === 'string') return err.draft;
+          throw err;
+        });
+        stop({ preserveDraft: true });
+        cancelSpeech();
+        pausePromise = Promise.all([draft, releaseInput()]).then(([text]) => text);
+      }
+      return pausePromise;
     },
 
     speak: (text, o) => speak(text, { lang, ...o }),
@@ -187,10 +436,12 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
     reset() { forgetVerdict(); },
 
     dispose() {
+      if (disposed) return disposal;
+      disposed = true;
       cancelSpeech();
-      if (session && session.abort) session.abort();
-      if (recorder) recorder.dispose();
-      recorder = null;
+      abort();
+      disposal = releaseInput();
+      return disposal;
     },
   };
 }

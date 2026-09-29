@@ -90,6 +90,50 @@ test('a bare command is a command', () => {
   assert.equal(parseSpeech('scratch that').kind, 'scratch');
 });
 
+test('pause and exit voice are whole-utterance commands with no answer text', () => {
+  for (const [text, kind] of [
+    ['pause', 'pause'], ['pause voice', 'pause'], ['Please, pause voice.', 'pause'],
+    ['exit voice', 'exit'], ['Hey, exit voice.', 'exit'],
+  ]) {
+    assert.deepEqual(parseSpeech(text), { kind, text: '', stopped: false }, text);
+    assert.deepEqual(parseSpeech(`${text} over`), { kind, text: '', stopped: true }, text);
+  }
+});
+
+test('pause and exit voice inside an answer never stand down', () => {
+  for (const text of [
+    'pause voice playback when a call arrives',
+    'we need to pause before deciding',
+    'the button should say pause voice',
+    'exit voice calls using the red button',
+    'we need an exit voice control',
+    'the button should say exit voice',
+  ]) {
+    assert.deepEqual(parseSpeech(`${text} over`),
+      { kind: 'answer', text, stopped: true }, text);
+  }
+});
+
+test('stop is an answer or a configured finish word, never an exit command', () => {
+  assert.deepEqual(parseSpeech('stop'), { kind: 'answer', text: 'stop', stopped: false });
+  assert.deepEqual(parseSpeech('stop', { trigger: 'stop' }),
+    { kind: 'answer', text: '', stopped: true });
+  assert.deepEqual(parseSpeech('stop voice', { trigger: 'stop' }),
+    { kind: 'answer', text: 'stop voice', stopped: false });
+  assert.deepEqual(parseSpeech('we stop over budget stop', { trigger: 'stop' }),
+    { kind: 'answer', text: 'we stop over budget', stopped: true });
+});
+
+test('custom finish words do not hide a whole pause or exit command', () => {
+  for (const trigger of ['voice', 'pause', 'pause voice', 'exit voice', 'stop']) {
+    for (const [text, kind] of [['pause voice', 'pause'], ['exit voice', 'exit']]) {
+      const result = parseSpeech(text, { trigger });
+      assert.equal(result.kind, kind, `${text}; trigger=${trigger}`);
+      assert.equal(result.text, '', `${text}; trigger=${trigger}`);
+    }
+  }
+});
+
 test('a sentence that merely contains a command is an answer', () => {
   // Substring matching here would silently discard the whole answer.
   const r = parseSpeech("I'd skip this one if I could, but it matters over");

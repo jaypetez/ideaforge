@@ -29,11 +29,13 @@ import {
 } from '../store/sessions.js';
 import {
   saveCredentials, loadCredentials, clearCredentials, maskKey,
-  emptyKeyring, credsFor, withCreds, withStt, hasAnyKey,
+  emptyKeyring, credsFor, withCreds, withStt, withTts, hasAnyKey,
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
-import { loadPrefs, savePrefs } from '../store/prefs.js';
-import { createVoice, STT_PRESETS, primeSpeech, ttsSupported } from '../voice/index.js';
+import { loadPrefs, savePrefs, speechPreferences } from '../store/prefs.js';
+import { createVoice, STT_PRESETS, forgetVerdict, ttsSupported } from '../voice/index.js';
+import { createSpeechOutput } from '../voice/output.js';
+import { createVoiceStage } from './voice-stage.js';
 import { DRIVING_GATE, CONFIRM_GATE } from '../voice/vad.js';
 import {
   backupFilename, buildBackup, MAX_BACKUP_BYTES, parseBackup,
@@ -49,12 +51,17 @@ for (const id of [
   'meter', 'meter-fill', 'meter-label', 'b-library', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
-  'field-wrapmodel', 'wrapmodel',
+  'field-wrapmodel', 'wrapmodel', 'model-settings',
   'install-card', 'install-title', 'install-note', 'b-install',
-  'b-start', 'b-check', 'resume', 'resume-rows', 'b-view-all',
+  'b-start', 'b-start-voice', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
   'field-stopword', 'stopword', 'stopword-note',
+  'speech', 'speech-note', 'browser-voice', 'field-browser-voice', 'speech-rate',
+  'speech-rate-value', 'field-tts', 'ttskey', 'tts-voice', 'tts-consent',
+  'b-speech-preview', 'speech-check', 'speech-options',
   'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
+  'manual-interview', 'voice-stage', 'voice-status', 'voice-signal', 'voice-question',
+  'voice-transcript', 'voice-detail', 'voice-backend', 'b-voice-pause', 'b-voice-exit',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
   'panel-library', 'library-search', 'library-status', 'library-tag',
@@ -72,6 +79,7 @@ const state = {
   /** Set when a chip was tapped, so answerQuestion records the right provenance. */
   answerSource: 'typed',
   voice: null,
+  voiceSetup: null,
   handsFree: false,
   /** True while a hands-free cycle owns the turn, so nothing else drives it. */
   cycling: false,
@@ -85,9 +93,36 @@ const state = {
   draftTimer: null,
   library: null,
   install: null,
+  navigation: 0,
+  speech: null,
+  previewSpeech: null,
+  voiceStage: null,
+  voiceMode: 'manual',
+  voicePhase: 'ready',
+  voiceEpoch: 0,
+  voiceCaption: '',
+  voiceTranscript: null,
+  voiceDetail: '',
+  voiceMeterWarning: '',
+  voiceBackend: 'Browser voice',
+  capturePrefix: '',
+  capturePrefixSource: 'typed',
+  capturePending: false,
+  captureConfirm: false,
+  readback: false,
+  writing: null,
+  credentialEpoch: 0,
+  wakeLock: null,
+  wakeLockRequest: null,
+  speechRevoked: false,
+  starting: false,
+  voiceWrapPending: null,
 };
 
 const now = () => Date.now();
+const workBySession = new Map();
+const deletedSessions = new Set();
+const barActions = document.querySelector('.bar-right');
 
 // ─────────────────────────────────────────────────────────────── plumbing
 
@@ -96,6 +131,7 @@ function show(panel) {
     els[p].hidden = p !== panel;
   }
   if (panel === 'panel-setup' || panel === 'panel-library') els.meter.hidden = true;
+  renderVoiceStage();
 }
 
 function say(msg) {
@@ -117,7 +153,7 @@ function say(msg) {
 async function announce(msg, { display = true } = {}) {
   if (!msg) return;
   if (display) say(msg);
-  if (state.handsFree && state.voice) await state.voice.speak(msg);
+  if (state.handsFree && state.speech) await state.speech.speak(msg);
 }
 
 /**
@@ -144,22 +180,75 @@ function fail(err) {
 
 function busy(on, label) {
   state.busy = on;
-  els['b-send'].disabled = on;
-  els['b-skip'].disabled = on;
+  const hasQuestion = !!(state.session && openTurn(state.session));
+  els['b-send'].disabled = on || !hasQuestion;
+  els['b-skip'].disabled = on || !hasQuestion;
+  els['b-mic'].disabled = on || !hasQuestion;
+  els.answer.disabled = on || !hasQuestion;
   els['b-wrap'].disabled = on;
+  els['b-reopen'].disabled = on || !!(state.session
+    && (workBySession.has(state.session.id) || state.writing === state.session.id));
   els.asking.hidden = !on;
   if (label) els.asking.textContent = label;
+  if (on && state.voiceMode === 'active') setVoicePhase('thinking');
 }
 
 /** Persist once per settled turn — runTurn bumps `rev` five or six times internally. */
-async function persist() {
+async function persist(session = state.session) {
+  if (!session || deletedSessions.has(session.id)) return false;
   try {
-    await saveSession(state.session);
+    await saveSession(session);
     return true;
   } catch (e) {
     say(`This session could not be saved to this device (${e.message}). Export before you close the tab.`);
     return false;
   }
+}
+
+function currentSession(id) {
+  return state.session && state.session.id === id && !deletedSessions.has(id);
+}
+
+function currentView(id, navigation) {
+  return currentSession(id) && state.navigation === navigation;
+}
+
+/** Keep library edits separate from a model's older snapshot of the same idea. */
+function withLibraryMetadata(session, latest) {
+  if (session.name !== latest.name) session = renameSession(session, latest.name, now());
+  if (JSON.stringify(session.tags) !== JSON.stringify(latest.tags)) {
+    session = setSessionTags(session, latest.tags, now());
+  }
+  if (session.archivedAt !== latest.archivedAt) {
+    session = latest.archivedAt
+      ? archiveSession(session, latest.archivedAt) : restoreSession(session, now());
+  }
+  return session;
+}
+
+function sessionWork(session, kind, run) {
+  const pending = workBySession.get(session.id);
+  if (pending) {
+    if (pending.kind !== kind) {
+      throw new Error('This interview is still finishing a different request.');
+    }
+    return pending.promise;
+  }
+  const job = { kind, controller: new AbortController(), metadata: session, promise: null };
+  job.promise = (async () => {
+    const out = await run(job.controller.signal);
+    if (deletedSessions.has(session.id)) return { ...out, discarded: true };
+    const settled = withLibraryMetadata(out.session, job.metadata);
+    await persist(settled);
+    if (deletedSessions.has(session.id)) return { ...out, discarded: true };
+    if (currentSession(session.id)) state.session = settled;
+    return { ...out, session: settled };
+  })().finally(() => {
+    if (workBySession.get(session.id) === job) workBySession.delete(session.id);
+    if (currentSession(session.id)) busy(false);
+  });
+  workBySession.set(session.id, job);
+  return job.promise;
 }
 
 function cancelDraftSave() {
@@ -174,8 +263,9 @@ async function flushDraft() {
   if (draft === state.session.draftAnswer) return true;
   const previous = state.session;
   state.session = setDraftAnswer(previous, draft, now());
+  const navigation = state.navigation;
   if (await persist()) return true;
-  state.session = previous;
+  if (currentView(previous.id, navigation)) state.session = previous;
   return false;
 }
 
@@ -254,6 +344,8 @@ function onProviderChange() {
   // provider has a model id at all — only the Claude viewer does not.
   els['field-model'].hidden = !c.picksModel;
   els['field-wrapmodel'].hidden = !c.picksModel;
+  els['model-settings'].hidden = !c.picksModel;
+  els['model-settings'].open = !!c.local;
   const onPhone = state.install && ['android', 'ios'].includes(state.install.state().platform);
   els['provider-note'].textContent = (c.note || '') + (c.local && onPhone
     ? ' On a phone, localhost means this phone, not a computer running Ollama.'
@@ -302,6 +394,7 @@ function onBaseChange() {
   if (!c.local || !typed) {
     els['base-note'].textContent = '';
     els['b-start'].disabled = false;
+    els['b-start-voice'].disabled = els.stt.value === 'off';
     els['b-check'].disabled = false;
     return;
   }
@@ -319,6 +412,7 @@ function onBaseChange() {
       ? 'This page cannot reach an IPv6 address in brackets — write it as 127.0.0.1 instead.'
       : '';
   els['b-start'].disabled = bad || ipv6;
+  els['b-start-voice'].disabled = bad || ipv6 || els.stt.value === 'off';
   els['b-check'].disabled = bad || ipv6;
 }
 
@@ -376,16 +470,26 @@ function fillModelList(names) {
  * your device, which is only honest if there is a way to take it off again.
  */
 async function forgetKey() {
+  state.credentialEpoch++;
+  state.speechRevoked = true;
+  savePrefs({ hostedSpeechAllowed: false });
+  teardownVoice();
+  if (state.previewSpeech) state.previewSpeech.dispose();
+  state.previewSpeech = null;
+  for (const job of workBySession.values()) job.controller.abort();
   await clearCredentials();
   state.creds = emptyKeyring();
+  state.provider = null;
   els.apikey.value = '';
   els.sttkey.value = '';
+  els.ttskey.value = '';
   els.model.value = '';
   els.wrapmodel.value = '';
   els['model-list'].innerHTML = '';
   fail(null);
   onProviderChange();
   onSttChange();
+  renderSpeechSettings();
   say('Key deleted from this device.');
 }
 
@@ -418,7 +522,175 @@ function readRingFromForm() {
     apiKey: sttKind === c.id ? apiKey
       : (els.sttkey.value.trim() || (state.creds && state.creds.stt && state.creds.stt.apiKey) || ''),
   });
+  ring = withTts(ring, readSpeechFromForm());
   return ring;
+}
+
+function readSpeechFromForm() {
+  const saved = (state.creds && state.creds.tts) || emptyKeyring().tts;
+  if (els.speech.value !== 'openai') return { ...saved, kind: 'browser' };
+  const apiKey = els.ttskey.value.trim() || saved.apiKey;
+  const voice = els['tts-voice'].value === 'cedar' ? 'cedar' : 'marin';
+  return {
+    kind: 'openai', apiKey, voice,
+    verified: saved.verified && !state.speechRevoked && loadPrefs().hostedSpeechAllowed
+      && saved.apiKey === apiKey && saved.voice === voice && els['tts-consent'].checked,
+  };
+}
+
+function saveSpeechPreferences() {
+  const preferences = speechPreferences({
+    speechVoice: els['browser-voice'].value,
+    speechRate: Number(els['speech-rate'].value),
+  });
+  savePrefs(preferences);
+  els['speech-rate-value'].value = `${preferences.speechRate.toFixed(2)}×`;
+  return preferences;
+}
+
+function renderSpeechVoices() {
+  const selected = els['browser-voice'].value || loadPrefs().speechVoice;
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  els['browser-voice'].replaceChildren();
+  const automatic = document.createElement('option');
+  automatic.value = '';
+  automatic.textContent = 'Automatic — browser voice for English';
+  els['browser-voice'].append(automatic);
+  for (const voice of voices) {
+    const option = document.createElement('option');
+    option.value = voice.voiceURI || voice.name;
+    option.textContent = `${voice.name} · ${voice.lang} · ${voice.localService ? 'on device' : 'network'}`;
+    els['browser-voice'].append(option);
+  }
+  if (selected && !voices.some((voice) => (voice.voiceURI || voice.name) === selected)) {
+    const unavailable = document.createElement('option');
+    unavailable.value = selected;
+    unavailable.textContent = 'Saved voice unavailable — automatic fallback';
+    els['browser-voice'].append(unavailable);
+  }
+  els['browser-voice'].value = selected;
+}
+
+function onSpeechChange() {
+  const hosted = els.speech.value === 'openai';
+  if (hosted) els['speech-options'].open = true;
+  els['field-tts'].hidden = !hosted;
+  els['field-browser-voice'].hidden = hosted;
+  els['speech-note'].textContent = hosted
+    ? 'Optional AI-generated speech. A successful, consented check is required on this device. '
+      + 'Until then, replies use the browser voice. This is separate from dictation.'
+    : 'Choose and preview a voice from this browser. Voice quality and offline availability depend on the device.';
+  els['b-speech-preview'].textContent = hosted ? 'Check and preview OpenAI voice' : 'Preview voice';
+  els['b-speech-preview'].disabled = hosted && !els['tts-consent'].checked;
+}
+
+function renderSpeechSettings() {
+  const saved = (state.creds && state.creds.tts) || emptyKeyring().tts;
+  const preferences = loadPrefs();
+  els.speech.value = saved.kind;
+  els['tts-voice'].value = saved.voice;
+  els['tts-consent'].checked = saved.verified && preferences.hostedSpeechAllowed && !state.speechRevoked;
+  els.ttskey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste a scoped OpenAI key';
+  els['speech-rate'].value = String(preferences.speechRate);
+  els['speech-rate-value'].value = `${preferences.speechRate.toFixed(2)}×`;
+  renderSpeechVoices();
+  onSpeechChange();
+}
+
+async function previewSpeech() {
+  if (state.previewSpeech) {
+    state.previewSpeech.dispose();
+    state.previewSpeech = null;
+    els['speech-check'].textContent = 'Preview cancelled.';
+    onSpeechChange();
+    return;
+  }
+  const config = readSpeechFromForm();
+  if (config.kind === 'openai' && (!config.apiKey || !els['tts-consent'].checked)) {
+    els['speech-check'].textContent = 'Enter a separate speech key and confirm metered text transfer first.';
+    return;
+  }
+  const preferences = saveSpeechPreferences();
+  const credentialEpoch = state.credentialEpoch;
+  const preview = createSpeechOutput({
+    ...config, browserVoice: preferences.speechVoice, rate: preferences.speechRate,
+  });
+  state.previewSpeech = preview;
+  els['speech-check'].textContent = config.kind === 'openai'
+    ? 'Checking one short, metered speech sample…' : 'Preparing the browser voice…';
+  els['b-speech-preview'].textContent = 'Cancel preview';
+  try {
+    const primed = preview.prime();
+    await primed;
+    const result = await preview.check(
+      'IdeaForge is ready. Tell me what you have in mind, and we will take it one question at a time.',
+    );
+    if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
+    if (!result || result.status !== 'spoken') {
+      els['speech-check'].textContent = 'The preview did not finish. Speech has not been enabled.';
+      return;
+    }
+    const checked = withTts(state.creds || emptyKeyring(), {
+      ...config, verified: config.kind === 'openai' ? true : config.verified,
+    });
+    await saveCredentials(checked);
+    if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
+    if (config.kind === 'openai') {
+      if (!savePrefs({ hostedSpeechAllowed: true })) {
+        state.speechRevoked = true;
+        state.creds = withTts(checked, { ...checked.tts, verified: false });
+        await saveCredentials(state.creds);
+        els['speech-check'].textContent = 'The preview played, but permission could not be saved. Browser speech remains active.';
+        return;
+      }
+      state.speechRevoked = false;
+    }
+    state.creds = checked;
+    els.ttskey.value = '';
+    els['speech-check'].textContent = config.kind === 'openai'
+      ? 'OpenAI speech played successfully in this browser. Enhanced speech is enabled.'
+      : 'Browser voice preview complete.';
+    renderSpeechSettings();
+    els['b-forget'].hidden = !hasAnyKey(state.creds);
+  } catch (error) {
+    if (state.previewSpeech === preview) {
+      els['speech-check'].textContent = `The voice check failed: ${error.message}`;
+    }
+  } finally {
+    preview.dispose();
+    if (state.previewSpeech === preview) {
+      state.previewSpeech = null;
+      onSpeechChange();
+    }
+  }
+}
+
+async function revokeHostedSpeech() {
+  state.speechRevoked = true;
+  state.credentialEpoch++;
+  if (state.voiceMode === 'active') {
+    pauseVoice({ detail: 'Hosted speech is disabled. Resume to continue with the browser voice.' }).catch(fail);
+  }
+  if (state.previewSpeech) state.previewSpeech.dispose();
+  state.previewSpeech = null;
+  const saved = (state.creds && state.creds.tts) || emptyKeyring().tts;
+  const allowedSaved = savePrefs({ hostedSpeechAllowed: false });
+  state.creds = withTts(state.creds || emptyKeyring(), {
+    ...saved, kind: els.speech.value === 'openai' ? 'openai' : 'browser', verified: false,
+  });
+  onSpeechChange();
+  els['speech-check'].textContent = 'Disabling hosted speech…';
+  try {
+    await saveCredentials(state.creds);
+    els['speech-check'].textContent = allowedSaved
+      ? 'Hosted speech is disabled. A new check and preview is needed to enable it.'
+      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.';
+  } catch (error) {
+    els['speech-check'].textContent = allowedSaved
+      ? `Hosted speech is disabled, but its credential settings could not be updated: ${error.message}`
+      : 'Hosted speech is stopped for this page, but the withdrawal could not be saved. Forget the speech key before closing.';
+    fail(error);
+  }
 }
 
 function onSttChange() {
@@ -433,9 +705,12 @@ function onSttChange() {
         'in Edge, or in Firefox. Pick Whisper below if you want dictation everywhere.'
       : kind === 'off' ? ''
       : `${preset.note}${sharesKey ? ' Uses the same key as above.' : ''}`;
+  onBaseChange();
 }
 
 async function buildProvider({ requireModel = true } = {}) {
+  const navigation = state.navigation;
+  const credentialEpoch = state.credentialEpoch;
   const c = currentChoice();
   const ring = readRingFromForm();
   const creds = credsFor(ring, c.id);
@@ -452,6 +727,9 @@ async function buildProvider({ requireModel = true } = {}) {
     modelRequired: requireModel ? undefined : false,
   });
 
+  if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch) {
+    throw new Error('Provider setup was cancelled.');
+  }
   state.creds = ring;
   state.provider = provider;
   // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
@@ -526,9 +804,18 @@ function render() {
       `question ${n} of up to ${HARD_TURN_CEILING}` +
       (dim ? ` · ${dim.toLowerCase()}` : '') +
       (open.questionSource === 'bank' ? ' · from the built-in checklist' : '');
+  } else if (state.voiceWrapPending) {
+    els.question.textContent = 'Ready to write it up.';
+    els.bridge.hidden = true;
+    els.chips.replaceChildren();
+    els.turnline.textContent = 'Your answers are saved. Write it up whenever you are ready.';
   }
-  els['b-wrap'].hidden = !(s.turns.length >= 4);
+  els['b-wrap'].hidden = !(s.turns.length >= 4 || state.voiceWrapPending);
+  els['b-send'].disabled = state.busy || !open;
+  els['b-skip'].disabled = state.busy || !open;
+  els.answer.disabled = state.busy || !open;
   renderCoverage();
+  renderVoiceStage();
 }
 
 function renderChips(chips) {
@@ -550,69 +837,98 @@ function renderChips(chips) {
   }
 }
 
-async function nextQuestion() {
-  busy(true, 'thinking of the next question…');
-  fail(null);
+async function nextQuestion(
+  session = state.session, provider = state.provider, navigation = state.navigation,
+  fromVoice = state.voiceMode !== 'manual',
+) {
+  if (!session || deletedSessions.has(session.id)) return;
+  if (currentView(session.id, navigation)) {
+    busy(true, 'thinking of the next question…');
+    fail(null);
+  }
   try {
-    const out = await runTurn(state.session, { provider: state.provider, now: now() });
+    const out = await sessionWork(session, 'turn', async (signal) => {
+      const result = await runTurn(session, { provider, now: now(), signal });
+      const advisory = currentView(session.id, navigation) && state.voiceMode === 'manual' && !result.aborted
+        ? wrapAdvisory(result.session, result.wrap) : null;
+      if (advisory) result.session = setWrapOffered(result.session, true, now());
+      return { ...result, advisory };
+    });
+    if (out.discarded || out.aborted || !currentView(session.id, navigation)) return;
     warn(out);
-    state.session = out.session;
-    // Decided before the save, and recorded in the same one, so a settled turn is still
-    // exactly one write — and so the advisory survives a reload instead of greeting the
-    // user again on resume.
-    // In hands-free the loop asks rather than announces, so it owns this.
-    const advisory = state.handsFree ? null : wrapAdvisory(out.session, out.wrap);
-    if (advisory) state.session = setWrapOffered(state.session, true, now());
-    await persist();
 
     if (out.error) {
       fail(`${out.error.message} — falling back to the built-in checklist for this question.`);
       await announce('I lost the connection, so this question comes from the checklist.',
         { display: false });
+      if (!currentView(session.id, navigation)) return;
     }
     if (!out.turn) {
+      if (state.voiceMode === 'paused' || state.voiceMode === 'blocked'
+          || (fromVoice && state.voiceMode !== 'active')) {
+        state.voiceWrapPending = out.wrap || 'coverage';
+        state.voiceCaption = 'Ready to write it up';
+        state.voiceDetail = 'Resume to finish the interview, or Exit to review your words first.';
+        render();
+        return;
+      }
       await wrapUp(out.wrap === 'exhausted'
         ? 'The interview ran out of questions.'
         : 'That is everything worth asking.');
       return;
     }
     render();
-    if (advisory) say(advisory);
-    els.answer.focus();
+    if (out.advisory) say(out.advisory);
+    if (state.voiceMode === 'manual') els.answer.focus();
   } catch (e) {
-    fail(e);
+    if (currentView(session.id, navigation)) fail(e);
   } finally {
-    busy(false);
+    if (currentView(session.id, navigation)) busy(false);
   }
   // Guarded, so the hands-free driver's own call to nextQuestion does not re-enter it.
-  if (state.handsFree && !state.cycling) runHandsFree();
+  if (currentView(session.id, navigation) && state.handsFree && !state.cycling) runHandsFree();
 }
 
 /** Give up on the open question. Both the button and the spoken command land here. */
 async function doSkip() {
-  if (!openTurn(state.session)) return;
+  if (state.busy || !state.session || !openTurn(state.session)) return;
+  busy(true);
   cancelDraftSave();
   state.session = skipQuestion(state.session, { now: now() });
+  const session = state.session;
+  const provider = state.provider;
+  const navigation = state.navigation;
+  const credentialEpoch = state.credentialEpoch;
+  const fromVoice = state.voiceMode !== 'manual';
   els.answer.value = '';
+  state.answerSource = 'typed';
   say('');
-  await persist();
-  await nextQuestion();
+  await persist(session);
+  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice);
 }
 
 /** Record an answer and ask the next question. The hands-free loop calls this directly. */
 async function submitAndAdvance(text, source) {
+  if (state.busy || !state.session || !openTurn(state.session)) return;
+  busy(true);
   cancelDraftSave();
   state.session = submitAnswer(state.session, { text, source, now: now() });
+  const session = state.session;
+  const provider = state.provider;
+  const navigation = state.navigation;
+  const credentialEpoch = state.credentialEpoch;
+  const fromVoice = state.voiceMode !== 'manual';
   els.answer.value = '';
   state.answerSource = 'typed';
   say('');
-  await persist();
-  await nextQuestion();
+  await persist(session);
+  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice);
 }
 
 async function send(text, source) {
   const body = String(text == null ? els.answer.value : text).trim();
   if (!body || state.busy) return;
+  if (state.voiceMode === 'manual' && state.voice && !els.listening.hidden) state.voice.abort();
   await submitAndAdvance(body, source || state.answerSource);
 }
 
@@ -623,23 +939,178 @@ async function send(text, source) {
  * iOS will let us unlock speech synthesis, and the gesture the microphone permission
  * prompt needs to be attached to.
  */
-async function setupVoice() {
-  const { kind: sttKind, apiKey: sttKey } = (state.creds && state.creds.stt) || {};
-  primeSpeech();
+function renderVoiceStage() {
+  if (!state.voiceStage) return;
+  const visible = state.voiceMode !== 'manual' && !els['panel-interview'].hidden;
+  els['voice-stage'].hidden = !visible;
+  els['manual-interview'].hidden = visible;
+  barActions.hidden = visible;
+  els.meter.hidden = visible || els['panel-interview'].hidden;
+  document.body.classList.toggle('voice-active', visible);
+  const hasQuestion = !!(state.session && openTurn(state.session));
+  els['b-send'].disabled = visible || state.busy || !hasQuestion;
+  els['b-skip'].disabled = visible || state.busy || !hasQuestion;
+  els['b-mic'].disabled = visible || state.busy || !hasQuestion;
+  els['b-wrap'].disabled = visible || state.busy;
+  els.answer.disabled = visible || state.busy || !hasQuestion;
+  if (!visible) return;
+  state.voiceStage.render({
+    phase: state.voiceMode === 'paused' || state.voiceMode === 'blocked'
+      ? state.voiceMode : state.voicePhase,
+    question: state.voiceCaption || currentQuestion(),
+    transcript: state.voiceTranscript === null ? els.answer.value : state.voiceTranscript,
+    detail: [state.voiceMode === 'active' ? state.voiceMeterWarning : '', state.voiceDetail]
+      .filter(Boolean).join(' ') || (state.voicePhase === 'listening'
+      ? `Say “${state.trigger}” to send. “Pause voice” or “exit voice” are commands.`
+      : 'One question at a time. Take your time.'),
+    backend: state.voiceBackend,
+    pending: state.capturePending,
+  });
+}
+
+function setVoicePhase(phase, detail) {
+  if (state.voiceMode !== 'active') return;
+  state.voicePhase = phase;
+  if (phase === 'listening' || phase === 'thinking') state.voiceCaption = '';
+  if (detail !== undefined) state.voiceDetail = detail;
+  if (phase !== 'listening') state.voiceStage.reset();
+  renderVoiceStage();
+}
+
+function prepareSpeechOutput() {
+  if (state.speech) state.speech.dispose();
+  const config = readSpeechFromForm();
+  const preferences = saveSpeechPreferences();
+  const kind = config.kind === 'openai' && config.verified ? 'openai' : 'browser';
+  state.voiceBackend = kind === 'openai' ? 'OpenAI · AI-generated voice' : 'Browser voice';
+  state.voiceMeterWarning = '';
+  state.voiceDetail = config.kind === 'openai' && !config.verified
+    ? 'OpenAI speech has not been checked. Using the browser voice.' : '';
+  let output;
+  output = createSpeechOutput({
+    ...config, kind, browserVoice: preferences.speechVoice, rate: preferences.speechRate,
+    onStatus: (event) => {
+      if (state.speech !== output || state.voiceMode !== 'active') return;
+      if (event.backend) state.voiceBackend = event.backend === 'openai'
+        ? 'OpenAI · AI-generated voice' : 'Browser voice';
+      if (event.text) state.voiceCaption = event.text;
+      if (event.message) state.voiceDetail = event.message;
+      if (event.phase === 'speaking') state.voicePhase = 'speaking';
+      if (event.phase === 'preparing') state.voicePhase = 'thinking';
+      renderVoiceStage();
+    },
+  });
+  state.speech = output;
+  Promise.resolve(output.prime()).catch((error) => {
+    if (state.speech !== output) return;
+    state.voiceDetail = `Speech needs a fresh tap to start: ${error.message}`;
+    renderVoiceStage();
+  });
+}
+
+async function speakForVoice(text) {
+  const speech = state.speech;
+  const epoch = state.voiceEpoch;
+  if (!speech || state.voiceMode !== 'active') return;
+  const result = await speech.speak(text);
+  if (speech !== state.speech || epoch !== state.voiceEpoch || state.voiceMode !== 'active') return;
+  if (!result || result.status !== 'spoken') {
+    await pauseVoice({
+      blocked: true,
+      detail: 'Speech was interrupted or could not play. Tap Resume to try again, or Exit to type.',
+    });
+  }
+}
+
+function releaseWakeLock() {
+  state.wakeLockRequest = null;
+  const lock = state.wakeLock;
+  state.wakeLock = null;
+  if (lock && !lock.released) {
+    lock.release().catch((error) => console.warn('Could not release the screen wake lock:', error.name));
+  }
+}
+
+async function keepScreenAwake() {
+  if (!navigator.wakeLock || document.hidden || state.voiceMode !== 'active'
+      || state.wakeLock || state.wakeLockRequest) return;
+  const epoch = state.voiceEpoch;
+  const request = {};
+  state.wakeLockRequest = request;
   try {
-    state.voice = await createVoice({
+    const lock = await navigator.wakeLock.request('screen');
+    if (epoch !== state.voiceEpoch || state.wakeLockRequest !== request
+        || state.voiceMode !== 'active' || document.hidden) {
+      await lock.release();
+      return;
+    }
+    state.wakeLock = lock;
+    lock.addEventListener('release', () => {
+      if (state.wakeLock === lock) state.wakeLock = null;
+    }, { once: true });
+  } catch (error) {
+    if (epoch !== state.voiceEpoch || state.voiceMode !== 'active') return;
+    state.voiceDetail = 'Keep this screen open. The browser could not keep the display awake.';
+    renderVoiceStage();
+  } finally {
+    if (state.wakeLockRequest === request) state.wakeLockRequest = null;
+  }
+}
+
+async function setupVoice({ defer = false, automatic = state.wantHandsFree } = {}) {
+  const { kind: sttKind, apiKey: sttKey } = (state.creds && state.creds.stt) || {};
+  if (sttKind === 'off') {
+    if (automatic) {
+      setHandsFree(false);
+      say('Dictation is off. Continue by typing, or enable dictation in Settings.');
+    }
+    els['b-mic'].hidden = true;
+    els['handsfree-wrap'].hidden = true;
+    return;
+  }
+  if (automatic && (document.hidden || state.voiceMode === 'paused')) return;
+  if (defer) {
+    const possible = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+      || !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    els['b-mic'].hidden = !possible;
+    els['handsfree-wrap'].hidden = !possible || !ttsSupported();
+    return;
+  }
+  const epoch = state.voiceEpoch;
+  const navigation = state.navigation;
+  if (state.voiceSetup) state.voiceSetup.abort();
+  const setup = new AbortController();
+  state.voiceSetup = setup;
+  try {
+    const voice = await createVoice({
       stt: STT_PRESETS[sttKind] && sttKey ? { kind: sttKind, apiKey: sttKey } : null,
       preferRecorder: sttKind === 'groq' || sttKind === 'openai',
+      signal: setup.signal,
     });
-  } catch {
+    if (setup.signal.aborted || epoch !== state.voiceEpoch || navigation !== state.navigation) {
+      voice.dispose();
+      return;
+    }
+    state.voice = voice;
+  } catch (error) {
+    if (setup.signal.aborted || epoch !== state.voiceEpoch || navigation !== state.navigation) return;
     state.voice = null;
+    state.voiceDetail = `Microphone setup failed: ${error.message}`;
+    say(state.voiceDetail);
+  } finally {
+    if (state.voiceSetup === setup) state.voiceSetup = null;
   }
   const on = state.voice && state.voice.available;
   els['b-mic'].hidden = !on;
-  const canDrive = on && ttsSupported();
+  const canDrive = on && state.speech && state.speech.supported();
   els['handsfree-wrap'].hidden = !canDrive;
-  // A regular driver should not re-tick this every trip.
-  if (canDrive && state.wantHandsFree && !state.handsFree) setHandsFree(true);
+  if (canDrive && automatic && !state.handsFree) setHandsFree(true);
+  if (!canDrive && automatic) {
+    state.voiceMode = 'blocked';
+    state.voiceDetail = (state.voice && state.voice.unavailableReason)
+      || state.voiceDetail || 'Voice is not available. Check microphone and speech settings, or Exit to type.';
+    renderVoiceStage();
+  }
   if (on && state.voice.mode === 'recorder') {
     // Say it once, plainly, rather than surprising anyone with a bill.
     say(`Dictation goes through ${state.voice.transcriberLabel} — roughly a penny for a whole interview.`);
@@ -649,24 +1120,64 @@ async function setupVoice() {
 }
 
 async function listenOnce({ prompt, autoStop }) {
+  const voice = state.voice;
+  const epoch = state.voiceEpoch;
+  const navigation = state.navigation;
+  const sessionId = state.session.id;
+  const turnId = openTurn(state.session).id;
+  const ownsTurn = () => currentView(sessionId, navigation) && epoch === state.voiceEpoch
+    && openTurn(state.session)?.id === turnId;
+  els.handsfree.disabled = true;
   els.listening.hidden = false;
-  els['listening-label'].textContent = state.voice.mode === 'recorder'
-    ? 'Listening — stop talking when you’re done.'
-    : 'Listening…';
+  els['listening-label'].textContent = 'Getting the microphone ready…';
   els['b-mic'].textContent = 'Stop listening';
   try {
-    return await state.voice.listen({
+    return await voice.listen({
       prompt,
       autoStop,
-      onInterim: (t) => { els.answer.value = t; },
+      onPhase: (phase) => {
+        if (!ownsTurn()) return;
+        els['listening-label'].textContent = phase === 'transcribing'
+          ? 'Turning speech into text…'
+          : voice.mode === 'recorder' ? 'Listening — stop talking when you’re done.' : 'Listening…';
+      },
+      onInterim: (t) => {
+        if (!ownsTurn()) return;
+        els.answer.value = t;
+        state.answerSource = 'voice';
+        queueDraftSave();
+      },
       onLevel: (rms) => {
+        if (!ownsTurn()) return;
         els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
       },
+      onLevelUnavailable: (reason) => {
+        if (!ownsTurn()) return;
+        els.pulse.style.removeProperty('--level');
+        say(reason);
+      },
     });
+  } catch (error) {
+    if (error.code === 'audio-capture' && error.fatal && typeof error.draft === 'string'
+        && error.draft.trim() && ownsTurn()) {
+      els.answer.value = error.draft;
+      state.answerSource = 'voice';
+      await flushDraft();
+    }
+    throw error;
   } finally {
-    els.listening.hidden = true;
-    els['b-mic'].textContent = 'Answer out loud';
-    els.pulse.style.removeProperty('--level');
+    if (state.voice === voice) {
+      await Promise.resolve(voice.dispose()).catch((error) => {
+        say(`The microphone could not finish closing: ${error.message}`);
+      });
+      if (state.voice === voice) state.voice = null;
+    }
+    if (epoch === state.voiceEpoch && navigation === state.navigation) {
+      els.listening.hidden = true;
+      els.handsfree.disabled = false;
+      els['b-mic'].textContent = 'Answer out loud';
+      els.pulse.style.removeProperty('--level');
+    }
   }
 }
 
@@ -678,33 +1189,84 @@ async function listenOnce({ prompt, autoStop }) {
  * one case. This is the adapter: every effect the loop needs, expressed in DOM.
  */
 async function runHandsFree() {
-  if (state.cycling || !state.handsFree || !state.voice) return;
+  if (state.cycling || state.busy || !state.handsFree || !state.voice || !state.session) return;
+  const voice = state.voice;
+  const id = state.session.id;
+  const navigation = state.navigation;
+  const epoch = state.voiceEpoch;
+  const running = () => state.handsFree && state.voiceMode === 'active'
+    && voice === state.voice && epoch === state.voiceEpoch && currentView(id, navigation);
   state.cycling = true;
-  state.drive = createDriveLoop({
-    speak: (text) => state.voice.speak(text),
-    listen: ({ prompt, confirm }) => listenForDriving(prompt, !!confirm),
-    openTurn: () => openTurn(state.session),
-    submit: (text) => submitAndAdvance(text, 'voice'),
-    skip: () => doSkip(),
-    wrap: () => wrapUp('Wrapped up by voice.'),
-    offerWrap: () => shouldOfferWrap(state.session),
+  const drive = createDriveLoop({
+    speak: (text) => running() ? speakForVoice(text) : undefined,
+    listen: ({ prompt, confirm }) => listenForDriving(prompt, !!confirm, voice, running),
+    openTurn: () => running() ? openTurn(state.session) : null,
+    submit: (text) => running()
+      ? submitAndAdvance([state.capturePrefix, text].filter(Boolean).join(' '),
+        text.trim() ? 'voice' : state.capturePrefixSource) : undefined,
+    skip: () => running() ? doSkip() : undefined,
+    wrap: () => running() ? wrapUp('Wrapped up by voice.') : undefined,
+    offerWrap: () => running() ? shouldOfferWrap(state.session) : null,
+    answeredCount: () => state.session.turns.filter((turn) => turn.answer || turn.skipped).length,
+    hasDraft: () => !!els.answer.value.trim(),
+    pause: () => pauseVoice({ command: true }),
+    exit: () => exitVoice({ command: true }),
+    scratch: () => {
+      if (!running()) return;
+      cancelDraftSave();
+      state.capturePrefix = '';
+      els.answer.value = '';
+      queueDraftSave();
+    },
+    onState: (phase) => {
+      if (!running()) return;
+      if (phase !== 'stopped' && phase !== 'paused') {
+        setVoicePhase(phase === 'processing' ? 'thinking' : phase === 'listening' ? 'starting' : phase);
+      }
+    },
     // Reading it is also the moment it counts as offered, so a reload does not re-ask.
     advisory: (reason) => {
+      if (!running()) return null;
       const text = wrapAdvisory(state.session, reason);
       if (text) state.session = setWrapOffered(state.session, true, now());
       return text;
     },
-    notify: say,
-    running: () => state.handsFree && !!state.voice,
+    notify: (text) => {
+      if (!running()) return;
+      if (state.voicePhase === 'speaking') {
+        state.voiceCaption = text || '';
+        state.voiceDetail = '';
+      } else {
+        state.voiceDetail = text || '';
+      }
+      renderVoiceStage();
+    },
+    running,
     config: { trigger: state.trigger },
   });
+  state.drive = drive;
   try {
-    await state.drive.run();
+    const result = await drive.run();
+    if (result === 'stopped' && running()) {
+      await pauseVoice({
+        blocked: true,
+        detail: state.voiceDetail || state.voiceCaption
+          || 'Voice paused after input trouble. Resume to retry, or Exit to type.',
+      });
+    }
   } catch (e) {
-    fail(e);
+    if (running()) {
+      await pauseVoice({ blocked: true, detail: `Voice stopped: ${e.message}` });
+    }
   } finally {
-    state.cycling = false;
-    state.drive = null;
+    if (state.drive === drive) {
+      state.cycling = false;
+      state.drive = null;
+      if (state.handsFree && state.voiceMode === 'active' && !state.busy && currentSession(id)
+          && (epoch !== state.voiceEpoch || voice !== state.voice)) {
+        runHandsFree();
+      }
+    }
   }
 }
 
@@ -715,7 +1277,14 @@ async function runHandsFree() {
  * lane. `isComplete` is what ends it instead, and it fires on a command too — someone
  * saying "skip this one" has finished talking by definition.
  */
-async function listenForDriving(prompt, confirm) {
+async function listenForDriving(prompt, confirm, voice, running) {
+  if (!running()) return '';
+  const prefix = els.answer.value.trim();
+  state.capturePrefix = prefix;
+  state.capturePrefixSource = state.answerSource;
+  state.captureConfirm = confirm;
+  state.voiceTranscript = confirm ? '' : null;
+  setVoicePhase('starting', 'Getting the microphone ready…');
   els.listening.hidden = false;
   els['listening-label'].textContent = confirm
     ? 'Listening — yes, or keep going.'
@@ -727,23 +1296,50 @@ async function listenForDriving(prompt, confirm) {
     return confirm && matchAffirmation(said.text) !== null;
   };
   try {
-    return await state.voice.listen({
+    return await voice.listen({
       prompt,
       autoStop: false,
       isComplete,
       settleMs: DRIVING.settleMs,
       gate: confirm ? CONFIRM_GATE : DRIVING_GATE,
       maxSegments: confirm ? 1 : 6,
-      onInterim: (t) => { els.answer.value = t; },
+      onInterim: (t) => {
+        if (!running()) return;
+        if (confirm) {
+          state.voiceTranscript = t;
+        } else {
+          els.answer.value = [prefix, t].filter(Boolean).join(' ');
+          state.answerSource = 'voice';
+          queueDraftSave();
+        }
+        renderVoiceStage();
+      },
       onLevel: (rms) => {
+        if (!running()) return;
         els.pulse.style.setProperty('--level', String(0.6 + Math.min(1.7, rms * 16)));
+        state.voiceStage.level(rms);
+      },
+      onLevelUnavailable: (reason) => {
+        if (!running()) return;
+        state.voiceMeterWarning = String(reason || 'Microphone levels are unavailable.');
+        state.voiceStage.reset();
+        els.pulse.style.removeProperty('--level');
+        renderVoiceStage();
+      },
+      onPhase: (phase) => {
+        if (running()) setVoicePhase(phase, phase === 'listening' ? '' : 'Turning the captured audio into words…');
       },
     });
   } finally {
-    els.listening.hidden = true;
-    els['b-mic'].textContent = 'Answer out loud';
-    els.pulse.style.removeProperty('--level');
-    els.answer.value = '';
+    if (running()) {
+      els.listening.hidden = true;
+      els['b-mic'].textContent = 'Answer out loud';
+      els.pulse.style.removeProperty('--level');
+      els.answer.value = prefix;
+      state.answerSource = state.capturePrefixSource;
+      state.voiceTranscript = null;
+      state.voiceStage.reset();
+    }
   }
 }
 
@@ -754,23 +1350,186 @@ function currentQuestion() {
 }
 
 function teardownVoice() {
+  if (state.voiceSetup) state.voiceSetup.abort();
+  state.voiceSetup = null;
+  if (state.previewSpeech) {
+    state.previewSpeech.dispose();
+    state.previewSpeech = null;
+    els['speech-check'].textContent = 'Preview cancelled.';
+    onSpeechChange();
+  }
   setHandsFree(false);
   if (state.voice) state.voice.dispose();
+  if (state.speech) state.speech.dispose();
   state.voice = null;
+  state.speech = null;
+  state.drive = null;
+  state.cycling = false;
+  state.capturePending = false;
+  state.captureConfirm = false;
+  state.voiceMeterWarning = '';
+  state.voiceTranscript = null;
+  state.readback = false;
   els['b-mic'].hidden = true;
   els['handsfree-wrap'].hidden = true;
+  els.handsfree.disabled = false;
   els.listening.hidden = true;
 }
 
 function setHandsFree(on) {
+  if (on && (!state.session || state.voiceWrapPending
+      || (!state.busy && !openTurn(state.session)))) {
+    on = false;
+    state.wantHandsFree = false;
+    savePrefs({ handsFree: false });
+    say('There are no more questions. Choose the write-up when you are ready.');
+  }
   state.handsFree = on;
   els.handsfree.checked = on;
   if (!on) {
+    if (state.voiceSetup) state.voiceSetup.abort();
+    state.voiceSetup = null;
+    state.voiceEpoch++;
+    state.voiceMode = 'manual';
     if (state.drive) state.drive.stop();
     if (state.voice) { state.voice.cancelSpeech(); state.voice.abort(); }
+    if (state.speech) state.speech.cancel();
+    releaseWakeLock();
+    if (state.voiceStage) state.voiceStage.reset();
+    renderVoiceStage();
     return;
   }
+  state.voiceMode = 'active';
+  state.voicePhase = state.busy ? 'thinking' : 'starting';
+  renderVoiceStage();
+  keepScreenAwake();
   runHandsFree();
+}
+
+async function pauseVoice({ command = false, blocked = false, detail = '' } = {}) {
+  if (state.voiceMode === 'manual' || state.capturePending) return;
+  const voice = state.voice;
+  const id = state.session && state.session.id;
+  const navigation = state.navigation;
+  const wasCapturing = state.voicePhase === 'listening' || state.voicePhase === 'transcribing';
+  const confirmation = state.captureConfirm;
+  const prefix = state.capturePrefix;
+  const prefixSource = state.capturePrefixSource;
+  const captured = capturedDraftText(prefix);
+  if (command || confirmation) els.answer.value = prefix;
+  else if (wasCapturing) els.answer.value = retainedDraft(prefix, captured);
+  if (els.answer.value === prefix) state.answerSource = prefixSource;
+  cancelDraftSave();
+  state.voiceEpoch++;
+  const epoch = state.voiceEpoch;
+  if (state.voiceSetup) state.voiceSetup.abort();
+  state.voiceSetup = null;
+  state.handsFree = false;
+  els.handsfree.checked = false;
+  if (state.drive) state.drive.stop();
+  if (state.speech) state.speech.cancel();
+  releaseWakeLock();
+  state.voiceMode = blocked ? 'blocked' : 'paused';
+  state.voicePhase = state.voiceMode;
+  state.voiceTranscript = null;
+  state.voiceCaption = state.readback ? 'Your refined prompt' : currentQuestion();
+  state.voiceDetail = detail || 'Microphone off. Your captured words stay here. Tap Resume when you are ready.';
+  state.capturePending = !!voice;
+  state.voiceStage.reset();
+  renderVoiceStage();
+  let finalText = '';
+  try {
+    if (voice) finalText = await voice.pause();
+  } catch (error) {
+    if (currentView(id, navigation)) {
+      state.voiceDetail = `Paused. The last audio segment could not be saved: ${error.message}`;
+    }
+  } finally {
+    if (voice) voice.dispose();
+    if (state.voice === voice) state.voice = null;
+    if (epoch === state.voiceEpoch && currentView(id, navigation)
+        && ['paused', 'blocked'].includes(state.voiceMode)) {
+      if (!command && !confirmation && wasCapturing) {
+        els.answer.value = retainedDraft(prefix, finalText || captured);
+        state.answerSource = els.answer.value === prefix ? prefixSource : 'voice';
+      }
+      await flushDraft();
+      if (epoch === state.voiceEpoch && currentView(id, navigation)
+          && ['paused', 'blocked'].includes(state.voiceMode)) {
+        state.capturePending = false;
+        els.listening.hidden = true;
+        renderVoiceStage();
+        els['b-voice-pause'].focus();
+      }
+    }
+  }
+}
+
+async function resumeVoice() {
+  if (state.capturePending || !state.session) return;
+  state.voiceEpoch++;
+  state.voiceMode = 'active';
+  state.voicePhase = 'starting';
+  state.voiceDetail = '';
+  prepareSpeechOutput();
+  renderVoiceStage();
+  keepScreenAwake();
+  if (state.readback && state.session.status === 'done') {
+    await finishReadback();
+    return;
+  }
+  if (state.voiceWrapPending) {
+    state.voiceWrapPending = null;
+    await wrapUp('The interview is ready to write up.');
+    return;
+  }
+  if (state.writing === state.session.id) return;
+  forgetVerdict();
+  await setupVoice({ automatic: true });
+}
+
+async function exitVoice({ command = false } = {}) {
+  if (state.voiceMode === 'manual') return;
+  if (command) els.answer.value = state.capturePrefix;
+  else if (!state.captureConfirm && ['listening', 'transcribing'].includes(state.voicePhase)) {
+    els.answer.value = retainedDraft(state.capturePrefix, capturedDraftText(state.capturePrefix));
+  }
+  if (els.answer.value === state.capturePrefix) state.answerSource = state.capturePrefixSource;
+  const unfinishedAudio = state.voice && state.voice.mode === 'recorder'
+    && (state.capturePending || ['listening', 'transcribing'].includes(state.voicePhase));
+  const done = state.session && (state.session.status === 'done' || state.writing === state.session.id);
+  const navigation = state.navigation;
+  teardownVoice();
+  state.wantHandsFree = false;
+  savePrefs({ handsFree: false });
+  await flushDraft();
+  if (navigation !== state.navigation) return;
+  if (done) {
+    show('panel-done');
+    if (state.session.status === 'done') renderDone();
+    els['b-copy'].focus();
+  } else {
+    show('panel-interview');
+    await setupVoice({ defer: true, automatic: false });
+    renderVoiceStage();
+    els.answer.focus();
+  }
+  if (unfinishedAudio) {
+    say('Voice stopped. Transcribed words are kept; the unfinished audio segment was cancelled.');
+  }
+}
+
+function capturedDraftText(prefix) {
+  const text = els.answer.value.trim();
+  if (!prefix) return text;
+  if (text === prefix) return '';
+  return text.startsWith(`${prefix} `) ? text.slice(prefix.length + 1) : text;
+}
+
+function retainedDraft(prefix, captured) {
+  const said = parseSpeech(captured, { trigger: state.trigger });
+  return said.kind === 'answer' && said.text
+    ? [prefix, said.text].filter(Boolean).join(' ') : prefix;
 }
 
 // ────────────────────────────────────────────────────────────── wrap-up
@@ -778,38 +1537,83 @@ function setHandsFree(on) {
 /**
  * Write it up, and — if the interview was being driven — read it back.
  *
- * The order matters. This used to tear the voice down FIRST, which is why the finished
- * prompt could never be spoken: by the time there was something to say, there was nothing
- * left to say it with. Now driving stops, the voice stays alive through the synthesis, and
- * teardown is the last thing.
+ * Capture and output have separate lifetimes: release the microphone now, but retain the
+ * speech output and its Pause/Exit controls until narration finishes.
  */
 async function wrapUp(note) {
-  const wasDriving = state.handsFree;
-  setHandsFree(false);                       // stop driving…
-  if (state.voice) state.voice.abort();      // …but keep the voice for the read-back
-
-  show('panel-done');
+  const session = state.session;
+  if (!session || state.writing === session.id) return;
+  const navigation = state.navigation;
+  const provider = state.provider;
+  const credentialEpoch = state.credentialEpoch;
+  const wasDriving = state.voiceMode === 'active';
+  state.writing = session.id;
+  state.voiceWrapPending = null;
+  state.handsFree = false;
+  els.handsfree.checked = false;
+  if (state.drive) state.drive.stop();
+  if (state.voice) state.voice.dispose();
+  state.voice = null;
+  state.readback = wasDriving;
+  busy(true);
+  if (!wasDriving) show('panel-done');
   els['done-title'].textContent = 'Writing it up…';
   els.output.textContent = '';
+  els.output.dataset.source = '';
   els['done-meta'].textContent = note || '';
-  if (wasDriving) await speakLong('Writing it up.');
-
-  const out = await runSynthesis(state.session, { provider: state.provider, now: now() });
-  warn(out);
-  state.session = out.ok ? out.session : setStatusField(out.session, 'done', now());
-  await persist();
-
-  if (!out.ok) {
-    fail(out.error
-      ? `The wrap-up call failed: ${out.error.message}`
-      : 'The model returned no usable prompt.');
-    // markdown.js renders a complete document with no synthesis at all, so the
-    // transcript and open questions are never lost to a failed wrap-up.
+  try {
+    if (wasDriving) {
+      state.voiceCaption = 'Writing your refined prompt';
+      setVoicePhase('thinking', 'Bringing your answers together. The result will appear here.');
+      await speakForVoice('Writing it up.');
+      setVoicePhase('thinking');
+    }
+    if (deletedSessions.has(session.id)) return;
+    const out = await sessionWork(session, 'synthesis', async (signal) => {
+      const result = await runSynthesis(session, {
+        provider: credentialEpoch === state.credentialEpoch ? provider : null, now: now(), signal,
+      });
+      return {
+        ...result,
+        session: result.ok || result.aborted ? result.session : setStatusField(result.session, 'done', now()),
+      };
+    });
+    if (out.discarded || out.aborted || !currentView(session.id, navigation)) return;
+    warn(out);
+    if (!out.ok) {
+      fail(out.error
+        ? `The wrap-up call failed: ${out.error.message}`
+        : 'The model returned no usable prompt.');
+    }
+    renderDone();
+    if (state.readback && state.voiceMode === 'active') {
+      await finishReadback();
+    } else if (state.readback && ['paused', 'blocked'].includes(state.voiceMode)) {
+      state.voiceCaption = 'Your refined prompt is ready';
+      state.voiceDetail = 'Resume to hear it, or Exit to read and export it.';
+      renderVoiceStage();
+    } else {
+      teardownVoice();
+      show('panel-done');
+    }
+  } catch (error) {
+    if (currentView(session.id, navigation)) fail(error);
+  } finally {
+    if (state.writing === session.id) state.writing = null;
+    if (currentView(session.id, navigation)) busy(false);
   }
-  renderDone();
+}
 
-  if (wasDriving) await speakLong(spokenResult(out.ok));
+async function finishReadback() {
+  const epoch = state.voiceEpoch;
+  const id = state.session.id;
+  show('panel-interview');
+  renderVoiceStage();
+  await speakLong(spokenResult(!!state.session.synthesis.text));
+  if (epoch !== state.voiceEpoch || !currentSession(id) || state.voiceMode !== 'active') return;
   teardownVoice();
+  show('panel-done');
+  renderDone();
 }
 
 /** What the finished interview sounds like. */
@@ -831,10 +1635,11 @@ function spokenResult(ok) {
  * with no error at all.
  */
 async function speakLong(text) {
-  if (!state.voice || !text) return;
+  if (!state.speech || !text) return;
+  const epoch = state.voiceEpoch;
   for (const chunk of speechChunks(text)) {
-    if (!state.voice) return;
-    await state.voice.speak(chunk);
+    if (!state.speech || state.voiceMode !== 'active' || epoch !== state.voiceEpoch) return;
+    await speakForVoice(chunk);
   }
 }
 
@@ -931,19 +1736,25 @@ async function refreshLibrary() {
 }
 
 async function openLibrary() {
+  const navigation = ++state.navigation;
+  teardownVoice();
   say('');
   fail(null);
   if (!(await flushDraft())) return;
-  teardownVoice();
+  if (navigation !== state.navigation) return;
   show('panel-library');
   await refreshLibrary();
-  state.library.focus();
+  if (navigation === state.navigation) state.library.focus();
 }
 
 async function editLibrarySession(session, { name, tags }) {
   try {
+    const pending = workBySession.get(session.id);
+    if (pending) await pending.promise;
+    const latest = await loadSession(session.id);
+    if (!latest || deletedSessions.has(session.id)) return;
     const changedAt = now();
-    let updated = renameSession(session, name, changedAt);
+    let updated = renameSession(latest, name, changedAt);
     updated = setSessionTags(updated, tags, changedAt);
     await saveSession(updated);
     if (state.session && state.session.id === updated.id) state.session = updated;
@@ -956,7 +1767,11 @@ async function editLibrarySession(session, { name, tags }) {
 
 async function setArchived(session, archived) {
   try {
-    const updated = archived ? archiveSession(session, now()) : restoreSession(session, now());
+    const pending = workBySession.get(session.id);
+    if (pending) await pending.promise;
+    const latest = await loadSession(session.id);
+    if (!latest || deletedSessions.has(session.id)) return;
+    const updated = archived ? archiveSession(latest, now()) : restoreSession(latest, now());
     await saveSession(updated);
     if (state.session && state.session.id === updated.id) state.session = updated;
     say(archived ? 'Idea archived.' : 'Idea restored.');
@@ -969,12 +1784,21 @@ async function setArchived(session, archived) {
 
 async function removeLibrarySession(session) {
   try {
+    deletedSessions.add(session.id);
+    const pending = workBySession.get(session.id);
+    if (pending) pending.controller.abort();
     await deleteSession(session.id);
-    if (state.session && state.session.id === session.id) state.session = null;
+    if (state.session && state.session.id === session.id) {
+      teardownVoice();
+      state.session = null;
+      state.navigation++;
+      busy(false);
+    }
     say('Idea deleted from this device.');
     await refreshLibrary();
     await renderResumeList();
   } catch (error) {
+    deletedSessions.delete(session.id);
     fail(error);
   }
 }
@@ -1038,10 +1862,12 @@ function setupLibrary() {
     onImport: importLibraryBackup,
     onError: fail,
     onNew: async () => {
+      const navigation = ++state.navigation;
+      teardownVoice();
       say('');
       fail(null);
       if (!(await flushDraft())) return;
-      teardownVoice();
+      if (navigation !== state.navigation) return;
       show('panel-setup');
       await renderResumeList();
     },
@@ -1071,38 +1897,75 @@ function renderInstall(info = state.install && state.install.state()) {
 
 // ──────────────────────────────────────────────────────────────── boot
 
-async function startInterview() {
+async function startInterview({ handsFree = state.wantHandsFree } = {}) {
+  if (state.starting) return;
+  state.starting = true;
+  const navigation = ++state.navigation;
+  teardownVoice();
+  state.wantHandsFree = handsFree;
+  savePrefs({ handsFree });
+  state.voiceWrapPending = null;
+  state.voiceMode = handsFree ? 'active' : 'manual';
+  state.voicePhase = 'starting';
+  prepareSpeechOutput();
   fail(null);
   requestPersistence();
   try {
     await buildProvider();
   } catch (e) {
-    fail(e);
+    if (navigation === state.navigation) {
+      teardownVoice();
+      fail(e);
+    }
+    state.starting = false;
     return;
   }
+  if (navigation !== state.navigation) { state.starting = false; return; }
   const platform = state.install ? state.install.state().platform : 'other';
   state.session = seedTurn(createSession({
     id: newSessionId(),
     now: now(),
     device: platform === 'other' ? 'desktop' : platform,
   }), { now: now() });
+  busy(false);
+  els.answer.value = '';
+  state.answerSource = 'typed';
+  state.capturePrefix = '';
   await persist();
+  state.starting = false;
+  if (navigation !== state.navigation) return;
   show('panel-interview');
   render();
-  await setupVoice();
-  els.answer.focus();
+  await setupVoice({ defer: !handsFree, automatic: handsFree });
+  if (state.voiceMode === 'manual') els.answer.focus();
+  else els['b-voice-pause'].focus();
 }
 
 async function resumeInterview(id) {
+  const navigation = ++state.navigation;
+  teardownVoice();
+  state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
+  prepareSpeechOutput();
   say('');
   fail(null);
   if (!(await flushDraft())) return;
-  teardownVoice();
-  const s = await loadSession(id);
+  const pending = workBySession.get(id);
+  let completed = null;
+  if (pending) {
+    say('Finishing the request already running for this idea…');
+    completed = await pending.promise;
+  }
+  if (navigation !== state.navigation) return;
+  const s = completed && !completed.discarded ? completed.session : await loadSession(id);
+  if (navigation !== state.navigation) return;
   if (!s) { fail('That session was written by a newer version of IdeaForge.'); return; }
   state.session = s;
+  state.voiceWrapPending = null;
+  state.capturePrefix = '';
+  busy(false);
 
   if (s.status === 'done' && !s.pending && !openTurn(s)) {
+    teardownVoice();
     renderDone();
     show('panel-done');
     return;
@@ -1111,19 +1974,25 @@ async function resumeInterview(id) {
   try {
     await buildProvider();
   } catch (e) {
+    if (navigation !== state.navigation) return;
     say(`Continuing without a model (${e.message}). Questions will come from the built-in checklist.`);
     state.provider = null;
   }
+  if (navigation !== state.navigation) return;
 
   if (s.pending && s.pending.kind === 'synthesis') {
     show('panel-done');
     els['done-title'].textContent = 'Picking up the write-up…';
     els.output.textContent = '';
     els['done-meta'].textContent = '';
-    const out = await resumeSynthesis(s, { provider: state.provider, now: now() });
+    const provider = state.provider;
+    const out = await sessionWork(s, 'synthesis', async (signal) => {
+      const result = await resumeSynthesis(s, { provider, now: now(), signal });
+      return { ...result,
+        session: result.ok || result.aborted ? result.session : setStatusField(result.session, 'done', now()) };
+    });
+    if (out.discarded || out.aborted || !currentView(id, navigation)) return;
     warn(out);
-    state.session = out.ok ? out.session : setStatusField(out.session, 'done', now());
-    await persist();
     if (!out.ok) {
       fail(out.error
         ? `The wrap-up call failed: ${out.error.message}`
@@ -1133,27 +2002,36 @@ async function resumeInterview(id) {
     return;
   }
 
+  state.voiceMode = state.wantHandsFree ? 'active' : 'manual';
+  state.voicePhase = 'thinking';
   show('panel-interview');
-  await setupVoice();
 
   if (s.pending && s.pending.kind === 'turn') {
     busy(true, 'picking up where the last question left off…');
     try {
-      const out = await resumeTurn(s, { provider: state.provider, now: now() });
+      const provider = state.provider;
+      const out = await sessionWork(s, 'turn', (signal) => resumeTurn(s, { provider, now: now(), signal }));
+      if (out.discarded || out.aborted || !currentView(id, navigation)) return;
       warn(out);
-      state.session = out.session;
-      await persist();
-    } catch (e) { fail(e); } finally { busy(false); }
+    } catch (e) { if (currentView(id, navigation)) fail(e); }
+    finally { if (currentView(id, navigation)) busy(false); }
   }
+  if (!currentView(id, navigation)) return;
   if (state.session.status === 'done' && !openTurn(state.session)) {
     renderDone();
     show('panel-done');
     return;
   }
-  if (!openTurn(state.session)) { await nextQuestion(); return; }
+  if (!openTurn(state.session)) {
+    await nextQuestion();
+    if (!currentView(id, navigation) || state.session.status === 'done') return;
+  }
   render();
   els.answer.value = state.session.draftAnswer || '';
-  els.answer.focus();
+  state.answerSource = (openTurn(state.session)?.chips || []).some((chip) => chip === els.answer.value)
+    ? 'chip' : 'typed';
+  await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });
+  if (state.voiceMode === 'manual') els.answer.focus();
 }
 
 async function renderResumeList() {
@@ -1186,7 +2064,41 @@ function bind() {
   els.stt.onchange = onSttChange;
   // On change, not on input: normalising every keystroke fights whoever is typing.
   els.stopword.onchange = () => applyTrigger(els.stopword.value);
-  els['b-start'].onclick = startInterview;
+  els['b-start'].onclick = () => startInterview({ handsFree: false }).catch(fail);
+  els['b-start-voice'].onclick = () => startInterview({ handsFree: true }).catch(fail);
+  els.speech.onchange = () => {
+    if (state.previewSpeech) state.previewSpeech.dispose();
+    state.previewSpeech = null;
+    els['speech-check'].textContent = '';
+    onSpeechChange();
+    if (els.speech.value !== 'openai') revokeHostedSpeech().catch(fail);
+  };
+  const invalidatePreview = () => {
+    if (state.previewSpeech) state.previewSpeech.dispose();
+    state.previewSpeech = null;
+    onSpeechChange();
+  };
+  els['tts-consent'].onchange = () => {
+    invalidatePreview();
+    if (!els['tts-consent'].checked) revokeHostedSpeech().catch(fail);
+  };
+  for (const control of [els.ttskey, els['tts-voice']]) {
+    control.addEventListener('input', () => {
+      invalidatePreview();
+      els['speech-check'].textContent = 'Check and preview these speech settings before using them.';
+    });
+  }
+  els['browser-voice'].onchange = () => { invalidatePreview(); saveSpeechPreferences(); };
+  els['speech-rate'].oninput = () => {
+    els['speech-rate-value'].value = `${Number(els['speech-rate'].value).toFixed(2)}×`;
+  };
+  els['speech-rate'].onchange = () => { invalidatePreview(); saveSpeechPreferences(); };
+  els['b-speech-preview'].onclick = () => previewSpeech().catch(fail);
+  els['b-voice-pause'].onclick = () => {
+    const action = ['paused', 'blocked'].includes(state.voiceMode) ? resumeVoice() : pauseVoice();
+    action.catch(fail);
+  };
+  els['b-voice-exit'].onclick = () => exitVoice().catch(fail);
   els['b-install'].onclick = async () => {
     if (!state.install) return;
     try {
@@ -1197,23 +2109,58 @@ function bind() {
     }
   };
   els['b-mic'].onclick = async () => {
-    if (!state.voice) return;
-    if (!els.listening.hidden) { state.voice.stop(); return; }
-    setHandsFree(false);                 // a manual tap takes the wheel back
+    if (state.busy || !state.session || !openTurn(state.session)) return;
+    if (state.voice && !els.listening.hidden) { state.voice.stop(); return; }
+    setHandsFree(false);
+    const navigation = state.navigation;
+    const id = state.session.id;
+    const epoch = state.voiceEpoch;
+    const turnId = openTurn(state.session).id;
+    const ownsTurn = () => currentView(id, navigation) && epoch === state.voiceEpoch
+      && openTurn(state.session)?.id === turnId;
     try {
+      if (!state.voice) {
+        prepareSpeechOutput();
+        await setupVoice({ automatic: false });
+      }
+      if (!ownsTurn() || !state.voice || !state.voice.available) return;
       // autoStop false: the button is press-to-talk, so the user decides when they are
       // done. Whatever came back lands in the box for them to edit before sending.
       const heard = await listenOnce({ prompt: currentQuestion(), autoStop: false });
-      if (heard.trim()) {
+      if (ownsTurn() && heard.trim()) {
         els.answer.value = heard;
         state.answerSource = 'voice';
         queueDraftSave();
       }
-    } catch (e) { fail(e); }
+    } catch (e) {
+      if (ownsTurn()) {
+        fail(e.code === 'audio-capture' ? e.message : e);
+      }
+    }
   };
-  els.handsfree.onchange = () => {
-    savePrefs({ handsFree: els.handsfree.checked });
-    setHandsFree(els.handsfree.checked);
+  els.handsfree.onchange = async () => {
+    const on = els.handsfree.checked;
+    if (on && state.voiceMode === 'manual' && !els.listening.hidden) {
+      els.handsfree.checked = false;
+      say('Stop the current recording before turning on hands-free.');
+      return;
+    }
+    if (!on) { await exitVoice(); return; }
+    if (state.voiceWrapPending || (!state.busy && !openTurn(state.session))) {
+      setHandsFree(true);
+      return;
+    }
+    state.wantHandsFree = true;
+    savePrefs({ handsFree: true });
+    state.voiceEpoch++;
+    state.voiceMode = 'active';
+    state.voicePhase = 'starting';
+    prepareSpeechOutput();
+    renderVoiceStage();
+    try {
+      if (!state.voice) await setupVoice({ automatic: true });
+      else setHandsFree(true);
+    } catch (error) { fail(error); }
   };
   els.baseurl.oninput = onBaseChange;
   els['b-check'].onclick = async () => {
@@ -1246,11 +2193,14 @@ function bind() {
   els['b-library'].onclick = openLibrary;
   els['b-view-all'].onclick = openLibrary;
   els['b-settings'].onclick = async () => {
+    const navigation = ++state.navigation;
+    teardownVoice();
     say('');
     fail(null);
     if (!(await flushDraft())) return;
-    teardownVoice();
+    if (navigation !== state.navigation) return;
     show('panel-setup');
+    renderSpeechSettings();
     await renderResumeList();
   };
   els['b-share'].onclick = () => shareSession(state.session);
@@ -1265,6 +2215,7 @@ function bind() {
   };
   els['b-download'].onclick = download;
   els['b-new'].onclick = async () => {
+    state.navigation++;
     teardownVoice();
     say('');
     fail(null);
@@ -1272,20 +2223,31 @@ function bind() {
     await renderResumeList();
   };
   els['b-reopen'].onclick = async () => {
+    if (!state.session || state.busy || workBySession.has(state.session.id)
+        || state.writing === state.session.id) return;
+    const navigation = ++state.navigation;
+    const session = state.session;
+    teardownVoice();
+    state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
+    prepareSpeechOutput();
     try {
       await buildProvider();
     } catch (error) {
       say(`Continuing without a model (${error.message}). Questions will come from the built-in checklist.`);
       state.provider = null;
     }
+    if (!currentView(session.id, navigation)) return;
     const reopenedAt = now();
     state.session = reopen(state.session, reopenedAt);
     if (state.session.archivedAt) state.session = restoreSession(state.session, reopenedAt);
     await persist();
+    if (!currentView(session.id, navigation)) return;
+    state.voiceMode = state.wantHandsFree ? 'active' : 'manual';
     show('panel-interview');
-    // wrapUp tore the voice down, so without this "Ask me more" has no microphone at all.
-    await setupVoice();
     await nextQuestion();
+    if (currentView(session.id, navigation) && !els['panel-interview'].hidden) {
+      await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });
+    }
   };
 
   // Ctrl/Cmd+Enter sends; a plain Enter must still make a paragraph, because dictated
@@ -1299,7 +2261,12 @@ function bind() {
     queueDraftSave();
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushDraft();
+    if (document.visibilityState !== 'hidden') return;
+    if (state.voiceMode === 'active') {
+      pauseVoice({ detail: 'Voice paused while this screen was away. Tap Resume to continue.' }).catch(fail);
+    } else {
+      flushDraft().catch(fail);
+    }
   });
 }
 
@@ -1313,11 +2280,12 @@ function applyTrigger(raw, { persist: write = true } = {}) {
   els['stopword-note'].textContent = warning
     || 'Say this when you have finished an answer, and the interview moves on by itself. '
     + 'You can also say “repeat that”, “skip this one”, '
-    + '“scratch that” or “wrap it up”.';
+    + '“scratch that”, “wrap it up”, “pause voice” or “exit voice”.';
   if (write) savePrefs({ trigger: state.trigger });
 }
 
 async function boot() {
+  state.voiceStage = createVoiceStage(els['voice-stage']);
   bind();
   setupLibrary();
   state.install = createInstallController({
@@ -1335,9 +2303,13 @@ async function boot() {
   }
   renderProviderChoices();
   onSttChange();
-  els.version.textContent = `IdeaForge v${VERSION}`;
-  await renderResumeList();
+  renderSpeechSettings();
+  if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
+    window.speechSynthesis.addEventListener('voiceschanged', renderSpeechVoices);
+  }
   show('panel-setup');
+  await renderResumeList();
+  els.version.textContent = `IdeaForge v${VERSION}`;
 
   // Installability and an offline cold start. Needs a secure context, so it simply does
   // not register on a file:// open — which is fine, the app still runs.

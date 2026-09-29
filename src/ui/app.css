@@ -1,53 +1,38 @@
-/* IBM Plex and a teal accent, as established by spikes/probe.html — but every value that used
-   to be picked one at a time is now a token, because that is what was actually missing. There
-   were eleven tokens here and fourteen hand-chosen font sizes, no spacing scale, no radius
-   scale, no elevation, and no :hover or :active on any button in the file.
-
-   Theming is light-dark() over an explicit `color-scheme`, which is the one arrangement that
-   satisfies all three readers of this file at once:
-
-     the OS preference, via `color-scheme: light dark` on :root;
-     a forced light theme, via [data-theme="light"];
-     a forced dark theme, via [data-theme="dark"].
-
-   That last one is load-bearing and easy to delete by accident. tools/screenshots.mjs drives
-   the light and dark README shots by setting documentElement.dataset.theme — it does NOT
-   emulate prefers-color-scheme. Drop the [data-theme] rules and both runs render identically,
-   silently producing fourteen PNGs that are the same image twice. There is now a browser probe
-   asserting the two themes compute different backgrounds, because nothing caught that before.
-
-   `color-scheme` also earns its place on its own: without it the native select, the scrollbars
-   and the file picker stayed light while everything around them went dark. */
+/* Explicit theme overrides also drive the README captures. Keep color-scheme so native
+   controls, scrollbars and light-dark() agree, including when the OS preference differs. */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark light;
 
-  --ground:      light-dark(#f4f6f8, #0d1014);
-  --surface:     light-dark(#ffffff, #151a20);
-  --surface-2:   light-dark(#eceff4, #1c222b);
-  --ink:         light-dark(#0f141a, #e7ecf2);
-  --ink-dim:     light-dark(#58626f, #939daa);
-  --line:        light-dark(#dfe4ea, #262d37);
-  --line-strong: light-dark(#c6ced8, #38414d);
+  --ground:      light-dark(#f5f6f2, #15191a);
+  --surface:     light-dark(#fdfefb, #1d2324);
+  --surface-2:   light-dark(#e9eeea, #293132);
+  --ink:         light-dark(#202c2b, #eef0e9);
+  --ink-dim:     light-dark(#566562, #abbab5);
+  --line:        light-dark(#d4ded8, #364140);
+  --line-strong: light-dark(#85968f, #6a7e79);
 
-  --accent:      light-dark(#0b6169, #5eead4);
-  --accent-ink:  light-dark(#ffffff, #052622);
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent:      light-dark(#24665e, #9ecdc3);
+  --accent-ink:  light-dark(#ffffff, #142e29);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
 
-  --ok:   light-dark(#17703f, #46c07f);
-  --fail: light-dark(#b3261e, #ff6b5e);
-  --pend: light-dark(#8a6a00, #d9a441);
+  --ok:   light-dark(#306445, #a0c9a9);
+  --fail: light-dark(#9e3e37, #e8a396);
+  --pend: light-dark(#786120, #cfbd8a);
 
   /* Mixed from a fixed near-black rather than from --ink, so the dark theme gets a real
      shadow instead of a pale glow. */
-  --shadow-1: 0 1px 2px light-dark(rgb(15 20 26 / .07), rgb(0 0 0 / .45));
-  --shadow-2: 0 6px 20px -6px light-dark(rgb(15 20 26 / .14), rgb(0 0 0 / .6));
+  --shadow-1: 0 1px 2px light-dark(rgb(28 37 35 / .04), rgb(0 0 0 / .16));
+  --shadow-2: 0 8px 24px -14px light-dark(rgb(28 37 35 / .18), rgb(0 0 0 / .4));
 
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --r-sm: 7px; --r-md: 11px; --r-lg: 16px; --r-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px;
+  --r-sm: 10px; --r-md: 16px; --r-lg: 24px; --r-pill: 999px;
 
-  --t-xs: 12px; --t-sm: 13px; --t-md: 14px; --t-base: 16px;
-  --t-lg: 18px; --t-xl: 21px; --t-2xl: 26px;
+  --t-xs: .75rem; --t-sm: .8125rem; --t-md: .875rem; --t-base: 1rem;
+  --t-lg: 1.125rem; --t-xl: 1.375rem; --t-2xl: 1.75rem; --t-3xl: 2.125rem;
+  --control-height: 48px;
+  --voice-control-height: 52px;
 
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -57,7 +42,7 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"]  { color-scheme: dark; }
 
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 /* The whole app is panels toggled with `hidden` instead of a router, and an author `display`
    beats the UA stylesheet's `[hidden] { display: none }`. Every rule below that sets display
@@ -68,9 +53,12 @@ html { -webkit-text-size-adjust: 100%; }
 [hidden] { display: none !important; }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
-  font-family: var(--sans); font-size: var(--t-base); line-height: 1.55;
+  font-family: var(--sans); font-size: var(--t-base); line-height: 1.6;
+  overflow-wrap: anywhere;
   -webkit-font-smoothing: antialiased;
 }
+::selection { background: var(--accent); color: var(--accent-ink); }
+a { color: var(--accent); text-underline-offset: .18em; }
 .wrap {
   max-width: 720px; margin: 0 auto;
   padding-inline: 20px; padding-block: 20px 72px;
@@ -81,7 +69,14 @@ body {
   padding-bottom: max(72px, calc(env(safe-area-inset-bottom) + 24px));
   display: flex; flex-direction: column; gap: var(--s5);
 }
-#main { display: flex; flex-direction: column; gap: var(--s5); }
+#main { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+#manual-interview { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+.settings-details { border-top: 1px solid var(--line); padding-top: var(--s3); }
+.settings-details > summary {
+  min-height: var(--control-height); padding-block: var(--s3);
+  color: var(--ink); font-weight: 600; cursor: pointer;
+}
+.settings-options { display: flex; flex-direction: column; gap: var(--s5); padding-top: var(--s4); }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -98,17 +93,18 @@ body {
 /* ───────────────────────────────────────────────────────────────── bar */
 .bar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3); flex-wrap: wrap;
+  gap: var(--s3); flex-wrap: wrap; min-width: 0;
 }
-.bar h1 { font-size: var(--t-lg); font-weight: 700; margin: 0; letter-spacing: -0.015em; }
-.bar-right { display: flex; align-items: center; gap: var(--s2); }
+.bar h1 { font-size: var(--t-lg); font-weight: 600; margin: 0; letter-spacing: -.035em; }
+.bar-right { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.bar-right .ghost { background: transparent; border-color: var(--line); box-shadow: none; }
 
 /* The coverage ratchet is the product, so during an interview it is a full-width bar under
    the header rather than 84px of decoration beside the title. It carries role="progressbar"
    and aria-valuenow, which it never had. */
 .meter { display: flex; align-items: center; gap: var(--s3); }
 .meter-track {
-  flex: 1; height: 6px; border-radius: var(--r-pill);
+  flex: 1; height: var(--s1); border-radius: var(--r-pill);
   background: var(--surface-2); overflow: hidden;
   box-shadow: inset 0 0 0 1px var(--line);
 }
@@ -122,46 +118,63 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────── forms */
-section { display: flex; flex-direction: column; gap: var(--s4); }
+section { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
 /* Spacing in a panel comes from the flex gap, so a heading's own UA margin is double-counted
    and reads as a hole above the meta line under it. */
-section > h2 { margin: 0; font-size: var(--t-2xl); letter-spacing: -0.02em; line-height: 1.2; }
+section > h2 {
+  margin: 0; font-size: var(--t-2xl); font-weight: 600;
+  letter-spacing: -.03em; line-height: 1.25;
+}
 #resume h2 { margin: 0 0 var(--s3); font-size: var(--t-lg); }
-.lede { margin: 0; color: var(--ink-dim); text-wrap: pretty; }
+.lede {
+  margin: 0; max-width: 56ch; padding-block: var(--s2);
+  color: var(--ink-dim); font-size: var(--t-lg); text-wrap: pretty;
+}
 
 /* Settings used to be eight identical fields in one flat stack. Grouping is presentational
    only — no new panels, no routing, nothing for the WebKit microphone bug to catch on. */
 .group {
-  display: flex; flex-direction: column; gap: var(--s4);
-  padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: var(--s5); min-width: 0;
+  padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-lg);
   background: var(--surface); box-shadow: var(--shadow-1);
 }
 .group > h2 {
-  margin: 0; font-size: var(--t-md); font-weight: 700;
-  letter-spacing: .04em; text-transform: uppercase; color: var(--ink-dim);
+  margin: 0; font-size: var(--t-base); font-weight: 600;
+  letter-spacing: -.015em; color: var(--ink);
 }
-
-.field { display: flex; flex-direction: column; gap: var(--s1); }
+.group > details { border-top: 1px solid var(--line); padding-top: var(--s4); }
+.group > details > summary {
+  cursor: pointer; color: var(--ink-dim); font-size: var(--t-md); font-weight: 500;
+}
+.group > details > summary:hover { color: var(--accent); }
+.group > details[open] > :not(summary) { margin-top: var(--s4); }
+.field { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 label { font-size: var(--t-md); font-weight: 600; }
 input, select, textarea {
   font-family: var(--sans); font-size: var(--t-base); color: var(--ink);
   background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm); padding: 10px var(--s3); width: 100%;
+  border-radius: var(--r-sm); padding: var(--s3); width: 100%;
+  min-width: 0; max-width: 100%; min-height: var(--control-height);
   transition: border-color .12s var(--ease), box-shadow .12s var(--ease);
 }
-.group input, .group select, .group textarea { background: var(--ground); }
+.group input, .group select, .group textarea { background: var(--surface); }
 input:hover, select:hover, textarea:hover { border-color: var(--accent); }
-textarea { resize: vertical; min-height: 96px; line-height: 1.5; }
+input::placeholder, textarea::placeholder { color: var(--ink-dim); opacity: 1; }
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+input[type="range"] { padding-inline: 0; }
+select { text-overflow: ellipsis; }
+textarea { resize: vertical; min-height: 112px; line-height: 1.6; }
 input:focus-visible, select:focus-visible, textarea:focus-visible,
 button:focus-visible, summary:focus-visible, a:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
+  outline: 2px solid var(--accent); outline-offset: 3px;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-.hint { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
+.hint { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); line-height: 1.6; }
 .hint a { color: var(--accent); }
+.version { padding-block: var(--s2); font-size: var(--t-xs); }
 .install-card {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
-  padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); box-shadow: var(--shadow-1);
 }
 .install-card h2 { margin: 0 0 var(--s1); font-size: var(--t-base); }
@@ -172,12 +185,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
    text, and `.danger` makes a destructive action look like one — Delete and Share .md were
    previously identical. `.danger` is declared after `.ghost` so `ghost small danger` lands
    where you would expect. */
-.btns { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.btns { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; min-width: 0; }
 button {
   font-family: var(--sans); font-size: var(--t-md); font-weight: 600;
   color: var(--accent-ink); background: var(--accent);
   border: 1px solid transparent; border-radius: var(--r-sm);
-  padding: 10px var(--s4); min-height: 40px; cursor: pointer;
+  padding: var(--s3) var(--s4); min-height: var(--control-height); max-width: 100%;
+  line-height: 1.35; overflow-wrap: anywhere; cursor: pointer;
   transition: background-color .12s var(--ease), border-color .12s var(--ease),
               transform .06s var(--ease), box-shadow .12s var(--ease);
   box-shadow: var(--shadow-1);
@@ -189,7 +203,7 @@ button.ghost {
   background: var(--surface); color: var(--ink);
   border-color: var(--line-strong); box-shadow: var(--shadow-1);
 }
-button.ghost:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+button.ghost:hover { background: var(--surface-2); border-color: var(--accent); color: var(--ink); }
 
 button.quiet {
   background: transparent; color: var(--accent);
@@ -203,7 +217,7 @@ button.danger:hover {
   border-color: var(--fail); color: var(--fail);
 }
 
-button.small { font-size: var(--t-sm); padding: 6px var(--s3); min-height: 34px; }
+button.small { font-size: var(--t-sm); padding: var(--s2) var(--s3); min-height: 36px; }
 button:disabled {
   opacity: 1; cursor: default; transform: none; box-shadow: none;
   background: var(--surface-2); color: var(--ink-dim); border-color: var(--line);
@@ -211,11 +225,13 @@ button:disabled {
 button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
 
 /* ─────────────────────────────────────────────────────────── interview */
+#manual-interview { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
 .bridge { margin: 0; color: var(--ink-dim); font-size: var(--t-md); }
 .question {
-  margin: 0; font-size: clamp(23px, 4.5vw, var(--t-2xl)); font-weight: 600;
-  line-height: 1.25; letter-spacing: -0.02em; text-wrap: balance;
+  margin: 0; font-size: clamp(var(--t-xl), 1rem + 2vw, var(--t-2xl)); font-weight: 600;
+  line-height: 1.3; letter-spacing: -.03em; text-wrap: balance;
 }
+#answer { padding: var(--s4); border-radius: var(--r-md); box-shadow: var(--shadow-1); }
 .asking { margin: 0; font-family: var(--mono); font-size: var(--t-sm); color: var(--ink-dim); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .chips:empty { display: none; }
@@ -223,11 +239,107 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   font-family: var(--sans); font-size: var(--t-md); font-weight: 400;
   color: var(--ink); background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: var(--r-pill);
-  padding: 8px 14px; min-height: 36px; cursor: pointer; text-align: left;
+  padding: var(--s2) var(--s3); min-height: 40px; cursor: pointer; text-align: left;
   box-shadow: none; transition: border-color .12s var(--ease), background-color .12s var(--ease);
 }
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .turnline { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
+
+/* The stage owns presentation only. The parent sets hidden on the manual UI and navigation. */
+.voice-stage {
+  --voice-size: clamp(136px, 38vmin, 184px);
+  --voice-level: 0;
+  align-items: center; gap: var(--s4); text-align: center;
+  min-height: clamp(0px, 100vh - 160px, 672px);
+  min-height: clamp(0px, 100svh - 160px, 672px);
+  padding: var(--s5) var(--s4) 0;
+}
+.voice-stage > p { margin: 0; max-width: 100%; }
+.voice-eyebrow {
+  color: var(--ink-dim); font-size: var(--t-xs); font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.voice-signal {
+  position: relative; display: grid; place-items: center; flex: none;
+  width: var(--voice-size); height: var(--voice-size); max-width: 100%;
+  margin-block: var(--s5) var(--s3); color: var(--ink-dim);
+}
+.voice-orbit {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--surface);
+}
+.voice-orbit::before, .voice-orbit::after { content: ""; position: absolute; }
+.voice-orbit::before {
+  inset: var(--s3); border: 1px solid var(--line); border-radius: 50%;
+}
+.voice-orbit::after {
+  width: var(--s2); height: var(--s2); border-radius: 50%; background: currentColor;
+}
+.voice-bars {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  gap: 6px; height: var(--s8); opacity: 0;
+}
+.voice-bars span {
+  width: 5px; height: 100%; border-radius: var(--r-pill); background: currentColor;
+  transform: scaleY(calc(.08 + var(--voice-sample, 0) * .92));
+  transition: transform .08s linear;
+}
+.voice-bars span:last-child { transform: scaleY(calc(.08 + var(--voice-level) * .92)); }
+.voice-stage[data-phase="listening"] .voice-signal { color: var(--accent); }
+.voice-stage[data-phase="listening"] .voice-orbit { border-color: var(--line-strong); }
+.voice-stage[data-phase="listening"][data-has-level="true"] .voice-bars { opacity: 1; }
+.voice-stage[data-phase="listening"][data-has-level="true"] .voice-orbit::after { display: none; }
+/* Native speech has no measured output amplitude: these two rings stay still. */
+.voice-stage[data-phase="speaking"] .voice-signal { color: var(--accent); }
+.voice-stage[data-phase="speaking"] .voice-orbit::before {
+  inset: 28%; border-color: currentColor; background: var(--accent-soft);
+}
+.voice-stage[data-phase="speaking"] .voice-orbit::after {
+  width: var(--s4); height: var(--s4);
+}
+.voice-stage:is([data-phase="transcribing"], [data-phase="thinking"]) .voice-orbit::after {
+  width: var(--s5); height: var(--s1); border-radius: var(--r-pill);
+}
+.voice-stage[data-phase="paused"] .voice-orbit::after {
+  width: var(--s3); height: var(--s4); border-radius: 0;
+  background: transparent; border-inline: 4px solid currentColor;
+}
+.voice-stage:is([data-phase="recovering"], [data-phase="blocked"]) .voice-signal {
+  color: var(--pend);
+}
+.voice-stage[data-phase="blocked"] .voice-orbit::after,
+.voice-stage[data-phase="complete"] .voice-orbit::after {
+  content: "!"; width: auto; height: auto; background: none;
+  font-size: var(--t-2xl); font-weight: 500;
+}
+.voice-stage[data-phase="complete"] .voice-orbit::after { content: "\2713"; color: var(--ok); }
+.voice-status { font-size: var(--t-md); font-weight: 500; color: var(--ink-dim); }
+.voice-stage:is([data-phase="listening"], [data-phase="speaking"]) .voice-status {
+  color: var(--accent);
+}
+.voice-question {
+  width: 26ch; font-size: clamp(var(--t-xl), 1.1rem + 2vw, var(--t-3xl));
+  font-weight: 500; line-height: 1.35; letter-spacing: -.035em; text-wrap: balance;
+}
+.voice-transcript {
+  width: 42ch; color: var(--ink-dim); font-size: var(--t-lg); line-height: 1.6;
+  white-space: pre-wrap; text-wrap: pretty;
+}
+.voice-detail { width: 46ch; color: var(--ink-dim); font-size: var(--t-sm); }
+.voice-actions {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s3);
+  width: 20rem; max-width: 100%; margin-top: auto;
+  position: sticky; bottom: 0; z-index: 2; background: var(--ground);
+  padding-block: var(--s4) max(var(--s3), env(safe-area-inset-bottom));
+}
+.voice-actions button {
+  flex: 1 1 7rem; min-width: var(--control-height); min-height: var(--voice-control-height);
+  padding-inline: var(--s5); border-radius: var(--r-pill); font-size: var(--t-base);
+}
+.voice-backend { color: var(--ink-dim); font-size: var(--t-xs); }
+.voice-stage > :is(.voice-question, .voice-transcript, .voice-detail, .voice-backend):empty {
+  display: none;
+}
 
 /* ───────────────────────────────────────────────────────── listening */
 .listening {
@@ -244,12 +356,13 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   display: flex; align-items: flex-start; gap: var(--s2);
   font-size: var(--t-md); font-weight: 400; cursor: pointer;
 }
-.toggle input { width: auto; margin: 3px 0 0; flex: none; min-height: 0; }
+.toggle input {
+  width: var(--s4); height: var(--s4); margin: 3px 0 0; padding: 0; flex: none; min-height: 0;
+}
 
 .cov { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .cov summary {
-  cursor: pointer; font-family: var(--mono); font-size: 11px; font-weight: 600;
-  letter-spacing: .09em; text-transform: uppercase; color: var(--ink-dim);
+  cursor: pointer; font-size: var(--t-sm); font-weight: 500; color: var(--ink-dim);
 }
 .cov summary:hover { color: var(--accent); }
 .rows {
@@ -258,14 +371,14 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   overflow: hidden; margin-top: var(--s3);
 }
 .row {
-  display: grid; grid-template-columns: 1fr auto; gap: var(--s3); align-items: center;
-  padding: 10px var(--s3); background: var(--surface); font-size: var(--t-md);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: center;
+  padding: var(--s3); background: var(--surface); font-size: var(--t-md);
 }
-.row .gap { grid-column: 1/-1; font-size: 12.5px; color: var(--ink-dim); }
+.row .gap { grid-column: 1/-1; font-size: var(--t-sm); color: var(--ink-dim); }
 .row .gap:empty { display: none; }
 .row button { padding: 4px var(--s3); font-size: var(--t-sm); min-height: 32px; }
 .lvl {
-  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .05em;
+  font-family: var(--mono); font-size: var(--t-xs); font-weight: 600; letter-spacing: .025em;
   text-transform: uppercase; padding: 3px var(--s2); border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--ink-dim); white-space: nowrap;
 }
@@ -274,33 +387,39 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 
 /* ─────────────────────────────────────────────────────────────── library */
 .section-head, .library-summary {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--s4);
 }
-.section-head h2 { margin: 0 0 var(--s1); font-size: var(--t-2xl); letter-spacing: -0.02em; }
+.section-head h2 {
+  margin: 0 0 var(--s1); font-size: var(--t-2xl); font-weight: 600; letter-spacing: -.03em;
+}
 .library-tools { display: flex; flex-direction: column; gap: var(--s3); }
-.library-filters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
-.idea-list { display: flex; flex-direction: column; gap: var(--s3); }
+.library-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+.idea-list { display: flex; flex-direction: column; gap: var(--s4); }
 .idea-card {
-  display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
-  box-shadow: var(--shadow-1); transition: box-shadow .15s var(--ease);
+  display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); min-width: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
-.idea-card:hover { box-shadow: var(--shadow-2); }
+.idea-card:hover, .idea-card:focus-within { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
 .idea-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
-.idea-head h3 { margin: 0; font-size: var(--t-lg); line-height: 1.3; overflow-wrap: anywhere; }
+.idea-head h3 {
+  margin: 0; min-width: 0; font-size: var(--t-lg); font-weight: 600;
+  letter-spacing: -.02em; line-height: 1.4; overflow-wrap: anywhere;
+}
 .idea-status {
-  flex: none; font-family: var(--mono); font-size: 10px; font-weight: 600;
-  letter-spacing: .07em; text-transform: uppercase; color: var(--ink-dim);
-  background: var(--surface-2); border-radius: var(--r-sm); padding: 3px 7px;
+  flex: none; font-size: var(--t-xs); font-weight: 500; color: var(--ink-dim);
+  background: var(--surface-2); border-radius: var(--r-pill); padding: 3px var(--s2);
 }
 .idea-status.completed { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
-.idea-status.archived { opacity: .7; }
+.idea-status.archived { border: 1px solid var(--line); background: transparent; }
 .idea-meta { margin: 0; color: var(--ink-dim); font-size: var(--t-sm); }
 .idea-tags { display: flex; flex-wrap: wrap; gap: var(--s1); }
 .idea-tags:empty { display: none; }
 .idea-tags span {
   padding: 3px var(--s2); border-radius: var(--r-pill); background: var(--surface-2);
-  color: var(--ink-dim); font-family: var(--mono); font-size: 11px;
+  color: var(--ink-dim); font-size: var(--t-xs); max-width: 100%;
 }
 .idea-edit { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .idea-edit summary { cursor: pointer; color: var(--accent); font-size: var(--t-sm); font-weight: 600; }
@@ -319,9 +438,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    a clamp here the export pane grows with the viewport and the shot runs away to its limit. */
 .output {
   margin: 0; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-md); padding: var(--s5); box-shadow: var(--shadow-1);
+  border-radius: var(--r-lg); padding: var(--s6); box-shadow: var(--shadow-1);
   max-height: 60vh; overflow: auto; max-height: 60dvh;
-  overflow-wrap: anywhere;
+  overflow-wrap: anywhere; line-height: 1.7;
 }
 .output > * { margin: 0; }
 /* The panel heading above already carries the title and the counts, and two identical
@@ -332,7 +451,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .output > h1:first-child + p.meta + * { margin-top: 0; }
 .output > * + * { margin-top: var(--s3); }
 .output h1, .output h2, .output h3 {
-  line-height: 1.25; letter-spacing: -0.015em; text-wrap: balance;
+  font-weight: 600; line-height: 1.35; letter-spacing: -.02em; text-wrap: balance;
 }
 .output h1 { font-size: var(--t-xl); }
 .output h2 { font-size: var(--t-lg); }
@@ -377,8 +496,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   .install-card, .section-head, .library-summary { align-items: stretch; flex-direction: column; }
   .library-filters { grid-template-columns: 1fr; }
   .idea-actions button { flex: 1 1 130px; }
-  .group { padding: var(--s3); }
+  .group, .idea-card, .install-card { padding: var(--s4); border-radius: var(--r-md); }
   .output { padding: var(--s4); }
+  .voice-stage { padding-inline: 0; }
 
   /* Send is the primary action of the whole screen and used to sit wherever the answer box
      pushed it. Pinned to the bottom on a phone, inside the safe area, so it is reachable
@@ -394,15 +514,46 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   .interview-actions button:first-child { flex-basis: 100%; }
 }
 
-/* 24px is the WCAG 2.2 AA floor; 44px is where one-finger use actually becomes reliable, so
-   that is what a touch device gets on anything that is not a dense list control. */
+@media (max-height: 740px) and (max-width: 520px) {
+  .voice-stage { --voice-size: 112px; gap: var(--s3); padding-top: var(--s4); }
+  .voice-signal { margin-block: var(--s3) var(--s2); }
+  .voice-question { font-size: var(--t-xl); }
+  .voice-transcript { font-size: var(--t-base); }
+  .voice-actions { padding-top: var(--s3); }
+}
+
+@media (max-height: 560px) {
+  .voice-stage { --voice-size: 104px; gap: var(--s3); min-height: 0; padding-top: var(--s2); }
+  .voice-signal { margin-block: var(--s2); }
+  .voice-actions { position: static; }
+}
+
+@media (max-height: 560px) and (min-width: 521px) {
+  .voice-stage {
+    display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+    column-gap: var(--s5); row-gap: var(--s2); padding: 0; text-align: left;
+  }
+  .voice-eyebrow { grid-column: 1; grid-row: 1; text-align: center; letter-spacing: .06em; }
+  .voice-signal { grid-column: 1; grid-row: 2 / span 3; justify-self: center; margin: 0; }
+  .voice-status { grid-column: 2; grid-row: 1; }
+  .voice-question { grid-column: 2; grid-row: 2; width: auto; font-size: var(--t-xl); }
+  .voice-transcript { grid-column: 2; grid-row: 3; width: auto; font-size: var(--t-md); }
+  .voice-detail { grid-column: 2; grid-row: 4; width: auto; font-size: var(--t-xs); }
+  .voice-actions {
+    grid-column: 2; grid-row: 5; margin-top: 0;
+    padding-block: var(--s2) max(var(--s2), env(safe-area-inset-bottom));
+  }
+  .voice-backend { grid-column: 1; grid-row: 5; text-align: center; }
+}
+
 @media (pointer: coarse) {
-  button, input, select { min-height: 44px; }
-  .row button, button.small { min-height: 40px; }
-  .chip { min-height: 40px; }
+  button, input, select { min-height: var(--control-height); }
+  .row button, button.small, .chip { min-height: 44px; }
   .toggle input { min-height: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+  .voice-bars span, .voice-bars span:last-child { height: var(--s2); transform: none; }
+  .pulse, button:active { transform: none; }
 }

@@ -1,92 +1,265 @@
-// Reading the question aloud, so an interview can be done without looking at the screen.
-//
-// speechSynthesis is the one voice API that works essentially everywhere, but it has two
-// habits worth knowing: iOS refuses to speak unless the first utterance is triggered
-// inside a user gesture, and voices load asynchronously, so asking for them on page load
-// returns an empty list.
+// Native output is deliberately resolved at call time: voices arrive late, and browser
+// probes replace the platform objects. Importing this module must also be safe in Node.
 
-let primed = false;
+import { speechChunks } from '../core/markdown.js';
+import { ProviderError } from '../providers/errors.js';
+
+let primedSynth = null;
+let active = null;
+const synthesis = () => typeof window === 'undefined' ? null : window.speechSynthesis;
+const utteranceType = () => typeof window === 'undefined' ? null : window.SpeechSynthesisUtterance;
+const voicesFrom = (synth) => Array.from(synth?.getVoices() || []);
+const cancelled = () => new ProviderError('aborted', 'Speech cancelled.');
+const result = (status, meta = {}, error) => ({
+  status, backend: 'browser', ...meta, ...(error ? { error } : {}),
+});
 
 export function ttsSupported() {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+  return typeof synthesis()?.speak === 'function' && typeof utteranceType() === 'function';
 }
 
-/**
- * Unlock speech. Must be called synchronously inside a real user gesture — the tap that
- * starts the interview — or iOS silently ignores every later `speak`.
- */
+/** Call synchronously from Start/Resume/Preview. Acceptance is not a voice-quality check. */
 export function primeSpeech() {
-  if (primed || !ttsSupported()) return;
+  if (!ttsSupported()) {
+    return result('failed', {}, new ProviderError('config', 'Browser speech is unavailable.'));
+  }
+  const synth = synthesis();
+  if (primedSynth === synth) return result('primed');
   try {
-    const u = new SpeechSynthesisUtterance(' ');
+    const Utterance = utteranceType();
+    const u = new Utterance(' ');
     u.volume = 0;
-    window.speechSynthesis.speak(u);
-    primed = true;
-  } catch { /* nothing to unlock */ }
+    synth.speak(u);
+    primedSynth = synth;
+    return result('primed');
+  } catch (cause) {
+    return result('failed', {}, new ProviderError('config',
+      'Browser speech could not be primed. Try Preview from a user gesture.', { cause }));
+  }
 }
 
-/** Voices arrive asynchronously; resolve once they do, or give up and take the default. */
-function voicesReady(timeoutMs = 1000) {
-  return new Promise((resolve) => {
-    const now = window.speechSynthesis.getVoices();
-    if (now && now.length) return resolve(now);
-    const t = setTimeout(() => resolve(window.speechSynthesis.getVoices() || []), timeoutMs);
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-      clearTimeout(t);
-      resolve(window.speechSynthesis.getVoices() || []);
-    }, { once: true });
+/** The actual, current SpeechSynthesisVoice objects, not a quality-ranked catalogue. */
+export function getVoices() {
+  return voicesFrom(synthesis());
+}
+
+/** Subscribe to later voice installations/removals. The caller owns the unsubscribe. */
+export function subscribeVoices(onChange) {
+  const synth = synthesis();
+  const changed = () => onChange(voicesFrom(synth));
+  synth?.addEventListener('voiceschanged', changed);
+  return () => synth?.removeEventListener('voiceschanged', changed);
+}
+
+/** An empty list is a valid timeout result; cancellation rejects and removes the listener. */
+export function voicesReady(timeoutMs = 1000, { signal } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(cancelled());
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
+      return reject(new ProviderError('config', 'Voice readiness needs a nonnegative timeout.'));
+    }
+    const synth = synthesis();
+    const voices = voicesFrom(synth);
+    if (voices.length || !synth) return resolve(voices);
+    let timer;
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      synth.removeEventListener('voiceschanged', changed);
+      signal?.removeEventListener('abort', aborted);
+      if (error) reject(error);
+      else {
+        try { resolve(voicesFrom(synth)); }
+        catch (cause) { reject(new ProviderError('bad_response', 'Browser voices could not be read.', { cause })); }
+      }
+    };
+    const changed = () => {
+      try { if (voicesFrom(synth).length) finish(); }
+      catch (cause) { finish(new ProviderError('bad_response', 'Browser voices could not be read.', { cause })); }
+    };
+    const aborted = () => finish(cancelled());
+    synth.addEventListener('voiceschanged', changed);
+    signal?.addEventListener('abort', aborted, { once: true });
+    timer = setTimeout(() => finish(), timeoutMs);
   });
 }
 
-function pickVoice(voices, lang) {
-  if (!voices || !voices.length) return null;
-  const base = String(lang || 'en-US').slice(0, 2).toLowerCase();
-  const matching = voices.filter((v) => String(v.lang || '').toLowerCase().startsWith(base));
-  // A local voice starts speaking immediately; a network voice can lag by a second or
-  // more, which reads as the app having hung.
-  return matching.find((v) => v.localService) || matching[0] || null;
+export function validateSpeechRate(rate, { min = 0.1, max = 10 } = {}) {
+  if (typeof rate !== 'number' || !Number.isFinite(rate) || rate < min || rate > max) {
+    throw new ProviderError('config', `Speech rate must be a number from ${min} to ${max}.`);
+  }
+  return rate;
+}
+
+function pickVoice(voices, voiceURI, lang) {
+  const selected = voiceURI ? voices.find((v) => v.voiceURI === voiceURI) : null;
+  if (selected) return selected;
+  const locale = (value) => String(value || '').toLowerCase().replace(/_/g, '-');
+  const wanted = locale(lang);
+  const exact = voices.filter((v) => locale(v.lang) === wanted);
+  const sameLanguage = voices.filter((v) => locale(v.lang).split('-')[0] === wanted.split('-')[0]);
+  const candidates = exact.length ? exact : sameLanguage;
+  // Respect the browser's default within the locale. Name, order and localService are
+  // not evidence of quality. With no matching locale, leave the browser to choose.
+  return candidates.find((v) => v.default) || candidates[0] || null;
 }
 
 /**
- * Speak text and resolve when it finishes.
- *
- * Never rejects: a question that failed to be read aloud is a small loss, and it must not
- * take the interview down with it — the text is on screen either way.
- *
- * @returns {Promise<void>}
+ * Keep the existing sentence grouping, but enforce its advisory character limit even
+ * for one giant sentence/token. Never split a UTF-16 surrogate pair or drop nonspace text.
  */
-export async function speak(text, { lang = 'en-US', rate = 1.02, signal } = {}) {
-  if (!ttsSupported() || !String(text || '').trim()) return;
-  const synth = window.speechSynthesis;
-  cancelSpeech();
+export function splitSpeechText(text, { maxChars = 350, maxWords = Infinity } = {}) {
+  if (!Number.isInteger(maxChars) || maxChars < 2
+      || (maxWords !== Infinity && (!Number.isInteger(maxWords) || maxWords < 1))) {
+    throw new ProviderError('config', 'Speech chunk limits must be positive integers.');
+  }
+  const out = [];
+  for (let rest of speechChunks(text, { maxChars })) {
+    rest = rest.trim();
+    while (rest) {
+      let end = Math.min(maxChars, rest.length);
+      if (end < rest.length && /[\uD800-\uDBFF]/.test(rest[end - 1])
+          && /[\uDC00-\uDFFF]/.test(rest[end])) end--;
+      const part = rest.slice(0, end);
+      const words = [...part.matchAll(/\S+/g)];
+      if (words.length > maxWords) end = words[maxWords].index;
+      else if (end < rest.length && !/\s/.test(rest[end])) {
+        const boundary = part.search(/\s+\S*$/);
+        if (boundary > 0) end = boundary;
+      }
+      const chunk = rest.slice(0, end).trim();
+      if (chunk) out.push(chunk);
+      rest = rest.slice(end).trimStart();
+    }
+  }
+  return out;
+}
 
-  const voices = await voicesReady();
-  if (signal && signal.aborted) return;
+export function speechTimeoutMs(text, rate = 1) {
+  validateSpeechRate(rate);
+  const words = String(text).trim().split(/\s+/).length;
+  // Character length catches languages/long tokens without spaces. Engines can clamp
+  // fast rates, so only slower rates lengthen the budget; faster ones never shorten it.
+  const seconds = Math.max(words / 2.6, String(text).length / 13) / Math.min(rate, 1);
+  return Math.min(30000, 2000 + Math.ceil(seconds * 1000));
+}
 
-  await new Promise((resolve) => {
+function utter(text, { synth, voice, lang, rate, signal, onStatus, meta }) {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve(result('cancelled', meta, cancelled()));
+    const Utterance = utteranceType();
+    const u = new Utterance(text);
+    let timer;
     let settled = false;
-    const finish = () => { if (!settled) { settled = true; resolve(); } };
-
-    const u = new SpeechSynthesisUtterance(String(text));
-    u.lang = lang;
+    let announced = false;
+    const finish = (status, error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      u.onend = u.onerror = u.onstart = null;
+      if (status !== 'spoken') {
+        if (status === 'failed' && primedSynth === synth) primedSynth = null;
+        try { synth.cancel(); }
+        catch (cause) {
+          error = new ProviderError(status === 'cancelled' ? 'aborted' : 'bad_response',
+            'Browser speech could not be stopped.', { cause });
+        }
+      }
+      resolve(result(status, meta, error));
+    };
+    const abort = () => finish('cancelled', cancelled());
+    u.lang = voice?.lang || lang;
     u.rate = rate;
-    const v = pickVoice(voices, lang);
-    if (v) u.voice = v;
-    u.onend = finish;
-    u.onerror = finish;
-
-    if (signal) signal.addEventListener('abort', () => { cancelSpeech(); finish(); }, { once: true });
-
-    // Chrome drops utterances that outlast an internal ~15s watchdog and simply never
-    // fires onend. Cap the wait so hands-free mode cannot deadlock on a long question.
-    const words = String(text).trim().split(/\s+/).length;
-    setTimeout(finish, Math.min(30000, 2000 + (words / 2.6) * 1000));
-
-    synth.speak(u);
+    if (voice) u.voice = voice;
+    const speaking = () => {
+      if (settled || announced) return;
+      announced = true;
+      onStatus({ phase: 'speaking', backend: 'browser', text, ...meta });
+    };
+    u.onstart = speaking;
+    u.onend = () => finish('spoken');
+    u.onerror = (event) => {
+      const code = event.error || 'synthesis-failed';
+      const wasCancelled = code === 'interrupted' || code === 'canceled';
+      finish(wasCancelled ? 'cancelled' : 'failed', wasCancelled ? cancelled()
+        : new ProviderError(code === 'network' ? 'network' : 'config',
+          `Browser speech failed (${code}). Try a voice preview or another voice.`));
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    timer = setTimeout(() => finish('failed',
+      new ProviderError('timeout', 'Browser speech did not finish; playback was stopped.')),
+    speechTimeoutMs(text, rate));
+    try { synth.speak(u); }
+    catch (cause) {
+      finish('failed', new ProviderError('bad_response', 'Browser speech could not start.', { cause }));
+    }
   });
+}
+
+/**
+ * Backwards-compatible awaiting, now with an observable result instead of silent success.
+ * Never rejects. `voiceFallback` identifies a vanished selection; `voiceURI` is the voice
+ * actually used (empty means the browser selected its default).
+ */
+export async function speak(text, {
+  voiceURI = '', lang = 'en-US', rate = 1.02, signal, onStatus = () => {},
+} = {}) {
+  if (signal?.aborted) return result('cancelled', {}, cancelled());
+  let op;
+  let meta = { requestedVoiceURI: voiceURI, voiceURI: '', voiceFallback: false, lang, rate };
+  try {
+    validateSpeechRate(rate);
+    if (!ttsSupported()) throw new ProviderError('config', 'Browser speech is unavailable.');
+    if (!String(text || '').trim()) throw new ProviderError('config', 'There is no text to speak.');
+    if (typeof voiceURI !== 'string' || typeof lang !== 'string' || !lang.trim()) {
+      throw new ProviderError('config', 'Speech needs a voice identifier and a language.');
+    }
+    cancelSpeech();
+    op = { controller: new AbortController(), synth: synthesis() };
+    active = op;
+    const stop = signal ? AbortSignal.any([signal, op.controller.signal]) : op.controller.signal;
+    const voices = await voicesReady(1000, { signal: stop });
+    if (stop.aborted) return result('cancelled', meta, cancelled());
+    const voice = pickVoice(voices, voiceURI, lang);
+    meta = { ...meta, voiceURI: voice?.voiceURI || '', lang: voice?.lang || lang,
+      voiceFallback: !!voiceURI && voice?.voiceURI !== voiceURI };
+    onStatus({
+      phase: 'preparing', backend: 'browser', text: String(text), ...meta,
+      ...(meta.voiceFallback ? { message:
+        'The selected browser voice is unavailable; using a voice for this language instead.' } : {}),
+    });
+    const maxWords = Math.max(1, Math.floor(24 * Math.min(rate, 1)));
+    for (const chunk of splitSpeechText(text, { maxChars: maxWords * 5, maxWords })) {
+      const spoken = await utter(chunk, {
+        synth: op.synth, voice, lang, rate, signal: stop, onStatus, meta,
+      });
+      if (spoken.status !== 'spoken') return spoken;
+      if (stop.aborted) return result('cancelled', meta, cancelled());
+    }
+    return result('spoken', meta);
+  } catch (error) {
+    if (op?.controller.signal.aborted || signal?.aborted || error.code === 'aborted') {
+      return result('cancelled', meta, cancelled());
+    }
+    return result('failed', meta, error instanceof ProviderError ? error
+      : new ProviderError('bad_response', 'Browser speech failed.', { cause: error }));
+  } finally {
+    if (active === op) active = null;
+  }
 }
 
 export function cancelSpeech() {
-  if (!ttsSupported()) return;
-  try { window.speechSynthesis.cancel(); } catch { /* nothing queued */ }
+  if (active) {
+    active.controller.abort();
+    return result('cancelled');
+  }
+  try { synthesis()?.cancel(); }
+  catch (cause) {
+    return result('cancelled', {}, new ProviderError('aborted',
+      'Browser speech could not be stopped.', { cause }));
+  }
+  return result('cancelled');
 }

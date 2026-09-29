@@ -32,6 +32,26 @@ function loadFrame(src, { width = 900, height = 900, onWindow = null } = {}) {
   });
 }
 
+function checkPhoneOpening(check, doc, label) {
+  const viewport = doc.documentElement;
+  const visible = (bounds) => bounds.width > 0 && bounds.height > 0
+    && bounds.top >= 0 && bounds.bottom <= viewport.clientHeight
+    && bounds.left >= 0 && bounds.right <= viewport.clientWidth;
+  const heading = doc.querySelector('main h1').getBoundingClientRect();
+  const intro = doc.querySelector('main .lede').getBoundingClientRect();
+  const actions = doc.querySelector('main .hero-actions');
+  check(`${label}: the heading is fully visible on initial 390x844 load`,
+    doc.defaultView.scrollY === 0 && visible(heading),
+    `heading ${heading.top}-${heading.bottom}; viewport ${viewport.clientHeight}`);
+  check(`${label}: the introduction is fully visible before scrolling or closing navigation`,
+    visible(intro), `introduction ${intro.top}-${intro.bottom}; viewport ${viewport.clientHeight}`);
+  if (actions) {
+    const bounds = actions.getBoundingClientRect();
+    check(`${label}: the main actions are visible on initial phone load`,
+      visible(bounds), `actions ${bounds.top}-${bounds.bottom}; viewport ${viewport.clientHeight}`);
+  }
+}
+
 export default async function run(check, { subpath }) {
   // Register and activate the app worker first. The guide lives under that root scope, so
   // this is the only proof that the explicit bypass wins over the app-shell fallback.
@@ -65,6 +85,10 @@ export default async function run(check, { subpath }) {
   const navLinks = [...guideDoc.querySelectorAll('.docs-nav a')];
   check('the guide navigation lists every documentation page',
     navLinks.length === GUIDE_PAGES.length, `${navLinks.length} links`);
+  const desktopList = guideDoc.querySelector('.docs-nav ul');
+  check('desktop navigation keeps the full list without the mobile scroll cue',
+    desktopList.scrollHeight === desktopList.clientHeight
+      && !guideDoc.querySelector('.nav-hint').getClientRects().length);
 
   const responses = await Promise.all(GUIDE_PAGES.map(async (page) => {
     const response = await fetch(`/guide/${page}`);
@@ -76,6 +100,70 @@ export default async function run(check, { subpath }) {
   check('no guide route resolves to the application document',
     responses.every((result) => /<html lang="en">/.test(result.text)
       && !result.text.includes('id="panel-setup"')));
+
+  for (const page of GUIDE_PAGES) {
+    const narrow = await loadFrame(`/guide/${page}`, { width: 390, height: 844 });
+    try {
+      const doc = narrow.contentDocument;
+      checkPhoneOpening(check, doc, page);
+      narrow.width = 320;
+      await settle(100);
+      check(`${page} has no page overflow at 320 CSS pixels`,
+        doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
+        `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
+      check(`${page} keeps local styling and no guide scripts`,
+        doc.scripts.length === 0
+          && [...doc.styleSheets].some((sheet) =>
+            sheet.href && new URL(sheet.href).pathname === '/guide/assets/guide.css'));
+      check(`${page} has usable narrow navigation targets`,
+        [...doc.querySelectorAll('.docs-nav a')].every((link) =>
+          link.getBoundingClientRect().height >= 44));
+    } finally {
+      narrow.remove();
+    }
+  }
+
+  for (const base of ['/', subpath]) {
+    const voice = await loadFrame(`${base}guide/mobile-and-voice.html`, { width: 390, height: 844 });
+    try {
+      const doc = voice.contentDocument;
+      checkPhoneOpening(check, doc, `${base}mobile-and-voice.html`);
+      for (const stem of ['08-voice-listening', '09-voice-paused']) {
+        const image = doc.querySelector(`img[src$="${stem}.light.png"]`);
+        let error = '';
+        if (image) {
+          image.loading = 'eager';
+          try { await image.decode(); } catch (err) { error = err.message; }
+        }
+        check(`${base}guide renders the ${stem} capture`,
+          !!image && !error && image.naturalWidth > 0
+            && new URL(image.currentSrc).pathname.startsWith(`${base}docs/screenshots/`),
+          error || image?.currentSrc || 'image missing');
+        if (image?.naturalWidth) {
+          const bounds = image.getBoundingClientRect();
+          check(`${stem} keeps its aspect ratio at phone width under ${base}`,
+            bounds.width <= doc.documentElement.clientWidth
+              && Math.abs(bounds.width / bounds.height - image.naturalWidth / image.naturalHeight) < .02);
+        }
+      }
+      const list = doc.querySelector('.docs-nav ul');
+      list.focus();
+      check(`${base}phone navigation's scroll region is keyboard focusable`,
+        doc.activeElement === list && list.scrollHeight > list.clientHeight);
+      const last = list.querySelector('li:last-child a');
+      last.focus();
+      await settle(100);
+      const listBounds = list.getBoundingClientRect();
+      const lastBounds = last.getBoundingClientRect();
+      check(`${base}focusing the last navigation link scrolls it fully into view`,
+        doc.activeElement === last && list.scrollTop > 0
+          && lastBounds.top >= listBounds.top && lastBounds.bottom <= listBounds.bottom
+          && lastBounds.top >= 0 && lastBounds.bottom <= doc.documentElement.clientHeight,
+        `link ${lastBounds.top}-${lastBounds.bottom}; list ${listBounds.top}-${listBounds.bottom}`);
+    } finally {
+      voice.remove();
+    }
+  }
 
   const cacheNames = await caches.keys();
   const cachedGuide = [];
@@ -96,6 +184,27 @@ export default async function run(check, { subpath }) {
   check('the guide has no horizontal overflow at a phone width',
     guideDoc.documentElement.scrollWidth <= guideDoc.documentElement.clientWidth,
     `${guideDoc.documentElement.scrollWidth}/${guideDoc.documentElement.clientWidth}`);
+
+  const contents = guideDoc.querySelector('.docs-nav details');
+  const summary = contents.querySelector('summary');
+  summary.click();
+  check('the narrow guide navigation collapses without page JavaScript',
+    !contents.open && !contents.querySelector('ul').getClientRects().length
+      && !contents.querySelector('.nav-hint').getClientRects().length);
+  guide.width = 900;
+  await settle(100);
+  check('collapsed navigation remains operable after widening the page',
+    summary.getBoundingClientRect().height > 0);
+  summary.click();
+  check('the guide navigation can be reopened without page JavaScript',
+    contents.open && contents.querySelector('ul').getClientRects().length > 0);
+
+  const skip = guideDoc.querySelector('.skip-link');
+  skip.focus();
+  check('the focused skip link is visible above the header',
+    skip.getBoundingClientRect().top >= 0
+      && Number(guide.contentWindow.getComputedStyle(skip).zIndex)
+        > Number(guide.contentWindow.getComputedStyle(guideDoc.querySelector('.site-header')).zIndex));
 
   const subViolations = [];
   const subGuide = await loadFrame(`${subpath}guide/`, {

@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -425,17 +425,22 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
 
       <h2 id="voice-fails">Voice or dictation is unavailable</h2>
       <ol>
-        <li>Confirm microphone permission for the exact app origin.</li>
         <li>
-          If the mic button is absent, read the setup message. It distinguishes the two
-          causes that look identical from inside the page: a microphone blocked for the site,
-          which you fix in the browser's site settings and then start an interview again, and
-          a recogniser that exists but fails its proof-of-life check, which you work around
-          with a transcription key.
+          Confirm microphone permission for the exact app origin and the selected
+          <strong>Dictation</strong> setting. <strong>Off &mdash; keyboard only</strong>
+          disables voice input, not a provider connection.
         </li>
         <li>
-          In an installed iPhone app, Edge, or Firefox, configure Groq or OpenAI
-          transcription instead of relying on browser recognition.
+          Read the voice stage or setup message. It distinguishes the two
+          causes that look identical from inside the page: a microphone blocked for the site,
+          which you fix in the browser's site settings before tapping Resume, and
+          a recogniser that exists but fails its proof-of-life check, which you work around
+          by choosing hosted transcription. Exit restores typing without ending the interview.
+        </li>
+        <li>
+          If browser recognition is unavailable, particularly in an installed iPhone
+          app, configure Groq or OpenAI transcription. A speech-output key cannot provide
+          dictation. Physical Android/iPhone behaviour for the redesign remains untested.
         </li>
         <li>
           If inference and transcription use different providers, paste the separate
@@ -447,17 +452,77 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
           than sent for transcription.
         </li>
         <li>
-          If a dictated answer repeats its own opening words, such as
-          <q>I I want I want to&hellip;</q>, the page is running a copy of the app from before
-          v0.6.1. Reload it twice: the service worker fetches the new version on the first
-          load and uses it on the second. If it persists, report the browser, the device, and
-          whether a Bluetooth headset or car was the microphone.
+          If a dictated answer repeats its opening words, first rule out a stale app shell
+          with the <a href="#page-does-not-load">reload procedure</a>. If it persists,
+          report the browser, device and microphone route; do not assume every repeated
+          phrase is a version problem.
         </li>
       </ol>
       <p>
         See <a href="./mobile-and-voice.html">Mobile and voice</a> for hands-free commands,
         trigger-word rules, and platform-specific setup.
       </p>
+
+      <h3 id="voice-meter">The meter is still, but dictation works</h3>
+      <p>
+        A level display needs actual microphone samples. Some browsers cannot share input
+        between native recognition and a separate level monitor. IdeaForge turns the
+        monitor off with an explanation rather than making recognition fail for a
+        waveform. A still indicator while speaking, processing or paused is intentional;
+        it is not a recording meter for the assistant&rsquo;s output.
+      </p>
+
+      <h3 id="voice-paused">Voice has paused or will not resume by speech</h3>
+      <p>
+        Paused means the microphone is released. Saying <q>resume</q> cannot wake it;
+        tap <strong>Resume</strong>. If the button is temporarily unavailable, captured
+        audio may still be finishing transcription. Read any failure message and check
+        the retained draft. A submitted model request may also finish while paused,
+        without starting the next capture.
+      </p>
+      <p>
+        Leaving the page or putting it in the background pauses the voice run. A wake lock
+        is best-effort and does not grant background or lock-screen operation.
+        <q>pause voice</q> and <q>exit voice</q> are whole-utterance commands only while
+        listening; neither interrupts a spoken reply. Use the on-screen buttons instead.
+      </p>
+
+      <h3 id="speech-fails">Questions appear, but spoken replies fail</h3>
+      <ol class="steps">
+        <li>
+          Exit to the manual interview and open Settings. Expand
+          <strong>Voice and speaking pace</strong> and try <strong>Preview voice</strong>
+          from a tap. Check device volume and audio route, and choose another browser
+          voice if the saved one has disappeared.
+        </li>
+        <li>
+          Check the voice&rsquo;s on-device/network label. Browser voices and recognition
+          are not guaranteed offline. The browser decides which voices are exposed; a
+          voice installed elsewhere on the device need not appear in this list.
+        </li>
+        <li>
+          For OpenAI speech, enter its separate key, confirm synthetic speech, metered use
+          and text transfer, then use <strong>Check and preview OpenAI voice</strong>.
+          Passing <strong>Check the key</strong> for the question model does not pass this
+          speech check.
+        </li>
+        <li>
+          If the hosted preview fails, read its error. A rejected key, unavailable service,
+          CORS-blocked response, invalid audio or blocked playback are different failures.
+          Do not widen the CSP, add a proxy or treat a browser fallback as a hosted success.
+        </li>
+        <li>
+          After a hosted failure during the interview, check the visible backend label:
+          browser speech is the fallback. If that cannot play either, use Resume for a
+          fresh gesture or Exit to continue typing.
+        </li>
+      </ol>
+      <div class="callout warning">
+        <strong>Live hosted CORS and voice quality remain unverified by the developer.</strong>
+        No authorised speech key or spending cap was supplied for this redesign. A
+        successful in-app preview proves that attempt in that browser, not every device
+        or future request. Repeating the preview can incur another metered request.
+      </div>
 
       <h2 id="validation-fails">The real-model validator fails</h2>
       <div class="table-wrap">
@@ -535,6 +600,7 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
         <li>the exact app origin and whether it was hosted, local, or containerised;</li>
         <li>browser and operating-system versions;</li>
         <li>the selected provider, both model choices, and for local models the base URL;</li>
+        <li>for voice, the input and output choices, visible state, audio route and tab/installed mode;</li>
         <li>the complete visible error and relevant console warning;</li>
         <li>whether Check the key or Check the connection passed;</li>
         <li>the smallest safe reproduction, with all API keys and sensitive transcript text removed.</li>
@@ -566,6 +632,14 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
         <a href="https://github.com/jaypetez/ideaforge/blob/main/docker/compose.yml"><code>docker/compose.yml</code></a>
         and
         <a href="https://github.com/jaypetez/ideaforge/blob/main/tools/validate-local.mjs"><code>tools/validate-local.mjs</code></a>.
+      </p>
+      <p>
+        Voice input and meter degradation are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/index.js"><code>src/voice/index.js</code></a>.
+        Output results and fallback are in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/voice/output.js"><code>src/voice/output.js</code></a>;
+        the stage lifecycle and recovery controls are coordinated in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/src/ui/app.js"><code>src/ui/app.js</code></a>.
       </p>
 
       <footer class="page-footer">

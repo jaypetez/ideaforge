@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -98,25 +98,25 @@
             </tr>
             <tr>
               <td><code>src/providers/</code></td>
-              <td>Inference requests, authentication, model discovery, and provider errors.</td>
-              <td>The only source directory that directly owns model network access.</td>
+              <td>Inference and hosted speech requests, authentication, model discovery and errors.</td>
+              <td>Shared HTTP policy and fixed/allowlisted provider endpoints.</td>
             </tr>
             <tr>
               <td><code>src/store/</code></td>
               <td>
-                IndexedDB sessions and preferences, backup persistence/import integration,
+                IndexedDB sessions, local device preferences, backup persistence/import integration,
                 and the encrypted keyring.
               </td>
               <td>Browser storage stays behind small adapters.</td>
             </tr>
             <tr>
               <td><code>src/voice/</code></td>
-              <td>Recording, silence detection, speech recognition, transcription, and speech.</td>
+              <td>Recording, real input levels, recognition, transcription, native speech and buffered playback.</td>
               <td>Browser capability is proved by behaviour, not presence alone.</td>
             </tr>
             <tr>
               <td><code>src/ui/</code></td>
-              <td>The application shell, panels, navigation, and browser coordination.</td>
+              <td>The shell, voice stage, navigation, session identity guards and browser coordination.</td>
               <td>The only layer that directly owns the DOM.</td>
             </tr>
           </tbody>
@@ -172,7 +172,7 @@ npm run test:all</code></pre>
               <td><code>npm run test:browser:required</code></td>
               <td>
                 IndexedDB, WebCrypto, media, speech, service workers, CSP, the guide, and the
-                assembled site in headless Chrome.
+                assembled site, plus a separate real Web Audio/trusted-gesture policy phase.
               </td>
               <td>For any browser-owned surface. Missing Chrome is a failure.</td>
             </tr>
@@ -190,6 +190,31 @@ npm run test:all</code></pre>
         probes under <code>test/browser/</code>. A real local-model run is a separate,
         deliberate check through <code>npm run validate:local</code>; it is not a replacement
         for the deterministic suite.
+      </p>
+
+      <h3 id="voice-evidence">Keep voice evidence in separate categories</h3>
+      <p>
+        <code>tools/browser-check.mjs</code> runs the media probes with a synthetic
+        microphone and an autoplay bypass. They exercise ordering, cancellation and
+        recovery, not a person granting permission or native recognition competing for
+        a physical microphone.
+      </p>
+      <p>
+        The required browser command also runs
+        <code>tools/browser-policy-check.mjs</code> in fresh profiles. It exercises real
+        Web Audio before and after trusted gestures, with synthetic-microphone cases
+        identified separately. Its app phase exercises the real Preview, Start, Resume,
+        Pause and Exit handlers with trusted input and decoded audio, but scripted
+        model/recognition and fake speech HTTP. This is playback-policy evidence, not live provider CORS
+        or a voice-quality audition.
+      </p>
+      <p>
+        No authorised live speech key or spending cap was supplied for this redesign.
+        Hosted CORS and voice quality remain unverified by the developer, and the in-app
+        preview is a per-browser enablement gate rather than a compatibility promise.
+        Physical Android/iPhone checks also remain unperformed, in tabs and installed
+        mode. Record those limits explicitly in delivery evidence; desktop emulation
+        cannot turn them into passes.
       </p>
 
       <h2 id="extension-seams">Extend through the existing seams</h2>
@@ -221,8 +246,9 @@ npm run test:all</code></pre>
           <strong>Add voice behaviour</strong>
           <span>
             Keep matching and state transitions pure, put browser media in
-            <code>src/voice/</code>, and prove event ordering and no-tap recovery with the
-            browser fixtures.
+            <code>src/voice/</code>, and prove turn-taking, bounded recovery, explicit
+            Pause/Resume/Exit and resource release. Keep hosted speech consent and keys
+            independent from inference and transcription.
           </span>
         </div>
       </div>
@@ -232,6 +258,29 @@ npm run test:all</code></pre>
         skills</a> <code>add-provider</code> and <code>change-voice-and-driving</code> carry
         the subsystem-specific checks. A new file under <code>src/</code> must also appear in
         <code>sw.js</code>; the wiring tests enforce that cold offline path.
+      </p>
+
+      <h3 id="documentation-artifacts">Keep the guide and captures tied to the app</h3>
+      <p>
+        <code>npm run screenshots</code> drives the real app with scripted model and voice
+        input. It regenerates the manual light/dark pairs, listening and paused voice
+        views, and the worked example. Review the images and reject font warnings,
+        dimension mismatches or an incorrect wrap reason; a second run must leave the
+        example unchanged. Never substitute a hand-edited export or a live paid provider.
+      </p>
+      <p>
+        The setup capture rejects a crop that would cut off
+        <strong>Start with voice</strong>, <strong>Type instead</strong> or the footer.
+        Fix the real setup layout rather than hiding controls only for screenshots.
+        <strong>Model options</strong> and <strong>Voice and speaking pace</strong> are
+        disclosures in the shipped app, not capture-only shortcuts.
+      </p>
+      <p>
+        The guide shares one local stylesheet, system fonts and restrictive CSP, with no
+        guide JavaScript. Run <code>npm run test:docs</code> for inventories, source facts
+        and links, and the required browser command for screenshot loading, narrow layout,
+        navigation and Pages-style subpaths. Screenshot captures do not prove voice quality
+        or physical-device support.
       </p>
 
       <h2 id="contributing">Contribute a focused change</h2>

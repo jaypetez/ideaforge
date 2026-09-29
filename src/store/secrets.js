@@ -85,6 +85,7 @@ export function emptyKeyring() {
     active: null,
     byKind: {},
     stt: { kind: null, apiKey: '' },
+    tts: speechRecord(),
   };
 }
 
@@ -124,6 +125,7 @@ function normalise(raw) {
   if (raw.stt && typeof raw.stt === 'object') {
     ring.stt = { kind: str(raw.stt.kind) || null, apiKey: str(raw.stt.apiKey) };
   }
+  if (raw.tts && typeof raw.tts === 'object') ring.tts = speechRecord(raw.tts);
   return ring;
 }
 
@@ -137,6 +139,15 @@ const record = (r) => ({
   model: str(r.model), wrapModel: str(r.wrapModel),
 });
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+function speechRecord(value = {}) {
+  return {
+    kind: value.kind === 'openai' ? 'openai' : 'browser',
+    apiKey: str(value.apiKey),
+    voice: value.voice === 'cedar' ? 'cedar' : 'marin',
+    verified: value.verified === true && !!str(value.apiKey),
+  };
+}
 
 /** One provider's record, always an object, so no call site needs a guard. */
 export function credsFor(ring, kind) {
@@ -161,6 +172,12 @@ export function withStt(ring, stt) {
   return { ...base, stt: { kind: str(stt && stt.kind) || null, apiKey: str(stt && stt.apiKey) } };
 }
 
+/** Speech is an independent opt-in; choosing it must not change the interview provider. */
+export function withTts(ring, tts) {
+  const base = ring && ring.version === CREDENTIALS_VERSION ? ring : emptyKeyring();
+  return { ...base, tts: speechRecord(tts || {}) };
+}
+
 /**
  * True when the ring holds a secret at all — what the Forget button keys off. A ring
  * holding only {ollama: {baseUrl, model}} has nothing to forget, and offering to forget
@@ -169,6 +186,7 @@ export function withStt(ring, stt) {
 export function hasAnyKey(ring) {
   if (!ring) return false;
   if (ring.stt && ring.stt.apiKey) return true;
+  if (ring.tts && ring.tts.apiKey) return true;
   return Object.values(ring.byKind || {}).some((r) => r && r.apiKey);
 }
 

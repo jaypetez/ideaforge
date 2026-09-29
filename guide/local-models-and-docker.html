@@ -28,8 +28,8 @@
   <div class="layout">
     <nav class="docs-nav" aria-label="Documentation">
       <details open>
-        <summary>Documentation</summary>
-        <ul>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
           <li><a href="./">Overview</a></li>
           <li><a href="./getting-started.html">Getting started</a></li>
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
@@ -137,8 +137,11 @@
           Prefer a server address such as <code>http://127.0.0.1:11434/v1</code>. Press
           <strong>Check the connection</strong>.
         </li>
-        <li>Choose an installed model from the suggestions, or type its exact identifier.
-            Leave the wrap-up field blank and the same model runs that call too.</li>
+        <li>
+          <strong>Model options</strong> opens automatically for a local provider.
+          Choose an installed question model from the suggestions, or type its exact
+          identifier. Leave the wrap-up field blank and the same model runs that call too.
+        </li>
       </ol>
 
       <h2 id="source-compose">Run the source Compose stack</h2>

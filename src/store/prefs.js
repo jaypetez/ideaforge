@@ -22,24 +22,43 @@ const DEFAULTS = {
   trigger: '',
   /** Whether hands-free was on last time, so a regular driver is not re-ticking a box. */
   handsFree: false,
+  speechVoice: '',
+  speechRate: 1,
+  hostedSpeechAllowed: false,
 };
 
-/** @returns {{trigger: string, handsFree: boolean}} never throws, never null */
+export function speechPreferences(value = {}) {
+  return {
+    speechVoice: typeof value.speechVoice === 'string' ? value.speechVoice.slice(0, 512) : '',
+    speechRate: Number.isFinite(value.speechRate)
+      && value.speechRate >= 0.75 && value.speechRate <= 1.25 ? value.speechRate : 1,
+  };
+}
+
+/** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number,
+ *             hostedSpeechAllowed: boolean}} */
 export function loadPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
     const stored = JSON.parse(raw);
     if (!stored || typeof stored !== 'object') return { ...DEFAULTS };
-    return { ...DEFAULTS, ...stored };
+    return {
+      ...DEFAULTS, ...stored, ...speechPreferences(stored),
+      hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
+    };
   } catch {
     return { ...DEFAULTS };
   }
 }
 
-/** Merge and write. Silent on failure: a preference is not worth an error message. */
+/** Merge and write. Callers handling consent use the result to report a failed write. */
 export function savePrefs(patch) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...loadPrefs(), ...patch }));
-  } catch { /* private window, or the quota is full of something that matters more */ }
+    const next = { ...loadPrefs(), ...patch };
+    localStorage.setItem(KEY, JSON.stringify({ ...next, ...speechPreferences(next) }));
+    return true;
+  } catch {
+    return false;
+  }
 }

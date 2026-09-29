@@ -39,7 +39,7 @@ automatically loaded the linked file.
 
 The shared skills are:
 
-- `add-provider` for inference and transcription endpoints;
+- `add-provider` for inference, transcription and hosted speech endpoints;
 - `change-voice-and-driving` for microphone, speech, and hands-free behavior;
 - `validate-local-model` for the real Ollama/GPU harness;
 - `update-documentation` for the public guide and every source-derived documentation surface;
@@ -109,9 +109,9 @@ No repository plugin, hook, or extension is needed.
 ```
 src/core/       pure interview logic — no DOM, no network, no clock, no randomness
 src/runtime/    the turn loop — provider and clock are injected
-src/providers/  the only place allowed to touch the network
+src/providers/  inference and hosted speech requests, shared HTTP policy
 src/store/      IndexedDB and the encrypted key
-src/voice/      microphone, transcription, speech
+src/voice/      microphone, transcription requests, native speech and playback
 src/ui/         the app shell
 ```
 
@@ -165,6 +165,12 @@ produces a useful message rather than an opaque `TypeError` — browsers strip C
 from some 401s, so the real error never reaches the page — and that the preflight survives
 a real browser. `npm run serve`, paste a key, and name the browser in the PR.
 
+Hosted speech is a separate seam: `src/providers/tts.js` owns its bounded requests and
+`src/voice/output.js` owns output selection and fallback. Preserve the separate encrypted
+speech key, explicit consent and no-fallback preview gate in the UI. A model key check
+does not prove speech compatibility. Do not run live paid checks without an explicitly
+authorised key and spending cap; use injected transport and local audio fixtures otherwise.
+
 ## Where everything else goes
 
 `docs/ARCHITECTURE.md` is the map: what owns the session, what happens when a turn fails,
@@ -191,11 +197,12 @@ together. The README remains the landing page, not a second copy of the full gui
 - **Voice answers are a distinct provenance.** `source: 'voice'` exempts an answer from the
   terse and dodge thresholds because dictation rambles. Chip and unedited-draft answers are
   capped at `partial` because they are the model's words, not the user's.
-- **Hands-free must never come to rest waiting for a tap.** `src/runtime/drive.js` recovers
-  from an empty capture, a recogniser error and a dead recogniser by talking to the user, and
-  the one test that matters asserts literally that no recovery mentions tapping or typing.
-  A new spoken command is a phrase list in `src/core/driving.js` plus a branch in the loop —
-  and it must yield empty answer text, or `RE_REFUSAL` will record the command as a refusal.
+- **Voice takes turns; cancellation stops progression.** `src/runtime/drive.js` serialises
+  speaking, listening and submission, with bounded no-tap recovery for transient misses.
+  Explicit Pause or a blocked input/output path stands down; Resume requires a tap.
+  The UI releases capture/playback and preserves the originating session's draft or
+  already-submitted work. A spoken command belongs in `src/core/driving.js` and the loop,
+  and must yield empty answer text rather than becoming an answer.
 
 ## Tests
 
@@ -210,6 +217,14 @@ comments say which.
 For public documentation work, run `npm run test:docs` while editing. Guide routing,
 service-worker, screenshot or app-link changes also need `npm run test:browser:required`;
 the all-up pre-push gate remains `npm run test:all`.
+
+The required browser command also runs `tools/browser-policy-check.mjs`: fresh-profile,
+real Web Audio checks with trusted gestures, separate from the synthetic microphone suite's
+autoplay bypass. Keep those evidence classes separate in a PR. Neither replaces real
+permission UI, native recogniser contention, physical Android/iPhone checks or a live
+hosted-speech audition. Record untested cases explicitly, including tab versus installed
+mode. No live hosted CORS/quality or physical Android/iPhone result is recorded for this
+redesign; its per-browser preview gate must not be described as general compatibility.
 
 ## Pull requests
 
