@@ -39,7 +39,8 @@ const PROBE_MS = 1500;
  */
 const PROMPT_MS = 20000;
 /**
- * How long a dictation session may go with no event of any kind before we give up on it.
+ * How long a dictation session may go without proof of life before we give up on it: no
+ * result before the first word, no event of any kind after it.
  *
  * Generous, because it is a last resort and not a turn timer: a speaker thinking in silence
  * produces no events either, and cutting them off would be a worse bug than the one this
@@ -480,11 +481,15 @@ export function listenViaWebSpeech({
   }
 
   /**
-   * A result is proof the engine can hear; the deadline restarts from it, and from nothing
-   * else. Starts, restarts and `no-speech` errors once counted too, and that is exactly the
+   * Proof of life restarts the deadline. Until the first word, only a result counts as proof.
+   * Starts, restarts and `no-speech` errors once counted too, and that is exactly the
    * lifecycle of an Android recogniser that hears nothing: it ends every few seconds, is
    * restarted, and each restart pushed the deadline back — so a deaf capture listened for
    * ever, and "over" was never heard because no word ever was.
+   *
+   * Once a word has arrived the engine has shown it can hear, and any event counts again.
+   * A driver who stops mid-answer to change lane produces nothing but those restarts; ending
+   * on them would submit half an answer without its trigger word.
    *
    * Giving up RESOLVES with whatever was heard rather than rejecting, because a dead engine
    * is a small loss and not an error — the same judgement speak.js makes about an utterance
@@ -498,6 +503,10 @@ export function listenViaWebSpeech({
       settle(() => resolve(answer()));
     }, deafMs);
   }
+
+  let wordsHeard = false;
+  /** A lifecycle event: proof of life only for an engine that has already heard a word. */
+  const lifecycle = () => { if (wordsHeard) alive(); };
 
   // Finals from EARLIER sessions of this same capture, kept apart from the current
   // session's. Android ends a session every few seconds whatever `continuous` says, so one
@@ -548,6 +557,7 @@ export function listenViaWebSpeech({
     }
     alive();
     const so = now();
+    if (so.text.trim()) wordsHeard = true;
     if (onInterim) onInterim(so.text);
     if (isComplete && wantMore) judge(so.text, so.settled);
   };
@@ -596,6 +606,7 @@ export function listenViaWebSpeech({
 
   rec.onerror = (ev) => {
     if (settled) return;
+    lifecycle();
     const kind = ev && ev.error;
     if (kind === 'audio-capture') onAudioError?.();
     if (kind === 'no-speech' || kind === 'aborted') return;   // onend will settle it
@@ -612,6 +623,7 @@ export function listenViaWebSpeech({
   };
 
   rec.onstart = rec.onaudiostart = () => {
+    lifecycle();
     if (!settled && wantMore) onStart?.();
   };
 
@@ -626,7 +638,7 @@ export function listenViaWebSpeech({
       session = [];
       sessionNo += 1;
       sessionSentInterim = false;
-      try { rec.start(); return; } catch { /* fall through and settle */ }
+      try { rec.start(); lifecycle(); return; } catch { /* fall through and settle */ }
     }
     settle(() => resolve(answer()));
   };

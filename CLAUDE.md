@@ -303,14 +303,19 @@ enough that the eighth failure case never gets written.
 - **The deaf watchdog in `webspeech.js` resolves, never rejects.** An engine that emits one
   interim and then goes silent used to leave the promise unsettled for ever. It is the same
   installed-iOS failure `probeWebSpeech` guards the *start* against, arriving later than the
-  probe can see. **Only a result resets it.** Android's deaf engine starts, reports
-  `no-speech` and ends every few seconds; counting those as proof of life let every restart
-  push the deadline back, and hands-free listened for ever.
+  probe can see. **Until the first word, only a result resets it.** Android's deaf engine
+  starts, reports `no-speech` and ends every few seconds; counting those as proof of life let
+  every restart push the deadline back, and hands-free listened for ever. After a word they
+  count again, because then they are a driver pausing mid-answer, and ending there would
+  submit half an answer without its trigger.
 - **On Android the level meter can starve recognition, silently.** A page-held
   `getUserMedia` track moves the bars while the recogniser hears nothing and raises no
   `audio-capture`. `meterStarvesRecognition` (`src/voice/vad.js`) judges it by behaviour —
-  seconds of metered speech, no word — and `runCapture` releases the meter and restarts
-  dictation once. The fake's `starveWhile` in `test/browser/fixtures/fake-voice.js` is the
+  seconds of metered speech, no word — and `runCapture` releases the meter for the rest of
+  the page's life. **What was said while starved is gone**, so hands-free resolves `''` (a
+  spoken miss, then the whole answer again) instead of retrying into the second half of a
+  sentence; only press-to-talk retries. The fake's `starveWhile` in
+  `test/browser/fixtures/fake-voice.js` drops starved words for the same reason and is the
   only reproduction; no physical Android run has confirmed the mechanism.
 - **`DRIVING_GATE` numbers are first guesses against an imagined car.** The tests assert the
   *direction* of each change from `DEFAULTS`, never the value. Only a real drive settles them.

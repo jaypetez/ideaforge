@@ -26,6 +26,17 @@ export { primeSpeech, ttsSupported, cancelSpeech } from './speak.js';
 export { forgetVerdict } from './webspeech.js';
 
 /**
+ * Why the level meter starved recognition on this page, once it has. Page lifetime, not
+ * controller lifetime: press-to-talk disposes its controller after every answer and Resume
+ * builds a new one, and each would otherwise open the meter, starve the recogniser and lose
+ * the start of an answer all over again. Deliberately not persisted — nothing has confirmed
+ * the mechanism on a physical phone, so a wrong verdict should not outlive a reload.
+ */
+let starvedMeter = null;
+/** For tests: forget the page's starvation verdict. */
+export function forgetStarvedMeter() { starvedMeter = null; }
+
+/**
  * @param {{stt?: object, lang?: string, preferRecorder?: boolean, signal?: AbortSignal}} opts
  *   stt — credentials for the transcription fallback; without them, voice is Web-Speech-only
  *   signal — construction only; rejects AbortError and releases the probe on cancellation.
@@ -72,7 +83,7 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
   let paused = false;
   let pausePromise = null;
   let disposal = null;
-  let meterUnavailable = null;
+  let meterUnavailable = starvedMeter;
   let interruptedDraft = '';
 
   function assertOpen() {
@@ -285,14 +296,19 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
         let retryWithoutMeter = false;
         let starved = false;
         // A starved recogniser fails silently rather than with `audio-capture`: the meter
-        // hears speech, the recogniser hears nothing and just restarts. Nothing was heard, so
-        // the session is thrown away and begun again with the microphone released to it.
+        // hears speech, the recogniser hears nothing and just restarts. What was said while
+        // it was starved is gone — the recogniser never heard it — so the session is thrown
+        // away. Hands-free resolves '' at once, which is a miss: the loop says so aloud and
+        // the driver repeats the answer whole. Retrying silently there would hear only the
+        // rest of the sentence and submit it without its beginning. Press-to-talk retries,
+        // because that speaker is watching the answer box and the warning above it.
         op.starved = () => {
           if (retried || retryWithoutMeter || !listening(op)) return;
           retryWithoutMeter = starved = true;
           disableMeter(op, opts,
             'The microphone cannot feed level monitoring and dictation at once here. '
             + 'Dictation continues without the level bars.');
+          starvedMeter = meterUnavailable;
           op.session?.abort();
         };
         op.session = listenViaWebSpeech({
@@ -328,7 +344,7 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
         } finally {
           op.session = null;
         }
-        if (starved && !retried && listening(op)) { retried = true; continue; }
+        if (starved && !retried && !opts.isComplete && listening(op)) { retried = true; continue; }
         return text;
       }
     }

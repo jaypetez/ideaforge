@@ -837,6 +837,23 @@ export default async function run(check) {
       cycled.error ? cycled.error.message : `${Math.round(performance.now() - cycleStart)}ms, ${restarts} sessions`);
     fake.script([]);
 
+    // ...but once a word has arrived the engine has proved it can hear, and those restarts
+    // are a driver pausing mid-answer to change lane. Ending on them submitted half an
+    // answer without its trigger word, so they count as proof of life again.
+    const lanePause = Array.from({ length: 20 }, () => [{ at: 40, error: 'no-speech' }, { at: 50, end: true }]);
+    fake.script([
+      [draft(10, 'it should work offline because'), { at: 50, end: true }],
+      ...lanePause,
+      [draft(10, 'the venue has no signal over')],
+    ]);
+    const paused = await outcome(within(
+      listenViaWebSpeech({ autoStop: false, deafMs: 400, settleMs: 50, isComplete: (t) => endsWithTrigger(t) }).promise,
+      4000, 'an answer resumed after a long pause'));
+    check('a pause longer than the deaf deadline mid-answer does not cut the answer short',
+      paused.value === 'it should work offline because the venue has no signal over',
+      paused.error ? paused.error.message : JSON.stringify(paused.value));
+    fake.script([]);
+
     // ── stop() and abort() ─────────────────────────────────────────────────
 
     const pressToTalk = heard([

@@ -38,6 +38,8 @@
     startCount: 0,
     stopCount: 0,
     abortCount: 0,
+    /** Scripted steps a starved recogniser never heard. */
+    starvedSteps: 0,
     /** One entry per listening session, with the flags the caller set on it. */
     sessions: [],
     scriptRemaining: () => queue.length,
@@ -116,8 +118,8 @@
 
     // Android's starved shape: the page holds the microphone, so the recogniser starts,
     // hears nothing, reports no-speech and ends a moment later — and never raises the
-    // audio-capture error that would say why. It does not consume the script, because the
-    // words were never heard; they are what the next unstarved session will hear.
+    // audio-capture error that would say why. A session that starts starved takes nothing
+    // from the script: that is the next thing said once the recogniser can hear again.
     if (starved && starved.when()) {
       this._starve();
       this._timers.push(setTimeout(() => { if (this.onstart) this.onstart(); }, 1));
@@ -148,11 +150,12 @@
     if (!this._live) return;
 
     // The meter took the microphone mid-session, which is the ordinary order: recognition
-    // starts, then the app opens its meter. What was still to be said goes back unheard.
+    // starts, then the app opens its meter. What is said from here on is LOST — a starved
+    // recogniser never heard it, so no later session can. Replaying it made a silent retry
+    // look like a full recovery when a real one would have heard only the rest.
     if (starved && steps && starved.when()) {
-      const from = step.at || 0;
       this._clear();
-      queue.unshift(steps.slice(i).map((s) => Object.assign({}, s, { at: Math.max(0, (s.at || 0) - from) })));
+      recognition.starvedSteps += steps.length - i;
       this._starve();
       return;
     }
@@ -310,6 +313,7 @@
       recognition.startCount = 0;
       recognition.stopCount = 0;
       recognition.abortCount = 0;
+      recognition.starvedSteps = 0;
       recognition.sessions.length = 0;
       synthesis.spoken.length = 0;
       synthesis.cancels = 0;
