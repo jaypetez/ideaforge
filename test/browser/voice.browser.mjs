@@ -10,8 +10,10 @@
 
 import { probeWebSpeech, forgetVerdict, cachedVerdict, webSpeechPresent } from '../../src/voice/webspeech.js';
 import { createRecorder, micSupported } from '../../src/voice/recorder.js';
-import { createVoice } from '../../src/voice/index.js';
+import { createVoice, forgetStarvedMeter } from '../../src/voice/index.js';
 import { ttsSupported } from '../../src/voice/speak.js';
+import { endsWithTrigger } from '../../src/core/driving.js';
+import { STARVED_SPEECH_MS } from '../../src/voice/vad.js';
 
 /** Stand in for a recogniser that reports itself present and then does nothing. */
 class SilentRecognition {
@@ -291,6 +293,9 @@ async function withMedia({ acquire, configureContext, configureRecorder } = {}, 
     await Promise.all(seen.contexts.filter((ctx) => ctx.state !== 'closed').map((ctx) => ctx.close()));
   }
 }
+
+/** Exactly one explanation that the level bars were given up for dictation. */
+const gaveUpBars = (sink) => sink.unavailable.length === 1 && /level bars/.test(sink.unavailable[0]);
 
 const tracksEnded = (seen) => seen.streams.length > 0
   && seen.streams.every((stream) => stream.getTracks().every((track) => track.readyState === 'ended'));
@@ -593,6 +598,152 @@ async function nativeLevelChecks(check) {
             && /cannot share/.test(unavailable[0]) && tracksEnded(seen));
       } finally { await voice.dispose(); }
     });
+
+    // Android's version of that conflict says nothing. While the page's meter holds the
+    // microphone the recogniser starts, hears silence, ends and is restarted, with no
+    // audio-capture error — so hands-free listened for ever while the bars moved with the
+    // driver's voice, and "over" was never heard because no word was. The only evidence is
+    // the disagreement: the meter heard speech for seconds and the recogniser heard nothing.
+    {
+      const starvedSource = new AudioContext();
+      const tone = starvedSource.createOscillator();
+      const level = starvedSource.createGain();
+      const out = starvedSource.createMediaStreamDestination();
+      level.gain.value = 0;
+      tone.connect(level).connect(out);
+      tone.start();
+      await starvedSource.resume();
+      try {
+        await withMedia({ acquire: async () => out.stream.clone() }, async (seen) => {
+          const metered = () => seen.streams.some((stream) =>
+            stream.getAudioTracks().some((track) => track.readyState === 'live'));
+          // Android drafts: each already final, at a new index, with no confidence behind it.
+          // The first lands after the meter has opened, as a driver's first word does.
+          const drafts = (texts, from = 300) =>
+            texts.map((t, n) => ({ at: from + n * 30, final: t, confidence: 0 }));
+          const handsFree = (v, sink) => v.listen({
+            autoStop: false, settleMs: 100, isComplete: (text) => endsWithTrigger(text),
+            onLevel: (rms) => sink.samples.push(rms),
+            onLevelUnavailable: (reason) => sink.unavailable.push(reason),
+          });
+          const talk = async (sink) => {
+            await until(() => sink.samples.length >= 8, 'calibrating on silence');
+            level.gain.value = 0.4;               // the driver starts talking
+          };
+          fake.starveWhile(metered, 250);
+          let voice = await createVoice();
+          try {
+            const sink = { samples: [], unavailable: [] };
+            const started = fake.recognition.startCount;
+            fake.script([drafts(['it', 'it should', 'it should be fast', 'it should be fast over'])]);
+            const heard = handsFree(voice, sink);
+            await talk(sink);
+            const text = await within(heard, 'a starved recogniser', 5000);
+            const starvedSessions = fake.recognition.sessions.slice(started).filter((s) => s.starved);
+            check('a meter that starves Android recognition is detected by behaviour, not by platform',
+              starvedSessions.length >= 2 && gaveUpBars(sink) && tracksEnded(seen),
+              `${starvedSessions.length} starved; ${sink.unavailable.join('; ')}`);
+            // The words said while starved were never heard by anything that could transcribe
+            // them, so a silent retry could only submit the end of the sentence. A miss makes
+            // the drive loop say so aloud and the driver repeat the answer whole.
+            check('...and hands-free ends that capture as a miss rather than keep half an answer',
+              text === '' && fake.recognition.starvedSteps > 0, JSON.stringify(text));
+
+            fake.script([drafts(['said again', 'said again over'], 10)]);
+            const again = await within(handsFree(voice, sink), 'the repeated answer', 3000);
+            check('...the repeated answer is heard in full and the trigger word ends it',
+              again === 'said again over' && seen.requests === 1, `${JSON.stringify(again)}, ${seen.requests} acquisitions`);
+            await voice.dispose();
+
+            // Resume builds a new controller, and press-to-talk one per answer.
+            voice = await createVoice();
+            const resumed = { samples: [], unavailable: [] };
+            fake.script([drafts(['after resume', 'after resume over'], 10)]);
+            const afterResume = await within(handsFree(voice, resumed), 'the answer after Resume', 3000);
+            check('...and a new controller on the same page never reopens the starving meter',
+              afterResume === 'after resume over' && seen.requests === 1 && gaveUpBars(resumed),
+              `${JSON.stringify(afterResume)}, ${seen.requests} acquisitions`);
+            await voice.dispose();
+
+            // Press-to-talk is watched: it retries once, silently, without the meter.
+            forgetStarvedMeter();
+            level.gain.value = 0;
+            voice = await createVoice();
+            const watched = { samples: [], unavailable: [] };
+            const shown = [];
+            fake.script([
+              drafts(['lost while', 'lost while starved']),
+              [{ at: 10, final: 'heard after the retry', confidence: 0 }],
+            ]);
+            const pressed = voice.listen({
+              autoStop: false, onInterim: (t) => shown.push(t),
+              onLevel: (rms) => watched.samples.push(rms),
+              onLevelUnavailable: (reason) => watched.unavailable.push(reason),
+            });
+            await talk(watched);
+            await until(() => shown.includes('heard after the retry'), 'press-to-talk retry', 6000);
+            voice.stop();
+            check('press-to-talk retries a starved capture without the meter',
+              await within(pressed, 'press-to-talk stop', 2000) === 'heard after the retry'
+                && gaveUpBars(watched) && seen.requests === 2 && tracksEnded(seen),
+              `${seen.requests} acquisitions; ${watched.unavailable.join('; ')}`);
+            await voice.dispose();
+
+            // The race the live verdict loses. A hands-free capture's first-word deadline is
+            // the gate's noSpeechMs, and a driver who starts a beat late, in phrases, reaches
+            // it with well under STARVED_SPEECH_MS of speech on the meter. The capture ended
+            // as a miss, the verdict was never applied, and the meter starved the repeat and
+            // every capture after it — the driver was asked again and again, for ever.
+            forgetStarvedMeter();
+            level.gain.value = 0;
+            voice = await createVoice();
+            const late = { samples: [], unavailable: [] };
+            const lateRequests = seen.requests;
+            fake.script([
+              drafts(['lost while', 'lost while starved']),
+              drafts(['heard next time', 'heard next time over'], 10),
+            ]);
+            const raced = voice.listen({
+              autoStop: false, settleMs: 100, isComplete: (text) => endsWithTrigger(text),
+              gate: { noSpeechMs: 2400 },
+              onLevel: (rms, state) => { late.samples.push(rms); late.speechMs = state.speechMs; },
+              onLevelUnavailable: (reason) => late.unavailable.push(reason),
+            });
+            await until(() => late.samples.length >= 8, 'calibrating on silence');
+            await wait(150);                      // a beat late
+            for (let n = 0; n < 4; n++) {         // in phrases, with gaps between them
+              level.gain.value = 0.4;
+              await wait(350);
+              level.gain.value = 0;
+              await wait(80);
+            }
+            const racedText = await within(raced, 'a starved capture reaching its first-word deadline', 4000);
+            check('a starved capture that reaches its first-word deadline first still gives the meter up',
+              racedText === '' && gaveUpBars(late) && tracksEnded(seen)
+                && late.speechMs < STARVED_SPEECH_MS,
+              `${JSON.stringify(racedText)}, ${Math.round(late.speechMs)}ms of speech; `
+                + late.unavailable.join('; '));
+            await voice.dispose();
+
+            voice = await createVoice();
+            const repeated = { samples: [], unavailable: [] };
+            const heardNext = await within(handsFree(voice, repeated), 'the repeat after the race', 3000);
+            check('...so the repeat never reopens the meter and is heard in full',
+              heardNext === 'heard next time over' && seen.requests === lateRequests + 1
+                && gaveUpBars(repeated),
+              `${JSON.stringify(heardNext)}, ${seen.requests - lateRequests} acquisitions`);
+          } finally {
+            fake.starveWhile(null);
+            forgetStarvedMeter();
+            await voice.dispose();
+          }
+        });
+      } finally {
+        tone.stop();
+        out.stream.getTracks().forEach((track) => track.stop());
+        await starvedSource.close();
+      }
+    }
 
     await withMedia({
       configureContext: (ctx) => {

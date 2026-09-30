@@ -38,6 +38,8 @@
     startCount: 0,
     stopCount: 0,
     abortCount: 0,
+    /** Scripted steps a starved recogniser never heard. */
+    starvedSteps: 0,
     /** One entry per listening session, with the flags the caller set on it. */
     sessions: [],
     scriptRemaining: () => queue.length,
@@ -65,6 +67,8 @@
   /** Utterances still to be handed out, one per listening session. */
   let queue = [];
   let config = { speakMs: 20, dropUtterance: null, flushOnStop: true };
+  /** When this says so, a listening session is starved: see starveWhile. */
+  let starved = null;
   let saved = null;
 
   // ────────────────────────────────────────────────── the recogniser
@@ -112,17 +116,49 @@
       return;
     }
 
+    // Android's starved shape: the page holds the microphone, so the recogniser starts,
+    // hears nothing, reports no-speech and ends a moment later — and never raises the
+    // audio-capture error that would say why. A session that starts starved takes nothing
+    // from the script: that is the next thing said once the recogniser can hear again.
+    if (starved && starved.when()) {
+      this._starve();
+      this._timers.push(setTimeout(() => { if (this.onstart) this.onstart(); }, 1));
+      return;
+    }
+
     const steps = queue.length ? queue.shift() : [];
     this._timers.push(setTimeout(() => { if (this.onstart) this.onstart(); }, 1));
 
-    for (const step of steps) {
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
       if (step.deaf) return;              // fires nothing, ever — the iPhone lie mid-stream
-      this._timers.push(setTimeout(() => this._step(step), step.at || 0));
+      this._timers.push(setTimeout(() => this._step(step, steps, i), step.at || 0));
     }
   };
 
-  FakeRecognition.prototype._step = function _step(step) {
+  /** Hear nothing from here on: no-speech, then end. Once per session. */
+  FakeRecognition.prototype._starve = function _starve() {
+    if (this._session.starved) return;
+    this._session.starved = true;
+    this._timers.push(setTimeout(() => {
+      if (this._live && this.onerror) this.onerror({ error: 'no-speech' });
+    }, starved.ms));
+    this._timers.push(setTimeout(() => this._end(), starved.ms + 10));
+  };
+
+  FakeRecognition.prototype._step = function _step(step, steps, i) {
     if (!this._live) return;
+
+    // The meter took the microphone mid-session, which is the ordinary order: recognition
+    // starts, then the app opens its meter. What is said from here on is LOST — a starved
+    // recogniser never heard it, so no later session can. Replaying it made a silent retry
+    // look like a full recovery when a real one would have heard only the rest.
+    if (starved && steps && starved.when()) {
+      this._clear();
+      recognition.starvedSteps += steps.length - i;
+      this._starve();
+      return;
+    }
 
     if (step.interim != null) {
       // An interim rewrites the slot at the write cursor; it does not advance it.
@@ -273,9 +309,11 @@
         flushOnStop: o.flushOnStop !== false,
       };
       queue = (o.script || []).slice();
+      starved = null;
       recognition.startCount = 0;
       recognition.stopCount = 0;
       recognition.abortCount = 0;
+      recognition.starvedSteps = 0;
       recognition.sessions.length = 0;
       synthesis.spoken.length = 0;
       synthesis.cancels = 0;
@@ -300,6 +338,17 @@
       return global.__FakeVoice;
     },
 
+    /**
+     * Starve every listening session that starts while `when()` is true, as Android does
+     * while a page-held getUserMedia track is live; null turns it off.
+     * @param {(() => boolean)|null} when
+     * @param {number} [ms] how long each starved session lasts before it ends
+     */
+    starveWhile(when, ms) {
+      starved = when ? { when: when, ms: ms == null ? 300 : ms } : null;
+      return global.__FakeVoice;
+    },
+
     /** Hand the next listening session this utterance. */
     script(utterances) {
       queue = utterances.slice();
@@ -307,6 +356,7 @@
     },
 
     restore() {
+      starved = null;
       if (!saved) return;
       const w = saved.win;
       w.SpeechRecognition = saved.SR;

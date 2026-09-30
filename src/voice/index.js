@@ -17,13 +17,24 @@ import {
 } from './webspeech.js';
 import { createRecorder, micSupported } from './recorder.js';
 import { createMicMeter } from './mic-meter.js';
-import { createSilenceGate } from './vad.js';
+import { createSilenceGate, meterStarvesRecognition, DRIVING_GATE } from './vad.js';
 import { createTranscriber, STT_PRESETS, MAX_AUDIO_BYTES } from './transcribe.js';
 import { speak, cancelSpeech, primeSpeech, ttsSupported } from './speak.js';
 
 export { STT_PRESETS } from './transcribe.js';
 export { primeSpeech, ttsSupported, cancelSpeech } from './speak.js';
 export { forgetVerdict } from './webspeech.js';
+
+/**
+ * Why the level meter starved recognition on this page, once it has. Page lifetime, not
+ * controller lifetime: press-to-talk disposes its controller after every answer and Resume
+ * builds a new one, and each would otherwise open the meter, starve the recogniser and lose
+ * the start of an answer all over again. Deliberately not persisted — nothing has confirmed
+ * the mechanism on a physical phone, so a wrong verdict should not outlive a reload.
+ */
+let starvedMeter = null;
+/** For tests: forget the page's starvation verdict. */
+export function forgetStarvedMeter() { starvedMeter = null; }
 
 /**
  * @param {{stt?: object, lang?: string, preferRecorder?: boolean, signal?: AbortSignal}} opts
@@ -72,7 +83,7 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
   let paused = false;
   let pausePromise = null;
   let disposal = null;
-  let meterUnavailable = null;
+  let meterUnavailable = starvedMeter;
   let interruptedDraft = '';
 
   function assertOpen() {
@@ -167,7 +178,15 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
       meter.start((rms) => {
         if (!listening(op)) return;
         gate.push(rms, performance.now());
-        opts.onLevel(rms, gate.state());
+        const state = gate.state();
+        // Kept for the end-of-capture verdict: a capture can end on its first-word deadline
+        // before this sample loop ever reaches STARVED_SPEECH_MS.
+        op.meterSpeechMs = state.speechMs;
+        if (meterStarvesRecognition({ speechMs: state.speechMs, heardWords: op.heardWords })) {
+          op.starved?.();
+          return;
+        }
+        opts.onLevel(rms, state);
       }, (err) => disableMeter(op, opts, err.message));
     }).catch((err) => {
       clearTimeout(op.meterTimer);
@@ -273,14 +292,46 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
     if (mode === 'recorder') await getInput();
   }
 
+  const STARVED_REASON = 'The microphone cannot feed level monitoring and dictation at once here. '
+    + 'Dictation continues without the level bars.';
+
+  /** Give the meter up for the rest of the page, because it is starving recognition. */
+  function condemnMeter(op, opts) {
+    disableMeter(op, opts, STARVED_REASON);
+    starvedMeter = meterUnavailable;
+  }
+
   async function runCapture(op, opts) {
     if (mode === 'webspeech') {
+      // Hands-free and confirm captures must hear a first word within the gate's own
+      // no-speech budget. The recogniser's deaf deadline cannot bound that on Android, where
+      // a deaf engine restarts every few seconds and each restart counts as proof of life.
+      // Press-to-talk passes no isComplete and gets no such deadline: it may think for ever.
+      const firstWordMs = opts.firstWordMs != null ? opts.firstWordMs
+        : opts.isComplete ? (opts.gate?.noSpeechMs || DRIVING_GATE.noSpeechMs) : 0;
       let retried = false;
       for (;;) {
         let retryWithoutMeter = false;
+        let starved = false;
+        // A starved recogniser fails silently rather than with `audio-capture`: the meter
+        // hears speech, the recogniser hears nothing and just restarts. What was said while
+        // it was starved is gone — the recogniser never heard it — so the session is thrown
+        // away. Hands-free resolves '' at once, which is a miss: the loop says so aloud and
+        // the driver repeats the answer whole. Retrying silently there would hear only the
+        // rest of the sentence and submit it without its beginning. Press-to-talk retries,
+        // because that speaker is watching the answer box and the warning above it.
+        op.starved = () => {
+          if (retried || retryWithoutMeter || !listening(op)) return;
+          retryWithoutMeter = starved = true;
+          condemnMeter(op, opts);
+          op.session?.abort();
+        };
         op.session = listenViaWebSpeech({
           lang,
-          onInterim: (text) => { if (listening(op)) opts.onInterim?.(text); },
+          onInterim: (text) => {
+            if (text && text.trim()) op.heardWords = true;
+            if (listening(op)) opts.onInterim?.(text);
+          },
           onStart: () => {
             reportPhase(op, opts, 'listening');
             startLevels(op, opts);
@@ -295,17 +346,32 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
           isComplete: opts.isComplete || null,
           ...(opts.settleMs == null ? {} : { settleMs: opts.settleMs }),
           ...(opts.deafMs == null ? {} : { deafMs: opts.deafMs }),
+          ...(firstWordMs > 0 ? { firstWordMs } : {}),
         });
         if (op.aborted) op.session.abort();
         else if (op.stopped) op.session.stop({ preserveDraft: op.preserveDraft });
+        let text;
         try {
-          return await op.session.promise;
+          text = await op.session.promise;
         } catch (err) {
           if (err.code !== 'audio-capture' || !retryWithoutMeter || retried || !listening(op)) throw err;
           retried = true;
+          continue;
         } finally {
           op.session = null;
         }
+        if (starved && !retried && !opts.isComplete && listening(op)) { retried = true; continue; }
+        // The race the live verdict loses: the first-word deadline usually ends a starved
+        // hands-free capture before the meter has counted STARVED_SPEECH_MS of speech, and
+        // without this the meter went on starving every capture after it. A capture that
+        // ended on its own, without a single word, while the meter measured a second of
+        // speech has already lost — nothing is left to protect by waiting — so the lower
+        // bar applies and the NEXT capture runs without the meter. This one stays a miss.
+        if (!starved && !op.heardWords && listening(op)
+          && meterStarvesRecognition({ speechMs: op.meterSpeechMs, heardWords: false, ended: true })) {
+          condemnMeter(op, opts);
+        }
+        return text;
       }
     }
 
@@ -396,6 +462,7 @@ export async function createVoice({ stt = null, lang = 'en-US', preferRecorder =
         stopped: false, aborted: false, settled: false, session: null, preserveDraft: false,
         transcription: new AbortController(), meterTimer: null, meterStarted: false,
         levelReported: false, phase: null, resolve: null, reject: null, promise: null,
+        heardWords: false, meterSpeechMs: 0,
       };
       op.promise = new Promise((resolve, reject) => { op.resolve = resolve; op.reject = reject; });
       capture = op;

@@ -472,6 +472,28 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
         it is not a recording meter for the assistant&rsquo;s output.
       </p>
 
+      <h3 id="voice-no-words">The bars move but no words appear</h3>
+      <p>
+        This usually means the level bars are keeping the microphone from the browser
+        recogniser. Android may not let both use it at once, and it raises no error when
+        that happens. IdeaForge judges it by behaviour: about two and a half seconds of
+        speech on the bars with no word from the recogniser, or a capture that ends with no
+        word after the bars measured about a second of speech. It then switches the bars
+        off until the page is reloaded.
+      </p>
+      <p>
+        The words spoken while the bars were on were never heard. Hands-free treats that
+        capture as a miss and follows its
+        <a href="./mobile-and-voice.html#recovery">recovery steps</a>; give the whole
+        answer again rather than only the rest of it. Press-to-talk retries once without
+        the bars, so repeat whatever is missing from the answer box.
+      </p>
+      <p>
+        This detection has only been exercised against a scripted recogniser. It has not
+        been confirmed on a physical Android device, so if the bars stay off and words
+        still do not appear, choose hosted transcription and report the device and browser.
+      </p>
+
       <h3 id="voice-paused">Voice has paused or will not resume by speech</h3>
       <p>
         Paused means the microphone is released. Saying <q>resume</q> cannot wake it;
