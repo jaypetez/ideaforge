@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { DIMENSIONS } from '../src/core/dimensions.js';
 import {
   createSession, askQuestion, answerQuestion, setPending, setSynthesis, waiveDimension,
+  setTitle, setStatusField,
 } from '../src/core/session.js';
 import { SEED_QUESTION } from '../src/core/dimensions.js';
 import {
@@ -219,4 +220,36 @@ test('resumeSynthesis reruns only an interrupted synthesis', async () => {
   assert.equal(calls, 1);
   assert.equal(resumed.session.pending, null);
   assert.equal(resumed.session.synthesis.text, '## Task\nResume the wrap-up.');
+});
+
+test('a model title never replaces one the session already has', async () => {
+  const provider = { async sampleJson() { return { json: { prompt: '## Task\nx', title: 'Model title' } }; } };
+  const named = setTitle(opened(), 'Earlier title', 3);
+  const out = await runSynthesis(named, { provider, now: 10 });
+  assert.equal(out.ok, true);
+  assert.equal(out.session.title, 'Earlier title');
+  const fresh = await runSynthesis(opened(), { provider, now: 10 });
+  assert.equal(fresh.session.title, 'Model title');
+});
+
+test('the budget reaches the prompt builder', async () => {
+  const seen = [];
+  const provider = { async sampleJson(parts) { seen.push(parts); return { json: { prompt: '## Task\nx' } }; } };
+  const s = opened();
+  await runSynthesis(s, { provider, now: 10, budget: 4000 });
+  assert.deepEqual(seen[0], buildSynthesisPromptParts(s, { budget: 4000 }));
+});
+
+// What is persisted when a wrap-up is interrupted is BOTH pending and status:'synthesizing'
+// (runSynthesis sets them together). If the resumed call then fails, the session has to
+// come back out of 'synthesizing' — otherwise a reload leaves it stuck mid-wrap forever.
+test('a resumed wrap-up that fails does not leave the session stuck in synthesizing', async () => {
+  const interrupted = setStatusField(setPending(opened(), {
+    kind: 'synthesis', promptHash: 'h', startedAt: 5,
+  }, 5), 'synthesizing', 5);
+  const failing = { async sampleJson() { throw new Error('offline'); } };
+  const out = await resumeSynthesis(interrupted, { provider: failing, now: 6 });
+  assert.equal(out.ok, false);
+  assert.equal(out.session.pending, null);
+  assert.notEqual(out.session.status, 'synthesizing');
 });

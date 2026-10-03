@@ -103,3 +103,45 @@ test('tag normalization is bounded and case-insensitively deduplicated', () => {
   assert.equal(tags.length, 12);
   assert.equal(new Set(tags.map((tag) => tag.toLowerCase())).size, tags.length);
 });
+
+// ── filters and cards: the edges
+test('filterSessions status "all" includes archived ideas and "archived" shows only those', () => {
+  const live = idea('s_live', 10, 'live idea');
+  const old = archiveSession(idea('s_old', 5, 'old idea'), 6);
+  assert.deepEqual(filterSessions([live, old], { status: 'all' }).map((s) => s.id), ['s_live', 's_old']);
+  assert.deepEqual(filterSessions([live, old], { status: 'archived' }).map((s) => s.id), ['s_old']);
+  assert.deepEqual(filterSessions([live, old]).map((s) => s.id), ['s_live']);
+});
+
+test('filterSessions matches tags case-insensitively and exactly, and orders by recency', () => {
+  const a = setSessionTags(idea('s_a', 1, 'alpha'), ['Research'], 2);
+  const b = setSessionTags(idea('s_b', 5, 'beta'), ['research notes'], 6);
+  const c = setSessionTags(idea('s_c', 9, 'gamma'), ['RESEARCH'], 10);
+  assert.deepEqual(filterSessions([a, b, c], { tag: ' research ' }).map((s) => s.id), ['s_c', 's_a']);
+  const noStamp = { ...a, id: 's_none', updatedAt: undefined };
+  assert.equal(filterSessions([noStamp, c]).at(-1).id, 's_none', 'a missing updatedAt sorts last');
+});
+
+test('availableTags keeps the first spelling seen and sorts the result', () => {
+  const s1 = setSessionTags(idea('s_1', 1, 'x'), ['Zed', 'research'], 2);
+  const s2 = setSessionTags(idea('s_2', 3, 'y'), ['RESEARCH', 'alpha'], 4);
+  assert.deepEqual(availableTags([s1, s2]), ['alpha', 'research', 'Zed']);
+  assert.deepEqual(availableTags(null), []);
+});
+
+test('library helpers survive a damaged record', () => {
+  const broken = { ...createSession({ id: 's_bad', now: 1 }), turns: 'nope', facts: 3, tags: null, updatedAt: 0 };
+  assert.equal(typeof sessionSearchText(broken), 'string');
+  const card = libraryCard(broken);
+  assert.equal(card.questionCount, 0);
+  assert.equal(card.canExport, false);
+  assert.deepEqual(card.tags, []);
+  assert.equal(card.updatedAt, 0);
+});
+
+test('a card can only export once something has been answered or skipped', () => {
+  let s = createSession({ id: 's_card', now: 1 });
+  s = askQuestion(s, { question: 'q', dimension: 'outcome', now: 1 });
+  assert.equal(libraryCard(s).canExport, false);
+  assert.equal(libraryCard(answerQuestion(s, { text: 'a', now: 2 })).canExport, true);
+});
