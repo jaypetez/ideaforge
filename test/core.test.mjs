@@ -5,14 +5,18 @@ import { DIMENSION_IDS, SEED_QUESTION } from '../src/core/dimensions.js';
 import {
   createSession, askQuestion, answerQuestion, applyCoverage, addFacts,
   waiveDimension, deferDimension, migrate, openTurn, isLowConfidence, setDraftText,
-  setWrapOffered,
+  setWrapOffered, copySession, resumeDimension, normalizeSessionName, archiveSession, reopen,
+  setSynthesis, answeredTurns,
 } from '../src/core/session.js';
 import {
   classifyAnswer, selectNextDimension, legalMoves, buildTurnPrompt, promptHash,
   parseTurnResult, questionTripwire, isReadyToWrap, shouldOfferWrap, wrapAdvisory,
   HARD_TURN_CEILING, SOFT_TURN_CEILING,
 } from '../src/core/engine.js';
-import { buildTranscriptBlock, utf8Length, BUDGET_BYTES } from '../src/core/digest.js';
+import {
+  buildTranscriptBlock, utf8Length, BUDGET_BYTES, serializeTurn, serializeFacts,
+  MAX_ANSWER_CHARS, FULL_VERBATIM_UNTIL_TURN,
+} from '../src/core/digest.js';
 import {
   buildExport, coveragePercent, slug, exportFilename, forSpeech, speechChunks, renderBlocks,
 } from '../src/core/markdown.js';
@@ -643,4 +647,139 @@ test('speechChunks keeps every piece inside the synthesiser watchdog', () => {
 test('speechChunks does not drop the tail of text with no sentence breaks', () => {
   const runOn = 'word '.repeat(200).trim();
   assert.equal(speechChunks(runOn, { maxChars: 200 }).join(' '), runOn);
+});
+
+// ───────────────────────────────────────────── digest: what the model is shown
+test('serializeTurn labels provenance, defaults it to typed, and tags a move only when present', () => {
+  const base = { n: 2, question: 'Who?', answer: 'Drivers' };
+  assert.equal(serializeTurn(base), 'Q2: Who?\nA2 [typed]: Drivers');
+  assert.equal(serializeTurn({ ...base, answerSource: 'voice' }), 'Q2: Who?\nA2 [voice]: Drivers');
+  assert.equal(serializeTurn({ ...base, answerSource: 'chip', move: 'probe' }), 'Q2 [probe]: Who?\nA2 [chip]: Drivers');
+});
+
+test('serializeTurn shows a skip as a skip, not an empty answer', () => {
+  assert.equal(
+    serializeTurn({ n: 3, question: 'Why?', skipped: true }),
+    'Q3: Why?\nA3 [skipped]: (user skipped)',
+  );
+});
+
+test('serializeTurn clips a very long answer and says so', () => {
+  const out = serializeTurn({ n: 1, question: 'q', answer: 'x'.repeat(MAX_ANSWER_CHARS + 50) });
+  assert.ok(out.endsWith(' […elided…]'));
+  assert.ok(out.includes('x'.repeat(MAX_ANSWER_CHARS)));
+  assert.ok(!out.includes('x'.repeat(MAX_ANSWER_CHARS + 1)));
+  const exact = serializeTurn({ n: 1, question: 'q', answer: 'x'.repeat(MAX_ANSWER_CHARS) });
+  assert.ok(!exact.includes('elided'), 'an answer at the limit is left alone');
+});
+
+test('serializeFacts prefixes a dimension only when the fact has one', () => {
+  assert.equal(serializeFacts([]), '(nothing established yet)');
+  assert.equal(
+    serializeFacts([{ dimension: 'outcome', fact: 'wants a prompt' }, { fact: 'no budget' }]),
+    '- (outcome) wants a prompt\n- no budget',
+  );
+});
+
+test('a session with no answers renders a placeholder, not an empty string', () => {
+  const s = createSession(seed());
+  assert.deepEqual(buildTranscriptBlock(s), { text: '(no exchanges yet)', windowSize: null, truncated: false });
+});
+
+test('the transcript stays verbatim through the verbatim turn limit, then compacts to a window', () => {
+  const build = (n) => {
+    let s = createSession(seed());
+    for (let i = 1; i <= n; i++) {
+      s = askQuestion(s, { question: `question ${i}`, dimension: 'outcome', source: 'seed', now: i });
+      s = answerQuestion(s, { text: `answer ${i} ` + 'w '.repeat(60), now: i });
+    }
+    return s;
+  };
+  const atLimit = buildTranscriptBlock(build(FULL_VERBATIM_UNTIL_TURN), 1_000_000);
+  assert.equal(atLimit.windowSize, null);
+  const over = buildTranscriptBlock(build(FULL_VERBATIM_UNTIL_TURN + 1), 1_000_000);
+  assert.equal(over.windowSize, 6, 'past the limit it is windowed even with room to spare');
+  assert.match(over.text, /3 earlier exchange\(s\) compacted/);
+  assert.ok(!over.text.includes('answer 1 '));
+});
+
+test('when even a facts-only transcript overflows the budget it is hard-clipped and flagged', () => {
+  let s = createSession(seed());
+  s = askQuestion(s, { question: 'q', dimension: 'outcome', source: 'seed', now: 1 });
+  s = answerQuestion(s, { text: 'a', now: 2 });
+  const out = buildTranscriptBlock(s, 10);
+  assert.equal(out.truncated, true);
+  assert.equal(out.windowSize, 0);
+  assert.equal(out.text.length, 10);
+});
+
+// ─────────────────────────────────────────────── session: library-facing reducers
+test('normalizeSessionName collapses whitespace, caps length and ignores non-strings', () => {
+  assert.equal(normalizeSessionName('  a   b \n c '), 'a b c');
+  assert.equal(normalizeSessionName('x'.repeat(500)).length, 120);
+  for (const bad of [null, undefined, 7, {}, []]) assert.equal(normalizeSessionName(bad), '');
+});
+
+test('copySession needs an id, keeps the name unless given one, and does not mutate the original', () => {
+  const s = { ...withOpening(), name: 'Original' };
+  assert.throws(() => copySession(s, {}), /requires a new id/);
+  const same = copySession(s, { id: 'c1', now: 9 });
+  assert.equal(same.id, 'c1');
+  assert.equal(same.name, 'Original');
+  assert.equal(copySession(s, { id: 'c2', name: '  New  ' }).name, 'New');
+  assert.equal(copySession(s, { id: 'c3', name: '' }).name, '', 'an explicit empty name clears it');
+  assert.equal(s.id, 's_test');
+});
+
+test('archiveSession never stores a zero timestamp, so an archived idea cannot look live', () => {
+  const s = createSession(seed());
+  assert.ok(archiveSession(s, 0).archivedAt > 0);
+  assert.equal(archiveSession(s, 77).archivedAt, 77);
+});
+
+test('resumeDimension turns a waived dimension back into a probing one and forgets why', () => {
+  const waived = waiveDimension(withOpening(), 'audience', 'not needed', 3);
+  assert.equal(waived.coverage.audience.status, 'waived');
+  const back = resumeDimension(waived, 'audience', 4);
+  assert.equal(back.coverage.audience.status, 'probing');
+  assert.equal(back.coverage.audience.waivedReason, null);
+  assert.throws(() => resumeDimension(waived, 'not-a-dimension', 5));
+});
+
+test('reopen marks the synthesis stale without discarding it, and lets the wrap be offered again', () => {
+  let s = setSynthesis(withOpening(), { text: 'T', now: 5 });
+  s = setWrapOffered(s, true, 6);
+  const r = reopen(s, 7);
+  assert.equal(r.status, 'interviewing');
+  assert.equal(r.synthesis.stale, true);
+  assert.equal(r.synthesis.text, 'T');
+  assert.equal(r.wrapOffered, false);
+});
+
+test('setSynthesis keeps the existing open questions unless the model supplied new ones', () => {
+  const s = { ...withOpening(), openQuestions: [{ question: 'old?' }] };
+  assert.deepEqual(setSynthesis(s, { text: 'T', now: 5 }).openQuestions, [{ question: 'old?' }]);
+  assert.deepEqual(
+    setSynthesis(s, { text: 'T', openQuestions: [{ question: 'new?' }], now: 5 }).openQuestions,
+    [{ question: 'new?' }],
+  );
+});
+
+test('migrate rejects non-records and a newer schema, and recovers a missing id', () => {
+  for (const bad of [null, undefined, 3, 'x', []]) assert.equal(migrate(bad), null);
+  assert.equal(migrate({ id: 'a', schema: 9999 }), null);
+  assert.equal(migrate({}).id, 'recovered');
+});
+
+test('migrate drops an archive stamp that is not a positive finite number', () => {
+  for (const bad of [-1, NaN, Infinity, '5', null]) {
+    assert.equal(migrate({ id: 'a', archivedAt: bad }).archivedAt, 0, String(bad));
+  }
+  assert.equal(migrate({ id: 'a', archivedAt: 12 }).archivedAt, 12);
+});
+
+test('answeredTurns ignores the open question', () => {
+  let s = withOpening();
+  s = askQuestion(s, { question: 'q2', dimension: 'audience', source: 'model', now: 3 });
+  assert.equal(answeredTurns(s).length, 1);
 });
