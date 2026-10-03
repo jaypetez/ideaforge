@@ -27,6 +27,10 @@ export async function runSynthesis(session, deps = {}) {
              warnings: ['no provider; the export will use the checklist layout'] };
   }
 
+  // A resumed wrap-up arrives already marked 'synthesizing' (that is what was persisted when
+  // it was interrupted). Restoring THAT on failure would strand the session mid-wrap across
+  // reloads, so fall back to the state a wrap-up is offered from.
+  const before = session.status === 'synthesizing' ? 'interviewing' : session.status;
   const parts = buildSynthesisPromptParts(session, { budget });
   let working = setPending(session, {
     kind: 'synthesis',
@@ -39,7 +43,7 @@ export async function runSynthesis(session, deps = {}) {
   try {
     result = await provider.sampleJson(parts, { modelTier, signal, cache: true });
   } catch (err) {
-    const restored = setStatusField(clearPending(working, now), session.status, now);
+    const restored = setStatusField(clearPending(working, now), before, now);
     if (err && err.code === 'aborted') {
       return { session: restored, ok: false, error: null, aborted: true, warnings, calls: 1 };
     }
@@ -50,7 +54,7 @@ export async function runSynthesis(session, deps = {}) {
   warnings.push(...parsed.warnings);
 
   if (!parsed.ok) {
-    const restored = setStatusField(clearPending(working, now), session.status, now);
+    const restored = setStatusField(clearPending(working, now), before, now);
     return { session: restored, ok: false, error: null, aborted: false,
              warnings: [...warnings, 'the model returned no usable prompt'], calls: 1 };
   }
