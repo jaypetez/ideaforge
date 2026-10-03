@@ -572,3 +572,237 @@ test('a local preset leaves a thinking model room to finish', () => {
     assert.ok(preset.maxTokens >= 8192, `${name} needs room for a model that thinks first`);
   }
 });
+
+// ───────────────────────────────── gap coverage: artifact adapter, http, retry, registry
+import { createArtifactProvider, artifactRuntimeAvailable } from '../src/providers/artifact.js';
+import {
+  assertLoopback, localFetchOptions, httpError, trimSlash, hostOf,
+} from '../src/providers/http.js';
+import { defaultProviderKind } from '../src/providers/index.js';
+
+/** Install `value` as a global for the duration of `fn`, then put the original back. */
+async function withGlobal(name, value, fn) {
+  const had = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
+  try { return await fn(); } finally {
+    if (had) Object.defineProperty(globalThis, name, had); else delete globalThis[name];
+  }
+}
+
+const withClaude = (sample, fn) => withGlobal('window', { claude: { use: async () => sample } }, fn);
+const PARTS = { system: 'S', prefix: 'P', tail: 'T' };
+const settle = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+test('the artifact runtime is only "available" when window.claude.use is a function', async () => {
+  assert.equal(artifactRuntimeAvailable(), false);
+  await withGlobal('window', {}, () => assert.equal(artifactRuntimeAvailable(), false));
+  await withGlobal('window', { claude: {} }, () => assert.equal(artifactRuntimeAvailable(), false));
+  await withGlobal('window', { claude: { use() {} } }, () => assert.equal(artifactRuntimeAvailable(), true));
+});
+
+test('defaultProviderKind offers the artifact runtime only inside a viewer', async () => {
+  assert.equal(defaultProviderKind(), 'anthropic');
+  await withGlobal('window', { claude: { use() {} } }, () => assert.equal(defaultProviderKind(), 'artifact'));
+});
+
+test('the artifact adapter refuses outside a viewer, and when sample was not granted', async () => {
+  await assert.rejects(createArtifactProvider(), (e) => e.code === 'config' && /Claude viewer/.test(e.message));
+  await withClaude(undefined, () => assert.rejects(
+    createArtifactProvider(), (e) => e.code === 'config' && /not granted/.test(e.message),
+  ));
+});
+
+test('the artifact adapter sends the one-definition prompt join and passes tier and cache through', async () => {
+  const seen = [];
+  await withClaude(async (prompt, opts) => { seen.push({ prompt, opts }); return { text: '{"ok":1}' }; }, async () => {
+    const p = await createArtifactProvider();
+    const out = await p.sampleJson(PARTS, { modelTier: 'complex', cache: false });
+    assert.deepEqual(out.json, { ok: 1 });
+    assert.equal(out.modelTierApplied, 'complex', 'falls back to the requested tier');
+    assert.equal(seen[0].prompt, 'S\nP\nT');
+    assert.equal(seen[0].opts.modelTier, 'complex');
+    assert.equal(seen[0].opts.cache, false);
+  });
+});
+
+test('the artifact adapter reports the tier the runtime says it applied', async () => {
+  await withClaude(async () => ({ text: 'hi', modelTierApplied: 'fast' }), async () => {
+    const p = await createArtifactProvider();
+    assert.equal((await p.sample(PARTS)).modelTierApplied, 'fast');
+  });
+});
+
+test('non-retryable runtime error codes are translated into the provider taxonomy', async () => {
+  const cases = { not_granted: 'auth', permission_denied: 'auth', aborted: 'aborted', weird: 'bad_response' };
+  for (const [code, want] of Object.entries(cases)) {
+    await withClaude(async () => { throw Object.assign(new Error('boom'), { code }); }, async () => {
+      const p = await createArtifactProvider();
+      await assert.rejects(p.sample(PARTS), (e) => e.code === want, code);
+    });
+  }
+});
+
+test('an unknown runtime failure keeps its message and cause', async () => {
+  const cause = new Error('weird failure');
+  await withClaude(async () => { throw cause; }, async () => {
+    const p = await createArtifactProvider();
+    await assert.rejects(p.sample(PARTS), (e) => e.code === 'bad_response' && e.message === 'weird failure' && e.cause === cause);
+  });
+});
+
+test('rate_limited and overloaded runtime codes are retried; a grant failure is not', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  for (const code of ['rate_limited', 'overloaded']) {
+    let calls = 0;
+    await withClaude(async () => {
+      calls++;
+      if (calls < 2) throw Object.assign(new Error('x'), { code });
+      return { text: 'fine' };
+    }, async () => {
+      const p = await createArtifactProvider();
+      const pending = p.sample(PARTS);
+      await settle();
+      t.mock.timers.tick(10_000);
+      assert.equal((await pending).text, 'fine', code);
+      assert.equal(calls, 2);
+    });
+  }
+  let denied = 0;
+  await withClaude(async () => { denied++; throw Object.assign(new Error('x'), { code: 'not_granted' }); }, async () => {
+    const p = await createArtifactProvider();
+    await assert.rejects(p.sample(PARTS), (e) => e.code === 'auth');
+    assert.equal(denied, 1);
+  });
+});
+
+test('a signal that is already aborted never reaches the runtime', async () => {
+  let called = false;
+  await withClaude(async () => { called = true; return { text: '' }; }, async () => {
+    const p = await createArtifactProvider();
+    const ac = new AbortController(); ac.abort();
+    await assert.rejects(p.sample(PARTS, { signal: ac.signal }), (e) => e.code === 'aborted');
+    assert.equal(called, false);
+  });
+});
+
+test('the artifact adapter has no model list and no key to check', async () => {
+  await withClaude(async () => ({ text: '' }), async () => {
+    const p = await createArtifactProvider();
+    assert.deepEqual(await p.listModels(), []);
+    assert.equal(await p.validateKey(), true);
+  });
+});
+
+test('createProvider builds the artifact adapter and rejects an unknown kind', async () => {
+  await withClaude(async () => ({ text: '' }), async () => {
+    assert.equal((await createProvider({ kind: 'artifact' })).id, 'artifact');
+  });
+  await assert.rejects(createProvider({ kind: 'nope' }), (e) => e.code === 'config' && /unknown provider/.test(e.message));
+  await assert.rejects(createProvider({}), (e) => e.code === 'config');
+});
+
+// ── http.js helpers
+const errRes = (status, body, { statusText = 'Err', headers = {} } = {}) => ({
+  status,
+  statusText,
+  headers: { get: (k) => headers[k.toLowerCase()] ?? null },
+  json: async () => { if (body === undefined) throw new SyntaxError('not json'); return body; },
+});
+
+test('httpError reads message, then code, then falls back to the status text', async () => {
+  assert.match((await httpError(errRes(400, { error: { message: 'bad' } }), { label: 'X' })).message, /X 400: bad/);
+  assert.match((await httpError(errRes(400, { error: { code: 'c1' } }), { label: 'X' })).message, /X 400: c1/);
+  assert.match((await httpError(errRes(502, undefined, { statusText: 'Bad Gateway' }), { label: 'X' })).message, /X 502: Bad Gateway/);
+});
+
+test('httpError adds the key hint for auth failures only, and carries status and retry-after', async () => {
+  const auth = await httpError(errRes(401, { error: { message: 'no' } }), { label: 'X', keyHint: 'fix it' });
+  assert.equal(auth.code, 'auth');
+  assert.match(auth.message, / — fix it$/);
+  const other = await httpError(errRes(429, { error: { message: 'slow' } }, { headers: { 'retry-after': '3' } }), { label: 'X' });
+  assert.equal(other.code, 'rate_limit');
+  assert.doesNotMatch(other.message, /Settings/);
+  assert.equal(other.status, 429);
+  assert.equal(other.retryAfterMs, 3000);
+  assert.match((await httpError(errRes(403, {}), { label: 'X' })).message, /check the API key in Settings/);
+});
+
+test('assertLoopback accepts this machine and refuses lookalikes', () => {
+  assertLoopback('http://localhost:11434');
+  assertLoopback('http://127.0.0.1:1234/v1');
+  for (const bad of ['https://api.example.com', 'http://localhost.evil.com', 'not a url']) {
+    assert.throws(() => assertLoopback(bad), (e) => e.code === 'config' && /not on this machine/.test(e.message));
+  }
+});
+
+test('localFetchOptions asks for local address space only for loopback from a public page', async () => {
+  const loop = 'http://localhost:11434';
+  assert.deepEqual(localFetchOptions(loop), {}, 'no location at all, as in Node');
+  await withGlobal('location', { protocol: 'https:', origin: 'https://ideaforge.app' }, () => {
+    assert.deepEqual(localFetchOptions(loop), { targetAddressSpace: 'local' });
+    assert.deepEqual(localFetchOptions('https://api.openai.com/v1'), {});
+  });
+  await withGlobal('location', { protocol: 'http:', origin: 'http://127.0.0.1:8765' }, () => {
+    assert.deepEqual(localFetchOptions(loop), {}, 'localhost to localhost is not gated');
+  });
+  await withGlobal('location', { protocol: 'file:', origin: 'null' }, () => {
+    assert.deepEqual(localFetchOptions(loop), {});
+  });
+});
+
+test('trimSlash and hostOf tolerate junk', () => {
+  assert.equal(trimSlash('http://x/v1///'), 'http://x/v1');
+  assert.equal(trimSlash(null), '');
+  assert.equal(hostOf('http://localhost:11434/v1'), 'localhost:11434');
+  assert.equal(hostOf('not a url'), 'not a url');
+});
+
+// ── errors.js: retry timing and Retry-After edges
+test('retry-after edge cases: past dates clamp to zero, garbage and bare headers are null', () => {
+  const h = (v) => ({ get: () => v });
+  assert.equal(retryAfterMs(h('-5')), 0);
+  assert.equal(retryAfterMs(h('Wed, 21 Oct 2015 07:28:00 GMT')), 0);
+  assert.equal(retryAfterMs(h('soonish')), null);
+  assert.equal(retryAfterMs({}), null);
+  assert.equal(retryAfterMs(null), null);
+});
+
+test('withRetry throws aborted before the first attempt when already cancelled', async () => {
+  const ac = new AbortController(); ac.abort();
+  let ran = false;
+  await assert.rejects(withRetry(async () => { ran = true; }, { signal: ac.signal }), (e) => e.code === 'aborted');
+  assert.equal(ran, false);
+});
+
+test('withRetry stops waiting when aborted during the backoff sleep', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const ac = new AbortController();
+  const pending = withRetry(
+    async () => { throw new ProviderError('overloaded', 'busy', { retryAfterMs: 60_000 }); },
+    { signal: ac.signal },
+  );
+  const settled = assert.rejects(pending, (e) => e.code === 'aborted');
+  await settle();
+  ac.abort();
+  await settled;
+});
+
+test('withRetry honours retryAfterMs over its own backoff, and rethrows the last failure', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  const pending = withRetry(async () => {
+    calls++;
+    throw new ProviderError('rate_limit', `attempt ${calls}`, { retryAfterMs: 5000 });
+  }, { attempts: 3, baseMs: 1 });
+  const settled = assert.rejects(pending, (e) => e.message === 'attempt 3');
+  await settle();
+  t.mock.timers.tick(4999);
+  await settle();
+  assert.equal(calls, 1, 'not retried before the server said it was ready');
+  t.mock.timers.tick(1);
+  await settle();
+  assert.equal(calls, 2);
+  t.mock.timers.tick(5000);
+  await settled;
+  assert.equal(calls, 3);
+});
