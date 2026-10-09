@@ -142,7 +142,12 @@ test -z "$(git status --porcelain)" &&
 git push -u origin HEAD
 ```
 
-In PowerShell, use the PowerShell block from AGENTS.md unchanged.
+In PowerShell, use the PowerShell block from AGENTS.md up to and including `git push` and
+its exit check, then continue below. Its trailing `gh pr create --fill` would open a PR
+without `Closes #42` or the evidence checklist.
+
+Write down the full SHA that `tested` held. Shell state does not survive between tool
+calls, so the merge gate needs it as a literal value.
 
 Open the PR. Its body must contain `Closes #42`, a checklist mapping each acceptance
 criterion to its evidence, and a summary of the commands run with their results. End it
@@ -157,29 +162,39 @@ Write `pr-body.md` in the scratchpad, not the repository.
 
 ## 8. Merge gate
 
-The `main review` ruleset requires an approval that an agent cannot give itself. The
-maintainer account is a bypass actor, so `--admin` can satisfy that one rule. It must never
-be used to get past `ci`. Merge only when **all** of these hold:
+The maintainer account is an `always` bypass actor on **both** rulesets: `main review`
+(the approval an agent cannot give itself) and `main protection` (the required `ci`
+check and the up-to-date rule). So `--admin` gets past all of them at once, and the check
+below is the only thing standing between a merge and an untested commit. Never weaken it,
+split it, or run the merge without it.
+
+It is one command, in a POSIX shell (Git Bash on Windows), so nothing can change between
+the check and the merge. Put in the PR number and the literal SHA you validated:
 
 ```sh
-gh pr view 99 --json headRefOid,mergeStateStatus,statusCheckRollup,isDraft
+PR=99 TESTED=0123456789abcdef0123456789abcdef01234567 &&
+gate=$(gh pr view "$PR" --json headRefOid,mergeStateStatus,isDraft,statusCheckRollup   --jq '[.headRefOid, ((.statusCheckRollup | map(select(.name == "ci")) | .[0].conclusion) // "MISSING"), .mergeStateStatus, (.isDraft | tostring)] | join(" ")') &&
+set -- $gate &&
+echo "head=$1 ci=$2 state=$3 draft=$4" &&
+[[ "$1" =~ ^[0-9a-f]{40}$ ]] && [ "$1" = "$TESTED" ] &&
+[ "$2" = SUCCESS ] && [ "$3" != BEHIND ] && [ "$3" != DIRTY ] && [ "$4" = false ] &&
+gh pr merge "$PR" --squash --admin --match-head-commit "$1" --delete-branch
 ```
 
-- `statusCheckRollup` contains `ci` with conclusion `SUCCESS`, for the commit that equals
-  `headRefOid`. Pending, failure, cancelled, skipped or missing all mean no.
-- `headRefOid` equals the commit you validated and pushed.
-- `mergeStateStatus` is not `BEHIND`. If it is, run `gh pr update-branch 99`, pull the
-  result, re-run section 5 on the new head, and wait for `ci` again.
+What each condition means, so a refusal can be diagnosed rather than worked around:
+
+- The head is a full SHA and equals the commit you validated and pushed. A different head
+  means someone (or `update-branch`) moved it: re-run section 5 on the new head first.
+- `ci` concluded `SUCCESS` on that head. Pending, failure, cancelled, skipped and missing
+  all refuse. Wait with `gh pr checks --watch --required` and try again.
+- The branch is not `BEHIND` `main` (or conflicted). If it is, run
+  `gh pr update-branch 99`, pull, re-run section 5 on the new head, and wait for `ci`.
+  `BLOCKED` is expected and fine: that is the missing approval.
 - The PR is not a draft, and no review finding is unresolved.
 
-Then:
-
-```sh
-gh pr merge 99 --squash --admin --match-head-commit "$HEAD_SHA" --delete-branch
-```
-
-Never use `--no-verify`, never force-push, never push to `main` directly, and never edit a
-ruleset or a required check to get a PR through.
+`--match-head-commit` with the verified SHA makes GitHub itself refuse the merge if the
+head moves after the check. Never use `--no-verify`, never force-push, never push to
+`main` directly, and never edit a ruleset or a required check to get a PR through.
 
 ## 9. Close out, or escalate
 
