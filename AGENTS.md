@@ -8,7 +8,9 @@ Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
 `change-voice-and-driving`, `validate-local-model`, `update-documentation`,
 `update-readme`, `review-ideaforge-documentation`, and `review-ideaforge-change`. The
 `release` skill is explicitly invoked; preparing its PR is not permission to merge or
-publish. Keep one definition of each skill, not client-specific copies. See
+publish. The `work-issues` skill is also explicitly invoked: invoking it is the
+maintainer's permission to merge green PRs for `agent-ready` issues, and nothing more.
+Keep one definition of each skill, not client-specific copies. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
 ## The short version
