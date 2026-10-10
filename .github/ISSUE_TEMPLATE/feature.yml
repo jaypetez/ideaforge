@@ -25,6 +25,19 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How would we know it is done?
+      description: |
+        Acceptance criteria, one per line, each something a test, a command or a screenshot
+        can prove. Issues with checkable criteria can be picked up by the work-issues agent.
+      placeholder: |
+        - [ ] Answering by voice on Android no longer repeats the first words
+        - [ ] A unit test fails without the fix
+    validations:
+      required: true
+
   - type: dropdown
     id: area
     attributes:
