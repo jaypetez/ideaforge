@@ -21,6 +21,11 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Spoken questions (voice/AndroidSpeech.kt): without this, TextToSpeech cannot see or
+             bind any engine on API 30+, and every speak fails to initialise. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <!-- allowBackup is off: the only backups are the user's own session exports. Android

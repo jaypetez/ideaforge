@@ -121,7 +121,7 @@ class AppGraph(
             providers = { providerSource },
             writes = appScope,
             main = mainScope,
-            recognizer = { recognizer!! },
+            recognizerSource = { recognizer!! },
             speaker = { driveSpeaker ?: speaker },
             service = object : DriveServiceControl {
                 override fun start() = driveService.start()

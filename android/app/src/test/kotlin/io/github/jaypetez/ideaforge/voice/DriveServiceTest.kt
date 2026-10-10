@@ -100,4 +100,28 @@ class DriveServiceTest {
         assertEquals(spoken, rig.speaker.said.size)
         assertTrue(rig.model.requests.none { it.first == "complex" })
     }
+
+    @Test
+    fun aDriveEndedBeforeTheServiceStartsStillEntersTheForegroundThenStopsItself() {
+        // serviceOn, then serviceOff at once: the START arrives after the drive has ended.
+        rig.controller.start(rig.seeded, "typed")
+        rig.controller.exit()
+        val service = deliver(Intent(context, DriveService::class.java).setAction(DriveService.ACTION_START))
+        assertEquals("entered the foreground first", 1, service.foregroundEntries)
+        assertTrue(shadowOf(service).isStoppedBySelf)
+    }
+
+    @Test
+    fun aStoodDownDriveStopsTheServiceFromInside() {
+        rig.scripts += listOf(At(300, Ev.Ready), At(400, Ev.Rms(3f)))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.listening })
+        val service = deliver(Intent(context, DriveService::class.java).setAction(DriveService.ACTION_START))
+        rig.speaker.next = { SpeakResult(SpeakStatus.FAILED, SpeakFailure.ENGINE_ERROR, "engine error") }
+        rig.scripts += emptyList<At>()
+        // A word-less miss makes the loop speak again, and that speech fails fatally.
+        assertTrue(rig.until { rig.state.mode == VoiceMode.BLOCKED })
+        rig.advance(100)
+        assertTrue(shadowOf(service).isStoppedBySelf)
+    }
 }

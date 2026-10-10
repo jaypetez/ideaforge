@@ -184,4 +184,88 @@ class DriveControllerTest {
         assertEquals(said, rig.speaker.said.size)
         assertFalse(rig.recognizerBuilt && rig.starts() > 0)
     }
+
+    private val listeningWithWords = listOf(
+        At(300, Ev.Ready), At(400, Ev.Rms(3f)), At(800, Ev.Partial("half an", unstable = " answer")),
+    )
+
+    @Test
+    fun deletingTheIdeaMidDriveThenPausingAndResumingWritesNothingAndDoesNotCrash() {
+        rig.scripts += listeningWithWords
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption.contains("answer") })
+        rig.controller.pause()
+        assertTrue(rig.until { rig.draft() == "half an answer" })
+
+        rig.delete()
+        assertTrue(rig.until { rig.saved() == null })
+        val starts = rig.starts()
+        rig.controller.resume()
+        rig.advance(30_000)
+        assertNull("the drive stood down", rig.state.mode)
+        assertEquals("no capture for a deleted idea", starts, rig.starts())
+
+        // A drive still active when the idea is deleted, then paused: the draft is dropped.
+        rig.scripts += listeningWithWords
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption.contains("answer") })
+        rig.delete()
+        rig.advance(100)
+        rig.controller.pause()
+        rig.advance(5_000)
+        assertNull(rig.saved())
+        assertTrue("crashed: ${rig.crashes}", rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun exitAfterTheIdeaWasDeletedWritesNothingAndDoesNotCrash() {
+        rig.scripts += listeningWithWords
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption.contains("answer") })
+        rig.controller.pause()
+        assertTrue(rig.until { rig.draft() == "half an answer" })
+        rig.delete()
+        assertTrue(rig.until { rig.saved() == null })
+        rig.controller.exit()
+        rig.advance(5_000)
+        assertNull(rig.saved())
+        assertTrue("crashed: ${rig.crashes}", rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun theRecogniserIsReleasedWhenTheDriveEndsAndNeverBuiltJustToRelease() {
+        rig.scripts += listeningWithWords
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.listening })
+        rig.controller.exit()
+        rig.advance(100)
+        assertTrue("released", rig.engine().destroyed)
+    }
+
+    @Test
+    fun aStandDownWithNoRecogniserDoesNotBuildOneToRelease() {
+        beginVoice(rig.controller, rig.seeded to "typed", micGranted = false, deniedMessage = "denied")
+        rig.controller.exit()
+        rig.advance(1_000)
+        assertFalse(rig.recognizerBuilt)
+    }
+
+    @Test
+    fun aNewDriveKeepsItsTypedDraftWhateverTheLastDriveCaptured() {
+        // The first drive ends while capturing its second question (t2).
+        rig.scripts += spoken("my first answer over")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.answered().size == 1 && rig.state.listening })
+        rig.controller.exit()
+        rig.controller.exitShown()
+
+        // A different, never-saved idea whose box held typed words: paused before it listens.
+        val other = "s_drive_00000002"
+        rig.controller.start(rig.unsaved(other, "typed words"), "typed")
+        rig.controller.pause()
+        assertTrue(
+            "draft=${stringOf(rig.store.get(other)?.get("draftAnswer"))}",
+            rig.until { stringOf(rig.store.get(other)?.get("draftAnswer")) == "typed words" },
+        )
+    }
 }

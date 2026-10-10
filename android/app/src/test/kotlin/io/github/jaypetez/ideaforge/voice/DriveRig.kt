@@ -9,17 +9,20 @@ import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.runtime.seedTurn
+import io.github.jaypetez.ideaforge.core.setDraftAnswer
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.interview.ScriptedModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.resetMain
@@ -70,8 +73,11 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
 
     val store = SessionStore(dir, io = dispatcher)
     val worker = SessionWorker()
-    val writes = CoroutineScope(SupervisorJob() + dispatcher)
-    val main = CoroutineScope(SupervisorJob() + dispatcher)
+    /** Anything thrown out of a launched coroutine: in the app, an uncaught crash. */
+    val crashes = mutableListOf<Throwable>()
+    private val handler = CoroutineExceptionHandler { _, e -> crashes += e }
+    val writes = CoroutineScope(SupervisorJob() + dispatcher + handler)
+    val main = CoroutineScope(SupervisorJob() + dispatcher + handler)
     val scripts = ArrayDeque<List<At>>()
     val factory = FakeFactory { FakeRecognizerEngine(main, scripts) }
     var recognizerBuilt = false
@@ -87,7 +93,7 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
         providers = { ProviderSource { model } },
         writes = writes,
         main = main,
-        recognizer = { recognizer },
+        recognizerSource = { recognizer },
         speaker = { speaker },
         service = service,
     )
@@ -95,6 +101,16 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
     val seeded: Session = seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now()))
 
     val state get() = controller.state.value
+
+    /** Another idea, never saved, whose answer box held [draft]. */
+    fun unsaved(id: String, draft: String): Session =
+        setDraftAnswer(seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now())), str(draft), num(clock.now()))
+
+    /** The library's delete: retire the idea's work, then delete under its lock. */
+    fun delete(id: String = this.id) {
+        worker.retire(id)
+        writes.launch { worker.exclusive(id) { store.delete(id) } }
+    }
 
     fun engine(): FakeRecognizerEngine = factory.engines.single()
     fun starts(): Int = factory.engines.sumOf { it.starts }

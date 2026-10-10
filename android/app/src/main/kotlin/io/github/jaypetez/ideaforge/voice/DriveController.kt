@@ -124,7 +124,7 @@ class DriveController(
     private val providers: () -> ProviderSource,
     private val writes: CoroutineScope,
     private val main: CoroutineScope,
-    private val recognizer: () -> Recognizer,
+    private val recognizerSource: () -> Recognizer,
     private val speaker: () -> Speaker,
     private val service: DriveServiceControl,
     private val trigger: suspend () -> String = { DEFAULT_TRIGGER },
@@ -150,6 +150,9 @@ class DriveController(
     private var job: Job? = null
     private var watch: Job? = null
     private var serviceRunning = false
+    private var recognizerBuilt = false
+
+    private fun recognizer(): Recognizer = recognizerSource().also { recognizerBuilt = true }
 
     /** The last draft write, for tests and for Exit to be sure it landed. */
     var draftWrite: Job? = null
@@ -202,8 +205,16 @@ class DriveController(
         job = main.launch {
             // Under the idea's lock: a turn the pause left in flight settles first, and what is
             // read is what it saved.
-            val latest = worker.exclusive(id) { store.get(id) } ?: session
+            val stored = worker.exclusive(id) { store.get(id) }
             if (my != epoch) return@launch
+            // Deleted while paused: there is nothing to resume, and nothing may be written.
+            if (stored == null && id in store.knownIds()) {
+                if (my != epoch) return@launch
+                halt()
+                _state.value = VoiceStageState()
+                return@launch
+            }
+            val latest = stored ?: session
             if (latest != null) {
                 session = latest
                 prefix = stringOf(latest["draftAnswer"]).orEmpty().trim()
@@ -232,6 +243,9 @@ class DriveController(
         work = InterviewWork(id, store, worker, clock, writes)
         prefix = stringOf(s["draftAnswer"]).orEmpty().trim()
         prefixSource = draftSource
+        // A capture id left by an earlier drive would make keepDraft think this question was
+        // already answered and drop the typed draft.
+        captureTurnId = null
     }
 
     private fun begin(my: Long) {
@@ -314,6 +328,9 @@ class DriveController(
         epoch++
         stopEffects()
         serviceOff()
+        // The run is over (Exit, done, a fatal stand-down): give the recognition service back.
+        // Only one this controller actually built; reading the provider would build one.
+        if (recognizerBuilt) runCatching { recognizer().release() }
     }
 
     private fun pauseRun(command: Boolean, detail: String?, blocked: Boolean = false) {
@@ -375,15 +392,23 @@ class DriveController(
         val id = sessionId ?: return
         val w = work ?: return
         val fallback = session
+        // Tagged now, at Pause/Exit: deleting the idea retires the tag and the write is dropped.
+        val tag = worker.tag(id)
         draftWrite = writes.launch {
-            val saved = worker.exclusive(id) {
-                val latest = store.get(id) ?: fallback ?: return@exclusive null
-                val open = openTurn(latest) ?: return@exclusive null
-                if (turnId != null && stringOf(open["id"]) != turnId) return@exclusive null
-                if (stringOf(latest["draftAnswer"]).orEmpty() == text) return@exclusive null
-                setDraftAnswer(latest, str(text), w.now()).also { store.save(it) }
-            }
-            if (saved != null) main.launch { if (sessionId == id) session = saved }
+            val saved = runCatching {
+                worker.run(tag, work = {
+                    val stored = store.get(id)
+                    // The in-memory copy stands in only for an idea never saved, never for one
+                    // deleted (the store refuses that save, and the idea is meant to be gone).
+                    val latest = stored ?: fallback?.takeIf { id !in store.knownIds() } ?: return@run null
+                    val open = openTurn(latest) ?: return@run null
+                    if (turnId != null && stringOf(open["id"]) != turnId) return@run null
+                    if (stored != null && stringOf(stored["draftAnswer"]).orEmpty() == text) return@run null
+                    setDraftAnswer(latest, str(text), w.now()).also { store.save(it) }
+                })
+            }.getOrNull()
+            val value = (saved as? SessionWorker.Outcome.Committed)?.value
+            if (value != null) main.launch { if (sessionId == id) session = value }
         }
     }
 

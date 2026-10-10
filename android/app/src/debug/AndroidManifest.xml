@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Debug-only additions, merged over src/main. The recognizer probe (issue #89) and every
      permission it needs live here, so a release APK carries neither the probe nor a
-     probe-only permission. Native capture (#91) and the drive service (#92) moved the
-     permissions they need into src/main; WAKE_LOCK is still the probe's alone. -->
+     probe-only permission or query. Native capture (#91) and the drive service (#92) moved
+     the permissions and queries they need (RecognitionService, TTS_SERVICE) into src/main;
+     WAKE_LOCK and RECOGNIZE_SPEECH are still the probe's alone. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -20,9 +21,6 @@
         </intent>
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
     </queries>
 

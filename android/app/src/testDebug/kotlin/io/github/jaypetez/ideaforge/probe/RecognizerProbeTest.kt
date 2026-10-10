@@ -100,7 +100,7 @@ class RecognizerProbeTest {
             "android.permission.FOREGROUND_SERVICE_MICROPHONE",
             "android.permission.POST_NOTIFICATIONS",
         )
-        val sharedQueries = setOf("android.speech.RecognitionService")
+        val sharedQueries = setOf("android.speech.RecognitionService", "android.intent.action.TTS_SERVICE")
         fun permissions(x: String) = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(x).map { it.groupValues[1] }.toSet()
         fun queryActions(x: String) = Regex("""<queries>(.*?)</queries>""", RegexOption.DOT_MATCHES_ALL).findAll(x)
             .flatMap { q -> Regex("""<action\s+android:name="([^"]+)"""").findAll(q.groupValues[1]).map { it.groupValues[1] } }.toSet()
@@ -112,6 +112,19 @@ class RecognizerProbeTest {
         for (action in addedQueries) assertFalse("release queries $action", release.contains("\"$action\""))
         for (component in listOf(".probe.", "RecognizerProbeActivity", "ProbeMicService")) {
             assertFalse("release names $component", release.contains(component))
+        }
+    }
+
+    // Spoken questions need the TTS engine to be visible (package visibility, API 30+). When
+    // only the debug manifest declared the query, a release build could not speak at all.
+    @Test
+    fun theReleaseMergedManifestCanSeeTheSpeechServices() {
+        val path = System.getProperty("ideaforge.releaseManifest") ?: error("ideaforge.releaseManifest is not set")
+        val release = File(path).readText()
+        val queries = Regex("""<queries>(.*?)</queries>""", RegexOption.DOT_MATCHES_ALL).findAll(release)
+            .flatMap { q -> Regex("""<action\s+android:name="([^"]+)"""").findAll(q.groupValues[1]).map { it.groupValues[1] } }.toSet()
+        for (action in listOf("android.intent.action.TTS_SERVICE", "android.speech.RecognitionService")) {
+            assertTrue("release does not query $action: $queries", action in queries)
         }
     }
 

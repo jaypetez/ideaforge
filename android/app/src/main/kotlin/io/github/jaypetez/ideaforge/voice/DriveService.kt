@@ -37,13 +37,18 @@ import kotlinx.coroutines.launch
  * Exit actions into the same controller calls the stage's buttons make. It is started only by
  * [DriveController.start] / [DriveController.resume], which are user taps on the visible app
  * (the platform refuses a microphone foreground service started from the background), and it
- * stops itself the moment the controller has no run: Exit, done, or a fatal stand-down.
+ * stops itself (never stopService, which can race startForeground) once the controller has no
+ * run: Exit, done, or a fatal stand-down.
  * START_NOT_STICKY: after process death it is not restarted, so nothing reopens the mic.
  */
 class DriveService : Service() {
     private val scope = MainScope()
     private var watch: Job? = null
     private var foreground = false
+
+    /** How many times this instance entered the foreground; the stop-race test reads it. */
+    internal var foregroundEntries = 0
+        private set
 
     private val drive: DriveController get() = (application as IdeaForgeApp).graph.driveController
 
@@ -56,28 +61,34 @@ class DriveService : Service() {
             ACTION_EXIT -> drive.exit()
         }
         val state = drive.state.value
-        if (!state.attached) {
-            // An action from a stale notification, or Exit just now: nothing to keep alive.
-            // A service started for the foreground must still enter it before stopping.
-            if (intent?.action == ACTION_START) enterForeground(state)
+        // A service started with startForegroundService must enter the foreground before it
+        // may stop, or the system kills the app ("did not then call startForeground"). So a
+        // START always enters it first, even when the drive has already ended (Exit tapped
+        // right after Start), and the service stops itself only after that.
+        if (intent?.action == ACTION_START || foreground) enterForeground(state)
+        if (!keepsRunning(state)) {
             stop()
             return START_NOT_STICKY
         }
-        enterForeground(state)
+        if (!foreground) enterForeground(state)
         if (watch == null) {
             watch = scope.launch {
                 drive.state.collect { s ->
-                    if (!s.attached) stop() else notifyState(s)
+                    if (!keepsRunning(s)) stop() else notifyState(s)
                 }
             }
         }
         return START_NOT_STICKY
     }
 
+    /** Attached and not stood down: Pause keeps it (its notification holds Resume). */
+    private fun keepsRunning(state: VoiceStageState) = state.attached && state.mode != VoiceMode.BLOCKED
+
     private fun enterForeground(state: VoiceStageState) {
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(this, state), type)
         foreground = true
+        foregroundEntries++
     }
 
     private fun notifyState(state: VoiceStageState) {
@@ -116,9 +127,10 @@ class DriveService : Service() {
             override fun start() {
                 ContextCompat.startForegroundService(app, Intent(app, DriveService::class.java).setAction(ACTION_START))
             }
-            override fun stop() {
-                app.stopService(Intent(app, DriveService::class.java))
-            }
+            // Deliberately nothing: stopService racing a startForegroundService that has not yet
+            // reached startForeground crashes the app. The service watches the controller and
+            // stops itself, after entering the foreground, once the drive has ended or stood down.
+            override fun stop() = Unit
         }
 
         fun ensureChannel(context: Context) {
