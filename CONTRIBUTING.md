@@ -42,6 +42,7 @@ The shared skills are:
 - `add-provider` for inference, transcription and hosted speech endpoints;
 - `change-voice-and-driving` for microphone, speech, and hands-free behavior;
 - `validate-local-model` for the real Ollama/GPU harness;
+- `android-verify` for the native Android build, golden vectors and emulator smoke run;
 - `update-documentation` for the public guide and every source-derived documentation surface;
 - `update-readme` for generated screenshots, the worked example, and source-derived claims;
 - `review-ideaforge-documentation` for a high-confidence read-only documentation review;
@@ -74,7 +75,7 @@ copilot skill list --json
 ```
 
 The instruction listing should include the three Copilot entry points above. The skill
-listing should show all eight enabled project skills from this repository's `.claude`
+listing should show every shared skill listed above, from this repository's `.claude`
 directory, not unrelated personal or plugin skills with the same names. Start a fresh
 session after changing instructions or agents. In Copilot CLI, `/env`, `/instructions`,
 `/skills`, and `/agent` inspect the loaded configuration.
@@ -190,6 +191,75 @@ taken on. Worth ten minutes before a first change of any size.
 security, packaging, command or workflow changes. Run `npm run test:docs` while editing;
 new pages must update the guide navigation, docs inventory and Pages/container packaging
 together. The README remains the landing page, not a second copy of the full guide.
+
+## The Android app
+
+`android/` is a native Kotlin and Jetpack Compose app, and the one place in the repository
+with real dependencies. It is a separate Gradle project: nothing under it is imported by,
+copied into or served beside the web app, and `test/wiring.test.mjs` pins that
+`tools/assemble-site.mjs` never publishes it. The app is an alpha that runs the typed
+interview; native voice capture and the hands-free voice stage are not built yet, and there
+is no signed release. <!-- TODO(#95): describe the signed-APK release job and the
+certificate fingerprint in SECURITY.md once #95 lands. --> The signed APK on GitHub releases
+arrives with [issue #95](https://github.com/jaypetez/ideaforge/issues/95); until then CI
+uploads a debug APK only.
+
+```
+android/core/       pure Kotlin/JVM port of src/core + src/runtime (no Android, no clock, no network)
+android/providers/  pure Kotlin/JVM port of src/providers: HTTP policy and adapters, on OkHttp
+android/app/        the Compose application: stores, keyring, screens, native speech output
+```
+
+The module boundaries are enforced, not agreed. `:core` and `:providers` are plain JVM
+modules, so nothing Android can be imported there, and `:providers` may use `:core`, never the
+reverse. `CorePurityTest` is the Kotlin twin of `tools/lint-purity.mjs` and bans clocks,
+randomness, files and the network from `:core`; `ModuleBoundaryTest` fails if the Android
+framework reaches its classpath, and checks that the session schema number matches
+`src/core/session.js`. `:app` injects wall time and ids (`Clock` and `IdGen`, built in
+`AppGraph`), just as the web UI injects them into the runtime.
+
+The build's facts live in Gradle, and `test/docs.test.mjs` fails if this table drifts from them:
+
+| Fact | Value | Owner |
+|---|---|---|
+| Minimum SDK | minSdk 29 | `android/app/build.gradle.kts` |
+| Target SDK | targetSdk 36 | `android/app/build.gradle.kts` |
+| Compile SDK | compileSdk 37 | `android/app/build.gradle.kts` |
+| Android Gradle plugin | AGP 9.4.1 | `android/gradle/libs.versions.toml` |
+| Kotlin | Kotlin 2.4.21 | `android/gradle/libs.versions.toml` |
+| Gradle wrapper | Gradle 9.8.1 | `android/gradle/wrapper/gradle-wrapper.properties` |
+| Toolchain | JDK 21 | every module's `jvmToolchain` |
+
+Every library version is in the catalog; bump it there, never inline in a build script.
+`versionName` is read from `package.json`, so the release triplet stays in two files, not
+three. The debug build adds `.debug` to the application id and installs beside a release.
+
+```sh
+cd android
+./gradlew check :app:assembleDebug   # what CI runs; gradlew.bat on Windows
+./gradlew :core:test                 # one module at a time while iterating
+```
+
+**The golden vectors are the contract.** The JavaScript core is the reference.
+`npm run vectors` records real calls into it as `test/vectors/*.json`, and
+`node tools/vectors.mjs --check` (run by `test/vectors.test.mjs`) fails when they are stale.
+The Kotlin tests replay every family through the consumers registered in
+`android/core/src/test/kotlin/io/github/jaypetez/ideaforge/core/vectors/Consumers.kt`, and
+`VectorCoverageTest` fails when a family on disk has no consumer. A JavaScript change that
+alters behaviour regenerates the vectors in the same PR, and the `android` job then stays red
+until the port follows. Never edit a vector by hand or loosen a Kotlin consumer to make it
+pass. Backups are a second contract: `test/fixtures/backup-from-web.json` and
+`test/fixtures/backup-from-android.json` are each imported by the other platform's tests.
+
+**CI.** The `android` job in `.github/workflows/ci.yml` runs on Ubuntu with Temurin JDK 21,
+validates the Gradle wrapper, runs `./gradlew --no-daemon check :app:assembleDebug`, and
+uploads the debug APK as the `ideaforge-debug-apk` artifact. It feeds the single required `ci`
+check. No emulator runs in CI yet.
+
+The shared [`android-verify`](.claude/skills/android-verify/SKILL.md) skill is the full build,
+vector and emulator procedure, including planting a fault to prove a test bites. The Android
+invariants are in [CLAUDE.md](CLAUDE.md#android-invariants). Installing the app is in the
+[Android guide](guide/android.html).
 
 ## Things worth knowing before you change them
 

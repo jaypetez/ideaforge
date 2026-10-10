@@ -24,6 +24,7 @@ const GUIDE_PAGES = [
   'interviews-and-coverage.html',
   'ideas-library.html',
   'mobile-and-voice.html',
+  'android.html',
   'providers.html',
   'local-models-and-docker.html',
   'privacy-and-security.html',
@@ -378,13 +379,119 @@ test('every source file the architecture doc points at exists', () => {
   // exactly that. Policing its prose would be the tax this suite's header warns about.
   const doc = readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8');
   const paths = new Set();
-  for (const m of doc.matchAll(/`((?:src|test|tools|docs|\.github)\/[^`\s]+\.\w+)`/g)) {
+  for (const m of doc.matchAll(/`((?:src|test|tools|docs|android|\.github)\/[^`\s]+\.\w+)`/g)) {
     paths.add(m[1]);
   }
   assert.ok(paths.size >= 15, `only found ${paths.size} cited paths; the regex stopped matching`);
 
   const missing = [...paths].filter((p) => !existsSync(join(ROOT, p)));
   assert.deepEqual(missing, [], `ARCHITECTURE.md cites files that do not exist: ${missing.join(', ')}`);
+});
+
+// The Android build's facts are owned by Gradle: SDK levels by android/app/build.gradle.kts,
+// plugin versions by the version catalog, Gradle itself by the wrapper. The docs state them
+// once each; this fails when a bump in any owner leaves a document describing the old value.
+const ANDROID_DIR = join(ROOT, 'android');
+const androidFile = (...parts) => readFileSync(join(ANDROID_DIR, ...parts), 'utf8');
+
+function androidFacts() {
+  const app = androidFile('app', 'build.gradle.kts');
+  const catalog = androidFile('gradle', 'libs.versions.toml');
+  const wrapper = androidFile('gradle', 'wrapper', 'gradle-wrapper.properties');
+  const sdk = (name) => {
+    const m = app.match(new RegExp(`^\\s*${name}\\s*=\\s*(\\d+)\\s*$`, 'm'));
+    assert.ok(m, `android/app/build.gradle.kts has no literal ${name}`);
+    return m[1];
+  };
+  const version = (name) => {
+    const m = catalog.match(new RegExp(`^${name}\\s*=\\s*"([^"]+)"`, 'm'));
+    assert.ok(m, `libs.versions.toml has no ${name} version`);
+    return m[1];
+  };
+  const gradle = wrapper.match(/gradle-(\d+(?:\.\d+)+)-bin\.zip/);
+  assert.ok(gradle, 'gradle-wrapper.properties names no Gradle distribution');
+  const toolchains = new Set([...androidFile('core', 'build.gradle.kts').matchAll(/jvmToolchain\((\d+)\)/g),
+    ...androidFile('providers', 'build.gradle.kts').matchAll(/jvmToolchain\((\d+)\)/g),
+    ...app.matchAll(/jvmToolchain\((\d+)\)/g)].map((m) => m[1]));
+  assert.equal(toolchains.size, 1, `modules disagree about the JDK toolchain: ${[...toolchains]}`);
+  return {
+    minSdk: sdk('minSdk'),
+    targetSdk: sdk('targetSdk'),
+    compileSdk: sdk('compileSdk'),
+    agp: version('agp'),
+    kotlin: version('kotlin'),
+    gradle: gradle[1],
+    jdk: [...toolchains][0],
+  };
+}
+
+// Android release names for the API levels a minSdk could plausibly be. A minSdk outside
+// this table fails loudly so whoever moved it also checks how the guide names it.
+const ANDROID_RELEASE = { 26: '8.0', 27: '8.1', 28: '9', 29: '10', 30: '11', 31: '12', 33: '13',
+  34: '14', 35: '15', 36: '16' };
+
+test('documented Android SDK levels and toolchain versions match the Gradle files', () => {
+  const facts = androidFacts();
+  const contributing = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+  const page = guide('android.html');
+  const surfaces = [
+    ['CONTRIBUTING.md', contributing],
+    ['guide/android.html', page],
+    ['README.md', README],
+    ['CLAUDE.md', readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8')],
+    ['docs/ARCHITECTURE.md', readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8')],
+    ['android-verify skill', readFileSync(join(ROOT, '.claude', 'skills', 'android-verify',
+      'SKILL.md'), 'utf8')],
+  ];
+
+  // Wherever a document names one of these, it names the current value.
+  const named = [
+    ['minSdk', /\bminSdk (\d+)/g, facts.minSdk],
+    ['targetSdk', /\btargetSdk (\d+)/g, facts.targetSdk],
+    ['compileSdk', /\bcompileSdk (\d+)/g, facts.compileSdk],
+    ['AGP', /\bAGP (\d+(?:\.\d+)+)/g, facts.agp],
+    ['Kotlin', /\bKotlin (\d+\.\d+(?:\.\d+)*)/g, facts.kotlin],
+    ['Gradle', /\bGradle (\d+\.\d+(?:\.\d+)*)/g, facts.gradle],
+    ['JDK', /\bJDK (\d+)/g, facts.jdk],
+  ];
+  for (const [label, text] of surfaces) {
+    for (const [name, pattern, expected] of named) {
+      for (const m of text.matchAll(pattern)) {
+        assert.equal(m[1], expected, `${label} says ${name} ${m[1]}; Gradle says ${expected}`);
+      }
+    }
+  }
+
+  // And the contributor guide states every one of them, so the check above has teeth.
+  for (const [name, , expected] of named) {
+    assert.ok(contributing.includes(`${name} ${expected}`),
+      `CONTRIBUTING.md does not state ${name} ${expected}`);
+  }
+
+  const release = ANDROID_RELEASE[facts.minSdk];
+  assert.ok(release, `minSdk ${facts.minSdk} has no Android release name in ANDROID_RELEASE`);
+  for (const [label, text] of [['guide/android.html', page], ['README.md', README]]) {
+    assert.ok(text.includes(`Android ${release} (API ${facts.minSdk}) or newer`),
+      `${label} must say the app needs Android ${release} (API ${facts.minSdk}) or newer`);
+    for (const m of text.matchAll(/\bAPI (\d+)\b/g)) {
+      assert.equal(m[1], facts.minSdk, `${label} names API ${m[1]}; minSdk is ${facts.minSdk}`);
+    }
+  }
+});
+
+test('the documented debug application id and APK artifact match the build and CI', () => {
+  const app = androidFile('app', 'build.gradle.kts');
+  const id = app.match(/applicationId = "([^"]+)"/)?.[1];
+  const suffix = app.match(/applicationIdSuffix = "([^"]+)"/)?.[1];
+  assert.ok(id && suffix, 'android/app/build.gradle.kts lost its applicationId or debug suffix');
+  const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const artifact = ci.match(/name: (\S+)\n\s+path: android\/app\/build\/outputs\/apk\/debug/)?.[1];
+  assert.ok(artifact, 'ci.yml no longer uploads the debug APK');
+  const retention = ci.match(new RegExp(`name: ${artifact}[\\s\\S]*?retention-days: (\\d+)`))?.[1];
+  const page = guide('android.html');
+  assert.ok(page.includes(`<code>${id}${suffix}</code>`), `guide omits the debug id ${id}${suffix}`);
+  assert.ok(page.includes(`<code>${artifact}</code>`), `guide omits the CI artifact ${artifact}`);
+  assert.ok(page.includes(`expire after ${retention} days`), `guide omits the ${retention}-day retention`);
 });
 
 test('the worked example quoted in the README is the one on disk', () => {

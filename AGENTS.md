@@ -5,7 +5,7 @@ The shared working loop for Claude Code and GitHub Copilot (CLI and VS Code).
 covers *how to iterate on it and prove it works*. Read both before changing the code.
 
 Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
-`change-voice-and-driving`, `validate-local-model`, `update-documentation`,
+`android-verify`, `change-voice-and-driving`, `validate-local-model`, `update-documentation`,
 `update-readme`, `review-ideaforge-documentation`, and `review-ideaforge-change`. The
 `release` skill is explicitly invoked; preparing its PR is not permission to merge or
 publish. The `work-issues` skill is also explicitly invoked: invoking it is the
@@ -41,6 +41,11 @@ use `$env:VALIDATE_MODE = 'handsfree'` before `npm run validate:local` in PowerS
 If you change anything under `src/voice/`, `src/store/`, `src/ui/`, `index.html`, `sw.js` or
 `manifest.webmanifest`, **`npm test` cannot see your change at all.** Those live in browser
 APIs that do not exist in Node. Use `npm run test:browser:required`.
+
+If you change anything under `android/`, no npm command builds or tests it. Run
+`./gradlew check :app:assembleDebug` in `android/` and follow the `android-verify` skill. A
+JavaScript change that regenerates `test/vectors/` needs that run too, because the Kotlin port
+replays them.
 
 ## Documentation is one synchronized surface
 

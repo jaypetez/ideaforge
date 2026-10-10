@@ -214,6 +214,52 @@ sizes. Colour contrast for every token and component pair, in both themes, is th
 `test/browser/contrast.browser.mjs`; [DESIGN.md](DESIGN.md#contrast-and-targets) lists what
 it measures and what it exempts.
 
+## The native Android app
+
+`android/` is a separate Gradle project with three modules, and the same one-way shape:
+
+```
+android/core/       Kotlin port of src/core + src/runtime — pure JVM, no Android, no clock
+android/providers/  Kotlin port of src/providers — HTTP policy and adapters on OkHttp
+android/app/        Compose UI, stores, keyring and native speech; the only Android module
+```
+
+`:app → :providers → :core`, never the reverse. The first fence is that `:core` and
+`:providers` are plain JVM modules, so Android cannot be imported at all; the second is
+`android/core/src/test/kotlin/io/github/jaypetez/ideaforge/core/CorePurityTest.kt`, the twin of
+`tools/lint-purity.mjs`. Nothing in `android/` reaches the published site; `assembleSite`
+never copies it and `test/wiring.test.mjs` asserts so.
+
+**The JavaScript is the reference, and parity is measured, not reviewed.** `tools/vectors.mjs`
+records real calls into the JS core and runtime as JSON files under `test/vectors/`. The Kotlin tests
+replay them through the consumers registered in
+`android/core/src/test/kotlin/io/github/jaypetez/ideaforge/core/vectors/Consumers.kt`;
+`VectorCoverageTest.kt` beside it fails when a family has no consumer. The provider and
+speech families are replayed in `:providers`, and the walkthrough family also runs through
+the interview view model in `:app`. So a behaviour change lands in JavaScript first, the
+vectors are regenerated in the same PR, and the `android` CI job stays red until the port
+follows. The contract rules are in [CLAUDE.md](../CLAUDE.md#android-invariants).
+
+**What `:app` owns.** `android/app/src/main/kotlin/io/github/jaypetez/ideaforge/AppGraph.kt` is
+manual dependency injection: the one place wall time is read (`Clock`) and ids are minted
+(`IdGen`), and the owner of every store. Sessions are one JSON file each in `SessionStore.kt`,
+kept as raw JSON objects so fields a newer build wrote round-trip untouched. The keyring is
+encrypted under an Android Keystore key in `KeyringStore.kt`, outside the sessions directory
+so no backup can sweep it up. The screens are view models over those stores, and the
+debug-only scripted provider is wired in at launch by `MainActivity.kt`.
+
+**Where native and web differ on purpose.** The browser's "local means loopback" rule exists
+because the CSP is the key-exfiltration boundary. On a phone the model server is usually on
+another machine, so `android/providers/src/main/kotlin/io/github/jaypetez/ideaforge/providers/LocalNetworkPolicy.kt`
+allows private networks instead, and enforces it at DNS resolution rather than by reading
+the URL. Android cloud backup is off, so the only backup is the user's own export, which is
+the same file the web app reads and writes.
+
+**Not built yet.** Native speech capture, the hands-free voice stage as a foreground
+service, hosted speech in the app, an emulator test in CI and a signed release. The drive
+loop (`DriveLoop.kt`), native speech output (`Speaker.kt`) and the hosted transcription and
+speech clients exist, with tests, ahead of the screens that will use them.
+
 ## Extension seams
 
 **A provider.** See the walkthrough in [CONTRIBUTING.md](../CONTRIBUTING.md) — it is the
