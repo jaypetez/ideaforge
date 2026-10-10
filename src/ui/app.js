@@ -204,7 +204,8 @@ function show(panel, destination) {
   // On a detail screen the Ideas button is drawn as a back arrow, so say so to the ear too.
   if (current) els['b-library'].removeAttribute('aria-label');
   else els['b-library'].setAttribute('aria-label', 'Back to ideas');
-  if (panel === 'panel-setup' || panel === 'panel-library') els.meter.hidden = true;
+  // Interview only: Done prints the final figure in its own meta line.
+  if (panel !== 'panel-interview') els.meter.hidden = true;
   renderVoiceStage();
 }
 
@@ -985,14 +986,55 @@ function renderCoverage() {
   }
 }
 
+/** What a segment shows: the ratchet's level while a dimension is asked about, else set aside. */
+function segmentLevel(c) {
+  return c.status === 'probing' ? c.level : 'skipped';
+}
+
+/**
+ * The meter: one segment per dimension, in DIMENSIONS order, and the number beside them.
+ *
+ * aria-valuenow is coveragePercent and nothing else — the same figure the export, the library
+ * card and the done line print, so a screen reader never hears a second, rounder opinion.
+ * aria-valuetext adds the count a sighted person reads off the segments. Waived and deferred
+ * dimensions leave the percentage (coveragePercent excludes them), so the count does too and
+ * says how many were set aside instead of calling them uncovered.
+ */
+function renderMeter(s) {
+  const pct = coveragePercent(s);
+  const track = els['meter-fill'];
+  if (track.children.length !== DIMENSIONS.length) {
+    track.replaceChildren(...DIMENSIONS.map((d) => {
+      const seg = document.createElement('span');
+      seg.className = 'meter-seg';
+      seg.dataset.dimension = d.id;
+      return seg;
+    }));
+  }
+  let covered = 0;
+  let asked = 0;
+  DIMENSIONS.forEach((d, i) => {
+    const c = s.coverage[d.id];
+    const level = segmentLevel(c);
+    if (level !== 'skipped') asked++;
+    if (level === 'covered') covered++;
+    const seg = track.children[i];
+    seg.dataset.level = level;
+    seg.title = `${d.label}: ${level === 'skipped' ? (c.status === 'waived' ? 'not relevant' : c.status) : level}`;
+  });
+  const aside = DIMENSIONS.length - asked;
+  els['meter-label'].textContent = `${pct}%`;
+  els.meter.setAttribute('aria-valuenow', String(pct));
+  els.meter.setAttribute('aria-valuetext', `${pct}% — ${covered} of ${asked} covered`
+    + (aside ? `, ${aside} set aside` : ''));
+}
+
 function render() {
   const s = state.session;
-  const pct = coveragePercent(s);
+  // Shown here, but renderVoiceStage() (called last) hides it again in voice mode, and show()
+  // hides it on every other panel: Interview is the only screen it belongs to.
   els.meter.hidden = false;
-  els['meter-fill'].style.width = `${pct}%`;
-  els['meter-label'].textContent = `${pct}%`;
-  // The number was on screen and announced to nobody. The element carries role="progressbar".
-  els.meter.setAttribute('aria-valuenow', String(pct));
+  renderMeter(s);
 
   const open = openTurn(s);
   if (open) {
@@ -2395,8 +2437,41 @@ function trackComposer() {
   update();
 }
 
+/**
+ * At 1024px and wider the Coverage disclosure is a side panel beside the conversation
+ * (app.css lays it out): always open, and its summary is a heading that no longer toggles.
+ * The same <details class="cov"> either way — tools/screenshots.mjs and the probes find it by
+ * that selector — so this only forces `open` while the media query holds, and gives back
+ * whatever the person had chosen when the window narrows again.
+ */
+const SIDE_PANEL_QUERY = '(min-width: 1024px)';
+function bindCoveragePanel() {
+  const cov = document.querySelector('details.cov');
+  const summary = cov.querySelector('summary');
+  const wide = window.matchMedia(SIDE_PANEL_QUERY);
+  let chosen = cov.open;
+  const apply = () => {
+    if (wide.matches) {
+      if (cov.dataset.side !== 'true') chosen = cov.open;
+      cov.dataset.side = 'true';
+      cov.open = true;
+      summary.setAttribute('aria-disabled', 'true');
+    } else {
+      if (cov.dataset.side === 'true') cov.open = chosen;
+      delete cov.dataset.side;
+      summary.removeAttribute('aria-disabled');
+    }
+  };
+  // The summary's default action is the toggle; cancelling the click (mouse, Enter, Space)
+  // is what keeps the panel open, rather than reopening it after a flash of closing.
+  summary.addEventListener('click', (event) => { if (wide.matches) event.preventDefault(); });
+  wide.addEventListener('change', apply);
+  apply();
+}
+
 function bind() {
   trackComposer();
+  bindCoveragePanel();
   els.provider.onchange = () => { onProviderChange(); onSttChange(); };
   els.stt.onchange = onSttChange;
   // On change, not on input: normalising every keystroke fights whoever is typing.

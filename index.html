@@ -82,13 +82,17 @@
     <h1>IdeaForge</h1>
     <!--
       The coverage ratchet is the product, so it gets a full-width row of its own during a
-      desktop interview, and a compact place in the phone's top app bar. role="progressbar"
-      and aria-valuenow mean the percentage is announced, not just drawn.
+      desktop interview, and a compact place in the phone's top app bar. It is one segment
+      per dimension, in DIMENSIONS order, drawn by renderMeter() in app.js: an outlined empty
+      segment is thin, half filled is partial, filled is covered, hatched is not relevant.
+      role="progressbar" with aria-valuenow (exactly coveragePercent) and aria-valuetext
+      ("43% — 3 of 7 covered") is what a screen reader hears. The segments are aria-hidden:
+      their titles are for a pointer, and the Coverage list below says the same per row.
     -->
     <div class="meter" id="meter" hidden
          role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
-         aria-label="Coverage of this idea">
-      <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
+         aria-valuetext="0%" aria-label="Coverage of this idea">
+      <span class="meter-track" id="meter-fill" aria-hidden="true"></span>
       <span class="meter-label" id="meter-label">0%</span>
     </div>
     <nav class="bar-right" aria-label="Main">
