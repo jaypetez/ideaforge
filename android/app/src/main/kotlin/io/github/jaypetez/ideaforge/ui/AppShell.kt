@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +54,7 @@ import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.startGate
+import io.github.jaypetez.ideaforge.ui.settings.BackupSection
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -183,7 +186,11 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
 @Composable
 private fun SettingsScreen(vm: SettingsViewModel) {
     val prefs by vm.prefs.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Scrolls: in landscape or at a large font scale the backup section is taller than the
+    // space above the bottom bar, and its buttons would otherwise be out of reach.
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.pref_hands_free), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -193,6 +200,8 @@ private fun SettingsScreen(vm: SettingsViewModel) {
             stringResource(R.string.pref_trigger, prefs.effectiveTrigger),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // Here until the full settings screen (#88) gives backups their permanent place.
+        BackupSection()
     }
 }
 

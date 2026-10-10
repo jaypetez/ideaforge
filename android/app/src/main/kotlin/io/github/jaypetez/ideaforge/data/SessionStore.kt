@@ -86,7 +86,34 @@ class SessionStore(
     fun get(id: String): Session? = _sessions.value.firstOrNull { idOf(it) == id }
 
     /** Persists [session] exactly as given, then updates the index. */
-    suspend fun save(session: Session) = mutex.withLock {
+    suspend fun save(session: Session) = mutex.withLock { saveLocked(session) }
+
+    /**
+     * Every id this store holds or has refused: indexed sessions, files it skipped (a newer
+     * schema), and ids deleted in this process. An import passes these as mergeImported's
+     * `reservedIds`, the twin of the web's `keys(SESSIONS)`, so nothing it writes can land
+     * on any of them.
+     */
+    suspend fun knownIds(): Set<String> = mutex.withLock {
+        loadLocked()
+        byId.keys + skipped + deleted
+    }
+
+    /**
+     * [save], but only for an id the store has never held: false, writing nothing, when the
+     * id is indexed, skipped, deleted or already on disk. An import writes through this, so
+     * even a merge decided against a stale picture of the library cannot replace a row.
+     */
+    suspend fun insert(session: Session): Boolean = mutex.withLock {
+        val id = requireNotNull(idOf(session)) { "a session needs a string id to be saved" }
+        require(SAFE_ID.matches(id)) { "unsafe session id: $id" }
+        loadLocked()
+        if (id in byId || id in skipped || id in deleted || File(dir, "$id$SUFFIX").exists()) return@withLock false
+        saveLocked(session)
+        true
+    }
+
+    private suspend fun saveLocked(session: Session) {
         val id = requireNotNull(idOf(session)) { "a session needs a string id to be saved" }
         require(SAFE_ID.matches(id)) { "unsafe session id: $id" }
         loadLocked()
@@ -140,6 +167,9 @@ class SessionStore(
         // Web ids are `s_<base36>_<hex>`; imported ids are kept, so allow the general shape
         // but never a path separator or a dot-segment.
         private val SAFE_ID = Regex("[A-Za-z0-9_-]{1,128}")
+
+        /** Whether [id] can name a file here; an import re-ids a session whose id cannot. */
+        fun isSafeId(id: String): Boolean = SAFE_ID.matches(id)
 
         fun encode(session: Session): ByteArray =
             Json.encodeToString(JsonObject.serializer(), session).encodeToByteArray()
