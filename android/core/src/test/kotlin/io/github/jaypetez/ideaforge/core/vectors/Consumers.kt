@@ -8,7 +8,9 @@ import io.github.jaypetez.ideaforge.core.utf8Length
  * it from `pending` to `ported` in the same PR that adds the Kotlin code; VectorSuiteTest
  * then checks every one of its recorded cases.
  *
- * `providers` is listed here for completeness and will move to a consumer in :providers.
+ * `providers` is registered here so the coverage test sees every family on disk, but :core
+ * cannot depend on :providers: the #78 functions are replayed by ProvidersVectorTest in that
+ * module, which asserts it ports exactly [ProvidersFamily.IN_PROVIDERS_MODULE].
  */
 private fun pending(issue: String, vararg fns: String) = fns.associateWith { issue }
 
@@ -41,8 +43,6 @@ val CONSUMERS: List<Consumer> = listOf(
         "triggerWarning", "spokenExamples",
     )),
     Consumer("drive-loop", ported = emptyMap(), pending = pending("#77", "driveLoop")),
-    Consumer("providers", ported = emptyMap(),
-        pending = pending("#78", "isLoopback", "applyAuth", "codeForStatus", "isRetryableProviderError",
-            "isRetryable", "retryAfterMs", "extractJson") +
-            pending("#79", "resolveTiers", "presetModels", "parseModelList", "request")),
+    Consumer("providers", ported = emptyMap(), pending = ProvidersFamily.PENDING,
+        portedElsewhere = ProvidersFamily.IN_PROVIDERS_MODULE.associateWith { ProvidersFamily.MODULE }),
 )

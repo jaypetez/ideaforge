@@ -32,5 +32,15 @@ internal fun asProviderFailure(e: Exception): ProviderException = when (e) {
     else -> ProviderException(null, e.message ?: e.toString(), e)
 }
 
-/** A failed provider call. `code` is the JS ProviderError code (network, auth, aborted...). */
-class ProviderException(val code: String?, message: String, cause: Throwable? = null) : Exception(message, cause)
+/**
+ * A failed provider call. `code` is the JS ProviderError code (network, auth, aborted...);
+ * `status` and `retryAfterMs` mirror the JS ProviderError fields of the same names, filled
+ * by the HTTP layer in :providers and null everywhere else.
+ */
+class ProviderException(
+    val code: String?,
+    message: String,
+    cause: Throwable? = null,
+    val status: Int? = null,
+    val retryAfterMs: Long? = null,
+) : Exception(message, cause)
