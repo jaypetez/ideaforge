@@ -142,7 +142,10 @@ export async function runBrowserPolicyChecks({
           // while every probe after it passed. Only that one failure earns a single fresh
           // relaunch; a Chrome that exits or errors stays a hard failure.
           if (!/never opened a debugging port/.test(error.message)) throw error;
-          await closeBrowser(browser, null).catch(() => {});
+          // No relaunch over a first browser that will not die or leave its profile: let
+          // that propagate, so the outer catch records it and the finally retries the cleanup
+          // on this same browser, instead of a green retry hiding a leaked Chrome.
+          await closeBrowser(browser, null);
           browser = launch();
           cdp = await connectChrome(browser, PORT_WAIT_MS);
           check('Chrome opened its debugging port on a fresh relaunch', true, error.message);
