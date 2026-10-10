@@ -192,6 +192,23 @@ not throw it away.
 questions, answers and the refined prompt. An idea can be renamed, tagged, archived,
 restored or permanently deleted.
 
+In a window 1024px or wider the library is a list beside a detail pane. Click a card, or
+its **Details** button, and the pane shows that idea's status and counts, its main action
+and the same More actions menu, above a rendered preview of its markdown. **Settings** gets
+the width too: an index of its four groups sits beside them.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/screenshots/11-library-wide.dark.png">
+    <img src="docs/screenshots/11-library-wide.light.png" width="760"
+         alt="The Ideas library in a wide window: search, filters and a selected idea card
+              on the left, and on the right a detail pane with the idea's title, status,
+              View result, a More actions button and a rendered preview of its refined
+              prompt.">
+  </picture>
+</p>
+
 Nothing is synced to an IdeaForge account because there is no account or server. In
 **Settings**, under **Data**, **Back up ideas** downloads one JSON file containing every active and archived interview; **Import
 backup** restores it on another device without silently overwriting a different local copy.
