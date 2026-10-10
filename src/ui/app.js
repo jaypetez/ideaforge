@@ -66,6 +66,7 @@ for (const id of [
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
   'wrap-offer', 'wrap-offer-text', 'b-wrap-offer', 'b-wrap-keep',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
+  'thread-wrap', 'thread', 'b-thread-more', 'composer',
   'panel-library', 'library-search', 'library-status', 'library-tag',
   'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
   'b-library-new', 'b-backup', 'b-import', 'backup-file',
@@ -135,6 +136,9 @@ const state = {
    * the card is still showing, and it never outlives the turn it was offered on.
    */
   wrapOffer: null,
+  /** The idea the thread was last drawn for, and whether its older pairs are unfolded. */
+  threadFor: null,
+  threadExpanded: false,
   /**
    * The provider id whose Check succeeded on this visit, or null. One of the two things
    * that let Start fold its connection card; a saved key is the other.
@@ -1010,6 +1014,7 @@ function render() {
   }
   els['b-wrap'].hidden = !(s.turns.length >= 4 || state.voiceWrapPending);
   renderWrapOffer(s, open);
+  renderThread(s);
   els['b-send'].disabled = state.busy || !open;
   els['b-skip'].disabled = state.busy || !open;
   els.answer.disabled = state.busy || !open;
@@ -1035,8 +1040,59 @@ function dismissWrapOffer() {
   renderWrapOffer();
 }
 
+/**
+ * The pairs already settled, oldest first: answered or skipped, never the open question.
+ * Only the newest THREAD_VISIBLE show until the toggle opens the rest, so a long interview
+ * does not push the question it is asking off the top of a phone. Every string goes in
+ * through textContent: the questions are model output and the answers are the person's,
+ * and either one can contain markup that must stay text.
+ */
+const THREAD_VISIBLE = 2;
+function renderThread(s = state.session) {
+  if (!s) return;
+  if (state.threadFor !== s.id) {
+    state.threadFor = s.id;
+    state.threadExpanded = false;
+  }
+  const settled = s.turns.filter((t) => t.answer || t.skipped);
+  const folded = state.threadExpanded ? 0 : Math.max(0, settled.length - THREAD_VISIBLE);
+  const items = settled.slice(folded).map((t) => {
+    const li = document.createElement('li');
+    li.className = 'thread-turn';
+    const q = document.createElement('p');
+    q.className = 'thread-q';
+    q.textContent = t.question;
+    const a = document.createElement('div');
+    a.className = t.skipped ? 'thread-a skipped' : 'thread-a';
+    const text = document.createElement('p');
+    text.className = 'thread-a-text';
+    text.textContent = t.skipped ? 'Skipped' : t.answer;
+    a.append(text);
+    // The same provenance the ratchet reads: a chip sent as offered is Claude's wording,
+    // and the transcript should not let it pass for the person's own.
+    if (!t.skipped && t.answerSource === 'chip') {
+      const tag = document.createElement('span');
+      tag.className = 'thread-tag';
+      tag.textContent = 'suggestion';
+      tag.title = 'A suggested answer, sent as offered';
+      a.append(tag);
+    }
+    li.append(q, a);
+    return li;
+  });
+  els.thread.replaceChildren(...items);
+  els['thread-wrap'].hidden = settled.length === 0;
+  const more = els['b-thread-more'];
+  const hiddenCount = settled.length - THREAD_VISIBLE;
+  more.hidden = hiddenCount <= 0;
+  more.setAttribute('aria-expanded', String(!!state.threadExpanded));
+  more.textContent = state.threadExpanded
+    ? 'Hide earlier answers'
+    : `Show ${hiddenCount} earlier`;
+}
+
 function renderChips(chips) {
-  els.chips.innerHTML = '';
+  els.chips.replaceChildren();
   for (const text of chips) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -2305,7 +2361,42 @@ async function renderResumeList(stored) {
   }
 }
 
+/**
+ * Two numbers app.css needs and cannot measure for itself.
+ *
+ * --keyboard-inset is how much of the layout viewport the on-screen keyboard covers. iOS
+ * Safari, and Android Chrome since 108, shrink only the visual viewport when it opens, so a
+ * composer docked with `bottom: 0` is docked behind the keyboard — over the very box being
+ * typed into. Ignored while pinch-zoomed, where a smaller visual viewport is not a keyboard.
+ *
+ * --composer-block is the composer's own height, which scroll-padding uses so moving focus
+ * never scrolls a chip or the coverage list in underneath the dock.
+ */
+function trackComposer() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  let frame = 0;
+  const update = () => {
+    frame = 0;
+    const inset = vv && vv.scale <= 1.01
+      ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+    root.style.setProperty('--keyboard-inset', `${inset}px`);
+  };
+  const queue = () => { if (!frame) frame = requestAnimationFrame(update); };
+  if (vv) {
+    vv.addEventListener('resize', queue);
+    vv.addEventListener('scroll', queue);
+  }
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      root.style.setProperty('--composer-block', `${Math.ceil(els.composer.offsetHeight)}px`);
+    }).observe(els.composer);
+  }
+  update();
+}
+
 function bind() {
+  trackComposer();
   els.provider.onchange = () => { onProviderChange(); onSttChange(); };
   els.stt.onchange = onSttChange;
   // On change, not on input: normalising every keystroke fights whoever is typing.
@@ -2454,6 +2545,10 @@ function bind() {
     if (state.busy || !openTurn(state.session)) return;
     if (state.voice) state.voice.abort();      // a tap takes the wheel back mid-listen
     await doSkip();
+  };
+  els['b-thread-more'].onclick = () => {
+    state.threadExpanded = !state.threadExpanded;
+    renderThread();
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
   els['b-wrap-offer'].onclick = () => {

@@ -310,6 +310,13 @@ button.quiet {
 }
 button.quiet:hover { background: var(--accent-soft); }
 
+/* Tonal: between filled and quiet, for the action that matters but is not the next step. */
+button.tonal {
+  background: var(--primary-container); color: var(--primary);
+  border-color: transparent; box-shadow: none;
+}
+button.tonal:hover { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+
 button.danger { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 35%, transparent); }
 button.danger:hover {
   background: color-mix(in srgb, var(--fail) 12%, transparent);
@@ -324,24 +331,68 @@ button:disabled {
 button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
 
 /* ─────────────────────────────────────────────────────────── interview */
+/* A conversation: the settled pairs, the open question on a card with its suggestions, and
+   a composer at the end. Send is the one filled button on the screen. */
 #manual-interview { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+
+.thread-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
+.thread {
+  list-style: none; margin: 0; padding: 0; width: 100%;
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+.thread-turn { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.thread-q {
+  margin: 0; max-width: 92%;
+  font-size: var(--type-label-size); line-height: var(--type-label-line);
+  color: var(--on-surface-variant);
+}
+/* The person's words, on the trailing side like any chat, in a tonal bubble. */
+.thread-a {
+  align-self: flex-end; max-width: 88%;
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--s1);
+  padding: var(--s2) var(--s3);
+  background: var(--primary-container); color: var(--on-primary-container);
+  border-radius: var(--r-md) var(--r-md) var(--s1) var(--r-md);
+}
+.thread-a-text {
+  margin: 0; white-space: pre-wrap; text-align: start; align-self: stretch;
+  font-size: var(--type-body-size); line-height: var(--type-body-line);
+}
+.thread-a.skipped { background: var(--surface-container); }
+.thread-a.skipped .thread-a-text { font-style: italic; color: var(--on-surface-variant); }
+.thread-tag {
+  font-size: var(--t-xs); line-height: var(--type-label-line); letter-spacing: .02em;
+  color: var(--on-surface-variant);
+}
+.thread-wrap .thread-more { padding-inline: 0; }
+
+.question-card {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s5); border-radius: var(--r-lg);
+  background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
+  box-shadow: var(--elev-1);
+}
 .bridge { margin: 0; color: var(--ink-dim); font-size: var(--t-md); }
 .question {
   margin: 0; font-size: clamp(var(--t-xl), 1rem + 2vw, var(--t-2xl)); font-weight: 600;
   line-height: 1.3; letter-spacing: -.03em; text-wrap: balance;
 }
-#answer { padding: var(--s4); border-radius: var(--r-md); box-shadow: var(--shadow-1); }
 .asking { margin: 0; font-family: var(--mono); font-size: var(--t-sm); color: var(--ink-dim); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .chips:empty { display: none; }
+/* Tonal: a suggestion is an offer, quieter than Send and louder than a link. */
 .chip {
   font-family: var(--sans); font-size: var(--t-md); font-weight: 400;
-  color: var(--ink); background: var(--surface);
-  border: 1px solid var(--line-strong); border-radius: var(--r-pill);
+  color: var(--on-primary-container); background: var(--primary-container);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: var(--r-pill);
   padding: var(--s2) var(--s3); min-height: 40px; cursor: pointer; text-align: left;
   box-shadow: none; transition: border-color var(--dur-short2) var(--ease), background-color var(--dur-short2) var(--ease);
 }
-.chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.chip:hover {
+  border-color: var(--primary); color: var(--on-primary-container);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
 .turnline { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
 
 /* A choice, not a status: a tonal primary card with the one action it offers, beside the
@@ -356,6 +407,23 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   margin: 0; font-size: var(--type-body-size); line-height: var(--type-body-line);
   font-weight: 600;
 }
+
+/* The composer: the answer box and its actions in one raised card. Phones dock it (below). */
+.composer {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s3); border-radius: var(--r-lg);
+  background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
+  box-shadow: var(--elev-2);
+}
+#answer {
+  padding: var(--s3) var(--s4); border-radius: var(--r-md); box-shadow: none;
+  min-height: 96px; background: var(--surface-container-low);
+  /* Grows with the answer where supported, up to a cap, instead of scrolling inside four
+     rows; resize stays available where it is not. */
+  field-sizing: content; max-height: 40dvh;
+}
+/* Send last and pushed to the trailing edge; the quieter actions gather before it. */
+.interview-actions #b-send { margin-inline-start: auto; }
 
 /* The stage owns presentation only. The parent sets hidden on the manual UI and navigation. */
 .voice-stage {
@@ -471,6 +539,39 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .toggle input {
   width: var(--s4); height: var(--s4); margin: 3px 0 0; padding: 0; flex: none; min-height: 0;
 }
+
+/* A checkbox drawn as a switch, with role="switch": the same element, id and change event
+   the hands-free code and its probes drive, presented as the mode it is. The whole row is
+   the label, so the target is the row and not the 52px track. */
+.switch-row {
+  align-items: center; justify-content: space-between; gap: var(--s4);
+  min-height: var(--control-height); padding: var(--s2) var(--s4);
+  border-radius: var(--r-md); background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+}
+.switch-text { display: flex; flex-direction: column; min-width: 0; }
+.switch-title { font-weight: 600; font-size: var(--t-base); }
+.switch-hint { color: var(--on-surface-variant); font-size: var(--t-sm); line-height: 1.45; }
+.toggle input.switch {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none;
+  width: 52px; height: 32px; min-height: 32px; margin: 0; padding: 0;
+  border: 2px solid var(--outline); border-radius: var(--r-pill);
+  background: var(--surface-container); cursor: pointer;
+  transition: background-color var(--dur-short3) var(--ease-standard), border-color var(--dur-short3) var(--ease-standard);
+}
+.toggle input.switch::before {
+  content: ""; position: absolute; top: 50%; left: 6px;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--outline);
+  transform: translateY(-50%);
+  transition: left var(--dur-short3) var(--ease-standard), width var(--dur-short3) var(--ease-standard),
+              height var(--dur-short3) var(--ease-standard), background-color var(--dur-short3) var(--ease-standard);
+}
+.toggle input.switch:checked { background: var(--primary); border-color: var(--primary); }
+.toggle input.switch:checked::before {
+  left: 22px; width: 24px; height: 24px; background: var(--on-primary);
+}
+.toggle input.switch:disabled { opacity: .5; cursor: default; }
+.toggle input.switch:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
 .cov { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .cov summary {
@@ -836,6 +937,25 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   }
 }
 
+/* The docked composer, at the same width the toasts move to the top for it. Sticky rather
+   than fixed: it still takes its place in the flow, so at the end of the page it sits after
+   everything instead of over it, and #answer is inside it, so the dock cannot cover the box
+   being typed into. --keyboard-inset (trackComposer in app.js) lifts it above an on-screen
+   keyboard that shrank only the visual viewport; scroll-padding keeps focus from scrolling
+   anything else in underneath it. */
+@media (max-width: 600px) {
+  .composer {
+    position: sticky; z-index: 2;
+    bottom: calc(var(--keyboard-inset, 0px) + max(var(--s2), env(safe-area-inset-bottom)));
+    padding: var(--s2);
+  }
+  html:has(body[data-panel="interview"]) {
+    scroll-padding-bottom: calc(var(--composer-block, 0px) + var(--keyboard-inset, 0px) + var(--s4));
+  }
+  #answer { min-height: 72px; max-height: 30dvh; }
+  .interview-actions { gap: var(--s1); }
+}
+
 @media (max-width: 520px) {
   .wrap { gap: var(--s4); }
   .install-card, .section-head, .library-summary { align-items: stretch; flex-direction: column; }
@@ -846,18 +966,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .output { padding: var(--s4); }
   .voice-stage { padding-inline: 0; }
 
-  /* Send is the primary action of the whole screen and used to sit wherever the answer box
-     pushed it. Pinned to the bottom on a phone, inside the safe area, so it is reachable
-     one-handed. `position:sticky` rather than fixed: it still participates in layout, so it
-     cannot cover the answer box the way a fixed bar would. */
-  .interview-actions {
-    position: sticky; bottom: 0; z-index: 2;
-    padding-block: var(--s3);
-    padding-bottom: max(var(--s3), env(safe-area-inset-bottom));
-    background: linear-gradient(to top, var(--ground) 72%, transparent);
-  }
-  .interview-actions button { flex: 1 1 auto; }
-  .interview-actions button:first-child { flex-basis: 100%; }
+  .question-card { padding: var(--s4); border-radius: var(--r-md); }
 }
 
 @media (max-height: 740px) and (max-width: 520px) {

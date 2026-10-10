@@ -210,8 +210,11 @@ class App {
     for (let pass = 0; pass < 4; pass++) {
       // `.wrap` carries 72px of bottom padding for thumbs on a phone, which in a screenshot
       // is just dead space. Keep a little of it and crop the rest.
+      // From the top of the page: the app focuses #answer, and once the conversation thread
+      // makes the page taller than the working viewport that focus scrolls it, so a measure
+      // taken mid-scroll comes up short and the capture loses the header (#104).
       const measured = await this.eval(
-        `Math.ceil(document.querySelector('.wrap').getBoundingClientRect().bottom) - 48`,
+        `(window.scrollTo(0, 0), Math.ceil(document.querySelector('.wrap').getBoundingClientRect().bottom) - 48)`,
       );
       const next = Math.min(Math.max(measured, 260), maxHeight);
       if (next === height) break;

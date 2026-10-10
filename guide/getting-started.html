@@ -233,8 +233,12 @@
       </p>
       <p>
         After the opening answer, IdeaForge asks a follow-up grounded in the conversation.
-        The manual view shows one question, an optional short bridge from the previous
-        answer and sometimes suggestion chips. Voice reads the question and examples in
+        The manual view reads like a conversation: your earlier answers sit above the
+        current question, with the newest two shown and older ones behind
+        <strong>Show earlier</strong>. The question card holds one question, an optional
+        short bridge from the previous answer and sometimes suggestion chips. The answer
+        box and its buttons stay together below it; on a phone they stay docked at the
+        bottom of the screen, above the keyboard. Voice reads the question and examples in
         turn, not while listening for another answer.
       </p>
 
@@ -243,7 +247,8 @@
         Selecting a chip copies its text into the answer box; it does not submit it. Edit
         the wording until it reflects what you mean, then send it. An unedited chip is
         treated as model-supplied wording and cannot by itself move a coverage area all the
-        way to <strong>covered</strong>.
+        way to <strong>covered</strong>; in the conversation above the question it is marked
+        <em>suggestion</em>.
       </p>
 
       <h3 id="skip">Skip rather than invent</h3>
@@ -268,7 +273,7 @@
       </p>
       <ul class="checklist">
         <li>The progress meter shows coverage, not a countdown or a quality score.</li>
-        <li>The line below the controls shows the question number and current dimension.</li>
+        <li>The line under the question shows the question number and current dimension.</li>
         <li><strong>Coverage</strong> expands to show what is thin, partial, or covered.</li>
         <li><strong>not relevant</strong> removes a dimension from later questions.</li>
         <li>The write-up button appears after the early part of the interview, so you can stop by choice.</li>
@@ -284,9 +289,9 @@
       <h2 id="finish">Create and use the result</h2>
       <ol class="steps">
         <li>
-          Select <strong>Write it up</strong> on the wrap-up card when it appears, or
-          <strong>That&rsquo;s enough &mdash; write it up</strong> at any point after four
-          questions. In hands-free mode, accept the spoken wrap offer.
+          Select <strong>Write it up</strong> on the wrap-up card when it appears, or the
+          <strong>Write it up</strong> button beside <strong>Send</strong> at any point after
+          four questions. In hands-free mode, accept the spoken wrap offer.
         </li>
         <li>
           IdeaForge makes one final model request for a refined prompt, a short title,

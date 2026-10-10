@@ -366,23 +366,45 @@
       <p id="voice-backend" class="voice-backend"></p>
     </section>
     <div id="manual-interview">
-    <p class="bridge" id="bridge" hidden></p>
-    <!-- The question text is swapped on every turn. Without a live region a screen-reader
-         user was never told a new one had arrived — they heard the old question, answered,
-         and nothing announced the next. -->
-    <h2 class="question" id="question" aria-live="polite" aria-atomic="true">…</h2>
-    <p class="asking" id="asking" hidden>thinking of the next question…</p>
+    <!--
+      The conversation so far: every settled question with the answer it got. Older pairs
+      fold behind #b-thread-more so the open question stays near the top of a phone screen.
+      Built with textContent only — both halves are someone else's words (the model's
+      question, the person's answer), and neither may ever reach innerHTML.
+    -->
+    <section class="thread-wrap" id="thread-wrap" aria-label="Earlier questions and answers" hidden>
+      <button type="button" class="quiet small thread-more" id="b-thread-more"
+              aria-controls="thread" aria-expanded="false" hidden>Show earlier answers</button>
+      <ol class="thread" id="thread"></ol>
+    </section>
 
-    <div class="chips" id="chips"></div>
+    <div class="question-card">
+      <p class="bridge" id="bridge" hidden></p>
+      <!-- The question text is swapped on every turn. Without a live region a screen-reader
+           user was never told a new one had arrived — they heard the old question, answered,
+           and nothing announced the next. -->
+      <h2 class="question" id="question" aria-live="polite" aria-atomic="true">…</h2>
+      <p class="asking" id="asking" hidden>thinking of the next question…</p>
+      <div class="chips" id="chips" role="group" aria-label="Suggested answers"></div>
+      <p class="turnline" id="turnline"></p>
+    </div>
+
+    <details class="cov">
+      <summary>Coverage</summary>
+      <div class="rows" id="coverage"></div>
+    </details>
 
     <!--
-      Above the answer box, not below the buttons. It used to sit after .interview-actions,
-      which became `position: sticky` on phones in v0.5.0 — so on the one device this feature
-      is for, the control that turns it on scrolled underneath the button bar.
+      Above the composer, never inside it. It once sat after .interview-actions, which is
+      sticky on phones — so on the one device this feature is for, the control that turns it
+      on scrolled underneath the button bar. A switch, because it is a mode that stays on.
     -->
-    <label class="toggle" id="handsfree-wrap" hidden>
-      <input type="checkbox" id="handsfree">
-      <span>Hands-free — read each question aloud, with suggestions, and listen for the answer</span>
+    <label class="toggle switch-row" id="handsfree-wrap" hidden>
+      <span class="switch-text">
+        <span class="switch-title">Hands-free</span>
+        <span class="switch-hint">Read each question aloud, with suggestions, and listen for the answer</span>
+      </span>
+      <input type="checkbox" class="switch" role="switch" id="handsfree">
     </label>
 
     <!--
@@ -399,27 +421,28 @@
       </div>
     </div>
 
-    <label class="sr-only" for="answer">Your answer</label>
-    <textarea id="answer" rows="4" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
+    <!--
+      The composer: the answer box and the actions that act on it, in one card. On a phone it
+      docks to the bottom of the screen (sticky, and lifted above the on-screen keyboard by
+      --keyboard-inset), and because #answer lives inside it the dock can never cover the box
+      you are typing into. Send is the one primary action; the rest are quieter on purpose.
+    -->
+    <div class="composer" id="composer">
+      <label class="sr-only" for="answer">Your answer</label>
+      <textarea id="answer" rows="3" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
 
-    <div class="listening" id="listening" hidden>
-      <span class="pulse" id="pulse"></span>
-      <span id="listening-label">Listening…</span>
+      <div class="listening" id="listening" hidden>
+        <span class="pulse" id="pulse"></span>
+        <span id="listening-label">Listening…</span>
+      </div>
+
+      <div class="btns interview-actions">
+        <button type="button" class="ghost" id="b-mic" data-icon="mic" hidden>Answer out loud</button>
+        <button type="button" class="quiet" id="b-skip">Skip this one</button>
+        <button type="button" class="tonal" id="b-wrap" data-icon="edit-note" hidden>Write it up</button>
+        <button type="button" id="b-send" data-icon="send">Send</button>
+      </div>
     </div>
-
-    <div class="btns interview-actions">
-      <button type="button" id="b-send">Send</button>
-      <button type="button" class="ghost" id="b-mic" hidden>🎤 Answer out loud</button>
-      <button type="button" class="ghost" id="b-skip">Skip this one</button>
-      <button type="button" class="ghost" id="b-wrap" hidden>That’s enough — write it up</button>
-    </div>
-
-    <p class="turnline" id="turnline"></p>
-
-    <details class="cov">
-      <summary>Coverage</summary>
-      <div class="rows" id="coverage"></div>
-    </details>
     </div>
   </section>
 
