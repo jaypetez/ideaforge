@@ -25,4 +25,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Tests here read JS sources off disk (the schema number now; the golden vectors later).
+    // Without declaring them as inputs, Gradle's up-to-date check and build cache would skip
+    // the very run that should catch a JS change the Kotlin port has not followed.
+    inputs.file(rootProject.layout.projectDirectory.file("../src/core/session.js"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
