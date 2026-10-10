@@ -149,7 +149,7 @@ export default async function run(check) {
     bottomNav('Ideas', 'b-library');
     const lastCard = [...$('library-rows').querySelectorAll('.idea-card')].at(-1);
     focusClear('Ideas', [...lastCard.querySelectorAll('button')]
-      .filter((b) => !b.closest('details:not([open])')).at(-1));
+      .filter((b) => !b.closest('details:not([open]), [popover]:not(:popover-open)')).at(-1));
 
     $('b-settings').click();
     await settle();

@@ -533,6 +533,79 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   padding: 3px var(--s2); border-radius: var(--r-pill); background: var(--surface-2);
   color: var(--ink-dim); font-size: var(--t-xs); max-width: 100%;
 }
+/* One primary action and the overflow trigger beside it, at the card's trailing edge. */
+.idea-actions { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.idea-actions > button:first-child { flex: 0 1 auto; }
+/* Two classes, to outrank button.quiet's padding. */
+.idea-actions .idea-more {
+  flex: none; display: grid; place-items: center; margin-inline-start: auto;
+  width: var(--control-height); min-width: var(--control-height); padding: 0;
+  color: var(--on-surface-variant); border-radius: var(--r-pill);
+}
+.idea-actions .idea-more:hover { color: var(--on-surface); background: var(--surface-container); }
+.idea-more::before { --icon-size: 24px; }
+
+/* The overflow menu: a native popover in the top layer. The UA centres popovers with
+   inset:0 and margin:auto; library.js places this one under its trigger instead. */
+.idea-menu {
+  position: absolute; inset: auto; margin: 0;
+  min-width: 12rem; max-width: calc(100vw - var(--s5));
+  padding: var(--s1); border: 1px solid var(--outline-variant); border-radius: var(--r-sm);
+  background: var(--surface-container-high); color: var(--on-surface);
+  box-shadow: var(--elev-3);
+}
+.idea-menu:popover-open { display: flex; flex-direction: column; gap: 2px; }
+.idea-menu .idea-menu-item {
+  display: flex; align-items: center; width: 100%; justify-content: flex-start;
+  padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+  color: var(--on-surface); font-weight: 500; text-align: start;
+}
+.idea-menu .idea-menu-item:hover {
+  background: color-mix(in srgb, var(--on-surface) var(--state-hover), transparent);
+}
+.idea-menu .idea-menu-item.danger { color: var(--error); border-color: transparent; }
+.idea-menu .idea-menu-item.danger:hover { background: var(--error-container); border-color: transparent; }
+@media (prefers-reduced-motion: no-preference) {
+  .idea-menu:popover-open { animation: menu-in var(--dur-short4) var(--ease-emph-decel); }
+}
+@keyframes menu-in { from { opacity: 0; transform: translateY(calc(-1 * var(--s1))); } }
+
+/* No ideas at all: a first run, with one way forward. The search and filters have nothing to
+   search, so they go too. */
+/* The header's New idea goes too: the zero state's own button is the one way forward. */
+#panel-library[data-library-state="zero"] :is(.library-tools, .library-summary, #b-library-new) {
+  display: none;
+}
+/* A failed first read knows no count to show. */
+#panel-library[data-library-state="unavailable"] .library-summary { display: none; }
+.library-zero {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+  padding: var(--s6) var(--s5); border: 1px dashed var(--outline); border-radius: var(--r-lg);
+  background: var(--surface-container-lowest);
+}
+.library-zero h3 { margin: 0; font-size: var(--type-title-size); font-weight: 600; }
+.library-zero .hint { margin: 0; max-width: 40ch; }
+.library-empty {
+  margin: 0; padding: var(--s5); text-align: center;
+  border: 1px dashed var(--outline-variant); border-radius: var(--r-lg);
+}
+
+/* Loading placeholders, the shape of a card. The shimmer is a duration token, so reduced
+   motion stops it along with everything else. */
+.idea-skeleton {
+  display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+}
+.idea-skeleton span {
+  display: block; height: var(--s4); border-radius: var(--r-pill);
+  background: var(--surface-container);
+  animation: skeleton-pulse calc(var(--dur-long2) * 3) var(--ease-standard) infinite alternate;
+}
+.idea-skeleton .idea-skeleton-title { width: 55%; height: var(--s5); }
+.idea-skeleton .idea-skeleton-meta { width: 80%; }
+.idea-skeleton .idea-skeleton-action { width: 7rem; height: var(--control-height); border-radius: var(--r-sm); }
+@keyframes skeleton-pulse { to { opacity: .45; } }
+
 .idea-edit { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .idea-edit summary { cursor: pointer; color: var(--accent); font-size: var(--t-sm); font-weight: 600; }
 .idea-edit[open] { display: grid; gap: var(--s2); }
@@ -767,8 +840,9 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .wrap { gap: var(--s4); }
   .install-card, .section-head, .library-summary { align-items: stretch; flex-direction: column; }
   .library-filters { grid-template-columns: 1fr; }
-  .idea-actions button { flex: 1 1 130px; }
-  .group, .idea-card, .install-card { padding: var(--s4); border-radius: var(--r-md); }
+  .idea-actions > button:first-child { flex: 1 1 auto; }
+  .library-zero { padding: var(--s5) var(--s4); }
+  .group, .idea-card, .idea-skeleton, .install-card { padding: var(--s4); border-radius: var(--r-md); }
   .output { padding: var(--s4); }
   .voice-stage { padding-inline: 0; }
 

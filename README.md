@@ -178,8 +178,8 @@ not throw it away.
             srcset="docs/screenshots/07-ideas-library.dark.png">
     <img src="docs/screenshots/07-ideas-library.light.png" width="760"
          alt="The Ideas library with conversation search, status and tag filters, and a
-              completed idea card offering view, share, download,
-              archive, delete, rename and tag actions.">
+              completed idea card with one View result button, a More actions menu for
+              share, download, archive and delete, and Rename or tag.">
   </picture>
 </p>
 

@@ -40,10 +40,16 @@ export function createLibraryView({
   confirmDelete = (title) => confirm(`Permanently delete “${title}”?`),
 } = {}) {
   let sessions = [];
+  // Whether a read has ever succeeded. Until one has, an empty list means "not known", not
+  // "none": a failed first read must not tell someone with saved ideas they have none.
+  let loaded = false;
   const {
-    search, status, tag, rows, empty, count,
+    search, status, tag, rows, empty, zero, zeroNew, count,
     backup, importButton, importFile, newButton,
   } = elements;
+  // The panel says which of its states it is in, so the stylesheet can drop the search and
+  // filters when there is nothing to search: 'loading', 'zero' or 'ready'.
+  const panel = rows.closest('section') || rows.parentElement;
 
   function renderFilters() {
     const selected = tag.value;
@@ -90,31 +96,90 @@ export function createLibraryView({
       tagList.append(chip);
     }
 
+    // One primary action per card. Everything else lives in the overflow menu, so the card
+    // reads as "this idea, and the one thing you would do next" rather than a toolbar.
     const actions = document.createElement('div');
-    actions.className = 'btns idea-actions';
+    actions.className = 'idea-actions';
     const open = button(session.status === 'done' ? 'View result' : 'Continue', '');
     open.onclick = run(open, () => onOpen(session.id), onError);
-    actions.append(open);
+
+    // A native popover: Esc and light dismiss close it, and focus goes back to the trigger,
+    // with no script of ours to get wrong. The buttons keep their exact labels, because the
+    // browser probes find them by visible text once the menu is open.
+    const menu = document.createElement('div');
+    menu.className = 'idea-menu';
+    menu.id = `idea-menu-${session.id}`;
+    menu.popover = 'auto';
+    menu.setAttribute('aria-label', `Actions for ${card.title}`);
+    const more = button('', 'quiet idea-more');
+    more.dataset.icon = 'more-vert';
+    more.setAttribute('aria-label', `More actions for ${card.title}`);
+    more.setAttribute('popovertarget', menu.id);
+    actions.append(open, more);
+
+    const item = (label, icon, className = 'quiet') => {
+      const element = button(label, `${className} idea-menu-item`);
+      element.dataset.icon = icon;
+      menu.append(element);
+      return element;
+    };
+    // Closing the menu first, synchronously, matters twice over. It hands focus back to the
+    // trigger before the card can re-render, and Share must still reach navigator.share inside
+    // the click gesture: hidePopover() and run() add no await before onShare is called.
+    const close = () => { if (menu.matches(':popover-open')) menu.hidePopover(); };
 
     if (card.canExport) {
-      const share = button('Share .md');
-      share.onclick = run(share, () => onShare(session), onError);
-      const download = button('Download .md');
-      download.onclick = () => onDownload(session);
-      actions.append(share, download);
+      const share = item('Share .md', 'share');
+      const shareAction = run(share, () => onShare(session), onError);
+      share.onclick = () => { close(); shareAction(); };
+      const download = item('Download .md', 'download');
+      download.onclick = () => { close(); onDownload(session); };
     }
 
-    const archive = button(card.status === 'archived' ? 'Restore' : 'Archive');
-    archive.onclick = run(archive, () =>
-      card.status === 'archived' ? onRestore(session) : onArchive(session), onError);
-    // Delete looked exactly like Share .md. It is the one action on this card that cannot
-    // be undone, so it is the one that gets a different colour. Same label — the browser
-    // probe finds it by visible text.
-    const remove = button('Delete', 'ghost small danger');
-    remove.onclick = run(remove, async () => {
+    const archived = card.status === 'archived';
+    const archive = item(archived ? 'Restore' : 'Archive', archived ? 'unarchive' : 'archive');
+    const archiveAction = run(archive, () =>
+      archived ? onRestore(session) : onArchive(session), onError);
+    archive.onclick = () => { close(); archiveAction(); };
+    // Delete is the one action on this card that cannot be undone, so it is the one that
+    // gets a different colour, and it still asks first. Same label — the browser probe finds
+    // it by visible text.
+    const remove = item('Delete', 'delete', 'quiet danger');
+    const removeAction = run(remove, async () => {
       if (confirmDelete(card.title)) await onDelete(session);
     }, onError);
-    actions.append(archive, remove);
+    remove.onclick = () => { close(); removeAction(); };
+
+    // Positioned against its trigger by hand rather than with CSS anchor positioning, which
+    // Safari and Firefox do not all have. Absolute in the top layer means document
+    // coordinates, so the menu scrolls with its card instead of floating over another one.
+    menu.addEventListener('beforetoggle', (event) => {
+      if (event.newState !== 'open') return;
+      const rect = more.getBoundingClientRect();
+      const root = document.documentElement;
+      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+      menu.style.right = `${Math.max(8, root.clientWidth - rect.right)}px`;
+    });
+    // The position is measured once, so a resize or rotation would leave the menu pointing
+    // at nothing. Close it instead; it reopens in the right place from its trigger.
+    const closeOnResize = () => close();
+    menu.addEventListener('toggle', (event) => {
+      if (event.newState !== 'open') {
+        window.removeEventListener('resize', closeOnResize);
+        return;
+      }
+      window.addEventListener('resize', closeOnResize);
+      // Flip above the trigger when the menu would run off the bottom of the viewport.
+      const rect = more.getBoundingClientRect();
+      const height = menu.getBoundingClientRect().height;
+      if (rect.bottom + 4 + height > window.innerHeight && rect.top - 4 - height > 0) {
+        menu.style.top = `${rect.top + window.scrollY - 4 - height}px`;
+      }
+      // Focus inside the menu is also what makes the browser return it to the trigger on
+      // Esc: popover focus restoration only applies when focus was in the popover.
+      const first = menu.querySelector('button');
+      if (first) first.focus();
+    });
 
     const edit = document.createElement('details');
     edit.className = 'idea-edit';
@@ -147,7 +212,7 @@ export function createLibraryView({
     }, onError);
     edit.append(summary, nameLabel, name, tagsLabel, tags, save);
 
-    article.append(heading, meta, tagList, actions, edit);
+    article.append(heading, meta, tagList, actions, menu, edit);
     return article;
   }
 
@@ -158,9 +223,43 @@ export function createLibraryView({
       tag: tag.value,
     });
     rows.innerHTML = '';
+    rows.removeAttribute('aria-busy');
+    if (!loaded) {
+      panel.dataset.libraryState = 'unavailable';
+      zero.hidden = true;
+      empty.hidden = true;
+      return;
+    }
     for (const session of shown) rows.append(renderCard(session));
     count.textContent = `${shown.length} of ${sessions.length} idea${sessions.length === 1 ? '' : 's'}`;
-    empty.hidden = shown.length !== 0;
+    // Two different empties. No ideas at all is a first run and wants a way to start one;
+    // filters that match nothing want the filters, which stay on screen beside the message.
+    const none = sessions.length === 0;
+    panel.dataset.libraryState = none ? 'zero' : 'ready';
+    zero.hidden = !none;
+    empty.hidden = none || shown.length !== 0;
+  }
+
+  // Placeholder cards while IndexedDB answers. They are decoration, so they are hidden from
+  // assistive technology, and the list announces itself busy instead. Not .idea-card: the
+  // screenshot harness and the probes count those as real ideas.
+  function renderLoading(placeholders = 3) {
+    rows.innerHTML = '';
+    rows.setAttribute('aria-busy', 'true');
+    panel.dataset.libraryState = 'loading';
+    zero.hidden = true;
+    empty.hidden = true;
+    for (let i = 0; i < placeholders; i++) {
+      const skeleton = document.createElement('div');
+      skeleton.className = 'idea-skeleton';
+      skeleton.setAttribute('aria-hidden', 'true');
+      for (const part of ['title', 'meta', 'action']) {
+        const bar = document.createElement('span');
+        bar.className = `idea-skeleton-${part}`;
+        skeleton.append(bar);
+      }
+      rows.append(skeleton);
+    }
   }
 
   search.addEventListener('input', renderRows);
@@ -179,10 +278,20 @@ export function createLibraryView({
     }
   };
   newButton.onclick = run(newButton, onNew, onError);
+  zeroNew.onclick = run(zeroNew, onNew, onError);
 
   return {
+    loading() {
+      renderLoading();
+    },
+    /** Leave the loading state without new rows, after a failed read. Before any read has
+        succeeded this shows neither empty state; the error toast says what happened. */
+    settle() {
+      if (rows.hasAttribute('aria-busy')) renderRows();
+    },
     render(nextSessions) {
       sessions = Array.isArray(nextSessions) ? nextSessions : [];
+      loaded = true;
       renderFilters();
       renderRows();
     },

@@ -67,7 +67,7 @@ for (const id of [
   'wrap-offer', 'wrap-offer-text', 'b-wrap-offer', 'b-wrap-keep',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
   'panel-library', 'library-search', 'library-status', 'library-tag',
-  'library-rows', 'library-empty', 'library-count',
+  'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
   'b-library-new', 'b-backup', 'b-import', 'backup-file',
   'panel-done', 'done-title', 'done-meta', 'output',
   'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
@@ -1955,6 +1955,8 @@ async function refreshLibrary() {
   try {
     state.library.render(await listSessions());
   } catch (error) {
+    // Never leave the skeletons spinning over a failed read: show what was there before.
+    state.library.settle();
     fail(error);
   }
 }
@@ -1967,6 +1969,7 @@ async function openLibrary() {
   if (!(await flushDraft())) return;
   if (navigation !== state.navigation) return;
   show('panel-library');
+  state.library.loading();
   await refreshLibrary();
   if (navigation === state.navigation) state.library.focus();
 }
@@ -2069,6 +2072,8 @@ function setupLibrary() {
       tag: els['library-tag'],
       rows: els['library-rows'],
       empty: els['library-empty'],
+      zero: els['library-zero'],
+      zeroNew: els['b-library-zero-new'],
       count: els['library-count'],
       backup: els['b-backup'],
       importButton: els['b-import'],
