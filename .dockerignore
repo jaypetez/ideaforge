@@ -16,5 +16,6 @@ tools
 spikes
 node_modules
 docker
+android
 *.md
 !LICENSE

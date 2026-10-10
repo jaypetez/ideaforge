@@ -31,6 +31,9 @@ node --test "test/**/*.test.mjs"                       # unit files, not browser
 ```
 
 There is **no install step** — zero dependencies, not even dev dependencies. Node 22+.
+That is a rule for the web app and everything the site serves. The native Android app in
+`android/` is a separate Gradle project with its own dependencies; none of it is published
+by `tools/assemble-site.mjs`, and a test pins that.
 
 `npm run serve` needs `python` on PATH. Any static server works; ES modules, IndexedDB and
 the service worker all need a real origin.
@@ -394,9 +397,11 @@ Several tests exist because the behaviour was wrong the first time, and the comm
 
 ## Things not to change
 
-- **No dependencies and no build step.** This is load-bearing, not minimalism: it is what
-  makes the strict CSP affordable and keeps a supply chain out of an app that holds the
-  user's API key in browser memory.
+- **No dependencies and no build step** for the web app. This is load-bearing, not
+  minimalism: it is what makes the strict CSP affordable and keeps a supply chain out of an
+  app that holds the user's API key in browser memory. `android/` is the one exception, and
+  only because it never reaches the browser: nothing under it may be imported by, copied
+  into, or served beside the web app.
 - **No hash routing in the UI.** WebKit re-prompts for the microphone on hash change in a
   standalone home-screen app; panels are toggled with `hidden` instead.
 - **The public guide is static and outside the app shell.** It lives under `guide/`, has no

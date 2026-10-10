@@ -16,9 +16,11 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {
+  mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { OPENAI_COMPAT_PRESETS } from '../src/providers/openaiCompat.js';
@@ -135,7 +137,38 @@ test('the assembled site contains exactly the publishable tree', async () => {
     assert.ok(!actual.some((file) => file.startsWith('docs/') && !file.startsWith('docs/screenshots/')),
       'only generated screenshots may ship from docs/');
     assert.ok(!actual.some((file) => /\.test\.mjs$/.test(file)), 'test modules must not ship');
+    assert.ok(!actual.some((file) => file.startsWith('android/')), 'the Android project must not ship');
   } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+// The native app in android/ has real dependencies (Gradle, Compose, OkHttp) and signing
+// configuration. The web app's "no dependencies, no build step" promise holds only while none
+// of that is ever served, so this checks packaging against a tree that actually contains an
+// Android project, rather than relying on the repository not having one yet.
+test('packaging never publishes the Android project, even when it exists', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'ideaforge-android-root-'));
+  const outDir = mkdtempSync(join(tmpdir(), 'ideaforge-android-out-'));
+  const put = (file, text = 'x') => {
+    mkdirSync(dirname(join(root, file)), { recursive: true });
+    writeFileSync(join(root, file), text);
+  };
+  try {
+    for (const file of ROOT_FILES) put(file);
+    for (const dir of ROOT_DIRS) put(`${dir}/placeholder.txt`);
+    put('android/settings.gradle.kts');
+    put('android/gradlew.bat');
+    put('android/app/build.gradle.kts');
+    put('android/app/src/main/AndroidManifest.xml');
+    put('android/keystore.properties', 'storePassword=secret');
+
+    const written = await assembleSite({ root, outDir, clean: false });
+    assert.ok(written.length > 0, 'the fixture must publish something');
+    assert.deepEqual(written.filter((file) => file.startsWith('android/')), []);
+    assert.deepEqual(tree(outDir).filter((file) => file.startsWith('android/')), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
     rmSync(outDir, { recursive: true, force: true });
   }
 });
