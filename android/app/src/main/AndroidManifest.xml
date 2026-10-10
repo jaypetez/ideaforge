@@ -4,6 +4,17 @@
 
     <!-- Model and speech providers (:providers) are reached over HTTP; see network_security_config. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Dictation (voice/Recognizer.kt). SpeechRecognizer requires the caller to hold it even
+         though the recognition service, not this app, opens the microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Package visibility (API 30+): without this, isRecognitionAvailable is false and
+         SpeechRecognizer cannot bind the recognition service. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <!-- allowBackup is off: the only backups are the user's own session exports. Android
          cloud backup would carry the encrypted keyring to a device whose Keystore cannot
