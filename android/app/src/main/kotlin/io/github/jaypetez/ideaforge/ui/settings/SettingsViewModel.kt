@@ -118,6 +118,12 @@ class SettingsViewModel(
     // The web's buildProvider before accepting local settings: refuses an address the adapter
     // would refuse on every call, without touching the network (see OnboardingViewModel).
     private val buildLocal: (ProviderConfig) -> Unit = { createProvider(it) },
+    /**
+     * Forget's effects outside the keyring, run first and synchronously: stop hosted speech
+     * (and with it a Settings check that is playing) and pause an active drive, as the web's
+     * forgetKey tears voice down before it deletes anything.
+     */
+    private val onForget: () -> Unit = {},
 ) : ViewModel() {
     private val local = MutableStateFlow(Local())
 
@@ -383,12 +389,20 @@ class SettingsViewModel(
     fun forget(): Job {
         forgetJob?.takeIf { it.isActive }?.let { return it }
         generation++
+        // Before anything suspends: a speech check or transcription save in flight read the
+        // old generation and will now be refused (KeyringStore.saveIf).
+        keyring.revoke()
+        runCatching { onForget() }
         val previous = work
         previous?.cancel()
         local.update { it.copy(confirmingForget = false, checking = true, failure = null, notice = null, unreadable = null) }
         return viewModelScope.launch {
             try {
-                if (prefsStore.current().hostedSpeechAllowed) prefsStore.update { it.copy(hostedSpeechAllowed = false) }
+                // Both hosted consents belonged to keys that are about to stop existing.
+                val p = prefsStore.current()
+                if (p.hostedSpeechAllowed || p.hostedTranscriptionAllowed) {
+                    prefsStore.update { it.copy(hostedSpeechAllowed = false, hostedTranscriptionAllowed = false) }
+                }
                 previous?.join()
                 keyring.forget()
                 local.update { it.copy(editor = null, forgotten = true, notice = "Keys deleted from this device.") }
@@ -406,7 +420,13 @@ class SettingsViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
-                SettingsViewModel(graph.prefsStore, graph.keyringStore, graph.providerCheck)
+                SettingsViewModel(
+                    graph.prefsStore, graph.keyringStore, graph.providerCheck,
+                    onForget = {
+                        graph.hostedSpeaker.cancel()
+                        graph.driveController.pauseFor("Keys were deleted from this device. Tap Resume to continue with the device voice.")
+                    },
+                )
             }
         }
     }

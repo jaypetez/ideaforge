@@ -336,7 +336,12 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   aloud and listens for the finish word, kept hearing with the screen off by a microphone
   foreground service whose notification offers Pause and Exit. It has not been tried on a
   physical phone; the installed web app above is the tested voice path.
-- **Not yet:** press-to-talk, and hosted speech or transcription.
+- **New, behind consent and a check:** optional OpenAI speech, with its own key and a
+  passing *Check and preview* (a key or voice change needs a new check; a live failure falls
+  back visibly to the phone's voice), and a Whisper transcription fallback, with its own key
+  and audio consent, used only when the phone's recogniser is missing or cannot recognise
+  your language.
+- **Not yet:** press-to-talk.
 - **Not yet:** a signed release or a Play Store listing.
   <!-- TODO(#95): link the signed APK on GitHub releases once the release job attaches it. -->
   The signed APK on GitHub releases arrives with

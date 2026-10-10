@@ -95,6 +95,12 @@ const val CONFIRM_FIRST_WORD_MS = 6000L
 private const val LEVEL_HISTORY = 24
 
 /**
+ * Failures that mean the recogniser cannot serve this device at all (not a busy or missed
+ * capture, which the recovery ladder owns): only these switch a drive to the Whisper fallback.
+ */
+private val UNAVAILABLE = setOf("LanguageUnavailable")
+
+/**
  * The hands-free interview: DriveLoop wired to the Recognizer, the Speaker and the same turn
  * work the typed screen uses. The Kotlin form of runHandsFree, pauseVoice, resumeVoice and
  * exitVoice in src/ui/app.js.
@@ -128,6 +134,13 @@ class DriveController(
     private val speaker: () -> Speaker,
     private val service: DriveServiceControl,
     private val trigger: suspend () -> String = { DEFAULT_TRIGGER },
+    /** SpeechRecognizer.isRecognitionAvailable: false sends every capture to [whisper]. */
+    private val recognitionAvailable: () -> Boolean = { true },
+    /**
+     * The Whisper fallback (#93), or null when its audio-transfer consent or its own stt key
+     * is missing. Asked for only when the recogniser is unavailable, never alongside it.
+     */
+    private val whisper: suspend () -> WhisperListener? = { null },
 ) {
     private val _state = MutableStateFlow(VoiceStageState())
     val state: StateFlow<VoiceStageState> = _state.asStateFlow()
@@ -151,6 +164,18 @@ class DriveController(
     private var watch: Job? = null
     private var serviceRunning = false
     private var recognizerBuilt = false
+    /** The recogniser said it is unavailable once: the rest of the drive records instead. */
+    private var recognizerUnavailable = false
+    /**
+     * What the Whisper fallback has transcribed of the current answer so far: its caption.
+     * Pause and Exit read it, as they read the recogniser's, so segments already transcribed
+     * are kept as the draft rather than lost with the capture.
+     */
+    private var whisperText = ""
+    private var whisperListening = false
+
+    /** The caption Pause/Exit keep: the recogniser's, or Whisper's while it is the one listening. */
+    private fun liveCaption(): String = if (whisperListening) whisperText else recognizer().caption.value
 
     private fun recognizer(): Recognizer = recognizerSource().also { recognizerBuilt = true }
 
@@ -192,6 +217,9 @@ class DriveController(
 
     /** Pause, from the stage or the notification. */
     fun pause() = pauseRun(command = false, detail = null)
+
+    /** Pause with a reason: hosted speech or transcription was revoked, or Forget ran. */
+    fun pauseFor(detail: String) = pauseRun(command = false, detail = detail)
 
     /** Resume after Pause or a stand-down: a tap, from the stage or the notification. */
     fun resume() {
@@ -249,6 +277,9 @@ class DriveController(
     }
 
     private fun begin(my: Long) {
+        // Every drive asks the recogniser afresh: one LanguageUnavailable (a language pack
+        // missing that afternoon) must not send every later drive to Whisper, or stand it down.
+        recognizerUnavailable = false
         val rec = recognizer()
         watch?.cancel()
         watch = main.launch {
@@ -292,6 +323,7 @@ class DriveController(
             finish()
             return
         }
+        runCatching { speaker().newSession() }
         val drive = DriveLoop(Io(my), triggerWord)
         loop = drive
         val result = try {
@@ -338,7 +370,7 @@ class DriveController(
         if (st.mode != VoiceMode.ACTIVE) return
         // Read before the cancel: the caption is the best record of what was said, because
         // the on-device recogniser discards the utterance when it is stopped (#89).
-        val captured = if (!command && st.listening && !st.confirm) recognizer().caption.value else ""
+        val captured = if (!command && st.listening && !st.confirm) liveCaption() else ""
         val turnId = captureTurnId
         epoch++
         stopEffects()
@@ -362,7 +394,7 @@ class DriveController(
     private fun exitRun(command: Boolean) {
         val st = _state.value
         if (st.mode == null) return
-        val captured = if (!command && st.mode == VoiceMode.ACTIVE && st.listening && !st.confirm) recognizer().caption.value else ""
+        val captured = if (!command && st.mode == VoiceMode.ACTIVE && st.listening && !st.confirm) liveCaption() else ""
         val turnId = captureTurnId
         val written = st.writing || stringOf(session?.get("status")) == "done"
         halt()
@@ -432,6 +464,8 @@ class DriveController(
         override suspend fun speak(text: String) {
             if (!running()) return
             val result = speaker().speak(text)
+            // Hosted speech failed live and the device voice took over: visibly, never silently.
+            result.fallback?.let { reason -> if (running()) _state.update { it.copy(detail = reason) } }
             when (result.status) {
                 SpeakStatus.SPOKEN -> Unit
                 SpeakStatus.CANCELLED -> throw ListenFailure("Speech was cancelled.", name = "AbortError")
@@ -452,13 +486,38 @@ class DriveController(
             if (!running()) return ""
             captureTurnId = session?.let(::openTurn)?.let { stringOf(it["id"]) }
             _state.update { it.copy(listening = true, confirm = confirm, caption = "", levels = emptyList()) }
+            val firstWordMs = if (confirm) CONFIRM_FIRST_WORD_MS else DRIVE_FIRST_WORD_MS
             try {
-                return recognizer().listenForDrive(
-                    triggerWord,
-                    firstWordMs = if (confirm) CONFIRM_FIRST_WORD_MS else DRIVE_FIRST_WORD_MS,
-                )
+                if (recognizerUnavailable || !recognitionAvailable()) return transcribed(firstWordMs)
+                return try {
+                    recognizer().listenForDrive(triggerWord, firstWordMs = firstWordMs)
+                } catch (e: ListenFailure) {
+                    if (e.name !in UNAVAILABLE) throw e
+                    recognizerUnavailable = true
+                    transcribed(firstWordMs)
+                }
             } finally {
                 if (my == epoch) _state.update { it.copy(listening = false, confirm = false) }
+            }
+        }
+
+        /**
+         * Whisper, only because the recogniser is unavailable. The recogniser is released
+         * first, so the service's microphone and this app's recording are never open at once.
+         */
+        private suspend fun transcribed(firstWordMs: Long): String {
+            if (recognizerBuilt) runCatching { recognizer().release() }
+            val w = whisper() ?: throw ListenFailure(
+                "Speech recognition is unavailable on this device. To dictate, turn on transcription in Settings " +
+                    "with its own key and consent to send audio.",
+                name = "RecognizerUnavailable", recoverable = false,
+            )
+            whisperText = ""
+            whisperListening = true
+            try {
+                return w.listenForDrive(triggerWord, firstWordMs) { heard -> if (my == epoch) whisperText = heard }
+            } finally {
+                if (my == epoch) whisperListening = false
             }
         }
 

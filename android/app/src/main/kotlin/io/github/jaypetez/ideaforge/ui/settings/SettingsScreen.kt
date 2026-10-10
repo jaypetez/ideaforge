@@ -107,7 +107,10 @@ fun SettingsScreen(
     ) {
         Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall)
         Section(R.string.settings_connection) { Connection(state, vm) }
-        Section(R.string.settings_listening) { Listening(state, vm) }
+        Section(R.string.settings_listening) {
+            Listening(state, vm)
+            HostedSpeechSection()
+        }
         Section(R.string.settings_appearance) { Appearance(state, vm) }
         Section(R.string.settings_data) {
             BackupSection()

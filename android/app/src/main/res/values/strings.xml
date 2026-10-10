@@ -162,4 +162,26 @@
     <!-- The web's done-panel message when the wrap-up call failed. -->
     <string name="result_synthesis_failed">The refined prompt could not be generated, but nothing else was lost.</string>
     <string name="notice_interview_failed">Something went wrong: %1$s</string>
+    <!-- Hosted speech and the Whisper fallback (#93) -->
+    <string name="speech_output">Spoken replies</string>
+    <string name="speech_native">Device voice</string>
+    <string name="speech_hosted">OpenAI voice (AI-generated)</string>
+    <string name="speech_hosted_hint">Optional AI-generated speech. It needs its own OpenAI key and a successful, consented check on this device. Until then, replies use the device voice.</string>
+    <string name="speech_key">Speech key (not your interview key)</string>
+    <string name="speech_key_hint">paste a scoped OpenAI key</string>
+    <string name="speech_voice_marin">Marin</string>
+    <string name="speech_voice_cedar">Cedar</string>
+    <string name="speech_consent_synthetic">I understand the voice is AI-generated.</string>
+    <string name="speech_consent_text">I agree that the text to be spoken is sent to OpenAI.</string>
+    <string name="speech_consent_metered">I understand that OpenAI speech is metered and billed to this key.</string>
+    <string name="speech_check">Check and preview OpenAI voice</string>
+    <string name="speech_cancel_check">Cancel preview</string>
+    <string name="speech_enabled">OpenAI speech is enabled.</string>
+    <string name="speech_not_enabled">OpenAI speech is not enabled; replies use the device voice.</string>
+    <string name="stt_title">Transcription fallback</string>
+    <string name="stt_hint">Used only when the speech recogniser on this device is missing or cannot recognise your language: hands-free answers are recorded and sent to the service you choose, with its own key.</string>
+    <string name="stt_off">Off</string>
+    <string name="stt_key">Transcription key (not your interview key)</string>
+    <string name="stt_consent">I agree that recorded audio is sent to this service, and that it is metered.</string>
+    <string name="stt_save">Save transcription</string>
 </resources>

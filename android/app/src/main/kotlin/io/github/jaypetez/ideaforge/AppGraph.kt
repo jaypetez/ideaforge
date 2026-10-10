@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge
 
+import android.speech.SpeechRecognizer
 import android.app.Application
 import android.content.Context
 import androidx.annotation.VisibleForTesting
@@ -18,6 +19,11 @@ import io.github.jaypetez.ideaforge.ui.result.ResultActions
 import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import io.github.jaypetez.ideaforge.voice.AndroidAudioFocus
 import io.github.jaypetez.ideaforge.voice.AndroidTtsEngine
+import io.github.jaypetez.ideaforge.voice.AndroidWavPlayer
+import io.github.jaypetez.ideaforge.voice.WhisperMicrophone
+import io.github.jaypetez.ideaforge.voice.HostedSpeaker
+import io.github.jaypetez.ideaforge.voice.hostedSynth
+import io.github.jaypetez.ideaforge.voice.whisperFrom
 import io.github.jaypetez.ideaforge.voice.Speaker
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.DriveService
@@ -89,9 +95,24 @@ class AppGraph(
      * Native speech output, with the voice and pace read from prefs at each speak. Lazy, and
      * the engine inside it is lazy too: nothing binds TextToSpeech until something talks.
      */
-    val speaker: Speaker by lazy {
+    val nativeSpeaker: Speaker by lazy {
         TextToSpeechSpeaker(AndroidTtsEngine(context), AndroidAudioFocus(context), prefs = { prefsStore.current() })
     }
+
+    /**
+     * What actually speaks: OpenAI after consent and a passing check (#93), the device voice
+     * otherwise, and the device voice again, visibly, when a hosted request fails live.
+     */
+    val hostedSpeaker: HostedSpeaker by lazy {
+        HostedSpeaker(
+            nativeSpeaker, AndroidWavPlayer(), AndroidAudioFocus(context),
+            prefs = { prefsStore.current() },
+            // Read per chunk too: after Forget the ring is empty, so the gate is closed.
+            synth = { hostedSynth(keyringStore.state.value.ring, prefsStore.current()) },
+        )
+    }
+
+    val speaker: Speaker get() = hostedSpeaker
 
     /** Main-thread scope for the platform recogniser and the drive loop (both main-only). */
     val mainScope: CoroutineScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
@@ -128,6 +149,16 @@ class AppGraph(
                 override fun stop() = driveService.stop()
             },
             trigger = { prefsStore.current().effectiveTrigger },
+            recognitionAvailable = { SpeechRecognizer.isRecognitionAvailable(context) },
+            whisper = {
+                val generation = keyringStore.generation.value
+                whisperFrom(
+                    keyringStore.state.value.ring, prefsStore.current(),
+                    stillAllowed = {
+                        keyringStore.generation.value == generation && prefsStore.current().hostedTranscriptionAllowed
+                    },
+                ) { WhisperMicrophone() }
+            },
         )
     }
 }
