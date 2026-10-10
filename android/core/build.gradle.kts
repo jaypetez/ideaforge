@@ -3,6 +3,10 @@
 // the first fence (nothing Android can even be imported); a purity test is the second.
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    // The golden-vector loader is shared with :providers, which replays the providers family
+    // itself (:core cannot depend on :providers). Test fixtures are the one shared test source:
+    // :core's tests see them automatically, :providers asks for testFixtures(project(":core")).
+    `java-test-fixtures`
 }
 
 kotlin {
@@ -21,6 +25,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // The runtime awaits an injected provider; suspend functions keep that cancellable.
     implementation(libs.kotlinx.coroutines.core)
+
+    testFixturesApi(libs.kotlinx.serialization.json)
+    testFixturesImplementation(libs.kotlin.test)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
