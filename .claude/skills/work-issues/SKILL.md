@@ -172,6 +172,7 @@ for i in $(seq 1 120); do
   case "$state" in
     "$TESTED COMPLETED:"*) break ;;
     "$TESTED "*) sleep 30 ;;
+    "") echo "gh query failed; retrying" && sleep 30 ;;
     *) echo "head moved; re-validate the new head" && break ;;
   esac
 done
