@@ -37,7 +37,7 @@ class PrefsStoreTest {
     @Test
     fun defaultsMatchTheWebApp() {
         val p = withStore(file()) { it.current() }
-        assertEquals(Prefs(trigger = "", handsFree = false, speechVoice = "", speechRate = 1.0, hostedSpeechAllowed = false), p)
+        assertEquals(Prefs(trigger = "", handsFree = false, speechVoice = "", speechRate = 1.0, hostedSpeechAllowed = false, theme = "system"), p)
         assertEquals("over", p.effectiveTrigger)
     }
 
@@ -47,12 +47,12 @@ class PrefsStoreTest {
         withStore(f) { s ->
             assertTrue(
                 s.update {
-                    it.copy(trigger = "done", handsFree = true, speechVoice = "en-GB-x", speechRate = 1.2, hostedSpeechAllowed = true)
+                    it.copy(trigger = "done", handsFree = true, speechVoice = "en-GB-x", speechRate = 1.2, hostedSpeechAllowed = true, theme = "light")
                 },
             )
         }
         val p = withStore(f) { it.current() }
-        assertEquals(Prefs("done", true, "en-GB-x", 1.2, true), p)
+        assertEquals(Prefs("done", true, "en-GB-x", 1.2, true, "light"), p)
         assertEquals("done", p.effectiveTrigger)
     }
 
@@ -69,6 +69,18 @@ class PrefsStoreTest {
             assertTrue(withStore(f) { s -> s.update { it.copy(speechRate = case.first) } })
             assertEquals("rate ${case.first}", case.second, withStore(f) { it.current() }.speechRate, 0.0)
         }
+    }
+
+    // Android only (the web has no stored theme yet). A value this build does not know, from
+    // a newer build or a damaged file, reads as "system" rather than an unknown theme.
+    @Test
+    fun aThemePersistsAndAnUnknownOneReadsAsSystem() {
+        val dark = File(tmp.root, "dark.preferences_pb")
+        assertTrue(withStore(dark) { s -> s.update { it.copy(theme = Prefs.THEME_DARK) } })
+        assertEquals(Prefs.THEME_DARK, withStore(dark) { it.current() }.theme)
+        val neon = File(tmp.root, "neon.preferences_pb")
+        assertTrue(withStore(neon) { s -> s.update { it.copy(theme = "neon") } })
+        assertEquals(Prefs.THEME_SYSTEM, withStore(neon) { it.current() }.theme)
     }
 
     @Test

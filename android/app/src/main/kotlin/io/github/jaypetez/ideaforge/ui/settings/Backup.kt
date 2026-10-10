@@ -36,9 +36,8 @@ object BackupTags {
 private val IMPORT_TYPES = arrayOf("application/json", "text/*", "application/octet-stream")
 
 /**
- * The web library's "Back up ideas" / "Import backup" pair, as a section of the settings
- * screen. It lives here until the full settings screen (#88) gives it a permanent home; it
- * owns its ViewModel, so moving it is moving one call.
+ * The web library's "Back up ideas" / "Import backup" pair, as part of the settings screen's
+ * Data section. It owns its ViewModel, so moving it is moving one call.
  */
 @Composable
 fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Factory)) {

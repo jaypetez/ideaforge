@@ -1,11 +1,13 @@
 package io.github.jaypetez.ideaforge
 
+import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.SystemBarStyle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import io.github.jaypetez.ideaforge.ui.AppShell
-import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeTheme
+import io.github.jaypetez.ideaforge.ui.theme.PrefsTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,6 +20,15 @@ class MainActivity : ComponentActivity() {
         DebugProviders.fromLaunch(this, intent?.getStringExtra("provider"))?.let {
             (application as IdeaForgeApp).graph.providerSource = it
         }
-        setContent { IdeaForgeTheme { AppShell() } }
+        val prefs = (application as IdeaForgeApp).graph.prefsStore.prefs
+        setContent {
+            // The stored theme choice (Settings, Appearance). The system bars follow it too:
+            // enableEdgeToEdge alone picks their icon colour from the system's mode, which
+            // leaves dark icons on a dark app when the phone is light.
+            PrefsTheme(prefs, onDark = { dark ->
+                val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }) { AppShell() }
+        }
     }
 }

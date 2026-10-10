@@ -4,23 +4,17 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -28,14 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -44,11 +31,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.IdeaForgeApp
 import io.github.jaypetez.ideaforge.R
-import io.github.jaypetez.ideaforge.data.Prefs
-import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.ui.interview.InterviewScreen
 import io.github.jaypetez.ideaforge.ui.interview.InterviewViewModel
 import io.github.jaypetez.ideaforge.ui.library.LibraryScreen
@@ -58,28 +42,7 @@ import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.startGate
 import io.github.jaypetez.ideaforge.ui.result.ResultScreen
 import io.github.jaypetez.ideaforge.ui.result.ResultViewModel
-import io.github.jaypetez.ideaforge.ui.settings.BackupSection
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-
-private val CreationExtras.graph: AppGraph get() = (this[APPLICATION_KEY] as IdeaForgeApp).graph
-
-class SettingsViewModel(private val prefsStore: PrefsStore) : ViewModel() {
-    val prefs: StateFlow<Prefs> =
-        prefsStore.prefs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Prefs())
-
-    fun setHandsFree(on: Boolean) {
-        viewModelScope.launch { prefsStore.update { it.copy(handsFree = on) } }
-    }
-
-    companion object {
-        val Factory = viewModelFactory {
-            initializer { SettingsViewModel(graph.prefsStore) }
-        }
-    }
-}
+import io.github.jaypetez.ideaforge.ui.settings.SettingsScreen
 
 /** The public guide, published beside the web app (guide/ on Pages). */
 const val GUIDE_URL = "https://jaypetez.github.io/ideaforge/guide/getting-started.html"
@@ -192,7 +155,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 )
             }
             composable<SettingsRoute> {
-                SettingsScreen(viewModel(factory = SettingsViewModel.Factory))
+                SettingsScreen(onNoProvider = { nav.navigate(OnboardingRoute) { popUpTo(nav.graph.id) { inclusive = true } } })
             }
             composable<OnboardingRoute> {
                 OnboardingScreen(viewModel(factory = OnboardingViewModel.Factory)) {
@@ -208,24 +171,3 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     }
 }
 
-@Composable
-private fun SettingsScreen(vm: SettingsViewModel) {
-    val prefs by vm.prefs.collectAsStateWithLifecycle()
-    // Scrolls: in landscape or at a large font scale the backup section is taller than the
-    // space above the bottom bar, and its buttons would otherwise be out of reach.
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.pref_hands_free), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Switch(checked = prefs.handsFree, onCheckedChange = vm::setHandsFree)
-        }
-        Text(
-            stringResource(R.string.pref_trigger, prefs.effectiveTrigger),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // Here until the full settings screen (#88) gives backups their permanent place.
-        BackupSection()
-    }
-}
