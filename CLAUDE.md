@@ -188,6 +188,13 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   spoken-replies choice, dictation, finish word and start actions stay outside them.
   `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
   app layout when that gate fails; do not hide required controls just for a capture.
+- **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the
+  destination passed to `show()`; app.css hides `.start-only` / `.settings-only` from that
+  attribute alone. Every id stays in the one section. Start's connection card folds to
+  `#connect-summary` once `connectionReady()`; Settings never folds. A field hidden by the
+  view still holds its value, and `readRingFromForm` must keep deciding from what the
+  provider declares — `test/browser/start-settings.browser.mjs` pins it. The 01-setup capture
+  must stay within 1100px.
 - **The phone shell is laid out from `body[data-panel]`, which `show()` sets.** At 600px and
   narrower `.bar-right` is a fixed bottom navigation bar on `setup`/`library` and a top app
   bar on `interview`/`done` (back arrow, title, Settings, plus the meter on Interview only).

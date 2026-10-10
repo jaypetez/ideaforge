@@ -79,6 +79,20 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     await sleep(40);
   }
   if (!ready) throw new Error('the real app did not finish setup');
+  // Speech is configured in Settings and started from Start (#101): two views of the one
+  // #panel-setup. The way into Settings is an untrusted click on purpose. A trusted one
+  // would give the document sticky user activation before arm(), and the checks below that
+  // nothing can play without a gesture — the negative control most of all — would then
+  // be measuring a page that already had one.
+  await cdp.evaluate("document.getElementById('b-settings').click()");
+  for (const end = Date.now() + 5000; Date.now() < end;) {
+    if (await cdp.evaluate(`document.getElementById('panel-setup').dataset.view === 'settings'`)) break;
+    await sleep(40);
+  }
+  check('the speech controls are configured in the Settings view, where they are shown',
+    await cdp.evaluate(`document.getElementById('panel-setup').dataset.view === 'settings'
+      && document.getElementById('speech').getClientRects().length > 0
+      && document.getElementById('b-start-voice').getClientRects().length === 0`));
   await cdp.evaluate(`(() => {
     for (const [id, value] of [['provider', 'artifact'], ['stt', 'browser'], ['speech', 'openai']]) {
       const field = document.getElementById(id);
@@ -130,6 +144,18 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   state = await until((s) => s.contexts.every((context) => context.state === 'closed'), 'preview context leaked');
   check('the completed preview closes its native context', true);
 
+  // Back to Start through the real navigation, with a trusted click: activation is spent by
+  // now, and the hosted check must survive the move between views.
+  await click('#b-nav-new');
+  for (const end = Date.now() + 5000; Date.now() < end;) {
+    if (await cdp.evaluate(`document.getElementById('panel-setup').dataset.view === 'start'
+      && document.getElementById('b-start-voice').getClientRects().length > 0`)) break;
+    await sleep(40);
+  }
+  check('New idea shows the Start view with its start controls',
+    await cdp.evaluate(`document.getElementById('panel-setup').dataset.view === 'start'
+      && document.getElementById('b-start-voice').getClientRects().length > 0
+      && document.getElementById('speech').getClientRects().length === 0`));
   await click('#b-start-voice');
   state = await until((s) => s.phase === 'listening' && live(s).length === 1 && s.tracks.includes('live'),
     'Start with voice did not reach real microphone capture');

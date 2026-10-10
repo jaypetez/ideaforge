@@ -38,6 +38,12 @@ const HEIGHT = 820;
 /** 1.5 rather than 2: still sharp at the width GitHub renders a README at, 40% fewer bytes. */
 const SCALE = 1.5;
 const MAX_SHOT_HEIGHT = 1700;
+/**
+ * Start is the onboarding screen, and it is meant to be compact (#101): hero, connection
+ * card, the two start buttons and the footer, with everything else in Settings. A Start
+ * that grows past this has started collecting settings again.
+ */
+const MAX_SETUP_HEIGHT = 1100;
 /** 2026-09-13T09:00:00Z. Any fixed instant will do; it only has to stop moving. */
 const FIXED_NOW = Date.parse('2026-09-13T09:00:00Z');
 const STEP_TIMEOUT = 20000;
@@ -222,6 +228,14 @@ class App {
       const bottom = await this.eval(`Math.max(...['b-start-voice', 'b-start', 'version']
         .map((id) => document.getElementById(id).getBoundingClientRect().bottom))`);
       if (bottom > height) throw new Error('the setup screenshot would clip its start controls or footer');
+      if (height > MAX_SETUP_HEIGHT) {
+        throw new Error(`the Start screen is ${height}px tall; keep it within ${MAX_SETUP_HEIGHT}px`);
+      }
+    }
+    if (name === '10-settings') {
+      const bottom = await this.eval(`Math.max(...['b-backup', 'b-import', 'version']
+        .map((id) => document.getElementById(id).getBoundingClientRect().bottom))`);
+      if (bottom > height) throw new Error('the settings screenshot would clip its Data or About groups');
     }
     if (name.startsWith('08-') || name.startsWith('09-')) {
       const layout = await this.eval(`({
@@ -321,6 +335,14 @@ async function run(theme, chrome, port) {
       p.dispatchEvent(new Event('change'));
     })()`);
     await app.shot('01-setup');
+
+    // 10 — Settings: the same section in its other view (#101), with the same provider, so
+    // the Connection group shows what the Start card folds away.
+    await app.eval(`document.getElementById('b-settings').click()`);
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'settings'`, 'the settings view');
+    await app.shot('10-settings');
+    await app.eval(`document.getElementById('b-nav-new').click()`);
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'start'`, 'the start view');
 
     // Back to the stubbed provider, and dictation off so no microphone probe or cost banner
     // lands in a shot that is meant to be about the interview.

@@ -205,12 +205,47 @@ section > h2 {
   margin: 0; font-size: var(--t-base); font-weight: 600;
   letter-spacing: -.015em; color: var(--ink);
 }
-.group > details { border-top: 1px solid var(--line); padding-top: var(--s4); }
-.group > details > summary {
+/* .connect-body too: Model options sits one level down now, inside the foldable card, and
+   must keep looking like its sibling disclosure, Voice and speaking pace. */
+:is(.group, .connect-body) > details { border-top: 1px solid var(--line); padding-top: var(--s4); }
+:is(.group, .connect-body) > details > summary {
   cursor: pointer; color: var(--ink-dim); font-size: var(--t-md); font-weight: 500;
 }
-.group > details > summary:hover { color: var(--accent); }
-.group > details[open] > :not(summary) { margin-top: var(--s4); }
+:is(.group, .connect-body) > details > summary:hover { color: var(--accent); }
+:is(.group, .connect-body) > details[open] > :not(summary) { margin-top: var(--s4); }
+
+/* Start and Settings: one section, two views (data-view, set by show() in app.js). The view
+   alone decides what shows, so nothing in app.js toggles `hidden` per view and no field's
+   value moves. The id-qualified selectors beat `.group { display: flex }`; `[hidden]` still
+   wins over all of them, which is what keeps #resume and the install card conditional. */
+#panel-setup[data-view="start"] .settings-only,
+#panel-setup[data-view="settings"] .start-only { display: none; }
+.start-hero { display: flex; flex-direction: column; gap: var(--s2); }
+.start-hero h2 {
+  margin: 0; max-width: 24ch; font-size: var(--t-2xl); font-weight: 600;
+  letter-spacing: -.03em; line-height: 1.25; text-wrap: balance;
+}
+.start-hero .lede { padding-block: 0; font-size: var(--t-base); }
+.connect-body { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+/* The one-row summary exists only on Start, and only once the connection is known to work. */
+.connect-summary { display: none; }
+#panel-setup[data-view="start"] .connect[data-collapsed] { padding-block: var(--s3); }
+#panel-setup[data-view="start"] .connect[data-collapsed] > :is(h2, .connect-body) { display: none; }
+#panel-setup[data-view="start"] .connect[data-collapsed] .connect-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  min-width: 0;
+}
+.connect-summary-text {
+  display: flex; align-items: center; min-width: 0;
+  font-size: var(--t-md); font-weight: 500; overflow-wrap: anywhere;
+}
+.connect-summary-text::before { color: var(--success); flex: none; }
+.connect-summary button { flex: none; }
+.start-actions button { min-width: 10rem; }
+/* On Start the About group is just the quiet footer line it always was. */
+#panel-setup[data-view="start"] .about {
+  padding: 0; border: 0; background: none; box-shadow: none;
+}
 .field { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 label { font-size: var(--t-md); font-weight: 600; }
 input, select, textarea {

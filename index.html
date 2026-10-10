@@ -101,13 +101,28 @@
   <main id="main" tabindex="-1">
 
   <!-- ─────────────────────────────────────────────────────────── setup -->
-  <section id="panel-setup">
-    <p class="lede">
-      IdeaForge asks you one question at a time about a half-formed idea, then writes the
-      prompt you should have given an LLM in the first place.
-    </p>
+  <!--
+    Start and Settings share this one section, switched by data-view (set in show()). Every
+    id stays inside it because the probes and tools/screenshots.mjs find the controls by id,
+    whichever view is showing. Still no routing: WebKit re-prompts for the microphone on a
+    hash change in an installed app, and the panel model exists to avoid it.
 
-    <aside class="install-card" id="install-card" hidden>
+    .start-only and .settings-only are hidden by app.css from data-view alone. A field that
+    the view hides keeps its value and readRingFromForm still reads it, exactly as before:
+    what it reads is decided by what the chosen provider declares, never by what is on
+    screen (CLAUDE.md, "A hidden settings field still holds a value").
+  -->
+  <section id="panel-setup" data-view="start">
+    <div class="start-hero start-only">
+      <h2>Turn a half-formed idea into a prompt worth sending.</h2>
+      <p class="lede">
+        IdeaForge asks one question at a time, each grounded in your last answer, then writes
+        the prompt you should have given an LLM in the first place.
+      </p>
+    </div>
+    <h2 class="settings-only">Settings</h2>
+
+    <aside class="install-card start-only" id="install-card" hidden>
       <div>
         <h2 id="install-title">Use IdeaForge on this phone</h2>
         <p class="hint" id="install-note"></p>
@@ -116,12 +131,20 @@
     </aside>
 
     <!--
-      Two groups where there used to be eight identical fields in one flat stack. This is
-      presentation only: no new panels and no routing, because WebKit re-prompts for the
-      microphone on a hash change in an installed app and the panel model exists to avoid it.
+      The connection card on Start, the Connection group in Settings: one set of fields.
+      On Start, once a key or provider is known to work (checked this visit, or saved), the
+      card folds to the one-row #connect-summary, and Change unfolds it. Settings always
+      shows the fields. data-collapsed is set by renderConnect() in app.js.
     -->
-    <div class="group">
-      <h2>Where the questions come from</h2>
+    <div class="group connect" id="connect">
+      <h2><span class="start-only">Where the questions come from</span><span class="settings-only">Connection</span></h2>
+
+      <div class="connect-summary" id="connect-summary">
+        <span class="connect-summary-text" id="connect-summary-text" data-icon="check"></span>
+        <button type="button" class="quiet small" id="b-connect-change" aria-controls="connect-body">Change</button>
+      </div>
+
+      <div class="connect-body" id="connect-body">
 
     <div class="field">
       <label for="provider">Provider</label>
@@ -186,10 +209,54 @@
       </div>
     </details>
 
-    </div><!-- /.group -->
+    <div class="btns">
+      <button type="button" class="ghost" id="b-check">Check the key</button>
+      <button type="button" class="ghost danger" id="b-forget" hidden>Forget my key</button>
+    </div>
+      </div><!-- /.connect-body -->
+    </div><!-- /.group.connect -->
 
-    <div class="group">
+    <div class="btns start-actions start-only">
+      <button type="button" id="b-start-voice" data-icon="mic">Start with voice</button>
+      <button type="button" class="ghost" id="b-start">Type instead</button>
+    </div>
+
+    <div id="resume" class="start-only" hidden>
+      <h2>Recent ideas</h2>
+      <div class="rows" id="resume-rows"></div>
+      <button type="button" class="ghost" id="b-view-all">View all ideas</button>
+    </div>
+
+    <div class="group settings-only" id="settings-listen">
       <h2>Listen and speak</h2>
+    <div class="field">
+      <label for="stt">Dictation</label>
+      <select id="stt">
+        <option value="browser">Use the browser’s recogniser where it works</option>
+        <option value="groq">Groq Whisper — about a penny per interview</option>
+        <option value="openai">OpenAI — around 0.3 cents a minute</option>
+        <option value="off">Off — keyboard only</option>
+      </select>
+      <p class="hint" id="stt-note"></p>
+    </div>
+
+    <div class="field" id="field-sttkey" hidden>
+      <label for="sttkey">Transcription key</label>
+      <input type="password" id="sttkey" autocomplete="off" spellcheck="false"
+             placeholder="paste your key">
+      <p class="hint" id="sttkey-note"></p>
+    </div>
+
+    <div class="field" id="field-stopword">
+      <label for="stopword">Hands-free finish word</label>
+      <input id="stopword" spellcheck="false" autocomplete="off" maxlength="24"
+             placeholder="over">
+      <p class="hint" id="stopword-note">
+        Say this when you have finished an answer, and the interview moves on by itself.
+        You can also say &#8220;repeat that&#8221;, &#8220;skip this one&#8221;,
+        &#8220;scratch that&#8221; or &#8220;wrap it up&#8221;.
+      </p>
+    </div>
 
     <div class="field">
       <label for="speech">Spoken replies</label>
@@ -247,55 +314,34 @@
     <p class="hint" id="speech-check" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
     </details>
+    </div><!-- /.group listen -->
 
-    <div class="field">
-      <label for="stt">Dictation</label>
-      <select id="stt">
-        <option value="browser">Use the browser’s recogniser where it works</option>
-        <option value="groq">Groq Whisper — about a penny per interview</option>
-        <option value="openai">OpenAI — around 0.3 cents a minute</option>
-        <option value="off">Off — keyboard only</option>
-      </select>
-      <p class="hint" id="stt-note"></p>
-    </div>
-
-    <div class="field" id="field-sttkey" hidden>
-      <label for="sttkey">Transcription key</label>
-      <input type="password" id="sttkey" autocomplete="off" spellcheck="false"
-             placeholder="paste your key">
-      <p class="hint" id="sttkey-note"></p>
-    </div>
-
-    <div class="field" id="field-stopword">
-      <label for="stopword">Hands-free finish word</label>
-      <input id="stopword" spellcheck="false" autocomplete="off" maxlength="24"
-             placeholder="over">
-      <p class="hint" id="stopword-note">
-        Say this when you have finished an answer, and the interview moves on by itself.
-        You can also say &#8220;repeat that&#8221;, &#8220;skip this one&#8221;,
-        &#8220;scratch that&#8221; or &#8220;wrap it up&#8221;.
+    <!-- Backup and import moved here from the Library: they are about the device's data,
+         not about any one idea. library.js still wires them, by element, not by place. -->
+    <div class="group settings-only" id="settings-data">
+      <h2>Data</h2>
+      <p class="hint">
+        Your ideas are stored on this device. Back up before clearing site data or moving phones.
+      </p>
+      <div class="btns">
+        <button type="button" class="ghost small" id="b-backup" data-icon="download">Back up ideas</button>
+        <button type="button" class="ghost small" id="b-import">Import backup</button>
+        <input id="backup-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint backup-warning">
+        A backup contains the full text of your interviews, unencrypted. It never contains
+        API keys.
       </p>
     </div>
 
-    </div><!-- /.group -->
-
-    <div class="btns">
-      <button type="button" id="b-start-voice">Start with voice</button>
-      <button type="button" class="ghost" id="b-start">Type instead</button>
-      <button type="button" class="ghost" id="b-check">Check the key</button>
-      <button type="button" class="ghost danger" id="b-forget" hidden>Forget my key</button>
+    <!-- The About group in Settings; on Start the same line is the quiet footer. -->
+    <div class="group about" id="settings-about">
+      <h2 class="settings-only">About</h2>
+      <p class="hint version">
+        <span id="version"></span>
+        · <a href="./guide/">Guide</a>
+      </p>
     </div>
-
-    <div id="resume" hidden>
-      <h2>Pick up where you left off</h2>
-      <div class="rows" id="resume-rows"></div>
-      <button type="button" class="ghost" id="b-view-all">View all ideas</button>
-    </div>
-
-    <p class="hint version">
-      <span id="version"></span>
-      · <a href="./guide/">Guide</a>
-    </p>
   </section>
 
   <!-- ───────────────────────────────────────────────────────── interview -->
@@ -382,7 +428,7 @@
       <div>
         <h2>Your ideas</h2>
         <p class="hint">
-          Stored on this device. Back up before clearing site data or moving phones.
+          Stored on this device. Back up in Settings before clearing site data or moving phones.
         </p>
       </div>
       <button type="button" class="ghost small" id="b-library-new">New idea</button>
@@ -415,17 +461,7 @@
 
     <div class="library-summary">
       <span class="hint" id="library-count">0 ideas</span>
-      <div class="btns">
-        <button type="button" class="ghost small" id="b-backup">Back up ideas</button>
-        <button type="button" class="ghost small" id="b-import">Import backup</button>
-        <input id="backup-file" type="file" accept=".json,application/json" hidden>
-      </div>
     </div>
-
-    <p class="hint backup-warning">
-      A backup contains the full text of your interviews, unencrypted. It never contains
-      API keys.
-    </p>
     <p class="hint" id="library-empty" hidden>No ideas match these filters.</p>
     <div class="idea-list" id="library-rows"></div>
   </section>

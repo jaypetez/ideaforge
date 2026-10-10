@@ -52,6 +52,7 @@ for (const id of [
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
   'field-wrapmodel', 'wrapmodel', 'model-settings',
+  'connect', 'connect-summary', 'connect-summary-text', 'b-connect-change', 'connect-body',
   'install-card', 'install-title', 'install-note', 'b-install',
   'b-start', 'b-start-voice', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
@@ -134,6 +135,13 @@ const state = {
    * the card is still showing, and it never outlives the turn it was offered on.
    */
   wrapOffer: null,
+  /**
+   * The provider id whose Check succeeded on this visit, or null. One of the two things
+   * that let Start fold its connection card; a saved key is the other.
+   */
+  connectChecked: null,
+  /** Whether Start shows the one-row #connect-summary instead of the connection fields. */
+  connectCollapsed: false,
 };
 
 const now = () => Date.now();
@@ -145,7 +153,8 @@ const barActions = document.querySelector('.bar-right');
 
 /**
  * Which top-level destination each nav button stands for. Start and Settings share
- * #panel-setup for now, so the panel alone cannot say which of the two is current.
+ * #panel-setup, so the panel alone cannot say which of the two is current: the destination
+ * also picks #panel-setup's data-view.
  */
 const DESTINATIONS = { ideas: 'b-library', start: 'b-nav-new', settings: 'b-settings' };
 
@@ -170,6 +179,14 @@ function show(panel, destination) {
   // failure, raised in between, must survive the second call. So every say() or fail()
   // meant for a new screen comes AFTER the show() that opens it.
   const view = `${name}:${current || ''}`;
+  if (name === 'setup') {
+    // The view is the destination, never a separate toggle: one attribute, read by app.css.
+    els['panel-setup'].dataset.view = current === 'settings' ? 'settings' : 'start';
+    // Arriving on Start decides the fold once. Re-deciding on every provider change would
+    // snap the card shut under someone who had just tapped Change to pick another one.
+    if (current === 'start' && view !== shownView) state.connectCollapsed = connectionReady();
+    renderConnect();
+  }
   if (view !== shownView) {
     shownView = view;
     say('');
@@ -505,7 +522,31 @@ function onProviderChange() {
   els['b-check'].textContent = c.needsKey ? 'Check the key' : 'Check the connection';
   // Only offer to forget a key when there is one; an inert button is worse than none.
   els['b-forget'].hidden = !hasAnyKey(state.creds);
+  renderConnect();
   onBaseChange();
+}
+
+/**
+ * Whether Start may fold the connection card: the chosen provider's Check passed on this
+ * visit, or it has what it needs saved — a key, or for a keyless provider, being the one
+ * last saved. Presentation only; nothing here is read back by readRingFromForm.
+ */
+function connectionReady() {
+  const c = currentChoice();
+  if (state.connectChecked === c.id) return true;
+  if (c.needsKey) return !!credsFor(state.creds, c.id).apiKey;
+  return !!state.creds && state.creds.active === c.id;
+}
+
+function renderConnect() {
+  const c = currentChoice();
+  const saved = credsFor(state.creds, c.id);
+  els.connect.toggleAttribute('data-collapsed', state.connectCollapsed);
+  const status = state.connectChecked === c.id
+    ? (c.needsKey ? 'key works' : 'connected')
+    : c.needsKey ? `key saved ${maskKey(saved.apiKey)}` : 'ready';
+  els['connect-summary-text'].textContent =
+    [c.label, status, c.picksModel && saved.model].filter(Boolean).join(' · ');
 }
 
 /** The preset's own address, so the field starts usable rather than empty. */
@@ -617,6 +658,8 @@ async function forgetKey() {
   els.model.value = '';
   els.wrapmodel.value = '';
   els['model-list'].innerHTML = '';
+  state.connectChecked = null;
+  state.connectCollapsed = false;
   fail(null);
   onProviderChange();
   onSttChange();
@@ -640,6 +683,8 @@ function readRingFromForm() {
   // `https://api.openai.com/v1` to the loopback assertion in createProvider. OpenAI, Groq
   // and OpenRouter were therefore unusable — every Check and every Start died with "that
   // address is not on this machine", about an address the user never typed and could not see.
+  // The Start/Settings split hides fields by view as well, and must change nothing here:
+  // Start's folded card and Settings' hidden start actions are presentation, not input.
   let ring = withCreds(state.creds || emptyKeyring(), c.id, {
     apiKey,
     baseUrl: c.local ? els.baseurl.value.trim() : '',
@@ -2346,8 +2391,24 @@ function bind() {
         await p.validateKey();
         say('That key works.');
       }
+      state.connectChecked = c.id;
+      // A key check leaves nothing more to do in the card, so Start folds it. A check that
+      // just read the model list stays open: that list is what the person is about to use.
+      if (!c.discoverModels && els['panel-setup'].dataset.view === 'start') {
+        state.connectCollapsed = true;
+      }
+      renderConnect();
     } catch (e) { say(''); fail(e); }
   };
+  els['b-connect-change'].onclick = () => {
+    state.connectCollapsed = false;
+    renderConnect();
+    els.provider.focus();
+  };
+  // A new key is an unchecked key, whatever the old one proved.
+  els.apikey.addEventListener('input', () => {
+    if (state.connectChecked === currentChoice().id) state.connectChecked = null;
+  });
   els['b-forget'].onclick = forgetKey;
   els['b-send'].onclick = () => send();
   els['b-skip'].onclick = async () => {
