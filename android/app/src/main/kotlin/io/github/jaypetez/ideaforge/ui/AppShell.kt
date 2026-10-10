@@ -5,12 +5,12 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -49,6 +49,8 @@ import io.github.jaypetez.ideaforge.IdeaForgeApp
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
+import io.github.jaypetez.ideaforge.ui.interview.InterviewScreen
+import io.github.jaypetez.ideaforge.ui.interview.InterviewViewModel
 import io.github.jaypetez.ideaforge.ui.library.LibraryScreen
 import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
@@ -157,14 +159,22 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
             }
             composable<InterviewRoute> { backStack ->
                 val route = backStack.toRoute<InterviewRoute>()
-                Placeholder(stringResource(R.string.screen_interview), route.sessionId) {
-                    Button(onClick = { nav.navigate(ResultRoute(route.sessionId)) }) {
-                        Text(stringResource(R.string.action_see_result))
-                    }
-                }
+                // Keyed by the idea: this entry's ViewModel belongs to one session for its life.
+                val vm: InterviewViewModel = viewModel(key = route.sessionId, factory = InterviewViewModel.factory(route.sessionId))
+                InterviewScreen(
+                    vm,
+                    onFinished = { failed ->
+                        nav.navigate(ResultRoute(route.sessionId, synthesisFailed = failed)) {
+                            popUpTo<InterviewRoute> { inclusive = true }
+                        }
+                    },
+                    // The Scaffold's padding already lifts content above the bottom bar, so the
+                    // composer's imePadding adds only what the keyboard covers beyond it.
+                    modifier = Modifier.consumeWindowInsets(padding),
+                )
             }
             composable<ResultRoute> { backStack ->
-                Placeholder(stringResource(R.string.screen_result), backStack.toRoute<ResultRoute>().sessionId)
+                ResultPlaceholder(backStack.toRoute<ResultRoute>())
             }
             composable<SettingsRoute> {
                 SettingsScreen(viewModel(factory = SettingsViewModel.Factory))
@@ -202,6 +212,23 @@ private fun SettingsScreen(vm: SettingsViewModel) {
         )
         // Here until the full settings screen (#88) gives backups their permanent place.
         BackupSection()
+    }
+}
+
+/**
+ * Stands in for the Result screen until #86 builds it: the idea's id, and the write-up failure
+ * the interview carried over in [ResultRoute.synthesisFailed].
+ */
+@Composable
+internal fun ResultPlaceholder(route: ResultRoute) {
+    Placeholder(stringResource(R.string.screen_result), route.sessionId) {
+        if (route.synthesisFailed) {
+            Text(
+                stringResource(R.string.result_synthesis_failed),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("synthesis-failed"),
+            )
+        }
     }
 }
 

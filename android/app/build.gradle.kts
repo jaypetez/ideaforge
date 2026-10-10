@@ -76,6 +76,49 @@ kotlin {
     }
 }
 
+// The debug build's scripted provider (`--es provider scripted`) replays the walkthrough
+// golden vector, so the fixture reaches the app as data rather than a Kotlin transcription of
+// tools/fixtures/walkthrough.mjs. Copied into the debug variant's assets only: a release APK
+// carries neither the script nor the provider that reads it.
+abstract class WalkthroughAsset : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val vector: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        out.mkdirs()
+        vector.get().asFile.copyTo(File(out, "walkthrough.json"))
+    }
+}
+
+val walkthroughAsset = tasks.register<WalkthroughAsset>("walkthroughAsset") {
+    vector.set(layout.projectDirectory.file("../../test/vectors/walkthrough.json"))
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(walkthroughAsset, WalkthroughAsset::outputDir)
+    }
+}
+
+// The interview tests replay the walkthrough vector through InterviewViewModel, with the same
+// loader and the same input declaration as :core (see GoldenVectors there).
+tasks.withType<Test>().configureEach {
+    jvmArgumentProviders.add(GoldenVectors(rootProject.layout.projectDirectory.dir("../test/vectors").asFile))
+}
+
+class GoldenVectors(
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) val dir: File,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.vectors=${dir.absolutePath}")
+}
+
 dependencies {
     implementation(project(":core"))
     implementation(project(":providers"))
@@ -97,6 +140,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 
+    testImplementation(testFixtures(project(":core")))
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)
     testImplementation(platform(libs.compose.bom))

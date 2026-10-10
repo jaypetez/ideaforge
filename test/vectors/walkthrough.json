@@ -1,0 +1,2114 @@
+{
+  "vectorsVersion": 1,
+  "family": "walkthrough",
+  "source": "tools/fixtures/walkthrough.mjs through src/runtime/turn.js, as src/ui/app.js drives it",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "typed answers",
+      "fn": "interview",
+      "input": {
+        "id": "s_walkthrough",
+        "now": 1760000123000,
+        "device": "android",
+        "steps": [
+          {
+            "text": "An app that helps me remember the names of people I meet at conferences."
+          },
+          {
+            "text": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone."
+          },
+          {
+            "text": "I would delete it in the first week if it made me type while someone was still talking to me."
+          },
+          {
+            "text": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon."
+          },
+          {
+            "text": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it."
+          },
+          {
+            "text": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her."
+          },
+          {
+            "text": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to."
+          },
+          {
+            "text": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself."
+          }
+        ]
+      },
+      "script": {
+        "turns": {
+          "2": {
+            "forDimension": "substance",
+            "bridge": "Conferences, so a lot of names in a short window.",
+            "question": "At the last conference, how many names did you actually lose?",
+            "move": "concretize",
+            "dimension": "substance",
+            "chips": [
+              "maybe thirty names over three days",
+              "honestly I stopped counting",
+              "only a handful, but the ones that mattered",
+              "I never learned them in the first place"
+            ],
+            "new_facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "partial",
+                "gap": "no sense of what the app hands back",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "3": {
+            "forDimension": "bar",
+            "bridge": "Thirty names, and the evening ones go first.",
+            "question": "What would make you delete this in the first week?",
+            "move": "anti_goal",
+            "dimension": "bar",
+            "chips": [
+              "if I had to type during a conversation",
+              "if it was just another contacts list",
+              "if it took more than five seconds",
+              "honestly, if I forgot it was there"
+            ],
+            "new_facts": [
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              }
+            ],
+            "coverage": {
+              "substance": {
+                "level": "partial",
+                "gap": "the numbers are there, but not one real encounter",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "4": {
+            "forDimension": "constraints",
+            "bridge": "So nothing that puts a screen between you and the person.",
+            "question": "What are the hard limits on time and signal here?",
+            "move": "boundary",
+            "dimension": "constraints",
+            "chips": [
+              "three seconds and one thumb",
+              "it has to work with no signal",
+              "anything under a minute is fine",
+              "no limit, I just need it to exist"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              }
+            ],
+            "coverage": {
+              "bar": {
+                "level": "partial",
+                "gap": "one way to fail it, but no sense of a good save",
+                "evidence": null
+              },
+              "constraints": {
+                "level": "partial",
+                "gap": "no limit named for time, platform or budget",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "5": {
+            "forDimension": "audience",
+            "bridge": "Three seconds, one thumb, and no signal.",
+            "question": "Who else would use this, if anyone?",
+            "move": "who_else",
+            "dimension": "audience",
+            "chips": [
+              "honestly, just for me",
+              "the two others on my team",
+              "anyone who works a booth",
+              "nobody, it is a personal fix"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              }
+            ],
+            "coverage": {
+              "constraints": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Three seconds, one thumb, and it has to work with no signal"
+              },
+              "substance": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Probably thirty names over three days"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "6": {
+            "forDimension": "voice",
+            "bridge": "A personal tool for three people on one circuit.",
+            "question": "Write the line you would want on screen when she walks up.",
+            "move": "sample_output",
+            "dimension": "voice",
+            "chips": [
+              "Sarah Chen, Vertex, API panel Tuesday",
+              "Sarah, Vertex. Kid plays clarinet.",
+              "just the name, nothing else",
+              "a photo, and I will do the rest"
+            ],
+            "new_facts": [
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              }
+            ],
+            "coverage": {
+              "audience": {
+                "level": "partial",
+                "gap": "nothing yet on what they already know",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "7": {
+            "forDimension": "references",
+            "bridge": "The clarinet does more work than the job title.",
+            "question": "What existing thing is this closest to?",
+            "move": "analogue",
+            "dimension": "references",
+            "chips": [
+              "like a business card with a memory",
+              "like LinkedIn, but only people I met",
+              "like the notes app, but faster",
+              "nothing really, that is the problem"
+            ],
+            "new_facts": [
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              }
+            ],
+            "coverage": {
+              "voice": {
+                "level": "partial",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null
+              },
+              "outcome": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "8": {
+            "forDimension": "references",
+            "bridge": "Not LinkedIn, then.",
+            "question": "Where does the business-card comparison stop being true?",
+            "move": "define_term",
+            "dimension": "references",
+            "chips": [
+              "a card cannot record my voice",
+              "I never look at cards again",
+              "cards do not know when I met you",
+              "it does not, that is exactly it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "partial",
+                "gap": "the analogue is named but not where it stops holding",
+                "evidence": null
+              },
+              "bar": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "9": {
+            "forDimension": "audience",
+            "bridge": "A card that cannot hold your voice.",
+            "question": "What would annoy your two teammates enough to stop?",
+            "move": "boundary",
+            "dimension": "audience",
+            "chips": [
+              "being asked to fill in fields",
+              "anything with a sync button",
+              "having to tag people afterwards",
+              "nothing, they would just use it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "A card cannot record my voice"
+              }
+            },
+            "suggest_wrap": true,
+            "wrap_reason": "every dimension now has the user’s own specifics behind it"
+          }
+        },
+        "synthesis": {
+          "title": "Conference name recall app",
+          "prompt": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+          "assumptions": [
+            "Assumed the three-second limit applies to capture, not to looking a name back up.",
+            "Assumed captured audio stays on the device, since it has to work with no signal."
+          ],
+          "open_questions": [
+            {
+              "dimension": "audience",
+              "question": "Do your two teammates see your notes, or only their own?",
+              "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+            },
+            {
+              "dimension": "voice",
+              "question": "What earns a place on the card besides the one personal hook?",
+              "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "value": {
+          "session": {
+            "schema": 2,
+            "id": "s_walkthrough",
+            "rev": 63,
+            "createdAt": 1760000123000,
+            "updatedAt": 1760000123000,
+            "status": "done",
+            "name": "",
+            "title": "Conference name recall app",
+            "tags": [],
+            "archivedAt": 0,
+            "opening": "An app that helps me remember the names of people I meet at conferences.",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "An app that helps me remember the names of people I meet at conferences.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "At the last conference, how many names did you actually lose?",
+                "bridge": "Conferences, so a lot of names in a short window.",
+                "move": "concretize",
+                "chips": [
+                  "maybe thirty names over three days",
+                  "honestly I stopped counting",
+                  "only a handful, but the ones that mattered",
+                  "I never learned them in the first place"
+                ],
+                "questionSource": "model",
+                "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t3",
+                "n": 3,
+                "dimension": "bar",
+                "question": "What would make you delete this in the first week?",
+                "bridge": "Thirty names, and the evening ones go first.",
+                "move": "anti_goal",
+                "chips": [
+                  "if I had to type during a conversation",
+                  "if it was just another contacts list",
+                  "if it took more than five seconds",
+                  "honestly, if I forgot it was there"
+                ],
+                "questionSource": "model",
+                "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t4",
+                "n": 4,
+                "dimension": "constraints",
+                "question": "What are the hard limits on time and signal here?",
+                "bridge": "So nothing that puts a screen between you and the person.",
+                "move": "boundary",
+                "chips": [
+                  "three seconds and one thumb",
+                  "it has to work with no signal",
+                  "anything under a minute is fine",
+                  "no limit, I just need it to exist"
+                ],
+                "questionSource": "model",
+                "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t5",
+                "n": 5,
+                "dimension": "audience",
+                "question": "Who else would use this, if anyone?",
+                "bridge": "Three seconds, one thumb, and no signal.",
+                "move": "who_else",
+                "chips": [
+                  "honestly, just for me",
+                  "the two others on my team",
+                  "anyone who works a booth",
+                  "nobody, it is a personal fix"
+                ],
+                "questionSource": "model",
+                "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t6",
+                "n": 6,
+                "dimension": "voice",
+                "question": "Write the line you would want on screen when she walks up.",
+                "bridge": "A personal tool for three people on one circuit.",
+                "move": "sample_output",
+                "chips": [
+                  "Sarah Chen, Vertex, API panel Tuesday",
+                  "Sarah, Vertex. Kid plays clarinet.",
+                  "just the name, nothing else",
+                  "a photo, and I will do the rest"
+                ],
+                "questionSource": "model",
+                "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t7",
+                "n": 7,
+                "dimension": "references",
+                "question": "What existing thing is this closest to?",
+                "bridge": "The clarinet does more work than the job title.",
+                "move": "analogue",
+                "chips": [
+                  "like a business card with a memory",
+                  "like LinkedIn, but only people I met",
+                  "like the notes app, but faster",
+                  "nothing really, that is the problem"
+                ],
+                "questionSource": "model",
+                "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t8",
+                "n": 8,
+                "dimension": "references",
+                "question": "Where does the business-card comparison stop being true?",
+                "bridge": "Not LinkedIn, then.",
+                "move": "define_term",
+                "chips": [
+                  "a card cannot record my voice",
+                  "I never look at cards again",
+                  "cards do not know when I met you",
+                  "it does not, that is exactly it"
+                ],
+                "questionSource": "model",
+                "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t9",
+                "n": 9,
+                "dimension": "audience",
+                "question": "What would annoy your two teammates enough to stop?",
+                "bridge": "A card that cannot hold your voice.",
+                "move": "boundary",
+                "chips": [
+                  "being asked to fill in fields",
+                  "anything with a sync button",
+                  "having to tag people afterwards",
+                  "nothing, they would just use it"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 0,
+                "classification": null
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Probably thirty names over three days",
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me",
+                "turnsSpent": 1,
+                "lastTurn": 3,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                "turnsSpent": 1,
+                "lastTurn": 4,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "nothing yet on what they already know",
+                "evidence": null,
+                "turnsSpent": 2,
+                "lastTurn": 9,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 6,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "A card cannot record my voice",
+                "turnsSpent": 2,
+                "lastTurn": 8,
+                "waivedReason": null
+              }
+            },
+            "facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              },
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              },
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              },
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              },
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              },
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "moveHistory": [
+              "concretize",
+              "anti_goal",
+              "boundary",
+              "who_else",
+              "sample_output",
+              "analogue",
+              "define_term",
+              "boundary"
+            ],
+            "openQuestions": [
+              {
+                "dimension": "audience",
+                "question": "Do your two teammates see your notes, or only their own?",
+                "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+              },
+              {
+                "dimension": "voice",
+                "question": "What earns a place on the card besides the one personal hook?",
+                "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+              }
+            ],
+            "synthesis": {
+              "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+              "tier": "complex",
+              "at": 1760000123000,
+              "stale": false,
+              "assumptions": [
+                "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                "Assumed captured audio stays on the device, since it has to work with no signal."
+              ]
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": true,
+            "meta": {
+              "device": "android"
+            }
+          },
+          "export": "# Conference name recall app\n\n_2025-10-09 · 8 questions · coverage 86% · synthesised by Claude_\n\n## Refined prompt\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\n### Assumptions made during synthesis\n\n- Assumed the three-second limit applies to capture, not to looking a name back up.\n- Assumed captured audio stays on the device, since it has to work with no signal.\n\n## Open questions\n\n- **Who it’s for** — Do your two teammates see your notes, or only their own?\n  _Why it matters: Shared notes turn a personal tool into something with a permission model._\n- **Tone & form** — What earns a place on the card besides the one personal hook?\n  _Why it matters: Without a rule the card fills up and stops being readable in three seconds._\n\n## Coverage\n\n| Dimension | Coverage | Gap |\n|---|---|---|\n| What we’re making | ● covered | — |\n| What’s actually in it | ● covered | — |\n| What good looks like | ● covered | — |\n| Hard limits | ● covered | — |\n| Who it’s for | ◐ partial | nothing yet on what they already know |\n| Tone & form | ◐ partial | one sample line, but no rule for what earns a place |\n| Like / not like | ● covered | — |\n\n## Transcript\n\n**The idea, as first stated:** An app that helps me remember the names of people I meet at conferences.\n\n### 1 · What we’re making\n\n**Q:** In a sentence or two — what’s the idea?\n\n**A:** An app that helps me remember the names of people I meet at conferences.\n\n### 2 · What’s actually in it  `concretize`\n\n**Q:** At the last conference, how many names did you actually lose?\n\n**A:** Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.\n\n### 3 · What good looks like  `anti_goal`\n\n**Q:** What would make you delete this in the first week?\n\n**A:** I would delete it in the first week if it made me type while someone was still talking to me.\n\n### 4 · Hard limits  `boundary`\n\n**Q:** What are the hard limits on time and signal here?\n\n**A:** Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.\n\n### 5 · Who it’s for  `who_else`\n\n**Q:** Who else would use this, if anyone?\n\n**A:** Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.\n\n### 6 · Tone & form  `sample_output`\n\n**Q:** Write the line you would want on screen when she walks up.\n\n**A:** On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.\n\n### 7 · Like / not like  `analogue`\n\n**Q:** What existing thing is this closest to?\n\n**A:** The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.\n\n### 8 · Like / not like  `define_term`\n\n**Q:** Where does the business-card comparison stop being true?\n\n**A:** A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.\n\n---\n\n_Forged with IdeaForge._\n",
+          "asked": 9,
+          "stoppedBy": "offer: coverage",
+          "requests": [
+            {
+              "modelTier": "default",
+              "promptHash": "j964yu"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1xataqp"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "18ty914"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "onzbxt"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "k60ma"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "9cogxh"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1jiv3yv"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1i6fd1y"
+            },
+            {
+              "modelTier": "complex",
+              "promptHash": "f6c9u5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a chip answer",
+      "fn": "interview",
+      "input": {
+        "id": "s_walkthrough",
+        "now": 1760000123000,
+        "device": "android",
+        "steps": [
+          {
+            "text": "An app that helps me remember the names of people I meet at conferences."
+          },
+          {
+            "text": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone."
+          },
+          {
+            "text": "I would delete it in the first week if it made me type while someone was still talking to me."
+          },
+          {
+            "chip": 0
+          },
+          {
+            "text": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it."
+          },
+          {
+            "text": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her."
+          },
+          {
+            "text": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to."
+          },
+          {
+            "text": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself."
+          }
+        ]
+      },
+      "script": {
+        "turns": {
+          "2": {
+            "forDimension": "substance",
+            "bridge": "Conferences, so a lot of names in a short window.",
+            "question": "At the last conference, how many names did you actually lose?",
+            "move": "concretize",
+            "dimension": "substance",
+            "chips": [
+              "maybe thirty names over three days",
+              "honestly I stopped counting",
+              "only a handful, but the ones that mattered",
+              "I never learned them in the first place"
+            ],
+            "new_facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "partial",
+                "gap": "no sense of what the app hands back",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "3": {
+            "forDimension": "bar",
+            "bridge": "Thirty names, and the evening ones go first.",
+            "question": "What would make you delete this in the first week?",
+            "move": "anti_goal",
+            "dimension": "bar",
+            "chips": [
+              "if I had to type during a conversation",
+              "if it was just another contacts list",
+              "if it took more than five seconds",
+              "honestly, if I forgot it was there"
+            ],
+            "new_facts": [
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              }
+            ],
+            "coverage": {
+              "substance": {
+                "level": "partial",
+                "gap": "the numbers are there, but not one real encounter",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "4": {
+            "forDimension": "constraints",
+            "bridge": "So nothing that puts a screen between you and the person.",
+            "question": "What are the hard limits on time and signal here?",
+            "move": "boundary",
+            "dimension": "constraints",
+            "chips": [
+              "three seconds and one thumb",
+              "it has to work with no signal",
+              "anything under a minute is fine",
+              "no limit, I just need it to exist"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              }
+            ],
+            "coverage": {
+              "bar": {
+                "level": "partial",
+                "gap": "one way to fail it, but no sense of a good save",
+                "evidence": null
+              },
+              "constraints": {
+                "level": "partial",
+                "gap": "no limit named for time, platform or budget",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "5": {
+            "forDimension": "audience",
+            "bridge": "Three seconds, one thumb, and no signal.",
+            "question": "Who else would use this, if anyone?",
+            "move": "who_else",
+            "dimension": "audience",
+            "chips": [
+              "honestly, just for me",
+              "the two others on my team",
+              "anyone who works a booth",
+              "nobody, it is a personal fix"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              }
+            ],
+            "coverage": {
+              "constraints": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Three seconds, one thumb, and it has to work with no signal"
+              },
+              "substance": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Probably thirty names over three days"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "6": {
+            "forDimension": "voice",
+            "bridge": "A personal tool for three people on one circuit.",
+            "question": "Write the line you would want on screen when she walks up.",
+            "move": "sample_output",
+            "dimension": "voice",
+            "chips": [
+              "Sarah Chen, Vertex, API panel Tuesday",
+              "Sarah, Vertex. Kid plays clarinet.",
+              "just the name, nothing else",
+              "a photo, and I will do the rest"
+            ],
+            "new_facts": [
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              }
+            ],
+            "coverage": {
+              "audience": {
+                "level": "partial",
+                "gap": "nothing yet on what they already know",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "7": {
+            "forDimension": "references",
+            "bridge": "The clarinet does more work than the job title.",
+            "question": "What existing thing is this closest to?",
+            "move": "analogue",
+            "dimension": "references",
+            "chips": [
+              "like a business card with a memory",
+              "like LinkedIn, but only people I met",
+              "like the notes app, but faster",
+              "nothing really, that is the problem"
+            ],
+            "new_facts": [
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              }
+            ],
+            "coverage": {
+              "voice": {
+                "level": "partial",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null
+              },
+              "outcome": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "8": {
+            "forDimension": "references",
+            "bridge": "Not LinkedIn, then.",
+            "question": "Where does the business-card comparison stop being true?",
+            "move": "define_term",
+            "dimension": "references",
+            "chips": [
+              "a card cannot record my voice",
+              "I never look at cards again",
+              "cards do not know when I met you",
+              "it does not, that is exactly it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "partial",
+                "gap": "the analogue is named but not where it stops holding",
+                "evidence": null
+              },
+              "bar": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "9": {
+            "forDimension": "audience",
+            "bridge": "A card that cannot hold your voice.",
+            "question": "What would annoy your two teammates enough to stop?",
+            "move": "boundary",
+            "dimension": "audience",
+            "chips": [
+              "being asked to fill in fields",
+              "anything with a sync button",
+              "having to tag people afterwards",
+              "nothing, they would just use it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "A card cannot record my voice"
+              }
+            },
+            "suggest_wrap": true,
+            "wrap_reason": "every dimension now has the user’s own specifics behind it"
+          }
+        },
+        "synthesis": {
+          "title": "Conference name recall app",
+          "prompt": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+          "assumptions": [
+            "Assumed the three-second limit applies to capture, not to looking a name back up.",
+            "Assumed captured audio stays on the device, since it has to work with no signal."
+          ],
+          "open_questions": [
+            {
+              "dimension": "audience",
+              "question": "Do your two teammates see your notes, or only their own?",
+              "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+            },
+            {
+              "dimension": "voice",
+              "question": "What earns a place on the card besides the one personal hook?",
+              "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "value": {
+          "session": {
+            "schema": 2,
+            "id": "s_walkthrough",
+            "rev": 62,
+            "createdAt": 1760000123000,
+            "updatedAt": 1760000123000,
+            "status": "done",
+            "name": "",
+            "title": "Conference name recall app",
+            "tags": [],
+            "archivedAt": 0,
+            "opening": "An app that helps me remember the names of people I meet at conferences.",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "An app that helps me remember the names of people I meet at conferences.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "At the last conference, how many names did you actually lose?",
+                "bridge": "Conferences, so a lot of names in a short window.",
+                "move": "concretize",
+                "chips": [
+                  "maybe thirty names over three days",
+                  "honestly I stopped counting",
+                  "only a handful, but the ones that mattered",
+                  "I never learned them in the first place"
+                ],
+                "questionSource": "model",
+                "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t3",
+                "n": 3,
+                "dimension": "bar",
+                "question": "What would make you delete this in the first week?",
+                "bridge": "Thirty names, and the evening ones go first.",
+                "move": "anti_goal",
+                "chips": [
+                  "if I had to type during a conversation",
+                  "if it was just another contacts list",
+                  "if it took more than five seconds",
+                  "honestly, if I forgot it was there"
+                ],
+                "questionSource": "model",
+                "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t4",
+                "n": 4,
+                "dimension": "constraints",
+                "question": "What are the hard limits on time and signal here?",
+                "bridge": "So nothing that puts a screen between you and the person.",
+                "move": "boundary",
+                "chips": [
+                  "three seconds and one thumb",
+                  "it has to work with no signal",
+                  "anything under a minute is fine",
+                  "no limit, I just need it to exist"
+                ],
+                "questionSource": "model",
+                "answer": "three seconds and one thumb",
+                "answerSource": "chip",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "terse"
+              },
+              {
+                "id": "t5",
+                "n": 5,
+                "dimension": "audience",
+                "question": "Who else would use this, if anyone?",
+                "bridge": "Three seconds, one thumb, and no signal.",
+                "move": "menu",
+                "chips": [
+                  "honestly, just for me",
+                  "the two others on my team",
+                  "anyone who works a booth",
+                  "nobody, it is a personal fix"
+                ],
+                "questionSource": "model",
+                "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t6",
+                "n": 6,
+                "dimension": "voice",
+                "question": "Write the line you would want on screen when she walks up.",
+                "bridge": "A personal tool for three people on one circuit.",
+                "move": "sample_output",
+                "chips": [
+                  "Sarah Chen, Vertex, API panel Tuesday",
+                  "Sarah, Vertex. Kid plays clarinet.",
+                  "just the name, nothing else",
+                  "a photo, and I will do the rest"
+                ],
+                "questionSource": "model",
+                "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t7",
+                "n": 7,
+                "dimension": "references",
+                "question": "What existing thing is this closest to?",
+                "bridge": "The clarinet does more work than the job title.",
+                "move": "analogue",
+                "chips": [
+                  "like a business card with a memory",
+                  "like LinkedIn, but only people I met",
+                  "like the notes app, but faster",
+                  "nothing really, that is the problem"
+                ],
+                "questionSource": "model",
+                "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t8",
+                "n": 8,
+                "dimension": "references",
+                "question": "Where does the business-card comparison stop being true?",
+                "bridge": "Not LinkedIn, then.",
+                "move": "define_term",
+                "chips": [
+                  "a card cannot record my voice",
+                  "I never look at cards again",
+                  "cards do not know when I met you",
+                  "it does not, that is exactly it"
+                ],
+                "questionSource": "model",
+                "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t9",
+                "n": 9,
+                "dimension": "audience",
+                "question": "What would annoy your two teammates enough to stop?",
+                "bridge": "A card that cannot hold your voice.",
+                "move": "boundary",
+                "chips": [
+                  "being asked to fill in fields",
+                  "anything with a sync button",
+                  "having to tag people afterwards",
+                  "nothing, they would just use it"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 0,
+                "classification": null
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Probably thirty names over three days",
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me",
+                "turnsSpent": 1,
+                "lastTurn": 3,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "no limit named for time, platform or budget",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 4,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "nothing yet on what they already know",
+                "evidence": null,
+                "turnsSpent": 2,
+                "lastTurn": 9,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 6,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "A card cannot record my voice",
+                "turnsSpent": 2,
+                "lastTurn": 8,
+                "waivedReason": null
+              }
+            },
+            "facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              },
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              },
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              },
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              },
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              },
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "moveHistory": [
+              "concretize",
+              "anti_goal",
+              "boundary",
+              "menu",
+              "sample_output",
+              "analogue",
+              "define_term",
+              "boundary"
+            ],
+            "openQuestions": [
+              {
+                "dimension": "audience",
+                "question": "Do your two teammates see your notes, or only their own?",
+                "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+              },
+              {
+                "dimension": "voice",
+                "question": "What earns a place on the card besides the one personal hook?",
+                "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+              }
+            ],
+            "synthesis": {
+              "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+              "tier": "complex",
+              "at": 1760000123000,
+              "stale": false,
+              "assumptions": [
+                "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                "Assumed captured audio stays on the device, since it has to work with no signal."
+              ]
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": false,
+            "meta": {
+              "device": "android"
+            }
+          },
+          "export": "# Conference name recall app\n\n_2025-10-09 · 8 questions · coverage 79% · synthesised by Claude_\n\n## Refined prompt\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\n### Assumptions made during synthesis\n\n- Assumed the three-second limit applies to capture, not to looking a name back up.\n- Assumed captured audio stays on the device, since it has to work with no signal.\n\n## Open questions\n\n- **Who it’s for** — Do your two teammates see your notes, or only their own?\n  _Why it matters: Shared notes turn a personal tool into something with a permission model._\n- **Tone & form** — What earns a place on the card besides the one personal hook?\n  _Why it matters: Without a rule the card fills up and stops being readable in three seconds._\n\n## Coverage\n\n| Dimension | Coverage | Gap |\n|---|---|---|\n| What we’re making | ● covered | — |\n| What’s actually in it | ● covered | — |\n| What good looks like | ● covered | — |\n| Hard limits | ◐ partial | no limit named for time, platform or budget |\n| Who it’s for | ◐ partial | nothing yet on what they already know |\n| Tone & form | ◐ partial | one sample line, but no rule for what earns a place |\n| Like / not like | ● covered | — |\n\n## Transcript\n\n**The idea, as first stated:** An app that helps me remember the names of people I meet at conferences.\n\n### 1 · What we’re making\n\n**Q:** In a sentence or two — what’s the idea?\n\n**A:** An app that helps me remember the names of people I meet at conferences.\n\n### 2 · What’s actually in it  `concretize`\n\n**Q:** At the last conference, how many names did you actually lose?\n\n**A:** Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.\n\n### 3 · What good looks like  `anti_goal`\n\n**Q:** What would make you delete this in the first week?\n\n**A:** I would delete it in the first week if it made me type while someone was still talking to me.\n\n### 4 · Hard limits  `boundary`\n\n**Q:** What are the hard limits on time and signal here?\n\n**A:** three seconds and one thumb\n\n_(drafted by Claude and submitted unedited — treat as unconfirmed)_\n\n### 5 · Who it’s for  `menu`\n\n**Q:** Who else would use this, if anyone?\n\n**A:** Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.\n\n### 6 · Tone & form  `sample_output`\n\n**Q:** Write the line you would want on screen when she walks up.\n\n**A:** On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.\n\n### 7 · Like / not like  `analogue`\n\n**Q:** What existing thing is this closest to?\n\n**A:** The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.\n\n### 8 · Like / not like  `define_term`\n\n**Q:** Where does the business-card comparison stop being true?\n\n**A:** A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.\n\n---\n\n_Forged with IdeaForge._\n",
+          "asked": 9,
+          "stoppedBy": "answers",
+          "requests": [
+            {
+              "modelTier": "default",
+              "promptHash": "j964yu"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1xataqp"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "18ty914"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "jet36i"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "d8lrt0"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "d8wach"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "cfr3u9"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "129mru"
+            },
+            {
+              "modelTier": "complex",
+              "promptHash": "yon5e2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a skipped question",
+      "fn": "interview",
+      "input": {
+        "id": "s_walkthrough",
+        "now": 1760000123000,
+        "device": "android",
+        "steps": [
+          {
+            "text": "An app that helps me remember the names of people I meet at conferences."
+          },
+          {
+            "text": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone."
+          },
+          {
+            "skip": true
+          },
+          {
+            "text": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon."
+          },
+          {
+            "text": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it."
+          },
+          {
+            "text": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her."
+          },
+          {
+            "text": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to."
+          },
+          {
+            "text": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself."
+          }
+        ]
+      },
+      "script": {
+        "turns": {
+          "2": {
+            "forDimension": "substance",
+            "bridge": "Conferences, so a lot of names in a short window.",
+            "question": "At the last conference, how many names did you actually lose?",
+            "move": "concretize",
+            "dimension": "substance",
+            "chips": [
+              "maybe thirty names over three days",
+              "honestly I stopped counting",
+              "only a handful, but the ones that mattered",
+              "I never learned them in the first place"
+            ],
+            "new_facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "partial",
+                "gap": "no sense of what the app hands back",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "3": {
+            "forDimension": "bar",
+            "bridge": "Thirty names, and the evening ones go first.",
+            "question": "What would make you delete this in the first week?",
+            "move": "anti_goal",
+            "dimension": "bar",
+            "chips": [
+              "if I had to type during a conversation",
+              "if it was just another contacts list",
+              "if it took more than five seconds",
+              "honestly, if I forgot it was there"
+            ],
+            "new_facts": [
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              }
+            ],
+            "coverage": {
+              "substance": {
+                "level": "partial",
+                "gap": "the numbers are there, but not one real encounter",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "4": {
+            "forDimension": "constraints",
+            "bridge": "So nothing that puts a screen between you and the person.",
+            "question": "What are the hard limits on time and signal here?",
+            "move": "boundary",
+            "dimension": "constraints",
+            "chips": [
+              "three seconds and one thumb",
+              "it has to work with no signal",
+              "anything under a minute is fine",
+              "no limit, I just need it to exist"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              }
+            ],
+            "coverage": {
+              "bar": {
+                "level": "partial",
+                "gap": "one way to fail it, but no sense of a good save",
+                "evidence": null
+              },
+              "constraints": {
+                "level": "partial",
+                "gap": "no limit named for time, platform or budget",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "5": {
+            "forDimension": "audience",
+            "bridge": "Three seconds, one thumb, and no signal.",
+            "question": "Who else would use this, if anyone?",
+            "move": "who_else",
+            "dimension": "audience",
+            "chips": [
+              "honestly, just for me",
+              "the two others on my team",
+              "anyone who works a booth",
+              "nobody, it is a personal fix"
+            ],
+            "new_facts": [
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              }
+            ],
+            "coverage": {
+              "constraints": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Three seconds, one thumb, and it has to work with no signal"
+              },
+              "substance": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Probably thirty names over three days"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "6": {
+            "forDimension": "voice",
+            "bridge": "A personal tool for three people on one circuit.",
+            "question": "Write the line you would want on screen when she walks up.",
+            "move": "sample_output",
+            "dimension": "voice",
+            "chips": [
+              "Sarah Chen, Vertex, API panel Tuesday",
+              "Sarah, Vertex. Kid plays clarinet.",
+              "just the name, nothing else",
+              "a photo, and I will do the rest"
+            ],
+            "new_facts": [
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              }
+            ],
+            "coverage": {
+              "audience": {
+                "level": "partial",
+                "gap": "nothing yet on what they already know",
+                "evidence": null
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "7": {
+            "forDimension": "references",
+            "bridge": "The clarinet does more work than the job title.",
+            "question": "What existing thing is this closest to?",
+            "move": "analogue",
+            "dimension": "references",
+            "chips": [
+              "like a business card with a memory",
+              "like LinkedIn, but only people I met",
+              "like the notes app, but faster",
+              "nothing really, that is the problem"
+            ],
+            "new_facts": [
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              }
+            ],
+            "coverage": {
+              "voice": {
+                "level": "partial",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null
+              },
+              "outcome": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "8": {
+            "forDimension": "references",
+            "bridge": "Not LinkedIn, then.",
+            "question": "Where does the business-card comparison stop being true?",
+            "move": "define_term",
+            "dimension": "references",
+            "chips": [
+              "a card cannot record my voice",
+              "I never look at cards again",
+              "cards do not know when I met you",
+              "it does not, that is exactly it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "partial",
+                "gap": "the analogue is named but not where it stops holding",
+                "evidence": null
+              },
+              "bar": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me"
+              }
+            },
+            "suggest_wrap": false,
+            "wrap_reason": null
+          },
+          "9": {
+            "forDimension": "audience",
+            "bridge": "A card that cannot hold your voice.",
+            "question": "What would annoy your two teammates enough to stop?",
+            "move": "boundary",
+            "dimension": "audience",
+            "chips": [
+              "being asked to fill in fields",
+              "anything with a sync button",
+              "having to tag people afterwards",
+              "nothing, they would just use it"
+            ],
+            "new_facts": [
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "coverage": {
+              "references": {
+                "level": "covered",
+                "gap": null,
+                "evidence": "A card cannot record my voice"
+              }
+            },
+            "suggest_wrap": true,
+            "wrap_reason": "every dimension now has the user’s own specifics behind it"
+          }
+        },
+        "synthesis": {
+          "title": "Conference name recall app",
+          "prompt": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+          "assumptions": [
+            "Assumed the three-second limit applies to capture, not to looking a name back up.",
+            "Assumed captured audio stays on the device, since it has to work with no signal."
+          ],
+          "open_questions": [
+            {
+              "dimension": "audience",
+              "question": "Do your two teammates see your notes, or only their own?",
+              "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+            },
+            {
+              "dimension": "voice",
+              "question": "What earns a place on the card besides the one personal hook?",
+              "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "value": {
+          "session": {
+            "schema": 2,
+            "id": "s_walkthrough",
+            "rev": 63,
+            "createdAt": 1760000123000,
+            "updatedAt": 1760000123000,
+            "status": "done",
+            "name": "",
+            "title": "Conference name recall app",
+            "tags": [],
+            "archivedAt": 0,
+            "opening": "An app that helps me remember the names of people I meet at conferences.",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "An app that helps me remember the names of people I meet at conferences.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "At the last conference, how many names did you actually lose?",
+                "bridge": "Conferences, so a lot of names in a short window.",
+                "move": "concretize",
+                "chips": [
+                  "maybe thirty names over three days",
+                  "honestly I stopped counting",
+                  "only a handful, but the ones that mattered",
+                  "I never learned them in the first place"
+                ],
+                "questionSource": "model",
+                "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t3",
+                "n": 3,
+                "dimension": "bar",
+                "question": "What would make you delete this in the first week?",
+                "bridge": "Thirty names, and the evening ones go first.",
+                "move": "anti_goal",
+                "chips": [
+                  "if I had to type during a conversation",
+                  "if it was just another contacts list",
+                  "if it took more than five seconds",
+                  "honestly, if I forgot it was there"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": true,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "refusal"
+              },
+              {
+                "id": "t4",
+                "n": 4,
+                "dimension": "constraints",
+                "question": "What are the hard limits on time and signal here?",
+                "bridge": "So nothing that puts a screen between you and the person.",
+                "move": "boundary",
+                "chips": [
+                  "three seconds and one thumb",
+                  "it has to work with no signal",
+                  "anything under a minute is fine",
+                  "no limit, I just need it to exist"
+                ],
+                "questionSource": "model",
+                "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t5",
+                "n": 5,
+                "dimension": "audience",
+                "question": "Who else would use this, if anyone?",
+                "bridge": "Three seconds, one thumb, and no signal.",
+                "move": "who_else",
+                "chips": [
+                  "honestly, just for me",
+                  "the two others on my team",
+                  "anyone who works a booth",
+                  "nobody, it is a personal fix"
+                ],
+                "questionSource": "model",
+                "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t6",
+                "n": 6,
+                "dimension": "voice",
+                "question": "Write the line you would want on screen when she walks up.",
+                "bridge": "A personal tool for three people on one circuit.",
+                "move": "sample_output",
+                "chips": [
+                  "Sarah Chen, Vertex, API panel Tuesday",
+                  "Sarah, Vertex. Kid plays clarinet.",
+                  "just the name, nothing else",
+                  "a photo, and I will do the rest"
+                ],
+                "questionSource": "model",
+                "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t7",
+                "n": 7,
+                "dimension": "references",
+                "question": "What existing thing is this closest to?",
+                "bridge": "The clarinet does more work than the job title.",
+                "move": "analogue",
+                "chips": [
+                  "like a business card with a memory",
+                  "like LinkedIn, but only people I met",
+                  "like the notes app, but faster",
+                  "nothing really, that is the problem"
+                ],
+                "questionSource": "model",
+                "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t8",
+                "n": 8,
+                "dimension": "references",
+                "question": "Where does the business-card comparison stop being true?",
+                "bridge": "Not LinkedIn, then.",
+                "move": "define_term",
+                "chips": [
+                  "a card cannot record my voice",
+                  "I never look at cards again",
+                  "cards do not know when I met you",
+                  "it does not, that is exactly it"
+                ],
+                "questionSource": "model",
+                "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 1760000123000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t9",
+                "n": 9,
+                "dimension": "audience",
+                "question": "What would annoy your two teammates enough to stop?",
+                "bridge": "A card that cannot hold your voice.",
+                "move": "boundary",
+                "chips": [
+                  "being asked to fill in fields",
+                  "anything with a sync button",
+                  "having to tag people afterwards",
+                  "nothing, they would just use it"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000123000,
+                "answeredAt": 0,
+                "classification": null
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Probably thirty names over three days",
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "if it made me type while someone was still talking to me",
+                "turnsSpent": 1,
+                "lastTurn": 3,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                "turnsSpent": 1,
+                "lastTurn": 4,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "nothing yet on what they already know",
+                "evidence": null,
+                "turnsSpent": 2,
+                "lastTurn": 9,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "one sample line, but no rule for what earns a place",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 6,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "covered",
+                "status": "probing",
+                "gap": null,
+                "evidence": "A card cannot record my voice",
+                "turnsSpent": 2,
+                "lastTurn": 8,
+                "waivedReason": null
+              }
+            },
+            "facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              },
+              {
+                "dimension": "substance",
+                "fact": "Roughly thirty names lost over a three-day conference."
+              },
+              {
+                "dimension": "substance",
+                "fact": "The losses cluster around the evening receptions."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Cannot require typing while someone is still talking."
+              },
+              {
+                "dimension": "constraints",
+                "fact": "Three seconds, one thumb, and it must work offline."
+              },
+              {
+                "dimension": "audience",
+                "fact": "The author plus two teammates on the same circuit."
+              },
+              {
+                "dimension": "voice",
+                "fact": "Wants the personal hook ahead of the job title."
+              },
+              {
+                "dimension": "references",
+                "fact": "Like the back of a business card; explicitly not LinkedIn."
+              },
+              {
+                "dimension": "references",
+                "fact": "A card holds no voice and no record of when you met."
+              }
+            ],
+            "moveHistory": [
+              "concretize",
+              "anti_goal",
+              "boundary",
+              "who_else",
+              "sample_output",
+              "analogue",
+              "define_term",
+              "boundary"
+            ],
+            "openQuestions": [
+              {
+                "dimension": "audience",
+                "question": "Do your two teammates see your notes, or only their own?",
+                "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+              },
+              {
+                "dimension": "voice",
+                "question": "What earns a place on the card besides the one personal hook?",
+                "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+              }
+            ],
+            "synthesis": {
+              "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+              "tier": "complex",
+              "at": 1760000123000,
+              "stale": false,
+              "assumptions": [
+                "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                "Assumed captured audio stays on the device, since it has to work with no signal."
+              ]
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": true,
+            "meta": {
+              "device": "android"
+            }
+          },
+          "export": "# Conference name recall app\n\n_2025-10-09 · 8 questions · coverage 86% · synthesised by Claude_\n\n## Refined prompt\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\n### Assumptions made during synthesis\n\n- Assumed the three-second limit applies to capture, not to looking a name back up.\n- Assumed captured audio stays on the device, since it has to work with no signal.\n\n## Open questions\n\n- **Who it’s for** — Do your two teammates see your notes, or only their own?\n  _Why it matters: Shared notes turn a personal tool into something with a permission model._\n- **Tone & form** — What earns a place on the card besides the one personal hook?\n  _Why it matters: Without a rule the card fills up and stops being readable in three seconds._\n\n## Coverage\n\n| Dimension | Coverage | Gap |\n|---|---|---|\n| What we’re making | ● covered | — |\n| What’s actually in it | ● covered | — |\n| What good looks like | ● covered | — |\n| Hard limits | ● covered | — |\n| Who it’s for | ◐ partial | nothing yet on what they already know |\n| Tone & form | ◐ partial | one sample line, but no rule for what earns a place |\n| Like / not like | ● covered | — |\n\n## Transcript\n\n**The idea, as first stated:** An app that helps me remember the names of people I meet at conferences.\n\n### 1 · What we’re making\n\n**Q:** In a sentence or two — what’s the idea?\n\n**A:** An app that helps me remember the names of people I meet at conferences.\n\n### 2 · What’s actually in it  `concretize`\n\n**Q:** At the last conference, how many names did you actually lose?\n\n**A:** Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.\n\n### 3 · What good looks like  `anti_goal`\n\n**Q:** What would make you delete this in the first week?\n\n**A:** _(skipped)_\n\n### 4 · Hard limits  `boundary`\n\n**Q:** What are the hard limits on time and signal here?\n\n**A:** Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.\n\n### 5 · Who it’s for  `who_else`\n\n**Q:** Who else would use this, if anyone?\n\n**A:** Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.\n\n### 6 · Tone & form  `sample_output`\n\n**Q:** Write the line you would want on screen when she walks up.\n\n**A:** On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.\n\n### 7 · Like / not like  `analogue`\n\n**Q:** What existing thing is this closest to?\n\n**A:** The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.\n\n### 8 · Like / not like  `define_term`\n\n**Q:** Where does the business-card comparison stop being true?\n\n**A:** A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.\n\n---\n\n_Forged with IdeaForge._\n",
+          "asked": 9,
+          "stoppedBy": "offer: coverage",
+          "requests": [
+            {
+              "modelTier": "default",
+              "promptHash": "j964yu"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1xataqp"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "10aqc3a"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1e2bj9n"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "15b0kx4"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "1nez0jj"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "wz2fl7"
+            },
+            {
+              "modelTier": "default",
+              "promptHash": "hdb3wi"
+            },
+            {
+              "modelTier": "complex",
+              "promptHash": "1cyewxb"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

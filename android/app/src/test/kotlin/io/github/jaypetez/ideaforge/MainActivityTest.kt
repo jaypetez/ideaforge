@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
+import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -56,7 +57,8 @@ class MainActivityTest {
         navItem("Settings").performClick()
         compose.onNodeWithText("Hands-free").assertExists()
         navItem("New idea").performClick()
-        compose.onNodeWithText("Interview").assertExists()
+        // The interview opens on the hardcoded seed question: no model call, no network.
+        compose.waitUntilAtLeastOneExists(hasText(SEED_QUESTION), 5_000)
         navItem("Ideas").performClick()
         compose.onNodeWithText("v${BuildConfig.VERSION_NAME}").assertExists()
     }

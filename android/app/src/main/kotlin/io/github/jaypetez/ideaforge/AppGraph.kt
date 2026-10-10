@@ -12,6 +12,7 @@ import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,16 @@ class AppGraph(
     private val keyringKey: KeyringKey = AndroidKeystoreKey(),
     // The network call onboarding makes. Tests hand in a fake, so no test opens a socket.
     val providerCheck: ProviderCheck = ProviderCheck.Default,
+    providerSource: ProviderSource = ProviderSource.FromKeyring,
 ) {
+    /**
+     * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
+     * a debug build launched with `--es provider scripted` swaps in the walkthrough replay
+     * (see DebugProviders, which a release build compiles to nothing).
+     */
+    @Volatile
+    var providerSource: ProviderSource = providerSource
+
     /** Outlives every screen; work that must finish (a save) runs here, not in a ViewModel. */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
