@@ -879,6 +879,103 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   border-left: 3px solid var(--line-strong); padding-left: var(--s3);
 }
 
+/* ──────────────────────────────────────────────── desktop layouts (#109) */
+/* 1024px and wider uses the width instead of one 720px column, per panel: Ideas is a list
+   beside the selected idea, and Settings is an index beside its groups. (Interview's
+   coverage side panel is above, with its own 1120px.) Below 1024px none of this exists:
+   the pane, the index and the cards' Details buttons are display:none, and library.js leaves
+   the pane empty and marks no card there. (The hidden Details buttons, and their aria-pressed,
+   are still in each card's DOM.)
+
+   .wrap keeps its class and its 72px bottom padding; only max-width changes, per panel.
+   Both grids use the coverage panel's recipe: the side column spans every row down to a
+   trailing 1fr row (which absorbs its extra height instead of opening holes between the
+   rows beside it), and spacing is margins, because a row gap would be paid for every
+   empty row too. */
+.library-detail, .settings-index, .idea-select { display: none; }
+@media (min-width: 1024px) {
+  body[data-panel="library"] .wrap { max-width: 1120px; }
+  body[data-panel="setup"]:has(#panel-setup[data-view="settings"]) .wrap { max-width: 1000px; }
+
+  /* Ideas: list | detail. Only once there are ideas (or their placeholders): the zero state
+     and a failed first read stay the single column they were designed as. */
+  #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) {
+    display: grid; grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    grid-template-rows: repeat(6, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+  }
+  #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > * {
+    grid-column: 1; min-width: 0;
+  }
+  #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > .section-head {
+    grid-column: 1 / -1;
+  }
+  #panel-library:is([data-library-state="ready"], [data-library-state="loading"])
+    > :not(.library-detail, #library-rows) { margin-block-end: var(--s4); }
+  #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > .library-detail:not(:empty) {
+    grid-column: 2; grid-row: 2 / -1; align-self: start;
+    display: flex; flex-direction: column; gap: var(--s3);
+    position: sticky; top: var(--s4);
+    /* Stuck, it must fit the viewport; the preview scrolls inside the pane, not the page. */
+    max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
+    padding: var(--s5); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+    background: var(--surface-container-lowest);
+  }
+  /* An empty pane (loading, or filters matching nothing) is no card at all. The rule above
+     is scoped to :not(:empty) because its id selector would otherwise outrank this one. */
+  .library-detail:empty { display: none; }
+  .library-detail .library-detail-title { font-size: var(--t-xl); }
+  .library-detail .library-detail-title:focus { outline: none; }
+  .library-detail .library-detail-title:focus-visible {
+    outline: var(--focus-ring); outline-offset: var(--focus-offset);
+  }
+  .library-detail-empty { margin: 0; }
+  /* The preview is the Done panel's rendering, one card inside another, so it drops the
+     outer chrome and the 60dvh cap: the pane is the scroll container here. */
+  .library-detail .library-preview {
+    margin-top: var(--s2); padding: var(--s5); max-height: none; overflow: visible;
+    box-shadow: none; background: var(--surface-container-low);
+  }
+  .library-detail .library-preview-empty { padding: var(--s4); }
+  .library-preview-empty .hint { margin: 0; }
+
+  /* The cards: the body selects, and the selected one says so by shape as well as colour
+     (a doubled primary edge), so it survives greyscale. */
+  .idea-head > h3 { margin-inline-end: auto; }
+  .idea-card { cursor: pointer; }
+  .idea-card :is(input, label, summary) { cursor: auto; }
+  .idea-card summary { cursor: pointer; }
+  .idea-select { display: inline-flex; flex: none; }
+  .idea-card[aria-current="true"] {
+    border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow-1);
+  }
+
+  /* Settings: index | groups. The index is sticky, so it stays beside a long Listen and
+     speak group, and its buttons scroll the page rather than change location.hash. */
+  #panel-setup[data-view="settings"] {
+    display: grid; grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+  }
+  #panel-setup[data-view="settings"] > * { grid-column: 2; min-width: 0; }
+  #panel-setup[data-view="settings"] > h2 { grid-column: 1 / -1; }
+  #panel-setup[data-view="settings"] > :not(.settings-index, :last-child) { margin-block-end: var(--s5); }
+  #panel-setup[data-view="settings"] > .settings-index {
+    grid-column: 1; grid-row: 2 / -1; align-self: start;
+    position: sticky; top: var(--s4);
+    display: flex; flex-direction: column; gap: var(--s1);
+  }
+  .settings-index button {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; padding-inline: var(--s3); text-align: start;
+    color: var(--on-surface-variant); font-weight: 500;
+  }
+  .settings-index button:hover { color: var(--on-surface); }
+  .settings-index button[aria-current="true"] {
+    background: var(--primary-container); color: var(--on-surface);
+  }
+  /* Scrolled to by the index, a group's top edge should not sit flush with the viewport. */
+  #panel-setup[data-view="settings"] > .group { scroll-margin-top: var(--s4); }
+}
+
 /* ──────────────────────────────────────────────────────────────── done */
 /* The refined prompt is the payoff of the whole interview and used to be shown as raw
    markdown source in a monospace box — `# Heading`, `_italics_` — which read as a log file.

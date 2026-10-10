@@ -260,7 +260,7 @@ test('the generated inventory retains every manual and voice screenshot pair', (
   const stems = [
     '01-setup', '02-first-question', '03-mid-interview', '04-coverage',
     '05-ready-to-wrap', '06-refined-prompt', '07-ideas-library',
-    '08-voice-listening', '09-voice-paused', '10-settings',
+    '08-voice-listening', '09-voice-paused', '10-settings', '11-library-wide',
   ];
   const expected = stems.flatMap((stem) => ['light', 'dark'].map((theme) => `${stem}.${theme}.png`));
   const missing = expected.filter((file) => !existsSync(join(ROOT, 'docs', 'screenshots', file)));

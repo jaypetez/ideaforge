@@ -159,7 +159,8 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   the whole worked example as one unbroken line the first time, and `test/docs.test.mjs`
   caught it. `renderBlocks` in `src/core/markdown.js` returns data rather than DOM because
   `src/core/` is purity-linted — the UI builds the elements.
-- **`screenshots.mjs` hardcodes `.wrap`, `details.cov`, `.idea-card`, `#output`'s height cap
+- **`screenshots.mjs` hardcodes `.wrap`, `details.cov`, `.idea-card`, `#output`'s height cap,
+  `#library-detail .library-preview` (the 1280px `11-library-wide` shot)
   and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
   `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
   any of them breaks the harness, sometimes by hanging rather than failing.

@@ -108,6 +108,11 @@ Three consequences worth knowing before you touch any of it:
 The library is still made of sessions rather than a second database model. One interview is
 one idea; `name`, `tags` and `archivedAt` are ordinary versioned session fields.
 `src/core/library.js` owns search/filter semantics, while `src/ui/library.js` owns the DOM.
+At 1024px and wider `src/ui/library.js` also fills the list/detail pane (`#library-detail`):
+the selection lives there, the preview is drawn by the same `renderMarkdown` in `app.js` that
+draws Done's `#output`, and the pane stays empty below that width, with no card marked
+selected. Each card still carries a Details button there (hidden by CSS, `aria-pressed`
+false), so narrow screens have no second copy of any action but not a byte-identical DOM.
 
 `src/core/backup.js` is the portability boundary. It serializes sessions only, never the
 encrypted keyring or device preferences, and validates every imported row through `migrate`.
