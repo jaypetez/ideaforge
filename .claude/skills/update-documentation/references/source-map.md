@@ -100,7 +100,9 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Generated screenshot inventory.** Sources:
   [`tools/screenshots.mjs`](../../../../tools/screenshots.mjs) and
   [`test/docs.test.mjs`](../../../../test/docs.test.mjs). Preserve the existing 01-07
-  light/dark pairs, the 08-voice-listening / 09-voice-paused pairs and the 10-settings pair. Both voice states
+  light/dark pairs, the 08-voice-listening / 09-voice-paused pairs, the 10-settings pair and the
+  11-library-wide pair (the desktop list/detail library, shown in the README and the library
+  guide; captured at a fixed 1280x800 viewport rather than fitted, so no clip gate guards it). Both voice states
   belong in the README and mobile/voice guide, with descriptive alt text. Regenerate;
   never hand-edit PNGs or the worked example. The setup capture's bounds check must retain
   both start controls and the footer and keep Start within 1100px; fix layout in the app, not by hiding controls for shots.

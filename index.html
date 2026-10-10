@@ -125,6 +125,17 @@
       </p>
     </div>
     <h2 class="settings-only" tabindex="-1">Settings</h2>
+    <!--
+      Desktop only (≥1024px, app.css): an index of the four groups beside them. Buttons, not
+      fragment links: a hash change re-prompts for the microphone in an installed iOS app.
+      setupSettingsIndex() in app.js scrolls each group into view and focuses its heading.
+    -->
+    <nav class="settings-index settings-only" id="settings-index" aria-label="Settings sections">
+      <button type="button" class="quiet" data-target="connect">Connection</button>
+      <button type="button" class="quiet" data-target="settings-listen">Listen and speak</button>
+      <button type="button" class="quiet" data-target="settings-data">Data</button>
+      <button type="button" class="quiet" data-target="settings-about">About</button>
+    </nav>
 
     <aside class="install-card start-only" id="install-card" hidden>
       <div>
@@ -518,6 +529,12 @@
     </div>
     <p class="hint library-empty" id="library-empty" hidden>No ideas match these filters.</p>
     <div class="idea-list" id="library-rows"></div>
+    <!--
+      Desktop only (≥1024px): the selected idea beside the list — its title, status, primary
+      action, overflow menu and a rendered preview of its export. library.js fills it only
+      while the wide query matches, so narrower screens have no second copy of any button.
+    -->
+    <div class="library-detail" id="library-detail" role="region" aria-label="Selected idea"></div>
   </section>
 
   <!-- ────────────────────────────────────────────────────────────── done -->

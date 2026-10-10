@@ -70,7 +70,8 @@ for (const id of [
   'thread-wrap', 'thread', 'b-thread-more', 'composer',
   'panel-library', 'library-search', 'library-status', 'library-tag',
   'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
-  'b-library-new', 'b-backup', 'b-import', 'backup-file',
+  'b-library-new', 'b-backup', 'b-import', 'backup-file', 'library-detail',
+  'settings-index',
   'panel-done', 'done-title', 'done-meta', 'output',
   'done-actions', 'b-done-more', 'done-menu',
   'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
@@ -2223,23 +2224,31 @@ function drawExport(markdown) {
   // source kept somewhere. Copy, Download and Share go through exportFor() instead, which is
   // the same bytes without depending on the DOM at all.
   els.output.dataset.source = markdown;
-  const spans = (into, list) => {
+  renderMarkdown(els.output, markdown);
+}
+
+/**
+ * Append the rendered blocks of `markdown` to `into`. Shared by Done's #output and the
+ * library's desktop preview, so both read the same and both stay textContent-only.
+ */
+function renderMarkdown(into, markdown) {
+  const spans = (target, list) => {
     for (const s of list || []) {
       const tag = s.code ? 'code' : s.bold ? 'strong' : s.italic ? 'em' : null;
-      if (!tag) { into.append(s.text); continue; }
+      if (!tag) { target.append(s.text); continue; }
       const el = document.createElement(tag);
       el.textContent = s.text;
-      into.append(el);
+      target.append(el);
     }
   };
 
   for (const block of renderBlocks(markdown)) {
-    if (block.type === 'hr') { els.output.append(document.createElement('hr')); continue; }
+    if (block.type === 'hr') { into.append(document.createElement('hr')); continue; }
 
     if (block.type === 'pre') {
       const pre = document.createElement('pre');
       pre.textContent = block.text;
-      els.output.append(pre);
+      into.append(pre);
       continue;
     }
 
@@ -2250,7 +2259,7 @@ function drawExport(markdown) {
         spans(li, item);
         list.append(li);
       }
-      els.output.append(list);
+      into.append(list);
       continue;
     }
 
@@ -2263,7 +2272,7 @@ function drawExport(markdown) {
         const tr = body.insertRow();
         for (const cell of row) spans(tr.insertCell(), cell);
       }
-      els.output.append(table);
+      into.append(table);
       continue;
     }
 
@@ -2273,7 +2282,7 @@ function drawExport(markdown) {
           : 'p');
     if (block.meta) el.className = 'meta';
     spans(el, block.spans);
-    els.output.append(el);
+    into.append(el);
   }
 }
 
@@ -2419,7 +2428,9 @@ function setupLibrary() {
       importButton: els['b-import'],
       importFile: els['backup-file'],
       newButton: els['b-library-new'],
+      detail: els['library-detail'],
     },
+    renderPreview: (into, session) => renderMarkdown(into, exportFor(session)),
     onOpen: resumeInterview,
     onEdit: editLibrarySession,
     onArchive: (session) => setArchived(session, true),
@@ -2432,6 +2443,35 @@ function setupLibrary() {
     onError: fail,
     onNew: () => openStart(),
   });
+}
+
+/**
+ * Settings' desktop index (≥1024px; app.css hides it below): one button per group, which
+ * brings the group into view and moves focus to its heading. Buttons rather than links on
+ * purpose: a fragment would change location.hash, and WebKit re-prompts for the microphone
+ * on a hash change in a standalone home-screen app (CLAUDE.md, "No hash routing").
+ */
+function setupSettingsIndex() {
+  const index = els['settings-index'];
+  if (!index) return;
+  const entries = [...index.querySelectorAll('button[data-target]')];
+  for (const entry of entries) {
+    entry.addEventListener('click', () => {
+      const group = $(entry.dataset.target);
+      if (!group) return;
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      group.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      const heading = group.querySelector('h2');
+      if (heading) {
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
+      }
+      for (const other of entries) {
+        if (other === entry) other.setAttribute('aria-current', 'true');
+        else other.removeAttribute('aria-current');
+      }
+    });
+  }
 }
 
 /** The New idea destination: the start screen, from anywhere. */
@@ -3017,6 +3057,7 @@ async function boot() {
   state.voiceStage = createVoiceStage(els['voice-stage']);
   bind();
   setupLibrary();
+  setupSettingsIndex();
   state.install = createInstallController({
     onChange: renderInstall,
   });

@@ -36,6 +36,9 @@ const SHOT_DIR = join(ROOT, 'docs', 'screenshots');
 const EXAMPLE = join(ROOT, 'docs', 'examples', 'remember-names.md');
 const WIDTH = 760;
 const HEIGHT = 820;
+/** The desktop shot (#109): wide enough for the ≥1024px layouts, at a common laptop height. */
+const WIDE_WIDTH = 1280;
+const WIDE_HEIGHT = 800;
 /** 1.5 rather than 2: still sharp at the width GitHub renders a README at, 40% fewer bytes. */
 const SCALE = 1.5;
 const MAX_SHOT_HEIGHT = 1700;
@@ -420,6 +423,19 @@ async function run(theme, chrome, port) {
       'the ideas library',
     );
     await app.shot('07-ideas-library');
+
+    // 11 — the same library on a desktop (#109): the list beside the selected idea. A fixed
+    // viewport rather than fit(): the detail pane is sticky and as tall as the viewport, so
+    // measuring the page would only measure the pane.
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: WIDE_WIDTH, height: WIDE_HEIGHT, deviceScaleFactor: SCALE, mobile: false,
+    });
+    await app.waitFor(
+      `document.querySelector('#library-detail .library-preview')
+       && document.getElementById('library-detail').getBoundingClientRect().width > 0`,
+      'the desktop detail pane',
+    );
+    await app.shot('11-library-wide', { width: WIDE_WIDTH, height: WIDE_HEIGHT });
 
     const trace = await app.eval('window.__trace');
     await app.eval(`document.getElementById('b-library-new').click()`);

@@ -39,6 +39,11 @@ export function createLibraryView({
   onNew,
   onError = () => {},
   confirmDelete = (title) => confirm(`Permanently delete “${title}”?`),
+  // Draws one idea's export into an element (app.js passes the Done panel's renderer, so the
+  // preview is the same rendered markdown, built with textContent, never innerHTML).
+  renderPreview = null,
+  // The query that decides whether there is room for the detail pane beside the list.
+  wide = typeof matchMedia === 'function' ? matchMedia('(min-width: 1024px)') : null,
 } = {}) {
   let sessions = [];
   // Whether a read has ever succeeded. Until one has, an empty list means "not known", not
@@ -46,8 +51,11 @@ export function createLibraryView({
   let loaded = false;
   const {
     search, status, tag, rows, empty, zero, zeroNew, count,
-    backup, importButton, importFile, newButton,
+    backup, importButton, importFile, newButton, detail,
   } = elements;
+  // The idea the desktop pane shows. Kept across re-renders and filter changes while it is
+  // still listed; meaningless below 1024px, where nothing is marked or shown.
+  let selectedId = null;
   // The panel says which of its states it is in, so the stylesheet can drop the search and
   // filters when there is nothing to search: 'loading', 'zero' or 'ready'.
   const panel = rows.closest('section') || rows.parentElement;
@@ -68,15 +76,12 @@ export function createLibraryView({
     tag.value = [...tag.options].some((option) => option.value === selected) ? selected : '';
   }
 
-  function renderCard(session) {
-    const card = libraryCard(session);
-    const article = document.createElement('article');
-    article.className = 'idea-card';
-    article.dataset.sessionId = session.id;
-
+  // The title, status, counts and tags of one idea: the top of its card, and the top of the
+  // desktop detail pane, which must say exactly the same thing about the same idea.
+  function renderSummary(session, card, headingTag) {
     const heading = document.createElement('div');
     heading.className = 'idea-head';
-    const title = document.createElement('h3');
+    const title = document.createElement(headingTag);
     title.textContent = card.title;
     const badge = document.createElement('span');
     badge.className = `idea-status ${card.status}`;
@@ -96,7 +101,12 @@ export function createLibraryView({
       chip.textContent = value;
       tagList.append(chip);
     }
+    return { heading, title, meta, tagList };
+  }
 
+  // One primary action and the overflow menu beside it. `menuId` is the popover's id, which
+  // has to be unique on the page: the card and the detail pane can show the same idea.
+  function renderActions(session, card, menuId) {
     // One primary action per card. Everything else lives in the overflow menu, so the card
     // reads as "this idea, and the one thing you would do next" rather than a toolbar.
     const actions = document.createElement('div');
@@ -109,7 +119,7 @@ export function createLibraryView({
     // browser probes find them by visible text once the menu is open.
     const menu = document.createElement('div');
     menu.className = 'idea-menu';
-    menu.id = `idea-menu-${session.id}`;
+    menu.id = menuId;
     menu.popover = 'auto';
     menu.setAttribute('aria-label', `Actions for ${card.title}`);
     const more = button('', 'quiet idea-more');
@@ -151,6 +161,26 @@ export function createLibraryView({
       if (confirmDelete(card.title)) await onDelete(session);
     }, onError);
     remove.onclick = () => { close(); removeAction(); };
+    return { actions, menu };
+  }
+
+  function renderCard(session) {
+    const card = libraryCard(session);
+    const article = document.createElement('article');
+    article.className = 'idea-card';
+    article.dataset.sessionId = session.id;
+
+    const { heading, meta, tagList } = renderSummary(session, card, 'h3');
+    const { actions, menu } = renderActions(session, card, `idea-menu-${session.id}`);
+
+    // Desktop only (app.css hides it below 1024px, where there is no detail pane): show this
+    // idea in the pane beside the list. A button of its own, so the keyboard has a way in;
+    // the card body is the pointer's shortcut to the same thing (see the click handler below).
+    const details = button('Details', 'quiet small idea-select');
+    details.setAttribute('aria-controls', detail ? detail.id : '');
+    details.setAttribute('aria-label', `Show details for ${card.title}`);
+    details.onclick = () => select(session.id, { focus: true });
+    heading.append(details);
 
     const edit = document.createElement('details');
     edit.className = 'idea-edit';
@@ -183,22 +213,128 @@ export function createLibraryView({
     }, onError);
     edit.append(summary, nameLabel, name, tagsLabel, tags, save);
 
+    // Clicking the card's body selects it, on a wide screen. Anything interactive inside the
+    // card keeps its own meaning: the primary still navigates, the menu still opens, and the
+    // rename fields still take a click without the pane changing under them.
+    article.addEventListener('click', (event) => {
+      if (!isWide()) return;
+      if (event.target.closest('button, a, input, select, textarea, label, details, [popover]')) return;
+      select(session.id);
+    });
+
     article.append(heading, meta, tagList, actions, menu, edit);
     return article;
   }
 
-  function renderRows() {
-    const shown = filterSessions(sessions, {
+  // ─────────────────────────────────────────────── desktop detail pane (≥1024px)
+  //
+  // Wide screens show the list on the left and one idea on the right. The pane is filled
+  // only while the wide query matches: below it there is no pane, and the cards' DOM is
+  // what it always was, so nothing narrower can find a second "Continue" or "Delete".
+
+  function isWide() {
+    return Boolean(detail && wide && wide.matches);
+  }
+
+  function shownSessions() {
+    return filterSessions(sessions, {
       query: search.value,
       status: status.value,
       tag: tag.value,
     });
+  }
+
+  function select(id, { focus = false } = {}) {
+    if (!isWide()) return;
+    selectedId = id;
+    syncSelection();
+    if (focus) {
+      const title = detail.querySelector('.library-detail-title');
+      if (title) title.focus({ preventScroll: true });
+    }
+  }
+
+  /**
+   * Make the selection, the cards' marks and the pane agree. Called after every render and
+   * whenever the wide query flips. A selection the filters have hidden (or that was
+   * deleted) falls to the first card shown, so the pane never describes an idea the list
+   * does not.
+   */
+  function syncSelection() {
+    if (!detail) return;
+    const wideNow = isWide() && loaded;
+    const shown = wideNow ? shownSessions() : [];
+    if (wideNow && !shown.some((session) => session.id === selectedId)) {
+      selectedId = shown.length ? shown[0].id : null;
+    }
+    for (const article of rows.querySelectorAll('.idea-card')) {
+      const on = wideNow && article.dataset.sessionId === selectedId;
+      if (on) article.setAttribute('aria-current', 'true');
+      else article.removeAttribute('aria-current');
+      const pick = article.querySelector('.idea-select');
+      if (pick) pick.setAttribute('aria-pressed', String(on));
+    }
+    renderDetail(wideNow ? shown.find((session) => session.id === selectedId) : null);
+  }
+
+  function renderDetail(session) {
+    // Close a menu still open from the previous idea before its node goes.
+    const open = detail.querySelector('[popover]');
+    if (open && open.matches(':popover-open')) open.hidePopover();
+    detail.textContent = '';
+    detail.dataset.sessionId = session ? session.id : '';
+    if (!session) {
+      // Only when there is something listed to select: never beside the loading
+      // placeholders, and never beside "No ideas match these filters".
+      if (isWide() && loaded && !rows.hasAttribute('aria-busy') && shownSessions().length) {
+        const hint = document.createElement('p');
+        hint.className = 'hint library-detail-empty';
+        hint.textContent = 'Select an idea to see it here.';
+        detail.append(hint);
+      }
+      return;
+    }
+    const card = libraryCard(session);
+    const { heading, title, meta, tagList } = renderSummary(session, card, 'h3');
+    title.className = 'library-detail-title';
+    title.tabIndex = -1;
+    const { actions, menu } = renderActions(session, card, 'library-detail-menu');
+
+    const preview = document.createElement('div');
+    preview.className = 'output library-preview';
+    preview.setAttribute('aria-label', `Preview of ${card.title}`);
+    preview.setAttribute('role', 'document');
+    let drawn = false;
+    if (card.canExport && renderPreview) {
+      try {
+        renderPreview(preview, session);
+        drawn = preview.childNodes.length > 0;
+      } catch (error) {
+        drawn = false;
+      }
+    }
+    if (!drawn) {
+      preview.textContent = '';
+      preview.classList.add('library-preview-empty');
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent = card.canExport
+        ? 'This idea could not be previewed.'
+        : 'Nothing to preview yet. Answer the first question and the write-up starts here.';
+      preview.append(hint);
+    }
+    detail.append(heading, meta, tagList, actions, menu, preview);
+  }
+
+  function renderRows() {
+    const shown = shownSessions();
     rows.innerHTML = '';
     rows.removeAttribute('aria-busy');
     if (!loaded) {
       panel.dataset.libraryState = 'unavailable';
       zero.hidden = true;
       empty.hidden = true;
+      syncSelection();
       return;
     }
     for (const session of shown) rows.append(renderCard(session));
@@ -209,6 +345,7 @@ export function createLibraryView({
     panel.dataset.libraryState = none ? 'zero' : 'ready';
     zero.hidden = !none;
     empty.hidden = none || shown.length !== 0;
+    syncSelection();
   }
 
   // Placeholder cards while IndexedDB answers. They are decoration, so they are hidden from
@@ -231,6 +368,7 @@ export function createLibraryView({
       }
       rows.append(skeleton);
     }
+    if (detail) renderDetail(null);
   }
 
   search.addEventListener('input', renderRows);
@@ -249,6 +387,13 @@ export function createLibraryView({
     }
   };
   newButton.onclick = run(newButton, onNew, onError);
+  // Crossing 1024px either way fills or empties the pane without rebuilding the cards, so a
+  // focused card control keeps its focus through a window resize.
+  if (wide && detail) {
+    const onWideChange = () => syncSelection();
+    if (typeof wide.addEventListener === 'function') wide.addEventListener('change', onWideChange);
+    else if (typeof wide.addListener === 'function') wide.addListener(onWideChange);
+  }
   zeroNew.onclick = run(zeroNew, onNew, onError);
 
   return {
