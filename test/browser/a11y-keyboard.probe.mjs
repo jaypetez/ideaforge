@@ -58,6 +58,12 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
     await sleep(30);
   }
+  /** Redefine the share sheet before Done is laid out, as done.browser.mjs does per visit. */
+  const shareProfile = (profile) => evaluate(`(() => {
+    const files = ${JSON.stringify(profile)} === 'file share';
+    Object.defineProperty(navigator, 'share', { configurable: true, value: files ? async () => {} : undefined });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: files ? () => true : undefined });
+  })()`);
   const focusInfo = (regions) => evaluate(`window.__a11y.focus(${JSON.stringify(regions)})`);
 
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: bootstrap });
@@ -190,12 +196,21 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await evaluate(`document.querySelector(${JSON.stringify(trigger)}).focus()`);
     await press('Enter');
     await sleep(150);
+    // The first item a person can use: a hidden one (Done's Share where nothing can be
+    // shared) or a disabled one is not it.
     const opened = await evaluate(`(() => {
       const menu = document.querySelector(${JSON.stringify(menuSelector)});
-      return menu.matches(':popover-open') && menu.contains(document.activeElement)
-        && menu.querySelector('button:not([disabled])') === document.activeElement;
+      const first = [...menu.querySelectorAll('button')]
+        .find((b) => b.getClientRects().length > 0 && !b.disabled);
+      const active = document.activeElement;
+      return {
+        ok: menu.matches(':popover-open') && !!first && first === active,
+        detail: 'open ' + menu.matches(':popover-open') + '; first ' + (first ? first.id || first.textContent : 'none')
+          + '; focus ' + (active ? active.id || active.textContent || active.tagName : 'none'),
+      };
     })()`);
-    check(`${label}: Enter on the overflow trigger opens the menu with focus on its first item`, opened);
+    check(`${label}: Enter on the overflow trigger opens the menu with focus on its first usable item`,
+      opened.ok, opened.detail);
     const items = await evaluate(`[...document.querySelector(${JSON.stringify(menuSelector)})
       .querySelectorAll('button')].filter((b) => b.getClientRects().length && !b.disabled).map((b) => b.textContent)`);
     const order = [];
@@ -289,13 +304,30 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
       ? ['#manual-interview > :not(details.cov)', '#manual-interview > details.cov'] : ['#main']);
 
     // Done
-    await click('#b-library', 'library', `${at} back to Ideas`);
-    await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_done"]')`, 'done card');
-    await click('#library-rows [data-session-id="s_a11y_done"] .idea-actions > button:first-child',
-      'done', `${at} Done`);
-    await current(`${at} Done`, '');
-    await walk(`${at} Done`, ['#main']);
-    await menu(`${at} Done`, '#b-done-more', '#done-menu');
+    // Done, in both share profiles, so the result never depends on the host's share sheet.
+    // Where files can be shared, Share .md is the primary and Copy the first menu item.
+    // Where nothing can be shared, Copy is the primary and the menu's first child is the
+    // hidden Share button, which focus must skip (#159 failed on Linux, which has no sheet).
+    for (const profile of ['file share', 'no share']) {
+      await shareProfile(profile);
+      await click('#b-library', 'library', `${at} back to Ideas`);
+      await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_done"]')`, 'done card');
+      await click('#library-rows [data-session-id="s_a11y_done"] .idea-actions > button:first-child',
+        'done', `${at} Done, ${profile}`);
+      const layout = await evaluate(`({
+        primary: document.querySelector('#done-actions > button:not(.done-more)').id,
+        first: document.getElementById('done-menu').firstElementChild.id,
+        firstHidden: document.getElementById('done-menu').firstElementChild.hidden,
+      })`);
+      check(`${at} Done, ${profile}: the share profile laid Done out as expected`,
+        profile === 'file share'
+          ? layout.primary === 'b-share' && layout.first === 'b-copy' && !layout.firstHidden
+          : layout.primary === 'b-copy' && layout.first === 'b-share' && layout.firstHidden,
+        JSON.stringify(layout));
+      await current(`${at} Done, ${profile}`, '');
+      await walk(`${at} Done, ${profile}`, ['#main']);
+      await menu(`${at} Done, ${profile}`, '#b-done-more', '#done-menu');
+    }
   }
 
   // The voice stage, from Start with voice, at phone width.
