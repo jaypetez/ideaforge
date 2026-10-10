@@ -170,6 +170,13 @@ enum class CaptureEnd {
 }
 
 /** [text] is RAW: trigger included. Stripping is parseSpeech's job, one definition. */
+/**
+ * One onRmsChanged reading. [seq] rises by one per reading, so two identical readings are
+ * still two samples: a StateFlow of the bare level conflates them, and a deaf session's
+ * readings are all exactly -2.0.
+ */
+data class LevelSample(val seq: Long, val db: Float)
+
 data class CaptureResult(val text: String, val end: CaptureEnd, val deafSessions: Int = 0) {
     fun speech(trigger: String = DEFAULT_TRIGGER): SpeechParse = parseSpeech(text, trigger)
 }
@@ -192,12 +199,15 @@ class Recognizer(
     private val _level = MutableStateFlow(RMS_FLOOR_DB)
     private val _state = MutableStateFlow(CaptureState.IDLE)
     private val _caption = MutableStateFlow("")
+    private val _samples = MutableStateFlow(LevelSample(0, RMS_FLOOR_DB))
 
     /** onRmsChanged, as reported. The only meter there is. */
     val level: StateFlow<Float> = _level.asStateFlow()
     val state: StateFlow<CaptureState> = _state.asStateFlow()
     /** Settled text plus unstable words, for display. */
     val caption: StateFlow<String> = _caption.asStateFlow()
+    /** Every level reading, numbered; seq 0 is "none yet". The voice stage's bars read this. */
+    val samples: StateFlow<LevelSample> = _samples.asStateFlow()
 
     private val lock = Any()
     private var engine: RecognizerEngine? = null
@@ -372,6 +382,7 @@ class Recognizer(
         internal fun rms(db: Float) {
             alive()
             _level.value = db
+            _samples.value = LevelSample(_samples.value.seq + 1, db)
             sessionLevels++
             if (db > RMS_FLOOR_DB + RMS_EPSILON) {
                 sessionLoud = true

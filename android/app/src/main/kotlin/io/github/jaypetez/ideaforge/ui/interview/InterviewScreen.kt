@@ -24,6 +24,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +45,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -68,6 +76,13 @@ import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.ui.theme.ExtraColors
+import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
+import io.github.jaypetez.ideaforge.ui.voice.beginVoice
+import io.github.jaypetez.ideaforge.ui.voice.hasPermission
+import io.github.jaypetez.ideaforge.ui.voice.voicePermissions
+import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
+import io.github.jaypetez.ideaforge.voice.DriveController
+import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -102,9 +117,55 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
  * bridge and suggestion chips, and a composer docked above the keyboard.
  */
 @Composable
-fun InterviewScreen(vm: InterviewViewModel, onFinished: (synthesisFailed: Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun InterviewScreen(
+    vm: InterviewViewModel,
+    onFinished: (synthesisFailed: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    drive: DriveController? = null,
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val scope0 = rememberCoroutineScope()
+    val voice = drive?.state?.collectAsStateWithLifecycle()?.value
+    // A drive outlives this screen; coming back to its idea re-attaches to the stage.
+    val voiceHere = voice != null && voice.sessionId == vm.sessionId
+    val context = LocalContext.current
+    val deniedMessage = stringResource(R.string.voice_mic_denied)
+    val notificationsOff = stringResource(R.string.voice_notifications_denied)
+    var rationale by rememberSaveable { mutableStateOf(false) }
+    // The answer to the permission prompt, then the tap's intent carried out.
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
+        if (drive == null) return@rememberLauncherForActivityResult
+        val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
+        val started = if (attached) {
+            if (mic) drive.resume() else Unit
+            mic
+        } else {
+            beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
+        }
+        if (started && grants[Manifest.permission.POST_NOTIFICATIONS] == false) {
+            scope0.launch { snackbar.showSnackbar(notificationsOff) }
+        }
+    }
+    val askOrStart: () -> Unit = {
+        if (drive != null) {
+            when {
+                voicePermissionsHeld(context) -> {
+                    val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
+                    if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
+                }
+                else -> rationale = true
+            }
+        }
+    }
+
+    LaunchedEffect(voice?.exit, voiceHere) {
+        if (voiceHere && voice?.exit != null) {
+            drive?.exitShown()
+            vm.reload()
+        }
+    }
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.flushDraft() }
@@ -126,6 +187,38 @@ fun InterviewScreen(vm: InterviewViewModel, onFinished: (synthesisFailed: Boolea
         }
     }
 
+    if (rationale) {
+        AlertDialog(
+            onDismissRequest = { rationale = false },
+            title = { Text(stringResource(R.string.voice_mic_title)) },
+            text = { Text(stringResource(R.string.voice_mic_rationale)) },
+            confirmButton = {
+                TextButton(onClick = { rationale = false; permissions.launch(voicePermissions()) }, modifier = Modifier.testTag("voice-mic-continue")) {
+                    Text(stringResource(R.string.voice_mic_continue))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { rationale = false }) { Text(stringResource(R.string.voice_mic_cancel)) }
+            },
+        )
+    }
+
+    if (drive != null && voice != null && voiceHere && voice.attached) {
+        Box(modifier.fillMaxSize().testTag("interview")) {
+            VoiceStage(
+                voice,
+                onPause = drive::pause,
+                onResume = {
+                    // A blocked drive may be blocked on the permission itself: ask again.
+                    if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
+                },
+                onExit = drive::exit,
+            )
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
+        }
+        return
+    }
+
     Box(modifier.fillMaxSize().testTag("interview")) {
         Column(Modifier.fillMaxSize()) {
             CoverageStrip(state)
@@ -135,7 +228,7 @@ fun InterviewScreen(vm: InterviewViewModel, onFinished: (synthesisFailed: Boolea
                 Spacer(Modifier.height(4.dp))
             }
             Conversation(state, vm, Modifier.weight(1f))
-            Composer(state, vm)
+            Composer(state, vm, onVoice = if (drive != null) askOrStart else null)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
     }
@@ -371,7 +464,7 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
 }
 
 @Composable
-private fun Composer(state: InterviewState, vm: InterviewViewModel) {
+private fun Composer(state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null) {
     Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth().imePadding()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
@@ -394,6 +487,11 @@ private fun Composer(state: InterviewState, vm: InterviewViewModel) {
                     Text(stringResource(R.string.interview_skip))
                 }
                 Spacer(Modifier.weight(1f))
+                if (onVoice != null) {
+                    FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, modifier = Modifier.testTag("voice-start")) {
+                        Text(stringResource(R.string.voice_start))
+                    }
+                }
                 if (state.canWriteUp) {
                     FilledTonalButton(onClick = vm::writeUp, modifier = Modifier.testTag("write-up")) {
                         Text(stringResource(R.string.interview_write_up))

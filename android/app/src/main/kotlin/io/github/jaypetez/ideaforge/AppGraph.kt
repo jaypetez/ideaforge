@@ -19,7 +19,12 @@ import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import io.github.jaypetez.ideaforge.voice.AndroidAudioFocus
 import io.github.jaypetez.ideaforge.voice.AndroidTtsEngine
 import io.github.jaypetez.ideaforge.voice.Speaker
+import io.github.jaypetez.ideaforge.voice.DriveController
+import io.github.jaypetez.ideaforge.voice.DriveService
+import io.github.jaypetez.ideaforge.voice.DriveServiceControl
+import io.github.jaypetez.ideaforge.voice.Recognizer
 import io.github.jaypetez.ideaforge.voice.TextToSpeechSpeaker
+import io.github.jaypetez.ideaforge.voice.androidRecognizerFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,6 +91,44 @@ class AppGraph(
      */
     val speaker: Speaker by lazy {
         TextToSpeechSpeaker(AndroidTtsEngine(context), AndroidAudioFocus(context), prefs = { prefsStore.current() })
+    }
+
+    /** Main-thread scope for the platform recogniser and the drive loop (both main-only). */
+    val mainScope: CoroutineScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
+
+    /** Native speech capture. Lazy: nothing binds a recognition service until voice starts. */
+    var recognizer: Recognizer? = null
+        get() = field ?: Recognizer(androidRecognizerFactory(context), mainScope).also { field = it }
+
+    /**
+     * The hands-free drive. In the graph rather than a ViewModel so it outlives the screen;
+     * DriveService keeps the process in the foreground while it runs. Tests replace the
+     * recogniser and speaker through [recognizer] and [driveSpeaker] before first use.
+     */
+    var driveSpeaker: Speaker? = null
+    var driveService: DriveServiceControl = DriveService.control(context)
+
+    /** Tests hand in a controller built on their own dispatcher and fakes. */
+    @VisibleForTesting
+    internal var driveOverride: DriveController? = null
+
+    val driveController: DriveController get() = driveOverride ?: defaultDrive
+
+    private val defaultDrive: DriveController by lazy {
+        DriveController(
+            sessionStore, sessionWorker, clock,
+            ring = { keyringStore.state.value.ring },
+            providers = { providerSource },
+            writes = appScope,
+            main = mainScope,
+            recognizerSource = { recognizer!! },
+            speaker = { driveSpeaker ?: speaker },
+            service = object : DriveServiceControl {
+                override fun start() = driveService.start()
+                override fun stop() = driveService.stop()
+            },
+            trigger = { prefsStore.current().effectiveTrigger },
+        )
     }
 }
 
