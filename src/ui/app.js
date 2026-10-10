@@ -60,7 +60,7 @@ for (const id of [
   'speech', 'speech-note', 'browser-voice', 'field-browser-voice', 'speech-rate',
   'speech-rate-value', 'field-tts', 'ttskey', 'tts-voice', 'tts-consent',
   'b-speech-preview', 'speech-check', 'speech-options',
-  'panel-interview', 'bridge', 'question', 'asking', 'chips', 'answer',
+  'panel-interview', 'question-card', 'bridge', 'question', 'asking', 'asking-label', 'chips', 'answer',
   'manual-interview', 'voice-stage', 'voice-status', 'voice-signal', 'voice-question',
   'voice-transcript', 'voice-detail', 'voice-backend', 'b-voice-pause', 'b-voice-exit',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
@@ -206,6 +206,10 @@ function show(panel, destination) {
   else els['b-library'].setAttribute('aria-label', 'Back to ideas');
   // Interview only: Done prints the final figure in its own meta line.
   if (panel !== 'panel-interview') els.meter.hidden = true;
+  // A loading state belongs to the screen showing it. The call it stood for may settle
+  // after navigation, when its own cleanup is (rightly) guarded off the screen it left.
+  if (panel !== 'panel-interview') questionBusy(false);
+  if (panel !== 'panel-done') outputBusy(false);
   renderVoiceStage();
 }
 
@@ -313,9 +317,47 @@ function busy(on, label) {
   els['b-wrap-offer'].disabled = on;
   els['b-reopen'].disabled = on || !!(state.session
     && (workBySession.has(state.session.id) || state.writing === state.session.id));
-  els.asking.hidden = !on;
-  if (label) els.asking.textContent = label;
+  questionBusy(on, label);
   if (on && state.voiceMode === 'active') setVoicePhase('thinking');
+}
+
+/**
+ * The question area's loading state (#107): #asking is the skeleton card, and aria-busy on
+ * the card is what app.css swaps the real rows out on. The two move together, always —
+ * tools/screenshots.mjs and several probes read "#asking is hidden" as "the turn settled",
+ * and a card left busy would hide a perfectly good question behind a skeleton.
+ */
+function questionBusy(on, label) {
+  els.asking.hidden = !on;
+  if (on) els['question-card'].setAttribute('aria-busy', 'true');
+  else els['question-card'].removeAttribute('aria-busy');
+  if (label) els['asking-label'].textContent = label;
+}
+
+/**
+ * The write-up's loading state (#107): placeholder lines in #output under aria-busy. Every
+ * way out removes both — drawExport() for a result, wrapUp's finally for a failure or an
+ * abort, show() for leaving Done — so a skeleton never outlives the call it stood in for.
+ */
+function outputBusy(on) {
+  const out = els.output;
+  if (!on) {
+    out.removeAttribute('aria-busy');
+    out.querySelector('.output-skeleton')?.remove();
+    return;
+  }
+  out.textContent = '';
+  out.dataset.source = '';
+  out.setAttribute('aria-busy', 'true');
+  const skeleton = document.createElement('div');
+  skeleton.className = 'output-skeleton';
+  skeleton.setAttribute('aria-hidden', 'true');
+  for (const part of ['heading', 'w1', 'w2', 'w3', 'gap w2', 'w1', 'w3']) {
+    const bar = document.createElement('span');
+    bar.className = part.split(' ').map((p) => `sk-${p}`).join(' ');
+    skeleton.append(bar);
+  }
+  out.append(skeleton);
 }
 
 /** Persist once per settled turn — runTurn bumps `rev` five or six times internally. */
@@ -1211,6 +1253,9 @@ async function doSkip() {
   cancelDraftSave();
   state.session = skipQuestion(state.session, { now: now() });
   dismissWrapOffer();
+  // The settled pair joins the thread now, above the skeleton, rather than when the next
+  // question arrives — that late insert was the layout shift (#107).
+  renderThread(state.session);
   const session = state.session;
   const provider = state.provider;
   const navigation = state.navigation;
@@ -1230,6 +1275,7 @@ async function submitAndAdvance(text, source) {
   cancelDraftSave();
   state.session = submitAnswer(state.session, { text, source, now: now() });
   dismissWrapOffer();
+  renderThread(state.session);
   const session = state.session;
   const provider = state.provider;
   const navigation = state.navigation;
@@ -1877,8 +1923,12 @@ async function wrapUp(note) {
   busy(true);
   if (!wasDriving) show('panel-done');
   els['done-title'].textContent = 'Writing it up…';
-  els.output.textContent = '';
-  els.output.dataset.source = '';
+  if (wasDriving) {
+    els.output.textContent = '';
+    els.output.dataset.source = '';
+  } else {
+    outputBusy(true);
+  }
   els['done-meta'].textContent = note || '';
   try {
     if (wasDriving) {
@@ -1922,7 +1972,10 @@ async function wrapUp(note) {
     if (currentView(session.id, navigation)) fail(error);
   } finally {
     if (state.writing === session.id) state.writing = null;
-    if (currentView(session.id, navigation)) busy(false);
+    if (currentView(session.id, navigation)) {
+      busy(false);
+      outputBusy(false);
+    }
   }
 }
 
@@ -1984,6 +2037,7 @@ function renderDone() {
  * app for exactly that reason.
  */
 function drawExport(markdown) {
+  outputBusy(false);
   els.output.textContent = '';
   // The rendered view and the bytes it was rendered from, together. `textContent` used to BE
   // the markdown and is now flattened prose with every marker gone, so anything reading the
@@ -2118,6 +2172,7 @@ async function removeLibrarySession(session) {
       state.session = null;
       state.navigation++;
       busy(false);
+      outputBusy(false);
     }
     say('Idea deleted from this device.');
     await refreshLibrary();
@@ -2323,14 +2378,19 @@ async function resumeInterview(id) {
     show('panel-done');
     say(providerNote);
     els['done-title'].textContent = 'Picking up the write-up…';
-    els.output.textContent = '';
+    outputBusy(true);
     els['done-meta'].textContent = '';
     const provider = state.provider;
-    const out = await sessionWork(s, 'synthesis', async (signal) => {
-      const result = await resumeSynthesis(s, { provider, now: now(), signal });
-      return { ...result,
-        session: result.ok || result.aborted ? result.session : setStatusField(result.session, 'done', now()) };
-    });
+    let out;
+    try {
+      out = await sessionWork(s, 'synthesis', async (signal) => {
+        const result = await resumeSynthesis(s, { provider, now: now(), signal });
+        return { ...result,
+          session: result.ok || result.aborted ? result.session : setStatusField(result.session, 'done', now()) };
+      });
+    } finally {
+      if (currentView(id, navigation)) outputBusy(false);
+    }
     if (out.discarded || out.aborted || !currentView(id, navigation)) return;
     warn(out);
     if (!out.ok) {
