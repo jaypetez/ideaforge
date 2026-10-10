@@ -42,6 +42,7 @@ class SessionStore(
     private val mutex = Mutex()
     private val byId = LinkedHashMap<String, Session>()
     private val skipped = LinkedHashSet<String>()
+    private val deleted = HashSet<String>()
     private var loaded = false
 
     private val _sessions = MutableStateFlow<List<Session>>(emptyList())
@@ -90,6 +91,10 @@ class SessionStore(
         require(SAFE_ID.matches(id)) { "unsafe session id: $id" }
         loadLocked()
         check(id !in skipped) { "refusing to overwrite $id$SUFFIX, which this build could not read" }
+        // The web's deletedSessions: a turn or a rename already on its way when the idea was
+        // deleted would otherwise pass the check below (no file, so "not ours" is false) and
+        // write it straight back. Per process, as the web's set is per page.
+        check(id !in deleted) { "refusing to save $id, which was deleted" }
         val file = File(dir, "$id$SUFFIX")
         // Belt and braces: a file this store never indexed is not ours to replace, even if
         // it appeared after load().
@@ -117,6 +122,7 @@ class SessionStore(
             val file = File(dir, "$id$SUFFIX")
             if (file.exists() && !file.delete()) error("could not delete $id$SUFFIX")
             byId.remove(id)
+            deleted += id
             publish()
         }
         true

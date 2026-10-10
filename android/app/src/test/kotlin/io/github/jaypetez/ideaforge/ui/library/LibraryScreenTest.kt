@@ -26,6 +26,7 @@ import io.github.jaypetez.ideaforge.core.renameSession
 import io.github.jaypetez.ideaforge.core.runtime.seedTurn
 import io.github.jaypetez.ideaforge.core.runtime.submitAnswer
 import io.github.jaypetez.ideaforge.core.setSessionTags
+import io.github.jaypetez.ideaforge.core.setStatusField
 import io.github.jaypetez.ideaforge.core.setTitle
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
@@ -81,11 +82,13 @@ class LibraryScreenTest {
         title: String? = null,
         tags: List<String> = emptyList(),
         archived: Boolean = false,
+        done: Boolean = false,
     ): Session {
         var s = submitAnswer(seedTurn(createSession(id, num(at)), num(at)), str(opening), now = num(at))
         if (title != null) s = setTitle(s, str(title), num(at))
         if (name != null) s = renameSession(s, str(name), num(at))
         if (tags.isNotEmpty()) s = setSessionTags(s, arr(tags.map(::str)), num(at))
+        if (done) s = setStatusField(s, "done", num(at))
         if (archived) s = archiveSession(s, num(at))
         return s
     }
@@ -308,5 +311,20 @@ class LibraryScreenTest {
         // The headline and the export's "# Soil talk".
         compose.onAllNodes(hasText("Soil talk") and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))).onFirst().assertIsDisplayed()
         compose.onNode(hasText("Transcript") and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))).assertExists()
+    }
+
+    // sessionLibraryStatus says "archived" before "completed", so the badge cannot decide the
+    // button: a finished idea that was archived still opens its result, as on the web.
+    @Test
+    fun aFinishedArchivedIdeaOpensItsResult() {
+        show(idea(tax, 1_000, "Automate my tax receipts", archived = true, done = true))
+        compose.onNodeWithTag(LibraryTags.ARCHIVED).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Automate my tax receipts").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("View result").performClick()
+        assertEquals(listOf(tax), opened.map { it.id })
+        assertTrue(opened.single().done)
+        assertTrue(opened.single().archived)
     }
 }

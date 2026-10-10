@@ -201,4 +201,17 @@ class SessionStoreTest {
         assertEquals(false, s.delete("s_n_00000009"))
         assertTrue(file.exists())
     }
+
+    // The web's deletedSessions: a write that was already on its way when the idea was
+    // deleted (an interview turn, a rename) must not put the file back.
+    @Test
+    fun aDeletedIdCannotBeSavedBack() = runBlocking {
+        val s = store()
+        val idea = session("s_r_00000001", 1)
+        s.save(idea)
+        assertTrue(s.delete("s_r_00000001"))
+        assertThrows(IllegalStateException::class.java) { runBlocking { s.save(idea) } }
+        assertTrue(!File(dir(), "s_r_00000001.json").exists())
+        assertNull(s.get("s_r_00000001"))
+    }
 }

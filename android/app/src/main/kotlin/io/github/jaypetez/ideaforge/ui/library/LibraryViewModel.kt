@@ -54,8 +54,12 @@ data class LibraryItem(
     val coverage: Int,
     val tags: List<String>,
     val canExport: Boolean,
+    /**
+     * The interview finished (`status == "done"`), archived or not. Decides "View result"
+     * and the Result route; [status] says "archived" first, so it is for the badge only.
+     */
+    val done: Boolean,
 ) {
-    val done: Boolean get() = status == "completed"
     val archived: Boolean get() = status == "archived"
 }
 
@@ -138,15 +142,16 @@ class LibraryViewModel(
         }
 
     /**
-     * Deletes after the screen's confirmation. Retiring the session first is the web's
-     * `deletedSessions` + abort: an interview turn still in flight for this idea commits to a
-     * stale epoch and is dropped instead of writing the idea back, and a rename queued behind
-     * it is skipped.
+     * Deletes after the screen's confirmation: the web's abort plus `deletedSessions`.
+     * Retiring first drops an in-flight interview turn's result as stale. The delete itself
+     * then runs under the session's lock, so it waits for a write already holding it, and a
+     * rename queued behind it finds no idea and writes nothing. The store also refuses any
+     * later save of the id, for writers that never took the lock.
      */
     fun delete(id: String) {
         worker.retire(id)
         writes.launch {
-            report(LibraryNotice.Deleted) { store.delete(id) }
+            report(LibraryNotice.Deleted) { worker.exclusive(id) { store.delete(id) } }
         }
     }
 
@@ -154,24 +159,30 @@ class LibraryViewModel(
         val tag = worker.tag(id)
         writes.launch {
             report(done) {
+                // Whether the bytes landed, not the Outcome: a stale tag skips the work (no
+                // write), but a retire arriving after the save still leaves it on disk.
+                var saved = false
                 worker.run(tag, work = {
                     // The latest copy, not the card's: the card may be a render behind.
                     val latest = store.get(id) ?: return@run
                     store.save(change(latest, num(clock.now())))
+                    saved = true
                 })
+                saved
             }
         }
     }
 
-    private suspend fun report(done: LibraryNotice, action: suspend () -> Unit) {
-        _notice.value = try {
-            action()
-            done
+    /** [action] says whether it wrote anything; "saved" is only ever said about a write. */
+    private suspend fun report(done: LibraryNotice, action: suspend () -> Boolean) {
+        val notice = try {
+            if (action()) done else null
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             LibraryNotice.Failed
         }
+        if (notice != null) _notice.value = notice
     }
 
     companion object {
@@ -214,6 +225,7 @@ class LibraryViewModel(
                 coverage = toNumber(card["coverage"]).toInt(),
                 tags = (card["tags"] as? JsonArray).orEmpty().mapNotNull(::stringOf),
                 canExport = truthy(card["canExport"]),
+                done = stringOf(session["status"]) == "done",
             )
         }
     }
