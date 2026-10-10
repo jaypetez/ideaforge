@@ -1147,71 +1147,71 @@
       }
     },
     {
-      "name": "isRetryable rate_limit",
-      "fn": "isRetryable",
+      "name": "isRetryable ProviderError rate_limit",
+      "fn": "isRetryableProviderError",
       "args": [
-        {
-          "code": "rate_limit"
-        }
+        "rate_limit"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isRetryable ProviderError overloaded",
+      "fn": "isRetryableProviderError",
+      "args": [
+        "overloaded"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isRetryable ProviderError network",
+      "fn": "isRetryableProviderError",
+      "args": [
+        "network"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isRetryable ProviderError auth",
+      "fn": "isRetryableProviderError",
+      "args": [
+        "auth"
       ],
       "expect": {
         "value": false
       }
     },
     {
-      "name": "isRetryable overloaded",
-      "fn": "isRetryable",
+      "name": "isRetryable ProviderError bad_response",
+      "fn": "isRetryableProviderError",
       "args": [
-        {
-          "code": "overloaded"
-        }
+        "bad_response"
       ],
       "expect": {
         "value": false
       }
     },
     {
-      "name": "isRetryable network",
+      "name": "isRetryable ProviderError aborted",
+      "fn": "isRetryableProviderError",
+      "args": [
+        "aborted"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable plain object is never retryable",
       "fn": "isRetryable",
       "args": [
         {
           "code": "network"
-        }
-      ],
-      "expect": {
-        "value": false
-      }
-    },
-    {
-      "name": "isRetryable auth",
-      "fn": "isRetryable",
-      "args": [
-        {
-          "code": "auth"
-        }
-      ],
-      "expect": {
-        "value": false
-      }
-    },
-    {
-      "name": "isRetryable bad_response",
-      "fn": "isRetryable",
-      "args": [
-        {
-          "code": "bad_response"
-        }
-      ],
-      "expect": {
-        "value": false
-      }
-    },
-    {
-      "name": "isRetryable aborted",
-      "fn": "isRetryable",
-      "args": [
-        {
-          "code": "aborted"
         }
       ],
       "expect": {

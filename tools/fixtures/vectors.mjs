@@ -38,7 +38,7 @@ import { runSynthesis } from '../../src/runtime/synthesize.js';
 import { levelSnapshot, isZeroGain } from '../../src/runtime/gain.js';
 import { createDriveLoop } from '../../src/runtime/drive.js';
 import { extractJson } from '../../src/providers/json.js';
-import { codeForStatus, retryAfterMs, isRetryable } from '../../src/providers/errors.js';
+import { codeForStatus, retryAfterMs, isRetryable, ProviderError } from '../../src/providers/errors.js';
 import { applyAuth, isLoopback, AUTH_BEARER, AUTH_NONE } from '../../src/providers/http.js';
 import { resolveTiers, presetModels, createProvider, PROVIDER_CHOICES } from '../../src/providers/index.js';
 import { parseModelList, OPENAI_COMPAT_PRESETS } from '../../src/providers/openaiCompat.js';
@@ -329,14 +329,33 @@ async function runTurnFamily() {
   await run('generic twice: accepted', at('answered-1'), [{ json: { ...TURNS[2], question: 'What is the target audience?' } }], { now: tick(100) });
   await run('repeat then fixed', at('answered-2'), [{ json: { ...TURNS[3], question: TURNS[2].question } }, good(3)], { now: tick(100) });
   // The answer just read was a chip: the cap belongs to THAT answer's dimension.
+  // Both the chip answer's dimension and the next target start at partial, and both are
+  // claimed covered with evidence. The correct port caps only the answered dimension (it
+  // stays partial) and lets the target reach covered. Capping the target instead, or not
+  // capping at all, changes the output, which is what makes this case worth having.
   const chipped = (() => {
-    let s = at('asked-2');
-    s = submitAnswer(s, { text: TURNS[2].chips[0], source: 'chip', now: tick(50) });
-    return s;
+    let s = at('asked-4');
+    s = submitAnswer(s, { text: s.turns[s.turns.length - 1].chips[0] || 'a chip', source: 'chip', now: tick(50) });
+    const answered = s.turns[s.turns.length - 1].dimension;
+    const coverage = { ...s.coverage, [answered]: { ...s.coverage[answered], level: 'partial' } };
+    let target = selectNextDimension({ ...s, coverage });
+    if (target === answered) target = DIMS.find((d) => d !== answered && coverage[d].status === 'probing');
+    coverage[target] = { ...coverage[target], level: 'partial' };
+    return { session: { ...s, coverage }, answered, target };
   })();
-  await run('chip answer caps the previous dimension, not the target', chipped, [{ json: { ...TURNS[3], coverage: { [chipped.turns[chipped.turns.length - 1].dimension]: { level: 'covered', evidence: 'quote' }, bar: { level: 'partial' } } } }], { now: tick(100) });
+  if (chipped.answered === chipped.target) throw new Error('chip-cap fixture needs two distinct dimensions');
+  await run('chip answer caps the previous dimension, not the target', chipped.session, [{ json: { ...TURNS[5], coverage: {
+    [chipped.answered]: { level: 'covered', evidence: 'they picked a chip' },
+    [chipped.target]: { level: 'covered', evidence: 'a verbatim quote' },
+  } } }], { now: tick(100) });
   // Zero gain after the ratchet: the model claims covered but nothing can rise.
-  const claimed = { ...TURNS[5], coverage: Object.fromEntries(DIMS.map((d) => [d, { level: 'thin' }])) };
+  // Claims "covered" with no evidence on two partial dimensions: the ratchet clamps both
+  // back to partial, so nothing rose and the streak must go up. A port that measured gain
+  // from the claims would reset it to zero instead.
+  const a4 = at('answered-4');
+  const partials = DIMS.filter((d) => a4.coverage[d].level === 'partial').slice(0, 2);
+  if (partials.length < 2) throw new Error('zero-gain fixture needs two partial dimensions');
+  const claimed = { ...TURNS[5], coverage: Object.fromEntries(partials.map((d) => [d, { level: 'covered', gap: null }])) };
   await run('zero gain increments the streak', { ...at('answered-4'), zeroGainStreak: 1 }, [{ json: claimed }], { now: tick(100) });
   await run('gain resets the streak', { ...at('answered-4'), zeroGainStreak: 1 }, [good(5)], { now: tick(100) });
   const ceiling = (() => {
@@ -351,7 +370,11 @@ async function runTurnFamily() {
   await run('model tier passed through', at('answered-1'), [good(2)], { now: tick(100), modelTier: 'quick' });
   await run('tiny budget', at('answered-4'), [good(5)], { now: tick(100), budget: 900 });
   // resumeTurn: pending matches; pending for a turn that already exists; prompt changed.
-  const pendingFresh = { ...at('answered-1'), pending: { kind: 'turn', turnId: 't2', promptHash: 'x', startedAt: 1 } };
+  const a1 = at('answered-1');
+  const t1 = selectNextDimension(a1);
+  const matching = promptHash(buildTurnPrompt(a1, { target: t1, moves: legalMoves(a1, t1, lastAnswerClass(a1)) }));
+  await run('resume with the same prompt: no warning', { ...a1, pending: { kind: 'turn', turnId: 't2', promptHash: matching, startedAt: 1 } }, [good(2)], { now: tick(100) }, resumeTurn);
+  const pendingFresh = { ...a1, pending: { kind: 'turn', turnId: 't2', promptHash: 'x', startedAt: 1 } };
   await run('resume with changed prompt', pendingFresh, [good(2)], { now: tick(100) }, resumeTurn);
   const pendingDone = { ...at('asked-2'), pending: { kind: 'turn', turnId: 't2', promptHash: 'x', startedAt: 1 } };
   await run('resume a completed turn', pendingDone, [good(3)], { now: tick(100) }, resumeTurn);
@@ -472,7 +495,13 @@ async function driveLoopFamily() {
     ['offer declined', [{ text: 'answer over' }, { text: 'not yet' }, { text: 'next answer over' }], { turns: 2, offerAt: 1 }],
     ['offer unclear', [{ text: 'answer over' }, { text: 'purple' }, { text: 'no' }, { text: 'next over' }], { turns: 2, offerAt: 1 }],
     ['recoverable listen error', [{ kind: 'throw', code: 'network', message: 'blip' }, { text: 'ok then over' }], { turns: 1 }],
-    ['denied microphone stops', [{ kind: 'throw', code: 'denied', message: 'no mic' }], { turns: 2 }],
+    // drive.js judges fatality from the message (RE_FATAL) or explicit flags, never the code;
+    // these use the message the voice layer actually throws.
+    ['denied microphone stops', [{ kind: 'throw', code: 'denied', message: 'Microphone access was denied.' }], { turns: 2 }],
+    ['an explicitly fatal error stops', [{ kind: 'throw', code: 'x', message: 'engine gone', fatal: true }], { turns: 2 }],
+    ['recoverable: false stops', [{ kind: 'throw', code: 'x', message: 'engine gone', recoverable: false }], { turns: 2 }],
+    ['an unmatched message recovers', [{ kind: 'throw', code: 'denied', message: 'no mic' }, { text: 'fine over' }], { turns: 1 }],
+    ['denied during the wrap confirmation stops', [{ text: 'answer over' }, { kind: 'throw', code: 'denied', message: 'Microphone access was denied.' }], { turns: 3, offerAt: 1 }],
     ['custom trigger', [{ text: 'my answer done' }], { turns: 1, config: { trigger: 'done' } }],
     ['stop after first listen', [{ text: 'half an answer', stopAfter: 1 }], { turns: 2 }],
   ];
@@ -494,7 +523,12 @@ async function driveLoopFamily() {
         // A scenario that never ends is a broken script, not behaviour worth freezing.
         if (listens > 60) { runaway = true; live = false; return ''; }
         if (o.stopAfter && i >= o.stopAfter) live = false;
-        if (o.kind === 'throw') throw Object.assign(new Error(o.message), { code: o.code });
+        if (o.kind === 'throw') {
+          const err = Object.assign(new Error(o.message), { code: o.code });
+          if ('fatal' in o) err.fatal = o.fatal;
+          if ('recoverable' in o) err.recoverable = o.recoverable;
+          throw err;
+        }
         return o.text;
       },
       openTurn: () => (answered < turns
@@ -586,13 +620,15 @@ async function markdownFamily() {
     cases.push(rec(`speechChunks ${i} 80`, speechChunks, t, { maxChars: 80 }));
   }
   const lib = [
-    { ...final, tags: ['Work', 'apps'], updatedAt: 5 },
-    { ...snapshots[2][1], id: 's_b', name: 'Basil', tags: ['garden'], updatedAt: 9 },
-    { ...odd[1][1], archivedAt: 7, tags: ['garden', 'Work'], updatedAt: 7 },
+    // availableTags sorts with localeCompare, which follows the machine's locale. These tags
+    // order identically under ASCII and en collation, so every CI leg agrees.
+    { ...final, tags: ['Work', 'Apps'], updatedAt: 5 },
+    { ...snapshots[2][1], id: 's_b', name: 'Basil', tags: ['Garden', 'work'], updatedAt: 9 },
+    { ...odd[1][1], archivedAt: 7, tags: ['Garden', 'Work'], updatedAt: 7 },
     { ...odd[0][1], status: 'done', updatedAt: 3 },
   ];
   cases.push(rec('availableTags', availableTags, lib));
-  for (const [i, f] of [{}, { status: 'all' }, { status: 'archived' }, { status: 'done' }, { tag: 'work' }, { query: 'BASIL' }, { query: 'conference', status: 'all' }, { query: 'nothing matches' }].entries()) {
+  for (const [i, f] of [{}, { status: 'all' }, { status: 'archived' }, { status: 'done' }, { tag: 'work' }, { tag: 'garden', status: 'all' }, { query: 'BASIL' }, { query: 'conference', status: 'all' }, { query: 'nothing matches' }].entries()) {
     cases.push(rec(`filterSessions ${i}`, filterSessions, lib, f));
   }
   return { source: 'src/core/markdown.js, src/core/library.js', cases };
@@ -623,8 +659,13 @@ async function providersFamily() {
   }
   for (const s of [400, 401, 403, 404, 408, 413, 429, 500, 502, 503, 529, 200, 0]) cases.push(rec(`codeForStatus ${s}`, codeForStatus, s));
   for (const code of ['rate_limit', 'overloaded', 'network', 'auth', 'bad_response', 'aborted']) {
-    cases.push(rec(`isRetryable ${code}`, isRetryable, { code }));
+    // Built inside the call: isRetryable checks `instanceof ProviderError`, which a recorded
+    // plain object can never satisfy. args record the code; the Kotlin side constructs its own.
+    let value;
+    try { value = { value: isRetryable(new ProviderError(code, 'x')) }; } catch (err) { value = { throws: String(err.message) }; }
+    cases.push({ name: `isRetryable ProviderError ${code}`, fn: 'isRetryableProviderError', args: [code], expect: value });
   }
+  cases.push(rec('isRetryable plain object is never retryable', isRetryable, { code: 'network' }));
   for (const [i, h] of [{ 'retry-after': '3' }, { 'retry-after': '0' }, { 'retry-after': 'soon' }, {}, { 'retry-after': '120' }, { 'retry-after': '-4' }].entries()) {
     const headers = { get: (k) => (k.toLowerCase() in h ? h[k.toLowerCase()] : null) };
     let value;

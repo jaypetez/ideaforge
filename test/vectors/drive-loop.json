@@ -1802,13 +1802,160 @@
           {
             "kind": "throw",
             "code": "denied",
-            "message": "no mic"
+            "message": "Microphone access was denied."
           }
         ],
         "turns": 2
       },
       "expect": {
         "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ve lost the microphone, so I’ve switched hands-free off."
+          ],
+          [
+            "speak",
+            "I’ve lost the microphone, so I’ve switched hands-free off."
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "an explicitly fatal error stops",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "kind": "throw",
+            "code": "x",
+            "message": "engine gone",
+            "fatal": true
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": {
+          "throws": "engine gone"
+        },
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "recoverable: false stops",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "kind": "throw",
+            "code": "x",
+            "message": "engine gone",
+            "recoverable": false
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": {
+          "throws": "engine gone"
+        },
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "an unmatched message recovers",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "kind": "throw",
+            "code": "denied",
+            "message": "no mic"
+          },
+          {
+            "text": "fine over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
         "log": [
           [
             "state",
@@ -1854,19 +2001,42 @@
           ],
           [
             "state",
-            "recovering"
+            "processing"
+          ],
+          [
+            "submit",
+            "fine"
           ],
           [
             "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "denied during the wrap confirmation stops",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "answer over"
+          },
+          {
+            "kind": "throw",
+            "code": "denied",
+            "message": "Microphone access was denied."
+          }
+        ],
+        "turns": 3,
+        "offerAt": 1
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
             "speaking"
-          ],
-          [
-            "notify",
-            "Let me read that again."
-          ],
-          [
-            "speak",
-            "Let me read that again."
           ],
           [
             "notify",
@@ -1885,26 +2055,11 @@
           ],
           [
             "state",
-            "recovering"
-          ],
-          [
-            "state",
-            "speaking"
-          ],
-          [
-            "notify",
-            "I’ll come back to that one."
-          ],
-          [
-            "speak",
-            "I’ll come back to that one."
-          ],
-          [
-            "state",
             "processing"
           ],
           [
-            "skip"
+            "submit",
+            "answer"
           ],
           [
             "state",
@@ -1912,11 +2067,11 @@
           ],
           [
             "notify",
-            "Bridge 1. Question 1?"
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
           ],
           [
             "speak",
-            "Bridge 1. Question 1?"
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
           ],
           [
             "state",
@@ -1927,92 +2082,15 @@
           ],
           [
             "state",
-            "recovering"
-          ],
-          [
-            "state",
             "speaking"
           ],
           [
             "notify",
-            "I didn’t catch that. Take your time, and say “over” when you’re done."
+            "I’ve lost the microphone, so I’ve switched hands-free off."
           ],
           [
             "speak",
-            "I didn’t catch that. Take your time, and say “over” when you’re done."
-          ],
-          [
-            "state",
-            "listening"
-          ],
-          [
-            "listen"
-          ],
-          [
-            "state",
-            "recovering"
-          ],
-          [
-            "state",
-            "speaking"
-          ],
-          [
-            "notify",
-            "Let me read that again."
-          ],
-          [
-            "speak",
-            "Let me read that again."
-          ],
-          [
-            "notify",
-            "Bridge 1. Question 1?"
-          ],
-          [
-            "speak",
-            "Bridge 1. Question 1?"
-          ],
-          [
-            "state",
-            "listening"
-          ],
-          [
-            "listen"
-          ],
-          [
-            "state",
-            "recovering"
-          ],
-          [
-            "state",
-            "speaking"
-          ],
-          [
-            "notify",
-            "I’ll come back to that one."
-          ],
-          [
-            "speak",
-            "I’ll come back to that one."
-          ],
-          [
-            "state",
-            "processing"
-          ],
-          [
-            "skip"
-          ],
-          [
-            "state",
-            "speaking"
-          ],
-          [
-            "notify",
-            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
-          ],
-          [
-            "speak",
-            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
+            "I’ve lost the microphone, so I’ve switched hands-free off."
           ],
           [
             "state",

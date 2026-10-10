@@ -3,7 +3,7 @@
   "family": "markdown",
   "source": "src/core/markdown.js, src/core/library.js",
   "fixtures": {
-    "s_b@8#dfae81a225": {
+    "s_b@8#e18c43d0e0": {
       "schema": 2,
       "id": "s_b",
       "rev": 8,
@@ -13,7 +13,8 @@
       "name": "Basil",
       "title": "",
       "tags": [
-        "garden"
+        "Garden",
+        "work"
       ],
       "archivedAt": 0,
       "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -488,7 +489,7 @@
         "device": "desktop"
       }
     },
-    "s_voice@7#6a6d4c7e5e": {
+    "s_voice@7#1d2f0318f1": {
       "schema": 2,
       "id": "s_voice",
       "rev": 7,
@@ -498,7 +499,7 @@
       "name": "",
       "title": "",
       "tags": [
-        "garden",
+        "Garden",
         "Work"
       ],
       "archivedAt": 7,
@@ -1927,7 +1928,7 @@
         "device": "phone"
       }
     },
-    "s_walkthrough@56#cb29824d3f": {
+    "s_walkthrough@56#5a6b9fec22": {
       "schema": 2,
       "id": "s_walkthrough",
       "rev": 56,
@@ -1938,7 +1939,7 @@
       "title": "Conference name recall app",
       "tags": [
         "Work",
-        "apps"
+        "Apps"
       ],
       "archivedAt": 0,
       "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -5613,13 +5614,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -5628,8 +5629,8 @@
       ],
       "expect": {
         "value": [
-          "apps",
-          "garden",
+          "Apps",
+          "Garden",
           "Work"
         ]
       }
@@ -5640,13 +5641,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -5666,7 +5667,8 @@
             "name": "Basil",
             "title": "",
             "tags": [
-              "garden"
+              "Garden",
+              "work"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -5810,13 +5812,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -5838,7 +5840,8 @@
             "name": "Basil",
             "title": "",
             "tags": [
-              "garden"
+              "Garden",
+              "work"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -5983,7 +5986,7 @@
             "name": "",
             "title": "",
             "tags": [
-              "garden",
+              "Garden",
               "Work"
             ],
             "archivedAt": 7,
@@ -6138,7 +6141,7 @@
             "title": "Conference name recall app",
             "tags": [
               "Work",
-              "apps"
+              "Apps"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -6558,13 +6561,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -6586,7 +6589,7 @@
             "name": "",
             "title": "",
             "tags": [
-              "garden",
+              "Garden",
               "Work"
             ],
             "archivedAt": 7,
@@ -6739,13 +6742,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -6765,13 +6768,13 @@
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -6779,32 +6782,6 @@
         ],
         {
           "tag": "work"
-        }
-      ],
-      "expect": {
-        "value": []
-      }
-    },
-    {
-      "name": "filterSessions 5",
-      "fn": "filterSessions",
-      "args": [
-        [
-          {
-            "$ref": "s_walkthrough@56#cb29824d3f"
-          },
-          {
-            "$ref": "s_b@8#dfae81a225"
-          },
-          {
-            "$ref": "s_voice@7#6a6d4c7e5e"
-          },
-          {
-            "$ref": "s_fresh@0#b00368f798"
-          }
-        ],
-        {
-          "query": "BASIL"
         }
       ],
       "expect": {
@@ -6819,7 +6796,8 @@
             "name": "Basil",
             "title": "",
             "tags": [
-              "garden"
+              "Garden",
+              "work"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -6958,18 +6936,519 @@
       }
     },
     {
+      "name": "filterSessions 5",
+      "fn": "filterSessions",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@56#5a6b9fec22"
+          },
+          {
+            "$ref": "s_b@8#e18c43d0e0"
+          },
+          {
+            "$ref": "s_voice@7#1d2f0318f1"
+          },
+          {
+            "$ref": "s_fresh@0#b00368f798"
+          }
+        ],
+        {
+          "tag": "garden",
+          "status": "all"
+        }
+      ],
+      "expect": {
+        "value": [
+          {
+            "schema": 2,
+            "id": "s_b",
+            "rev": 8,
+            "createdAt": 1760000000000,
+            "updatedAt": 9,
+            "status": "interviewing",
+            "name": "Basil",
+            "title": "",
+            "tags": [
+              "Garden",
+              "work"
+            ],
+            "archivedAt": 0,
+            "opening": "An app that helps me remember the names of people I meet at conferences.",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "An app that helps me remember the names of people I meet at conferences.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000000000,
+                "answeredAt": 1760000010000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "At the last conference, how many names did you actually lose?",
+                "bridge": "Conferences, so a lot of names in a short window.",
+                "move": "concretize",
+                "chips": [
+                  "maybe thirty names over three days",
+                  "honestly I stopped counting",
+                  "only a handful, but the ones that mattered",
+                  "I never learned them in the first place"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000015000,
+                "answeredAt": 0,
+                "classification": null
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "no sense of what the app hands back",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              }
+            },
+            "facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              }
+            ],
+            "moveHistory": [
+              "concretize"
+            ],
+            "openQuestions": [],
+            "synthesis": {
+              "text": "",
+              "tier": "",
+              "at": 0,
+              "stale": false,
+              "assumptions": []
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": false,
+            "meta": {
+              "device": "phone"
+            }
+          },
+          {
+            "schema": 2,
+            "id": "s_voice",
+            "rev": 7,
+            "createdAt": 1760000000000,
+            "updatedAt": 7,
+            "status": "interviewing",
+            "name": "",
+            "title": "",
+            "tags": [
+              "Garden",
+              "Work"
+            ],
+            "archivedAt": 7,
+            "opening": "so um basically a thing that reminds me to water the plants on the balcony when it has not rained for a while and the soil is dry",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "so um basically a thing that reminds me to water the plants on the balcony when it has not rained for a while and the soil is dry",
+                "answerSource": "voice",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000001000,
+                "answeredAt": 1760000002000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "Which plants die first?",
+                "bridge": null,
+                "move": null,
+                "chips": [
+                  "the basil",
+                  "the tomatoes"
+                ],
+                "questionSource": "model",
+                "answer": "the basil",
+                "answerSource": "chip",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000003000,
+                "answeredAt": 1760000004000,
+                "classification": "terse"
+              },
+              {
+                "id": "t3",
+                "n": 3,
+                "dimension": "bar",
+                "question": "How would you know it worked?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "model",
+                "answer": "The basil survives August.",
+                "answerSource": "draft-unedited",
+                "draftText": "The basil survives August.",
+                "skipped": false,
+                "askedAt": 1760000005000,
+                "answeredAt": 1760000007000,
+                "classification": "substantive"
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 3,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              }
+            },
+            "facts": [],
+            "moveHistory": [],
+            "openQuestions": [],
+            "synthesis": {
+              "text": "",
+              "tier": "",
+              "at": 0,
+              "stale": false,
+              "assumptions": []
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": false,
+            "meta": {
+              "device": "desktop"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "filterSessions 6",
       "fn": "filterSessions",
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
+          },
+          {
+            "$ref": "s_fresh@0#b00368f798"
+          }
+        ],
+        {
+          "query": "BASIL"
+        }
+      ],
+      "expect": {
+        "value": [
+          {
+            "schema": 2,
+            "id": "s_b",
+            "rev": 8,
+            "createdAt": 1760000000000,
+            "updatedAt": 9,
+            "status": "interviewing",
+            "name": "Basil",
+            "title": "",
+            "tags": [
+              "Garden",
+              "work"
+            ],
+            "archivedAt": 0,
+            "opening": "An app that helps me remember the names of people I meet at conferences.",
+            "turns": [
+              {
+                "id": "t1",
+                "n": 1,
+                "dimension": "outcome",
+                "question": "In a sentence or two — what’s the idea?",
+                "bridge": null,
+                "move": null,
+                "chips": [],
+                "questionSource": "seed",
+                "answer": "An app that helps me remember the names of people I meet at conferences.",
+                "answerSource": "typed",
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000000000,
+                "answeredAt": 1760000010000,
+                "classification": "substantive"
+              },
+              {
+                "id": "t2",
+                "n": 2,
+                "dimension": "substance",
+                "question": "At the last conference, how many names did you actually lose?",
+                "bridge": "Conferences, so a lot of names in a short window.",
+                "move": "concretize",
+                "chips": [
+                  "maybe thirty names over three days",
+                  "honestly I stopped counting",
+                  "only a handful, but the ones that mattered",
+                  "I never learned them in the first place"
+                ],
+                "questionSource": "model",
+                "answer": "",
+                "answerSource": null,
+                "draftText": null,
+                "skipped": false,
+                "askedAt": 1760000015000,
+                "answeredAt": 0,
+                "classification": null
+              }
+            ],
+            "coverage": {
+              "outcome": {
+                "level": "partial",
+                "status": "probing",
+                "gap": "no sense of what the app hands back",
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 1,
+                "waivedReason": null
+              },
+              "substance": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 1,
+                "lastTurn": 2,
+                "waivedReason": null
+              },
+              "bar": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "constraints": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "audience": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "voice": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              },
+              "references": {
+                "level": "thin",
+                "status": "probing",
+                "gap": null,
+                "evidence": null,
+                "turnsSpent": 0,
+                "lastTurn": 0,
+                "waivedReason": null
+              }
+            },
+            "facts": [
+              {
+                "dimension": "outcome",
+                "fact": "A phone app for recalling names met at conferences."
+              }
+            ],
+            "moveHistory": [
+              "concretize"
+            ],
+            "openQuestions": [],
+            "synthesis": {
+              "text": "",
+              "tier": "",
+              "at": 0,
+              "stale": false,
+              "assumptions": []
+            },
+            "draftAnswer": "",
+            "pending": null,
+            "zeroGainStreak": 0,
+            "wrapOffered": false,
+            "meta": {
+              "device": "phone"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "filterSessions 7",
+      "fn": "filterSessions",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@56#5a6b9fec22"
+          },
+          {
+            "$ref": "s_b@8#e18c43d0e0"
+          },
+          {
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
@@ -6992,7 +7471,8 @@
             "name": "Basil",
             "title": "",
             "tags": [
-              "garden"
+              "Garden",
+              "work"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -7138,7 +7618,7 @@
             "title": "Conference name recall app",
             "tags": [
               "Work",
-              "apps"
+              "Apps"
             ],
             "archivedAt": 0,
             "opening": "An app that helps me remember the names of people I meet at conferences.",
@@ -7457,18 +7937,18 @@
       }
     },
     {
-      "name": "filterSessions 7",
+      "name": "filterSessions 8",
       "fn": "filterSessions",
       "args": [
         [
           {
-            "$ref": "s_walkthrough@56#cb29824d3f"
+            "$ref": "s_walkthrough@56#5a6b9fec22"
           },
           {
-            "$ref": "s_b@8#dfae81a225"
+            "$ref": "s_b@8#e18c43d0e0"
           },
           {
-            "$ref": "s_voice@7#6a6d4c7e5e"
+            "$ref": "s_voice@7#1d2f0318f1"
           },
           {
             "$ref": "s_fresh@0#b00368f798"
