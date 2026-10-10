@@ -52,6 +52,7 @@ import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.startGate
+import io.github.jaypetez.ideaforge.ui.settings.BackupSection
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -193,6 +194,8 @@ private fun SettingsScreen(vm: SettingsViewModel) {
             stringResource(R.string.pref_trigger, prefs.effectiveTrigger),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // Here until the full settings screen (#88) gives backups their permanent place.
+        BackupSection()
     }
 }
 
