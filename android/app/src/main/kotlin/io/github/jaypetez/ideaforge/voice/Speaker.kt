@@ -36,6 +36,8 @@ enum class SpeakFailure {
     SPEAK_REJECTED,
     /** Audio focus was refused (a call is in progress, for instance), so nothing was said. */
     FOCUS_DENIED,
+    /** Audio focus was lost mid-speech (a call rang, navigation spoke), so speech stopped. */
+    INTERRUPTED,
     /** Empty text, or a rate outside the validated range. */
     CONFIG,
 }
@@ -113,12 +115,23 @@ interface TtsEngine {
 
     fun stop()
 
+    /**
+     * Drop the platform engine so the next [awaitReady] builds a fresh one. A TextToSpeech
+     * whose service was updated or killed refuses every speak for ever, and one whose init
+     * never answered would otherwise be awaited again by every later speak.
+     */
+    fun reset()
+
     fun shutdown()
 }
 
 /** Transient, duckable focus for the length of one speak. */
 interface AudioFocus {
-    fun request(): Boolean
+    /**
+     * Request focus; false when refused. [onLoss] is called (on any thread) if another app
+     * takes the audio away while it is held: a ringing call, a navigation prompt.
+     */
+    fun request(onLoss: () -> Unit): Boolean
     fun abandon()
 }
 
@@ -140,6 +153,7 @@ class TextToSpeechSpeaker(
 
     private class Op {
         val stopped = CompletableDeferred<Unit>()
+        @Volatile var interrupted = false
         @Volatile var utteranceId: String? = null
         @Volatile var chunk: CompletableDeferred<ChunkEnd>? = null
     }
@@ -162,6 +176,28 @@ class TextToSpeechSpeaker(
         if (op.utteranceId == utteranceId) op.chunk?.complete(how)
     }
 
+    /**
+     * Raced against cancel(), and bounded: an engine that never answers its init is a
+     * reported failure, not a speak that hangs. Null means cancelled. A failed or timed-out
+     * init resets the engine, so the next speak starts a fresh one instead of awaiting the
+     * same dead one again.
+     */
+    private suspend fun ready(op: Op): Boolean? {
+        val ok: Boolean? = coroutineScope {
+            val init = async { runCatching { engine.awaitReady() }.getOrDefault(false) }
+            val first = withTimeoutOrNull(initTimeoutMs) {
+                select<Boolean?> {
+                    init.onAwait { it }
+                    op.stopped.onAwait { null }
+                }
+            }
+            init.cancel()
+            if (op.stopped.isCompleted) null else first ?: false
+        }
+        if (ok == false) runCatching { engine.reset() }
+        return ok
+    }
+
     override suspend fun speak(text: String): SpeakResult {
         cancel() // as speak.js: a new utterance replaces the one in progress
         val op = Op()
@@ -169,6 +205,7 @@ class TextToSpeechSpeaker(
         val p = prefs()
         var result = SpeakResult(SpeakStatus.FAILED, requestedVoice = p.speechVoice, rate = p.speechRate)
         var focused = false
+        var finished = false
         try {
             if (text.isBlank()) return fail(result, SpeakFailure.CONFIG, "There is no text to speak.")
             val chunks = try {
@@ -178,27 +215,14 @@ class TextToSpeechSpeaker(
             }
             result = result.copy(chunks = chunks.size)
 
-            // Raced against cancel(), and bounded: an engine that never answers its init is a
-            // reported failure, not a speak that hangs.
-            val ready: Boolean? = coroutineScope {
-                val init = async { runCatching { engine.awaitReady() }.getOrDefault(false) }
-                val first = withTimeoutOrNull(initTimeoutMs) {
-                    select<Boolean?> {
-                        init.onAwait { it }
-                        op.stopped.onAwait { null }
-                    }
-                }
-                init.cancel()
-                if (op.stopped.isCompleted) null else first ?: false
-            }
-            if (ready == null) return cancelled(result)
+            val ready = ready(op) ?: return stopped(op, result)
             if (!ready) return fail(result, SpeakFailure.ENGINE_INIT, "The speech engine did not start.")
 
             result = applyVoice(result, p.speechVoice)
             engine.setRate(p.speechRate.toFloat())
-            if (op.stopped.isCompleted) return cancelled(result)
+            if (op.stopped.isCompleted) return stopped(op, result)
 
-            focused = focus.request()
+            focused = focus.request { interrupt(op) }
             if (!focused) return fail(result, SpeakFailure.FOCUS_DENIED, "Another app holds the audio; nothing was said.")
 
             for ((i, chunk) in chunks.withIndex()) {
@@ -206,9 +230,22 @@ class TextToSpeechSpeaker(
                 val end = CompletableDeferred<ChunkEnd>()
                 op.utteranceId = id
                 op.chunk = end
-                if (op.stopped.isCompleted) return cancelled(result)
+                if (op.stopped.isCompleted) return stopped(op, result)
                 if (!engine.speak(chunk, id)) {
-                    return fail(result, SpeakFailure.SPEAK_REJECTED, "The speech engine refused the text.")
+                    // A refusal is how a dead engine service (updated or killed) looks, and it
+                    // refuses everything until rebuilt. Rebuild once and retry this chunk.
+                    runCatching { engine.reset() }
+                    val again = ready(op) ?: return stopped(op, result)
+                    var accepted = false
+                    if (again) {
+                        result = applyVoice(result, p.speechVoice)
+                        engine.setRate(p.speechRate.toFloat())
+                        accepted = engine.speak(chunk, id)
+                    }
+                    if (!accepted) {
+                        runCatching { engine.reset() }
+                        return fail(result, SpeakFailure.SPEAK_REJECTED, "The speech engine refused the text.")
+                    }
                 }
                 // null is the length-scaled timeout, as speak.js: a chunk the engine never
                 // finishes is stopped and reported rather than awaited for ever.
@@ -220,7 +257,7 @@ class TextToSpeechSpeaker(
                 }
                 when (how) {
                     ChunkEnd.Done -> result = result.copy(chunksSpoken = i + 1)
-                    ChunkEnd.Cancelled -> return cancelled(result)
+                    ChunkEnd.Cancelled -> return stopped(op, result)
                     is ChunkEnd.Error -> {
                         engine.stop()
                         return fail(result, SpeakFailure.ENGINE_ERROR, "Speech failed (engine error ${how.code}).")
@@ -231,10 +268,11 @@ class TextToSpeechSpeaker(
                     }
                 }
             }
+            finished = true
             return result.copy(status = SpeakStatus.SPOKEN)
         } finally {
             // Coroutine cancellation lands here too: the engine must not go on talking.
-            if (!op.stopped.isCompleted && result.status != SpeakStatus.SPOKEN && active.get() === op) {
+            if (!finished && !op.stopped.isCompleted && active.get() === op) {
                 runCatching { engine.stop() }
             }
             if (focused) focus.abandon()
@@ -265,13 +303,28 @@ class TextToSpeechSpeaker(
             .ifEmpty { null },
     )
 
-    private fun cancelled(r: SpeakResult) = r.copy(status = SpeakStatus.CANCELLED, failure = null)
+    /** Stopped by cancel() (not an error), or by losing audio focus (reported). */
+    private fun stopped(op: Op, r: SpeakResult) = if (op.interrupted) {
+        fail(r, SpeakFailure.INTERRUPTED, "Another app took the audio; speech stopped.")
+    } else {
+        r.copy(status = SpeakStatus.CANCELLED, failure = null)
+    }
 
-    override fun cancel() {
-        val op = active.getAndSet(null) ?: return
+    private fun halt(op: Op) {
         op.stopped.complete(Unit)
         op.chunk?.complete(ChunkEnd.Cancelled)
         runCatching { engine.stop() }
+    }
+
+    /** Focus lost: stop at once rather than talk over a call or a navigation prompt. */
+    private fun interrupt(op: Op) {
+        if (!active.compareAndSet(op, null)) return
+        op.interrupted = true
+        halt(op)
+    }
+
+    override fun cancel() {
+        halt(active.getAndSet(null) ?: return)
     }
 
     override fun shutdown() {

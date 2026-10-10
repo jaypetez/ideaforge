@@ -1134,7 +1134,9 @@ function speakFamily() {
     cases.push(rec(`speechChunksForRate ${i} default`, speechChunksForRate, t));
     for (const r of rates) cases.push(rec(`speechChunksForRate ${i} @${r}`, speechChunksForRate, t, r));
   }
-  for (const [i, r] of [0, 0.05, 11, '1', null, NaN, Infinity].entries()) {
+  // NaN and Infinity are left out: JSON records both as null, so they would only repeat
+  // the null case under another name.
+  for (const [i, r] of [0, 0.05, 11, '1', null].entries()) {
     cases.push(rec(`speechChunksForRate bad rate ${i}`, speechChunksForRate, 'Hello there.', r));
   }
   for (const [i, t] of ['', 'Hi.', texts[2], texts[3], texts[4], 'one two three four five six seven', '日本語のテキストは空白がない'.repeat(5)].entries()) {

@@ -23,6 +23,13 @@ import org.junit.Test
 class FakeEngine : TtsEngine {
     /** true/false is the init verdict; null never answers. */
     var init: Boolean? = true
+    /** Bumped by reset(): each value is a fresh platform engine. */
+    var generation = 0
+    var resets = 0
+    /** Generations whose init never answers. */
+    var initHangs = emptySet<Int>()
+    /** Generations that refuse every speak, as a TextToSpeech whose service died does. */
+    var deadGenerations = emptySet<Int>()
     var installed = listOf("en-us-x-iol-local", "en-gb-x-rjs-network")
     /** Chunk indexes the engine accepts and then never finishes (no onDone, ever). */
     var hangs = emptySet<Int>()
@@ -37,14 +44,15 @@ class FakeEngine : TtsEngine {
     private lateinit var listener: TtsEngine.Listener
 
     override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
-    override suspend fun awaitReady(): Boolean = init ?: awaitCancellation()
+    override suspend fun awaitReady(): Boolean =
+        if (generation in initHangs) awaitCancellation() else init ?: awaitCancellation()
     override fun voices() = installed
     override fun setVoice(id: String): Boolean { voice = id; return true }
     override fun useDefaultVoice() { voice = null; defaultVoiceUsed++ }
     override fun setRate(rate: Float) { this.rate = rate }
 
     override fun speak(text: String, utteranceId: String): Boolean {
-        if (!accept) return false
+        if (!accept || generation in deadGenerations) return false
         val i = spoken.size
         spoken += text
         listener.onStart(utteranceId)
@@ -57,14 +65,22 @@ class FakeEngine : TtsEngine {
     }
 
     override fun stop() { stops++ }
+    override fun reset() { generation++; resets++ }
     override fun shutdown() = Unit
 }
 
 class FakeFocus(var grant: Boolean = true) : AudioFocus {
     var requests = 0
     var abandons = 0
-    override fun request(): Boolean { requests++; return grant }
-    override fun abandon() { abandons++ }
+    private var onLoss: (() -> Unit)? = null
+    override fun request(onLoss: () -> Unit): Boolean {
+        requests++
+        if (grant) this.onLoss = onLoss
+        return grant
+    }
+    override fun abandon() { abandons++; onLoss = null }
+    /** Another app takes the audio: a call rings, navigation speaks. */
+    fun lose() { onLoss?.invoke() }
 }
 
 private const val LONG = "The first sentence sets the scene for the whole idea and runs on a little. " +
@@ -85,6 +101,7 @@ class SpeakerTest {
         assertEquals(speechChunksForRate(LONG, 1.0), engine.spoken)
         assertTrue("one utterance for the whole passage", engine.spoken.size > 1)
         assertEquals(engine.spoken.size, r.chunksSpoken)
+        assertEquals("a finished speak does not stop the engine afterwards", 0, engine.stops)
     }
 
     @Test
@@ -235,5 +252,61 @@ class SpeakerTest {
         val second = speaker.speak("Second.")
         assertEquals(SpeakStatus.CANCELLED, first.await().status)
         assertEquals(SpeakStatus.SPOKEN, second.status)
+    }
+
+    @Test
+    fun aDeadEngineIsRebuiltAndTheChunkRetriedOnce() = runTest {
+        engine.deadGenerations = setOf(0)
+        val r = speaker.speak("Hello there.")
+        assertEquals(SpeakStatus.SPOKEN, r.status)
+        assertEquals("the refusing engine was dropped for a fresh one", 1, engine.generation)
+        assertEquals(listOf("Hello there."), engine.spoken)
+        // and it stays usable: the next speak needs no further rebuild
+        assertEquals(SpeakStatus.SPOKEN, speaker.speak("Again.").status)
+        assertEquals(1, engine.resets)
+    }
+
+    @Test
+    fun anEngineStillRefusingAfterARebuildIsReportedAndDroppedAgain() = runTest {
+        engine.deadGenerations = setOf(0, 1)
+        assertEquals(SpeakFailure.SPEAK_REJECTED, speaker.speak("Hello.").failure)
+        assertEquals(2, engine.generation)
+        assertEquals(SpeakStatus.SPOKEN, speaker.speak("Hello.").status)
+    }
+
+    @Test
+    fun aHungInitIsDroppedSoTheNextSpeakStartsAFreshEngine() = runTest {
+        engine.initHangs = setOf(0)
+        val first = speaker.speak("Hello.")
+        assertEquals(SpeakFailure.ENGINE_INIT, first.failure)
+        val start = currentTime
+        val second = speaker.speak("Hello again.")
+        assertEquals(SpeakStatus.SPOKEN, second.status)
+        assertEquals("no second wait on the dead init", start, currentTime)
+    }
+
+    @Test
+    fun losingAudioFocusMidSpeechStopsItAsInterrupted() = runTest {
+        engine.hangs = setOf(0)
+        val speaking = async { speaker.speak(LONG) }
+        advanceTimeBy(300)
+        runCurrent()
+        val stopsBefore = engine.stops
+        focus.lose()
+        val r = speaking.await()
+        assertEquals(SpeakStatus.FAILED, r.status)
+        assertEquals(SpeakFailure.INTERRUPTED, r.failure)
+        assertEquals(stopsBefore + 1, engine.stops)
+        assertEquals("nothing after the interruption is queued", 1, engine.spoken.size)
+        assertEquals(1, focus.abandons)
+        assertTrue(currentTime < speechTimeoutMs(engine.spoken[0], 1.0))
+    }
+
+    @Test
+    fun aLateFocusLossAfterSpeakingChangesNothing() = runTest {
+        assertEquals(SpeakStatus.SPOKEN, speaker.speak("Hello.").status)
+        val stops = engine.stops
+        focus.lose()
+        assertEquals(stops, engine.stops)
     }
 }

@@ -9,6 +9,8 @@ import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.CoroutineContext
 
 /** Speech, for an assistant: what both the engine and the focus request declare. */
 internal val SPEECH_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
@@ -22,7 +24,13 @@ internal val SPEECH_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
  * returns false) and dropped, so the next speak tries a fresh engine rather than failing
  * for the life of the process.
  */
-class AndroidTtsEngine(context: Context) : TtsEngine {
+class AndroidTtsEngine(
+    context: Context,
+    /** Below the Speaker's own bound, so a hung init is cleaned up here first. */
+    private val initTimeoutMs: Long = 4000L,
+    private val main: CoroutineContext = Dispatchers.Main,
+    private val create: (Context, TextToSpeech.OnInitListener) -> TextToSpeech = ::TextToSpeech,
+) : TtsEngine {
     private val app = context.applicationContext
     private val lock = Any()
     private var tts: TextToSpeech? = null
@@ -41,30 +49,45 @@ class AndroidTtsEngine(context: Context) : TtsEngine {
     override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
 
     override suspend fun awaitReady(): Boolean {
-        val pending = withContext(Dispatchers.Main) {
+        val pending = withContext(main) {
             synchronized(lock) {
                 ready ?: CompletableDeferred<Boolean>().also { d ->
                     ready = d
-                    tts = TextToSpeech(app) { status ->
-                        val ok = status == TextToSpeech.SUCCESS
-                        if (ok) tts?.run {
-                            setOnUtteranceProgressListener(progress)
-                            setAudioAttributes(SPEECH_ATTRIBUTES)
-                        }
-                        d.complete(ok)
-                    }
+                    // The callback only reports: it may belong to an engine already dropped,
+                    // or fire before `create` has returned.
+                    tts = create(app) { status -> d.complete(status == TextToSpeech.SUCCESS) }
                 }
             }
         }
-        val ok = pending.await()
-        if (!ok) synchronized(lock) {
-            if (ready === pending) {
-                runCatching { tts?.shutdown() }
-                tts = null
-                ready = null
+        // Bounded here, with the cleanup in `finally`: a caller's timeout cancels this await,
+        // and a cleanup after it would never run, leaving `ready` pending for ever and the
+        // half-built TextToSpeech leaked. A failed, hung or abandoned init is dropped, so the
+        // next speak builds a fresh engine.
+        var ok = false
+        try {
+            ok = withTimeoutOrNull(initTimeoutMs) { pending.await() } ?: false
+            if (ok) {
+                val current = synchronized(lock) { tts.takeIf { ready === pending } }
+                if (current == null) {
+                    ok = false
+                } else {
+                    current.setOnUtteranceProgressListener(progress)
+                    current.setAudioAttributes(SPEECH_ATTRIBUTES)
+                }
             }
+        } finally {
+            if (!ok) drop(pending)
         }
         return ok
+    }
+
+    private fun drop(only: CompletableDeferred<Boolean>? = null) {
+        synchronized(lock) {
+            if (only != null && ready !== only) return
+            runCatching { tts?.shutdown() }
+            tts = null
+            ready = null
+        }
     }
 
     private fun engine(): TextToSpeech? = synchronized(lock) { tts.takeIf { ready?.isCompleted == true } }
@@ -85,30 +108,48 @@ class AndroidTtsEngine(context: Context) : TtsEngine {
 
     override fun setRate(rate: Float) { engine()?.setSpeechRate(rate) }
 
-    override fun speak(text: String, utteranceId: String): Boolean =
-        engine()?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.SUCCESS
-
-    override fun stop() { engine()?.stop() }
-
-    override fun shutdown() {
-        synchronized(lock) {
-            runCatching { tts?.shutdown() }
-            tts = null
-            ready = null
-        }
+    /** A refusal drops the engine: a dead service (updated or killed) never recovers. */
+    override fun speak(text: String, utteranceId: String): Boolean {
+        val ok = runCatching {
+            engine()?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.SUCCESS
+        }.getOrDefault(false)
+        if (!ok) drop()
+        return ok
     }
+
+    override fun stop() { runCatching { engine()?.stop() } }
+
+    override fun reset() = drop()
+
+    override fun shutdown() = drop()
 }
 
 /** AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK: navigation and music duck under a question. */
 class AndroidAudioFocus(context: Context) : AudioFocus {
     private val audio = context.applicationContext.getSystemService(AudioManager::class.java)
+    @Volatile private var onLoss: (() -> Unit)? = null
     private val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(SPEECH_ATTRIBUTES)
-        .setOnAudioFocusChangeListener { }
+        // A ringing call or a navigation prompt takes focus: stop rather than talk over it.
+        // LOSS_TRANSIENT_CAN_DUCK is left to the system, which ducks us.
+        .setOnAudioFocusChangeListener { change -> focusChanged(change) }
         .build()
 
-    override fun request(): Boolean =
-        audio?.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    internal fun focusChanged(change: Int) {
+        if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+            onLoss?.invoke()
+        }
+    }
 
-    override fun abandon() { audio?.abandonAudioFocusRequest(request) }
+    override fun request(onLoss: () -> Unit): Boolean {
+        this.onLoss = onLoss
+        val granted = audio?.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (!granted) this.onLoss = null
+        return granted
+    }
+
+    override fun abandon() {
+        onLoss = null
+        audio?.abandonAudioFocusRequest(request)
+    }
 }

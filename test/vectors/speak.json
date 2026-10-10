@@ -4075,28 +4075,6 @@
       }
     },
     {
-      "name": "speechChunksForRate bad rate 5",
-      "fn": "speechChunksForRate",
-      "args": [
-        "Hello there.",
-        null
-      ],
-      "expect": {
-        "throws": "Speech rate must be a number from 0.1 to 10."
-      }
-    },
-    {
-      "name": "speechChunksForRate bad rate 6",
-      "fn": "speechChunksForRate",
-      "args": [
-        "Hello there.",
-        null
-      ],
-      "expect": {
-        "throws": "Speech rate must be a number from 0.1 to 10."
-      }
-    },
-    {
       "name": "speechTimeoutMs 0 default",
       "fn": "speechTimeoutMs",
       "args": [
