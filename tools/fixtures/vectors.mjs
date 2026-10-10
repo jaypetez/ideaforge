@@ -9,7 +9,8 @@
 import {
   createSession, askQuestion, answerQuestion, skipQuestion, setDraftText, applyCoverage,
   addFacts, migrate, normalizeSessionName, normalizeTags, sessionDisplayTitle, waiveDimension,
-  deferDimension, resumeDimension, copySession, reopen, isLowConfidence,
+  deferDimension, resumeDimension, copySession, reopen, isLowConfidence, openTurn,
+  setWrapOffered, setStatusField,
 } from '../../src/core/session.js';
 import {
   contentWords, classifyAnswer, lastAnswerClass, selectNextDimension, isReadyToWrap,
@@ -1007,6 +1008,88 @@ function keyringFamily() {
   return { source: 'src/store/secrets.js', cases };
 }
 
+// ─────────────────────────────────────────────────────────────── walkthrough
+
+/**
+ * The scripted interview driven the way the interview screen drives it: src/ui/app.js
+ * (startInterview → submitAndAdvance / doSkip → nextQuestion → wrapUp) and its Android twin,
+ * InterviewViewModel. Seed, answer or skip, runTurn, mark the wrap offer when one is advised,
+ * accept it, write it up. Where the run-turn family pins single calls, this pins the loop
+ * that strings them together, including what the screen adds between them (setWrapOffered,
+ * the `done` status a failed write-up falls back to, the export mode).
+ *
+ * The clock is constant, as tools/screenshots.mjs makes it, so a replay does not depend on
+ * how many times the caller happens to read it. Each step is `{text}`, `{chip: i}` (the open
+ * turn's i-th chip, sent unedited, so source 'chip') or `{skip: true}`. The script is the
+ * fixture itself, so the Android debug build replays these exact replies (ScriptedProvider).
+ */
+const WALK_NOW = T0 + 123_000;
+
+function walkthroughProvider() {
+  const requests = [];
+  return {
+    requests,
+    async sampleJson(parts, opts = {}) {
+      const modelTier = opts.modelTier || 'default';
+      requests.push({ modelTier, promptHash: promptHash([parts.system, parts.prefix, parts.tail].join('\n')) });
+      if (modelTier === 'complex') return { json: SYNTHESIS, text: JSON.stringify(SYNTHESIS), modelTierApplied: modelTier };
+      const reply = TURNS[turnNumberOf(parts)];
+      if (!reply) throw Object.assign(new Error('no scripted reply'), { code: 'bad_response' });
+      return { json: reply, text: JSON.stringify(reply), modelTierApplied: modelTier };
+    },
+  };
+}
+
+async function interview(steps) {
+  const provider = walkthroughProvider();
+  let s = seedTurn(createSession({ id: 's_walkthrough', now: WALK_NOW, device: 'android' }), { now: WALK_NOW });
+  let stoppedBy = 'answers';
+  let asked = 1;
+  for (const step of steps) {
+    const open = openTurn(s);
+    if (step.skip) s = skipQuestion(s, { now: WALK_NOW });
+    else if (step.chip != null) s = submitAnswer(s, { text: open.chips[step.chip], source: 'chip', now: WALK_NOW });
+    else s = submitAnswer(s, { text: step.text, now: WALK_NOW });
+    const out = await runTurn(s, { provider, now: WALK_NOW });
+    s = out.session;
+    if (out.turn) asked += 1;
+    const advisory = out.aborted ? null : wrapAdvisory(s, out.wrap);
+    if (advisory) s = setWrapOffered(s, true, WALK_NOW);
+    if (!out.turn) { stoppedBy = `no turn: ${out.wrap}`; break; }
+    if (advisory) { stoppedBy = `offer: ${out.wrap}`; break; }
+  }
+  const synth = await runSynthesis(s, { provider, now: WALK_NOW });
+  s = synth.ok || synth.aborted ? synth.session : setStatusField(synth.session, 'done', WALK_NOW);
+  const markdown = buildExport(s, {
+    mode: s.synthesis.text ? 'claude' : 'checklist',
+    note: s.synthesis.text ? null : 'The refined prompt could not be generated, but nothing else was lost.',
+  });
+  return { session: s, export: markdown, asked, stoppedBy, requests: provider.requests };
+}
+
+async function walkthroughFamily() {
+  const typed = ANSWERS.map((text) => ({ text }));
+  const scenarios = [
+    ['typed answers', typed],
+    // The answer to question 4 (constraints) is its first chip, unedited: recorded as
+    // 'chip', so reply 5's `covered` claim for constraints is capped at partial, where the
+    // typed run reaches covered.
+    ['a chip answer', typed.map((step, i) => (i === 3 ? { chip: 0 } : step))],
+    ['a skipped question', typed.map((step, i) => (i === 2 ? { skip: true } : step))],
+  ];
+  const cases = [];
+  for (const [name, steps] of scenarios) {
+    const out = await interview(steps);
+    cases.push({
+      name, fn: 'interview',
+      input: { id: 's_walkthrough', now: WALK_NOW, device: 'android', steps },
+      script: { turns: TURNS, synthesis: SYNTHESIS },
+      expect: { value: plain(out) },
+    });
+  }
+  return { source: 'tools/fixtures/walkthrough.mjs through src/runtime/turn.js, as src/ui/app.js drives it', cases };
+}
+
 export const FAMILIES = {
   constants: constantsFamily,
   js: jsFamily,
@@ -1021,4 +1104,5 @@ export const FAMILIES = {
   markdown: markdownFamily,
   providers: providersFamily,
   keyring: keyringFamily,
+  walkthrough: walkthroughFamily,
 };

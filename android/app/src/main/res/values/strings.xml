@@ -5,11 +5,9 @@
     <string name="nav_ideas">Ideas</string>
     <string name="nav_new_idea">New idea</string>
     <string name="nav_settings">Settings</string>
-    <string name="screen_interview">Interview</string>
     <string name="screen_result">Result</string>
     <string name="screen_settings">Settings</string>
     <string name="action_how_it_works">How it works</string>
-    <string name="action_see_result">See result</string>
     <string name="pref_hands_free">Hands-free</string>
     <string name="pref_trigger">Finish word: %1$s</string>
     <string name="onboarding_step">Step %1$d of 2</string>
@@ -96,4 +94,34 @@
     <string name="notice_restored">Idea restored.</string>
     <string name="notice_deleted">Idea deleted from this device.</string>
     <string name="notice_failed">That change could not be saved.</string>
+    <!-- Interview. Wording follows index.html and src/ui/app.js where the web has it. -->
+    <string name="interview_coverage">Coverage %1$d%%</string>
+    <string name="interview_pill">%1$s: %2$s</string>
+    <string name="level_thin">thin</string>
+    <string name="level_partial">partial</string>
+    <string name="level_covered">covered</string>
+    <string name="status_waived">not relevant</string>
+    <string name="status_deferred">later</string>
+    <!-- #turnline: "question 3 of up to 25 · audience · from the built-in checklist" -->
+    <string name="interview_turnline">question %1$d of up to %2$d</string>
+    <string name="interview_turnline_dimension">question %1$d of up to %2$d · %3$s</string>
+    <string name="interview_from_checklist">from the built-in checklist</string>
+    <string name="interview_thinking">thinking of the next question…</string>
+    <string name="interview_resuming">picking up where the last question left off…</string>
+    <string name="interview_writing">Writing it up…</string>
+    <string name="interview_loading">Opening the interview…</string>
+    <string name="interview_answer_label">Your answer</string>
+    <string name="interview_answer_placeholder">Type your answer</string>
+    <string name="interview_send">Send</string>
+    <string name="interview_skip">Skip this one</string>
+    <string name="interview_write_up">Write it up</string>
+    <string name="interview_skipped">Skipped</string>
+    <string name="interview_from_chip">a suggestion, as offered</string>
+    <string name="interview_wrap_accept">Write it up</string>
+    <string name="interview_wrap_decline">Keep going</string>
+    <string name="interview_suggestions">Suggested answers</string>
+    <string name="notice_no_provider">Continuing without a model (%1$s). Questions will come from the built-in checklist.</string>
+    <string name="notice_fallback">%1$s — falling back to the built-in checklist for this question.</string>
+    <string name="notice_write_up_failed">The wrap-up call failed: %1$s. Nothing else was lost.</string>
+    <string name="notice_interview_failed">Something went wrong: %1$s</string>
 </resources>

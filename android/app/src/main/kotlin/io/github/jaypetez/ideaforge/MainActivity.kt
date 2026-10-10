@@ -13,6 +13,11 @@ class MainActivity : ComponentActivity() {
         // Predictive back is enabled in the manifest (enableOnBackInvokedCallback).
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Debug builds only: `--es provider scripted` replays the walkthrough with no key.
+        // The release DebugProviders always answers null.
+        DebugProviders.fromLaunch(this, intent?.getStringExtra("provider"))?.let {
+            (application as IdeaForgeApp).graph.providerSource = it
+        }
         setContent { IdeaForgeTheme { AppShell() } }
     }
 }

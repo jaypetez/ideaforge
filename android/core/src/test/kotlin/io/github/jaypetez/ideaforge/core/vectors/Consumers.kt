@@ -29,12 +29,10 @@ val CONSUMERS: List<Consumer> = listOf(
         pending = emptyMap(),
     ),
     Consumer("run-turn", ported = RUNTIME_PORTS, pending = emptyMap()),
-    Consumer("synthesis", ported = SYNTHESIS_PORTS, pending = pending("#75", "buildExport")),
-    Consumer("markdown", ported = emptyMap(), pending = pending(
-        "#75", "coveragePercent", "exportFilename", "buildExport", "libraryCard", "sessionLibraryStatus",
-        "sessionSearchText", "slug", "renderBlocks", "forSpeech", "speechChunks", "availableTags",
-        "filterSessions",
-    )),
+    // #75 ported these; a merge in #76 put them back to pending, so for a while the markdown
+    // vectors were recorded and never replayed. Restored with the walkthrough family (#85).
+    Consumer("synthesis", ported = SYNTHESIS_PORTS + mapOf("buildExport" to BUILD_EXPORT_PORT), pending = emptyMap()),
+    Consumer("markdown", ported = MARKDOWN_PORTS, pending = emptyMap()),
     Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
     Consumer("keyring", ported = KEYRING_PORTS, pending = emptyMap()),
     Consumer("speech", ported = emptyMap(), pending = pending(
@@ -44,4 +42,6 @@ val CONSUMERS: List<Consumer> = listOf(
     Consumer("drive-loop", ported = emptyMap(), pending = pending("#77", "driveLoop")),
     Consumer("providers", ported = emptyMap(), pending = ProvidersFamily.PENDING,
         portedElsewhere = ProvidersFamily.IN_PROVIDERS_MODULE.associateWith { ProvidersFamily.MODULE }),
+    // Also replayed through InterviewViewModel by :app (WalkthroughVectorTest).
+    Consumer("walkthrough", ported = WALKTHROUGH_PORTS, pending = emptyMap()),
 )
