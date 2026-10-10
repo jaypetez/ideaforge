@@ -14,9 +14,10 @@ import { deleteSession, saveSession } from '../../src/store/sessions.js';
 const BOOT_MS = 4000;
 const settle = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function loadFrame(src, width) {
+function loadFrame(src, width, { sandbox = null } = {}) {
   return new Promise((resolve, reject) => {
     const frame = document.createElement('iframe');
+    if (sandbox !== null) frame.setAttribute('sandbox', sandbox);
     frame.width = width;
     frame.height = 760;
     frame.style.position = 'absolute';
@@ -47,6 +48,25 @@ export default async function run(check) {
 
   const frames = [];
   try {
+    // Before boot() runs show(): a sandbox with no script permission paints the page exactly
+    // as a phone does while app.js is still loading. Without a shipped data-panel the desktop
+    // grid squeezed the title into one letter per line and the nav then jumped to the bottom.
+    const early = await loadFrame('/index.html', 390, { sandbox: 'allow-same-origin' });
+    frames.push(early);
+    await settle(500);
+    {
+      const doc = early.contentDocument;
+      const win = early.contentWindow;
+      const h1 = doc.querySelector('.bar h1').getBoundingClientRect();
+      const lineHeight = parseFloat(win.getComputedStyle(doc.querySelector('.bar h1')).lineHeight);
+      check('before boot, index.html ships body[data-panel="setup"]',
+        doc.body.dataset.panel === 'setup', String(doc.body.dataset.panel));
+      check('before boot, a phone already paints the bottom navigation and a one-line title',
+        win.getComputedStyle(doc.querySelector('.bar-right')).position === 'fixed'
+          && h1.height <= lineHeight * 1.5,
+        `${win.getComputedStyle(doc.querySelector('.bar-right')).position}; h1 ${h1.width}x${h1.height}`);
+    }
+
     const frame = await loadFrame('/index.html', 390);
     frames.push(frame);
     await settle(BOOT_MS);
@@ -105,11 +125,31 @@ export default async function run(check) {
       doc.body.dataset.panel);
     bottomNav('Start', 'b-nav-new');
 
+    /** Keyboard focus scrolls into view ignoring fixed boxes, so prove it lands above the bar. */
+    const focusClear = (label, el) => {
+      win.scrollTo(0, 0);
+      const before = el.getBoundingClientRect().top;
+      // focus() alone centres the element, which no keyboard user gets; Tab scrolls the
+      // minimum distance, as scrollIntoView 'nearest' does, and that is the case that hides.
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const rect = el.getBoundingClientRect();
+      const top = nav.getBoundingClientRect().top;
+      check(`${label}: a focused control below the fold is not hidden under the navigation`,
+        before > root.clientHeight && doc.activeElement === el && rect.bottom <= top + 0.5,
+        `started at ${Math.round(before)} of ${root.clientHeight}; focused bottom ${rect.bottom}, bar top ${top}`);
+      win.scrollTo(0, 0);
+    };
+    focusClear('Start', $('b-start'));
+
     $('b-library').click();
     await settle();
     check('Ideas sets body[data-panel="library"]', doc.body.dataset.panel === 'library',
       doc.body.dataset.panel);
     bottomNav('Ideas', 'b-library');
+    const lastCard = [...$('library-rows').querySelectorAll('.idea-card')].at(-1);
+    focusClear('Ideas', [...lastCard.querySelectorAll('button')]
+      .filter((b) => !b.closest('details:not([open])')).at(-1));
 
     $('b-settings').click();
     await settle();
@@ -160,8 +200,10 @@ export default async function run(check) {
     await settle(500);
     check('Done: a top app bar, not a bottom navigation bar',
       doc.body.dataset.panel === 'done' && win.getComputedStyle(nav).position !== 'fixed'
-        && shown($('b-library')) && !shown($('b-nav-new')) && current() === '',
-      `${doc.body.dataset.panel} ${win.getComputedStyle(nav).position} ${current()}`);
+        && shown($('b-library')) && !shown($('b-nav-new')) && current() === ''
+        && !shown($('meter')),
+      `${doc.body.dataset.panel} ${win.getComputedStyle(nav).position} ${current()}`
+        + ` meter shown: ${shown($('meter'))}`);
 
     // 360px: the narrowest common Android width. Nothing may scroll sideways on any panel.
     frame.width = 360;

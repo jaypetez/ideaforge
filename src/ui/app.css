@@ -564,7 +564,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    thumb room above the bar rather than underneath it.
 
    Interview and Done: a top app bar. Ideas becomes a back arrow (app.js gives it the name
-   "Back to ideas"), then the title, the compact meter and Settings. No New idea there: these
+   "Back to ideas"), then the title, the compact meter (Interview only: Done hides it) and Settings. No New idea there: these
    are detail screens, and starting another idea mid-interview is one tap further away on
    purpose. Voice mode hides .bar-right and the meter with `hidden`, which beats all of this. */
 @media (max-width: 600px) {
@@ -574,6 +574,11 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
       + max(var(--s2), env(safe-area-inset-bottom)) + 1px);
   }
   body:is([data-panel="setup"], [data-panel="library"]) { padding-bottom: var(--nav-bar-height); }
+  /* Keyboard focus scrolls a control into view ignoring fixed boxes, so without this a
+     tabbed-to control below the fold lands under the bar (WCAG 2.4.11, focus not obscured). */
+  html:has(body:is([data-panel="setup"], [data-panel="library"])) {
+    scroll-padding-bottom: var(--nav-bar-height);
+  }
   body:is([data-panel="setup"], [data-panel="library"]) .bar-right {
     position: fixed; inset: auto 0 0 0; z-index: 5;
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1);
