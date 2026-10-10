@@ -1,0 +1,3216 @@
+{
+  "vectorsVersion": 1,
+  "family": "providers",
+  "source": "src/providers/*.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "resolveTiers 0.0",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        {}
+      ],
+      "expect": {
+        "value": {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 0.1",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        {
+          "model": "m"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "claude-sonnet-5"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 0.2",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        {
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 0.3",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        {
+          "model": "m",
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 0.4",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        {
+          "model": "",
+          "wrapModel": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 0.5",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        },
+        null
+      ],
+      "expect": {
+        "value": {
+          "quick": "claude-haiku-4-5",
+          "default": "claude-haiku-4-5",
+          "complex": "claude-sonnet-5"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.0",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        {}
+      ],
+      "expect": {
+        "value": {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.1",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        {
+          "model": "m"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "gpt-5-mini"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.2",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        {
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.3",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        {
+          "model": "m",
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.4",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        {
+          "model": "",
+          "wrapModel": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 1.5",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        },
+        null
+      ],
+      "expect": {
+        "value": {
+          "quick": "gpt-5-nano",
+          "default": "gpt-5-nano",
+          "complex": "gpt-5-mini"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 2.0",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        {}
+      ],
+      "expect": {
+        "value": {}
+      }
+    },
+    {
+      "name": "resolveTiers 2.1",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        {
+          "model": "m"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "m"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 2.2",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        {
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 2.3",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        {
+          "model": "m",
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 2.4",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        {
+          "model": "",
+          "wrapModel": ""
+        }
+      ],
+      "expect": {
+        "value": {}
+      }
+    },
+    {
+      "name": "resolveTiers 2.5",
+      "fn": "resolveTiers",
+      "args": [
+        null,
+        null
+      ],
+      "expect": {
+        "value": {}
+      }
+    },
+    {
+      "name": "resolveTiers 3.0",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        {}
+      ],
+      "expect": {
+        "value": {
+          "quick": "q",
+          "default": "d"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 3.1",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        {
+          "model": "m"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "m"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 3.2",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        {
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "q",
+          "default": "d",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 3.3",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        {
+          "model": "m",
+          "wrapModel": "w"
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "m",
+          "default": "m",
+          "complex": "w"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 3.4",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        {
+          "model": "",
+          "wrapModel": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "quick": "q",
+          "default": "d"
+        }
+      }
+    },
+    {
+      "name": "resolveTiers 3.5",
+      "fn": "resolveTiers",
+      "args": [
+        {
+          "quick": "q",
+          "default": "d"
+        },
+        null
+      ],
+      "expect": {
+        "value": {
+          "quick": "q",
+          "default": "d"
+        }
+      }
+    },
+    {
+      "name": "presetModels artifact",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "artifact",
+          "label": "Claude (this viewer)",
+          "needsKey": false,
+          "picksModel": false,
+          "note": "No key needed. Only available when IdeaForge is opened inside a Claude viewer."
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "presetModels anthropic",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "anthropic",
+          "label": "Anthropic",
+          "needsKey": true,
+          "picksModel": true,
+          "keyUrl": "https://console.anthropic.com/settings/keys",
+          "note": "Claude Haiku for questions, Sonnet for the wrap-up. Around 10-20 cents an interview.",
+          "models": {
+            "quick": "claude-haiku-4-5",
+            "default": "claude-haiku-4-5",
+            "complex": "claude-sonnet-5"
+          }
+        }
+      ],
+      "expect": {
+        "value": [
+          "claude-haiku-4-5",
+          "claude-sonnet-5"
+        ]
+      }
+    },
+    {
+      "name": "presetModels openai",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "openai",
+          "label": "OpenAI",
+          "needsKey": true,
+          "local": false,
+          "picksModel": true,
+          "discoverModels": true,
+          "defaultBaseUrl": "https://api.openai.com/v1",
+          "keyUrl": "https://platform.openai.com/api-keys",
+          "note": null,
+          "models": {
+            "quick": "gpt-5-nano",
+            "default": "gpt-5-nano",
+            "complex": "gpt-5-mini"
+          }
+        }
+      ],
+      "expect": {
+        "value": [
+          "gpt-5-mini",
+          "gpt-5-nano"
+        ]
+      }
+    },
+    {
+      "name": "presetModels groq",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "groq",
+          "label": "Groq",
+          "needsKey": true,
+          "local": false,
+          "picksModel": true,
+          "discoverModels": true,
+          "defaultBaseUrl": "https://api.groq.com/openai/v1",
+          "keyUrl": "https://console.groq.com/keys",
+          "note": "Free tier, no card required.",
+          "models": {
+            "quick": "openai/gpt-oss-20b",
+            "default": "openai/gpt-oss-20b",
+            "complex": "openai/gpt-oss-120b"
+          }
+        }
+      ],
+      "expect": {
+        "value": [
+          "openai/gpt-oss-120b",
+          "openai/gpt-oss-20b"
+        ]
+      }
+    },
+    {
+      "name": "presetModels openrouter",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "openrouter",
+          "label": "OpenRouter",
+          "needsKey": true,
+          "local": false,
+          "picksModel": true,
+          "discoverModels": true,
+          "defaultBaseUrl": "https://openrouter.ai/api/v1",
+          "keyUrl": "https://openrouter.ai/keys",
+          "note": null,
+          "models": {
+            "quick": "openai/gpt-5-nano",
+            "default": "openai/gpt-5-nano",
+            "complex": "openai/gpt-5-mini"
+          }
+        }
+      ],
+      "expect": {
+        "value": [
+          "openai/gpt-5-mini",
+          "openai/gpt-5-nano"
+        ]
+      }
+    },
+    {
+      "name": "presetModels ollama",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "ollama",
+          "label": "Ollama (local)",
+          "needsKey": false,
+          "local": true,
+          "picksModel": true,
+          "discoverModels": true,
+          "defaultBaseUrl": "http://localhost:11434/v1",
+          "keyUrl": null,
+          "note": "Pick a model below. From a hosted page you must also set OLLAMA_ORIGINS to this app’s origin and restart Ollama — it only reads that at startup.",
+          "models": null
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "presetModels lmstudio",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "lmstudio",
+          "label": "LM Studio (local)",
+          "needsKey": false,
+          "local": true,
+          "picksModel": true,
+          "discoverModels": true,
+          "defaultBaseUrl": "http://localhost:1234/v1",
+          "keyUrl": null,
+          "note": "Enable CORS in LM Studio’s server settings, then pick a model below.",
+          "models": null
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "presetModels custom",
+      "fn": "presetModels",
+      "args": [
+        {
+          "id": "custom",
+          "label": "Another local server",
+          "needsKey": false,
+          "local": true,
+          "picksModel": true,
+          "discoverModels": true,
+          "keyUrl": null,
+          "note": "Any OpenAI-compatible server on this machine. Addresses on localhost or 127.0.0.1 only.",
+          "models": null
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "presetModels null",
+      "fn": "presetModels",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "isLoopback \"http://localhost:11434\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://localhost:11434"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://127.0.0.1:1234/v1\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://127.0.0.1:1234/v1"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://[::1]:11434\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://[::1]:11434"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://localhost.evil.com\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://localhost.evil.com"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"https://api.openai.com/v1\"",
+      "fn": "isLoopback",
+      "args": [
+        "https://api.openai.com/v1"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"http://127.0.0.2\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://127.0.0.2"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://0.0.0.0:8080\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://0.0.0.0:8080"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"not a url\"",
+      "fn": "isLoopback",
+      "args": [
+        "not a url"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"\"",
+      "fn": "isLoopback",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"http://LOCALHOST\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://LOCALHOST"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://127.1\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://127.1"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLoopback \"http://localhost:11434@evil.com\"",
+      "fn": "isLoopback",
+      "args": [
+        "http://localhost:11434@evil.com"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isLoopback \"file:///etc/passwd\"",
+      "fn": "isLoopback",
+      "args": [
+        "file:///etc/passwd"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "applyAuth 0",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1/chat?x=1",
+        {
+          "auth": {
+            "scheme": "none"
+          },
+          "apiKey": "sk-test-key",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1/chat?x=1",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 0 no key",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1",
+        {
+          "auth": {
+            "scheme": "none"
+          },
+          "apiKey": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1",
+          "headers": {}
+        }
+      }
+    },
+    {
+      "name": "applyAuth 1",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1/chat?x=1",
+        {
+          "auth": {
+            "scheme": "bearer"
+          },
+          "apiKey": "sk-test-key",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1/chat?x=1",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test-key"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 1 no key",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1",
+        {
+          "auth": {
+            "scheme": "bearer"
+          },
+          "apiKey": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1",
+          "headers": {}
+        }
+      }
+    },
+    {
+      "name": "applyAuth 2",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1/chat?x=1",
+        {
+          "auth": {
+            "scheme": "header",
+            "header": "x-api-key",
+            "extraHeaders": {
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true"
+            }
+          },
+          "apiKey": "sk-test-key",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1/chat?x=1",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-test-key"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 2 no key",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1",
+        {
+          "auth": {
+            "scheme": "header",
+            "header": "x-api-key",
+            "extraHeaders": {
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true"
+            }
+          },
+          "apiKey": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1",
+          "headers": {
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 3",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1/chat?x=1",
+        {
+          "auth": {
+            "scheme": "header",
+            "name": "x-api-key"
+          },
+          "apiKey": "sk-test-key",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1/chat?x=1",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 3 no key",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1",
+        {
+          "auth": {
+            "scheme": "header",
+            "name": "x-api-key"
+          },
+          "apiKey": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1",
+          "headers": {}
+        }
+      }
+    },
+    {
+      "name": "applyAuth 4",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1/chat?x=1",
+        {
+          "auth": {
+            "scheme": "query",
+            "name": "key"
+          },
+          "apiKey": "sk-test-key",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1/chat?x=1",
+          "headers": {
+            "content-type": "application/json"
+          }
+        }
+      }
+    },
+    {
+      "name": "applyAuth 4 no key",
+      "fn": "applyAuth",
+      "args": [
+        "https://example.test/v1",
+        {
+          "auth": {
+            "scheme": "query",
+            "name": "key"
+          },
+          "apiKey": ""
+        }
+      ],
+      "expect": {
+        "value": {
+          "url": "https://example.test/v1",
+          "headers": {}
+        }
+      }
+    },
+    {
+      "name": "codeForStatus 400",
+      "fn": "codeForStatus",
+      "args": [
+        400
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "codeForStatus 401",
+      "fn": "codeForStatus",
+      "args": [
+        401
+      ],
+      "expect": {
+        "value": "auth"
+      }
+    },
+    {
+      "name": "codeForStatus 403",
+      "fn": "codeForStatus",
+      "args": [
+        403
+      ],
+      "expect": {
+        "value": "auth"
+      }
+    },
+    {
+      "name": "codeForStatus 404",
+      "fn": "codeForStatus",
+      "args": [
+        404
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "codeForStatus 408",
+      "fn": "codeForStatus",
+      "args": [
+        408
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "codeForStatus 413",
+      "fn": "codeForStatus",
+      "args": [
+        413
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "codeForStatus 429",
+      "fn": "codeForStatus",
+      "args": [
+        429
+      ],
+      "expect": {
+        "value": "rate_limit"
+      }
+    },
+    {
+      "name": "codeForStatus 500",
+      "fn": "codeForStatus",
+      "args": [
+        500
+      ],
+      "expect": {
+        "value": "overloaded"
+      }
+    },
+    {
+      "name": "codeForStatus 502",
+      "fn": "codeForStatus",
+      "args": [
+        502
+      ],
+      "expect": {
+        "value": "overloaded"
+      }
+    },
+    {
+      "name": "codeForStatus 503",
+      "fn": "codeForStatus",
+      "args": [
+        503
+      ],
+      "expect": {
+        "value": "overloaded"
+      }
+    },
+    {
+      "name": "codeForStatus 529",
+      "fn": "codeForStatus",
+      "args": [
+        529
+      ],
+      "expect": {
+        "value": "overloaded"
+      }
+    },
+    {
+      "name": "codeForStatus 200",
+      "fn": "codeForStatus",
+      "args": [
+        200
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "codeForStatus 0",
+      "fn": "codeForStatus",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": "bad_response"
+      }
+    },
+    {
+      "name": "isRetryable rate_limit",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "rate_limit"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable overloaded",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "overloaded"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable network",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "network"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable auth",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "auth"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable bad_response",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "bad_response"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "isRetryable aborted",
+      "fn": "isRetryable",
+      "args": [
+        {
+          "code": "aborted"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "retryAfterMs 0",
+      "fn": "retryAfterMs",
+      "args": [
+        {
+          "retry-after": "3"
+        }
+      ],
+      "expect": {
+        "value": 3000
+      }
+    },
+    {
+      "name": "retryAfterMs 1",
+      "fn": "retryAfterMs",
+      "args": [
+        {
+          "retry-after": "0"
+        }
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "retryAfterMs 2",
+      "fn": "retryAfterMs",
+      "args": [
+        {
+          "retry-after": "soon"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "retryAfterMs 3",
+      "fn": "retryAfterMs",
+      "args": [
+        {}
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "retryAfterMs 4",
+      "fn": "retryAfterMs",
+      "args": [
+        {
+          "retry-after": "120"
+        }
+      ],
+      "expect": {
+        "value": 120000
+      }
+    },
+    {
+      "name": "retryAfterMs 5",
+      "fn": "retryAfterMs",
+      "args": [
+        {
+          "retry-after": "-4"
+        }
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "parseModelList 0",
+      "fn": "parseModelList",
+      "args": [
+        {
+          "data": [
+            {
+              "id": "b"
+            },
+            {
+              "id": "a"
+            },
+            {
+              "id": "a"
+            },
+            {
+              "nope": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "value": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "parseModelList 1",
+      "fn": "parseModelList",
+      "args": [
+        {
+          "models": [
+            {
+              "name": "llama"
+            },
+            {
+              "model": "qwen"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "value": [
+          "llama"
+        ]
+      }
+    },
+    {
+      "name": "parseModelList 2",
+      "fn": "parseModelList",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "parseModelList 3",
+      "fn": "parseModelList",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "parseModelList 4",
+      "fn": "parseModelList",
+      "args": [
+        "x"
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "parseModelList 5",
+      "fn": "parseModelList",
+      "args": [
+        {
+          "data": "nope"
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "extractJson 0",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":1}"
+      ],
+      "expect": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "extractJson 1",
+      "fn": "extractJson",
+      "args": [
+        "```json\n{\"a\":1}\n```"
+      ],
+      "expect": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "extractJson 2",
+      "fn": "extractJson",
+      "args": [
+        "Sure! Here you go: {\"a\": {\"b\": [1,2]}} hope that helps"
+      ],
+      "expect": {
+        "value": {
+          "a": {
+            "b": [
+              1,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "extractJson 3",
+      "fn": "extractJson",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "throws": "model returned an empty response"
+      }
+    },
+    {
+      "name": "extractJson 4",
+      "fn": "extractJson",
+      "args": [
+        "no json here"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 12 chars starting \"no json here\")"
+      }
+    },
+    {
+      "name": "extractJson 5",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":1} {\"b\":2}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 15 chars starting \"{\"a\":1} {\"b\":2}\")"
+      }
+    },
+    {
+      "name": "extractJson 6",
+      "fn": "extractJson",
+      "args": [
+        "[1,2,3]"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 7 chars starting \"[1,2,3]\")"
+      }
+    },
+    {
+      "name": "extractJson 7",
+      "fn": "extractJson",
+      "args": [
+        "{\"unterminated\": "
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 16 chars starting \"{\"unterminated\":\")"
+      }
+    },
+    {
+      "name": "extractJson 8",
+      "fn": "extractJson",
+      "args": [
+        "{\"s\":\"a } brace\"}"
+      ],
+      "expect": {
+        "value": {
+          "s": "a } brace"
+        }
+      }
+    },
+    {
+      "name": "extractJson 9",
+      "fn": "extractJson",
+      "args": [
+        null
+      ],
+      "expect": {
+        "throws": "model returned an empty response"
+      }
+    },
+    {
+      "name": "extractJson 10",
+      "fn": "extractJson",
+      "args": [
+        "  {\"x\":\"\\u00e9\"}  "
+      ],
+      "expect": {
+        "value": {
+          "x": "é"
+        }
+      }
+    },
+    {
+      "name": "request 0 anthropic quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-haiku-4-5",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "name": "request 0 anthropic default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-haiku-4-5",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-haiku-4-5"
+        }
+      }
+    },
+    {
+      "name": "request 0 anthropic complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-sonnet-5",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-sonnet-5"
+        }
+      }
+    },
+    {
+      "name": "request 1 anthropic quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test",
+          "model": "claude-x",
+          "wrapModel": "claude-y"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-x",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-x"
+        }
+      }
+    },
+    {
+      "name": "request 1 anthropic default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test",
+          "model": "claude-x",
+          "wrapModel": "claude-y"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-x",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-x"
+        }
+      }
+    },
+    {
+      "name": "request 1 anthropic complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test",
+          "model": "claude-x",
+          "wrapModel": "claude-y"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-y",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PREFIX TEXT"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "claude-y"
+        }
+      }
+    },
+    {
+      "name": "request 2 openai quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-5-nano",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 2 openai default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-5-nano",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 2 openai complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-5-mini",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 3 openai quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test",
+          "model": "gpt-x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-x",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 3 openai default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test",
+          "model": "gpt-x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-x",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 3 openai complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "sk-test",
+          "model": "gpt-x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer sk-test"
+          },
+          "body": {
+            "model": "gpt-5-mini",
+            "max_completion_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 4 groq quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "gsk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.groq.com/openai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer gsk-test"
+          },
+          "body": {
+            "model": "openai/gpt-oss-20b",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 4 groq default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "gsk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.groq.com/openai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer gsk-test"
+          },
+          "body": {
+            "model": "openai/gpt-oss-20b",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 4 groq complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "gsk-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.groq.com/openai/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer gsk-test"
+          },
+          "body": {
+            "model": "openai/gpt-oss-120b",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 5 openrouter quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openrouter",
+          "apiKey": "or-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer or-test"
+          },
+          "body": {
+            "model": "openai/gpt-5-nano",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 5 openrouter default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openrouter",
+          "apiKey": "or-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer or-test"
+          },
+          "body": {
+            "model": "openai/gpt-5-nano",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 5 openrouter complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "openrouter",
+          "apiKey": "or-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "authorization": "Bearer or-test"
+          },
+          "body": {
+            "model": "openai/gpt-5-mini",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 6 ollama quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "ollama",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "model": "qwen2.5:7b-instruct"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:11434/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "qwen2.5:7b-instruct",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 6 ollama default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "ollama",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "model": "qwen2.5:7b-instruct"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:11434/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "qwen2.5:7b-instruct",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 6 ollama complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "ollama",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "model": "qwen2.5:7b-instruct"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:11434/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "qwen2.5:7b-instruct",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 7 lmstudio quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "lmstudio",
+          "baseUrl": "http://localhost:1234/v1",
+          "model": "local-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "http://localhost:1234/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "local-model",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 7 lmstudio default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "lmstudio",
+          "baseUrl": "http://localhost:1234/v1",
+          "model": "local-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "http://localhost:1234/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "local-model",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 7 lmstudio complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "lmstudio",
+          "baseUrl": "http://localhost:1234/v1",
+          "model": "local-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "http://localhost:1234/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "local-model",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 8 custom quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "model": "my-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:8080/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "my-model",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 8 custom default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "model": "my-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:8080/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "my-model",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 8 custom complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "model": "my-model"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "request": {
+          "url": "http://127.0.0.1:8080/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "model": "my-model",
+            "max_tokens": 4096,
+            "messages": [
+              {
+                "role": "system",
+                "content": "SYSTEM TEXT"
+              },
+              {
+                "role": "user",
+                "content": "PREFIX TEXT\nTAIL TEXT"
+              }
+            ],
+            "response_format": {
+              "type": "json_object"
+            }
+          }
+        },
+        "result": {
+          "json": {
+            "ok": true
+          },
+          "modelTierApplied": "served-model"
+        }
+      }
+    },
+    {
+      "name": "request 9 custom quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "http://127.0.0.1:8080/v1 needs a model name — pick one in Settings, or press Check the connection to read the list off the server."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 9 custom default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "http://127.0.0.1:8080/v1 needs a model name — pick one in Settings, or press Check the connection to read the list off the server."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 9 custom complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "http://127.0.0.1:8080/v1"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "http://127.0.0.1:8080/v1 needs a model name — pick one in Settings, or press Check the connection to read the list off the server."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 10 custom quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "https://example.com/v1",
+          "model": "x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "https://example.com/v1 is not on this machine. A server you type in has to be at localhost or 127.0.0.1 — this page will only talk to the providers in its allowlist plus your own machine, which is what stops a stolen key being posted anywhere."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 10 custom default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "https://example.com/v1",
+          "model": "x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "https://example.com/v1 is not on this machine. A server you type in has to be at localhost or 127.0.0.1 — this page will only talk to the providers in its allowlist plus your own machine, which is what stops a stolen key being posted anywhere."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 10 custom complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "custom",
+          "baseUrl": "https://example.com/v1",
+          "model": "x"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "https://example.com/v1 is not on this machine. A server you type in has to be at localhost or 127.0.0.1 — this page will only talk to the providers in its allowlist plus your own machine, which is what stops a stolen key being posted anywhere."
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 11 nope quick",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "nope"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "quick"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "unknown provider: nope"
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 11 nope default",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "nope"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "unknown provider: nope"
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request 11 nope complex",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "nope"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "PREFIX TEXT",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "complex"
+      },
+      "expect": {
+        "throws": {
+          "code": "config",
+          "message": "unknown provider: nope"
+        },
+        "request": null
+      }
+    },
+    {
+      "name": "request anthropic cache marker just under",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééx",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-haiku-4-5",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééx"
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "request anthropic cache marker at the threshold",
+      "fn": "request",
+      "input": {
+        "config": {
+          "kind": "anthropic",
+          "apiKey": "sk-ant-test"
+        },
+        "parts": {
+          "system": "SYSTEM TEXT",
+          "prefix": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééx",
+          "tail": "TAIL TEXT"
+        },
+        "modelTier": "default"
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.anthropic.com/v1/messages",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+            "x-api-key": "sk-ant-test"
+          },
+          "body": {
+            "model": "claude-haiku-4-5",
+            "max_tokens": 4096,
+            "system": [
+              {
+                "type": "text",
+                "text": "SYSTEM TEXT"
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééx",
+                    "cache_control": {
+                      "type": "ephemeral"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": "TAIL TEXT"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

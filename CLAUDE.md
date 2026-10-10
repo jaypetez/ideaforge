@@ -24,6 +24,7 @@ npm run test:all         # unit + graph + browser
 npm run lint:purity      # the architecture gate alone
 npm run serve            # http://127.0.0.1:8765  (file:// will NOT work)
 npm run screenshots      # regenerate docs/ — the README's images and worked example
+npm run vectors          # regenerate test/vectors/ — the golden vectors android/ replays
 
 node --test test/voice.test.mjs                        # one file
 node --test --test-name-pattern="zero gain" "test/**/*.test.mjs"
@@ -113,6 +114,11 @@ These are load-bearing and most of them fail *silently* if broken.
   progress — that is exactly what the exhaustion exit exists to catch.
 - **Bank-question turns leave `zeroGainStreak` untouched**, in both directions. Incrementing
   would let two network blips offer the exit for a reason that never happened.
+- **The golden vectors are the Kotlin port's contract.** `tools/vectors.mjs` records real
+  calls into the JS core as `test/vectors/*.json`, and `test/vectors.test.mjs` fails when they
+  are stale. A change that alters behaviour regenerates them (`npm run vectors`) in the same
+  PR, and the `android` CI job then fails until `android/` follows. Never edit a vector by
+  hand or loosen a Kotlin consumer to make it pass.
 - **Never trust model output.** `parseTurnResult` and `parseSynthesisResult` assume the
   model lies about shape; every field is optional. Add validation there, not at call sites.
 - **`source: 'voice'` exempts an answer from the terse and dodge thresholds**, because

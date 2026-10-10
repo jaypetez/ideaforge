@@ -1,0 +1,2117 @@
+{
+  "vectorsVersion": 1,
+  "family": "drive-loop",
+  "source": "src/runtime/drive.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "answers six questions",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "first answer over"
+          },
+          {
+            "text": "second answer over"
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "first answer"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "second answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a capture without the trigger is still the answer",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "we went over budget"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "we went over budget"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "silence then answer",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": ""
+          },
+          {
+            "text": "here it is over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "here it is"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "three silences re-read, then skip blind",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": ""
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": "finally over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Let me read that again."
+          ],
+          [
+            "speak",
+            "Let me read that again."
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ll come back to that one."
+          ],
+          [
+            "speak",
+            "I’ll come back to that one."
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "permanent silence skips blind then stops",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": ""
+          }
+        ],
+        "turns": 3
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Let me read that again."
+          ],
+          [
+            "speak",
+            "Let me read that again."
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ll come back to that one."
+          ],
+          [
+            "speak",
+            "I’ll come back to that one."
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Let me read that again."
+          ],
+          [
+            "speak",
+            "Let me read that again."
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ll come back to that one."
+          ],
+          [
+            "speak",
+            "I’ll come back to that one."
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
+          ],
+          [
+            "speak",
+            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "skip command",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "skip this over"
+          },
+          {
+            "text": "answer two over"
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "answer two"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "repeat command",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "repeat"
+          },
+          {
+            "text": "an answer over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "an answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "skip phrase inside an answer is an answer",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "I'd skip this one if I could over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "I'd skip this one if I could"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wrap refused before four answers",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "wrap up"
+          },
+          {
+            "text": "yes"
+          }
+        ],
+        "turns": 3
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "We’ve only just started — a few more questions first."
+          ],
+          [
+            "speak",
+            "We’ve only just started — a few more questions first."
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "yes"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "yes"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 2. Question 2?"
+          ],
+          [
+            "speak",
+            "Bridge 2. Question 2?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "yes"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "I'm done refused before four answers",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "I'm done"
+          },
+          {
+            "text": "more to say over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "We’ve only just started — a few more questions first."
+          ],
+          [
+            "speak",
+            "We’ve only just started — a few more questions first."
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "more to say"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wrap after four answers",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "one over"
+          },
+          {
+            "text": "two over"
+          },
+          {
+            "text": "three over"
+          },
+          {
+            "text": "four over"
+          },
+          {
+            "text": "wrap it up"
+          }
+        ],
+        "turns": 6
+      },
+      "expect": {
+        "result": "wrapped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "one"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "two"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 2. Question 2?"
+          ],
+          [
+            "speak",
+            "Bridge 2. Question 2?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "three"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 3. Question 3?"
+          ],
+          [
+            "speak",
+            "Bridge 3. Question 3?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "four"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 4. Question 4?"
+          ],
+          [
+            "speak",
+            "Bridge 4. Question 4?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "wrap"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "pause command",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "pause voice"
+          }
+        ],
+        "turns": 3
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "paused"
+          ],
+          [
+            "pause"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "exit command",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "exit voice"
+          }
+        ],
+        "turns": 3
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "stopped"
+          ],
+          [
+            "exit"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "the bare word exit is an answer",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "exit"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "exit"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "scratch that",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "scratch that"
+          },
+          {
+            "text": "clean answer over"
+          }
+        ],
+        "turns": 1,
+        "hasDraft": true
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "scratch"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Scratched — go again."
+          ],
+          [
+            "speak",
+            "Scratched — go again."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "clean answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "chips are spoken separately",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "an answer over"
+          }
+        ],
+        "turns": 1,
+        "chips": [
+          "the basil",
+          "the tomatoes",
+          "both of them"
+        ]
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "notify",
+            "For example: the basil, the tomatoes, or both of them."
+          ],
+          [
+            "speak",
+            "For example: the basil, the tomatoes, or both of them."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "an answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "offer accepted",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "answer over"
+          },
+          {
+            "text": "yes"
+          }
+        ],
+        "turns": 3,
+        "offerAt": 1
+      },
+      "expect": {
+        "result": "wrapped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "answer"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "speak",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "wrap"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "offer declined",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "answer over"
+          },
+          {
+            "text": "not yet"
+          },
+          {
+            "text": "next answer over"
+          }
+        ],
+        "turns": 2,
+        "offerAt": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "answer"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "speak",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Right — carrying on."
+          ],
+          [
+            "speak",
+            "Right — carrying on."
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "next answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "offer unclear",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "answer over"
+          },
+          {
+            "text": "purple"
+          },
+          {
+            "text": "no"
+          },
+          {
+            "text": "next over"
+          }
+        ],
+        "turns": 2,
+        "offerAt": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "answer"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "speak",
+            "Advisory for coverage. Shall I write it up? Say yes, or say keep going."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Sorry — say yes to write it up, or say keep going."
+          ],
+          [
+            "speak",
+            "Sorry — say yes to write it up, or say keep going."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Right — carrying on."
+          ],
+          [
+            "speak",
+            "Right — carrying on."
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "next"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "recoverable listen error",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "kind": "throw",
+            "code": "network",
+            "message": "blip"
+          },
+          {
+            "text": "ok then over"
+          }
+        ],
+        "turns": 1
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "ok then"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "denied microphone stops",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "kind": "throw",
+            "code": "denied",
+            "message": "no mic"
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Let me read that again."
+          ],
+          [
+            "speak",
+            "Let me read that again."
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ll come back to that one."
+          ],
+          [
+            "speak",
+            "I’ll come back to that one."
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "speak",
+            "I didn’t catch that. Take your time, and say “over” when you’re done."
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Let me read that again."
+          ],
+          [
+            "speak",
+            "Let me read that again."
+          ],
+          [
+            "notify",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "speak",
+            "Bridge 1. Question 1?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "recovering"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I’ll come back to that one."
+          ],
+          [
+            "speak",
+            "I’ll come back to that one."
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "skip"
+          ],
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
+          ],
+          [
+            "speak",
+            "I can’t hear you, so I’ve switched hands-free off. Tap the microphone when you’re ready."
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "custom trigger",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "my answer done"
+          }
+        ],
+        "turns": 1,
+        "config": {
+          "trigger": "done"
+        }
+      },
+      "expect": {
+        "result": "done",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "processing"
+          ],
+          [
+            "submit",
+            "my answer"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "stop after first listen",
+      "fn": "driveLoop",
+      "input": {
+        "outcomes": [
+          {
+            "text": "half an answer",
+            "stopAfter": 1
+          }
+        ],
+        "turns": 2
+      },
+      "expect": {
+        "result": "stopped",
+        "log": [
+          [
+            "state",
+            "speaking"
+          ],
+          [
+            "notify",
+            "Question 0?"
+          ],
+          [
+            "speak",
+            "Question 0?"
+          ],
+          [
+            "state",
+            "listening"
+          ],
+          [
+            "listen"
+          ],
+          [
+            "state",
+            "stopped"
+          ]
+        ]
+      }
+    }
+  ]
+}
