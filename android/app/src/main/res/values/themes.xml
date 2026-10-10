@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window theme only covers the instant before Compose draws; Material 3 colours
+         come from the Compose theme. -->
+    <style name="Theme.IdeaForge" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
