@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The anvil from src/ui/icon.svg, so the installed app matches the web app's icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:fillColor="#0E6B73"
+        android:pathData="M96,0h320a96,96 0,0 1,96 96v320a96,96 0,0 1,-96 96H96a96,96 0,0 1,-96 -96V96A96,96 0,0 1,96 0z" />
+    <path
+        android:fillColor="#F6F7F9"
+        android:pathData="M126,196h150c34,0 58,26 92,26h30v-40h44v104h-58c-30,0 -52,-16 -72,-30l-2,44h44l30,92H152l30,-92h44l-4,-56h-96z" />
+    <path
+        android:fillColor="#F6F7F9"
+        android:pathData="M186,404h140a10,10 0,0 1,10 10v14a10,10 0,0 1,-10 10H186a10,10 0,0 1,-10 -10v-14a10,10 0,0 1,10 -10z" />
+</vector>
