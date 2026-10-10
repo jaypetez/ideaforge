@@ -1,0 +1,4301 @@
+{
+  "vectorsVersion": 1,
+  "family": "session",
+  "source": "src/core/session.js",
+  "fixtures": {
+    "s_cov@0#af2ea44a31": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 0,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000000000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@1#10cf021150": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 1,
+      "createdAt": 1760000000000,
+      "updatedAt": 1,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@1#d6ced6a01f": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 1,
+      "createdAt": 1760000000000,
+      "updatedAt": 1,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "deferred",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@2#8e69154c1a": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 2,
+      "createdAt": 1760000000000,
+      "updatedAt": 2,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "bar",
+          "question": "Q?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": "draft words",
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "draft words",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@2#a16444fafb": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 2,
+      "createdAt": 1760000000000,
+      "updatedAt": 1,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "waived",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": "n/a"
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_walkthrough@16#0875ee064d": {
+      "schema": 2,
+      "id": "s_walkthrough",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000030000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "An app that helps me remember the names of people I meet at conferences.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "An app that helps me remember the names of people I meet at conferences.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000000000,
+          "answeredAt": 1760000010000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "substance",
+          "question": "At the last conference, how many names did you actually lose?",
+          "bridge": "Conferences, so a lot of names in a short window.",
+          "move": "concretize",
+          "chips": [
+            "maybe thirty names over three days",
+            "honestly I stopped counting",
+            "only a handful, but the ones that mattered",
+            "I never learned them in the first place"
+          ],
+          "questionSource": "model",
+          "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000015000,
+          "answeredAt": 1760000020000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "bar",
+          "question": "What would make you delete this in the first week?",
+          "bridge": "Thirty names, and the evening ones go first.",
+          "move": "anti_goal",
+          "chips": [
+            "if I had to type during a conversation",
+            "if it was just another contacts list",
+            "if it took more than five seconds",
+            "honestly, if I forgot it was there"
+          ],
+          "questionSource": "model",
+          "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000025000,
+          "answeredAt": 1760000030000,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "no sense of what the app hands back",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "the numbers are there, but not one real encounter",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "A phone app for recalling names met at conferences."
+        },
+        {
+          "dimension": "substance",
+          "fact": "Roughly thirty names lost over a three-day conference."
+        },
+        {
+          "dimension": "substance",
+          "fact": "The losses cluster around the evening receptions."
+        }
+      ],
+      "moveHistory": [
+        "concretize",
+        "anti_goal"
+      ],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "phone"
+      }
+    },
+    "s_walkthrough@16#460a411cb1": {
+      "schema": 99,
+      "id": "s_walkthrough",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000030000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "An app that helps me remember the names of people I meet at conferences.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "An app that helps me remember the names of people I meet at conferences.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000000000,
+          "answeredAt": 1760000010000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "substance",
+          "question": "At the last conference, how many names did you actually lose?",
+          "bridge": "Conferences, so a lot of names in a short window.",
+          "move": "concretize",
+          "chips": [
+            "maybe thirty names over three days",
+            "honestly I stopped counting",
+            "only a handful, but the ones that mattered",
+            "I never learned them in the first place"
+          ],
+          "questionSource": "model",
+          "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000015000,
+          "answeredAt": 1760000020000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "bar",
+          "question": "What would make you delete this in the first week?",
+          "bridge": "Thirty names, and the evening ones go first.",
+          "move": "anti_goal",
+          "chips": [
+            "if I had to type during a conversation",
+            "if it was just another contacts list",
+            "if it took more than five seconds",
+            "honestly, if I forgot it was there"
+          ],
+          "questionSource": "model",
+          "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000025000,
+          "answeredAt": 1760000030000,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "no sense of what the app hands back",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "the numbers are there, but not one real encounter",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "A phone app for recalling names met at conferences."
+        },
+        {
+          "dimension": "substance",
+          "fact": "Roughly thirty names lost over a three-day conference."
+        },
+        {
+          "dimension": "substance",
+          "fact": "The losses cluster around the evening receptions."
+        }
+      ],
+      "moveHistory": [
+        "concretize",
+        "anti_goal"
+      ],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "phone"
+      }
+    },
+    "s_walkthrough@16#9eabc491e0": {
+      "schema": 2,
+      "id": "s_walkthrough",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000030000,
+      "status": "done",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "An app that helps me remember the names of people I meet at conferences.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "An app that helps me remember the names of people I meet at conferences.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000000000,
+          "answeredAt": 1760000010000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "substance",
+          "question": "At the last conference, how many names did you actually lose?",
+          "bridge": "Conferences, so a lot of names in a short window.",
+          "move": "concretize",
+          "chips": [
+            "maybe thirty names over three days",
+            "honestly I stopped counting",
+            "only a handful, but the ones that mattered",
+            "I never learned them in the first place"
+          ],
+          "questionSource": "model",
+          "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000015000,
+          "answeredAt": 1760000020000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "bar",
+          "question": "What would make you delete this in the first week?",
+          "bridge": "Thirty names, and the evening ones go first.",
+          "move": "anti_goal",
+          "chips": [
+            "if I had to type during a conversation",
+            "if it was just another contacts list",
+            "if it took more than five seconds",
+            "honestly, if I forgot it was there"
+          ],
+          "questionSource": "model",
+          "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000025000,
+          "answeredAt": 1760000030000,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "no sense of what the app hands back",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "the numbers are there, but not one real encounter",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "A phone app for recalling names met at conferences."
+        },
+        {
+          "dimension": "substance",
+          "fact": "Roughly thirty names lost over a three-day conference."
+        },
+        {
+          "dimension": "substance",
+          "fact": "The losses cluster around the evening receptions."
+        }
+      ],
+      "moveHistory": [
+        "concretize",
+        "anti_goal"
+      ],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "phone"
+      }
+    },
+    "s_walkthrough@16#fd53171bb0": {
+      "schema": 2,
+      "id": "s_walkthrough",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000030000,
+      "status": "interviewing",
+      "name": "Mine",
+      "title": "Model",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "An app that helps me remember the names of people I meet at conferences.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "An app that helps me remember the names of people I meet at conferences.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000000000,
+          "answeredAt": 1760000010000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "substance",
+          "question": "At the last conference, how many names did you actually lose?",
+          "bridge": "Conferences, so a lot of names in a short window.",
+          "move": "concretize",
+          "chips": [
+            "maybe thirty names over three days",
+            "honestly I stopped counting",
+            "only a handful, but the ones that mattered",
+            "I never learned them in the first place"
+          ],
+          "questionSource": "model",
+          "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000015000,
+          "answeredAt": 1760000020000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "bar",
+          "question": "What would make you delete this in the first week?",
+          "bridge": "Thirty names, and the evening ones go first.",
+          "move": "anti_goal",
+          "chips": [
+            "if I had to type during a conversation",
+            "if it was just another contacts list",
+            "if it took more than five seconds",
+            "honestly, if I forgot it was there"
+          ],
+          "questionSource": "model",
+          "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000025000,
+          "answeredAt": 1760000030000,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "no sense of what the app hands back",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "the numbers are there, but not one real encounter",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "A phone app for recalling names met at conferences."
+        },
+        {
+          "dimension": "substance",
+          "fact": "Roughly thirty names lost over a three-day conference."
+        },
+        {
+          "dimension": "substance",
+          "fact": "The losses cluster around the evening receptions."
+        }
+      ],
+      "moveHistory": [
+        "concretize",
+        "anti_goal"
+      ],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "phone"
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "createSession",
+      "fn": "createSession",
+      "args": [
+        {
+          "id": "s_new",
+          "now": 1760000000000,
+          "device": "phone"
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_new",
+          "rev": 0,
+          "createdAt": 1760000000000,
+          "updatedAt": 1760000000000,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "createSession without id throws",
+      "fn": "createSession",
+      "args": [
+        {}
+      ],
+      "expect": {
+        "throws": "createSession requires an id (generated by the caller, not core)"
+      }
+    },
+    {
+      "name": "ratchet: one level per turn",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "they said it",
+            "gap": null
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 1,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "ratchet: never falls",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "outcome": {
+            "level": "thin",
+            "gap": "worse"
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "worse",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "ratchet: at most two dimensions rise",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "outcome": {
+            "level": "partial"
+          },
+          "substance": {
+            "level": "partial"
+          },
+          "bar": {
+            "level": "partial"
+          },
+          "constraints": {
+            "level": "partial"
+          },
+          "audience": {
+            "level": "partial"
+          },
+          "voice": {
+            "level": "partial"
+          },
+          "references": {
+            "level": "partial"
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 1,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered without evidence is partial",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "bar": {
+            "level": "covered",
+            "gap": null
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered with blank evidence is partial",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "bar": {
+            "level": "covered",
+            "evidence": "   "
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered with evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "bar": {
+            "level": "covered",
+            "evidence": "three seconds, one thumb",
+            "gap": "ignored"
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "ignored",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "low-confidence dimension capped at partial",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "bar": {
+            "level": "covered",
+            "evidence": "q"
+          }
+        },
+        {
+          "lowConfidenceDimension": "bar",
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "capped dimension stays partial",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "audience": {
+            "level": "covered",
+            "evidence": "q"
+          }
+        },
+        {
+          "cappedDimensions": [
+            "audience"
+          ],
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "waived dimension ignores claims",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@2#a16444fafb"
+        },
+        {
+          "voice": {
+            "level": "covered",
+            "evidence": "q"
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 3,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "waived",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": "n/a"
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "garbage claims ignored",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "outcome": {
+            "level": "excellent"
+          },
+          "nope": {
+            "level": "covered"
+          },
+          "bar": null
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 1,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "null claims",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        null,
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 1,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "gap kept when new gap blank",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@1#10cf021150"
+        },
+        {
+          "outcome": {
+            "level": "partial",
+            "gap": ""
+          }
+        },
+        {
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "addFacts",
+      "fn": "addFacts",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#0875ee064d"
+        },
+        [
+          {
+            "dimension": "bar",
+            "fact": "Three seconds."
+          },
+          {
+            "dimension": "nope",
+            "fact": "x"
+          },
+          {
+            "fact": ""
+          },
+          null
+        ],
+        5
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_walkthrough",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 5,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "An app that helps me remember the names of people I meet at conferences.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "An app that helps me remember the names of people I meet at conferences.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000000000,
+              "answeredAt": 1760000010000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "substance",
+              "question": "At the last conference, how many names did you actually lose?",
+              "bridge": "Conferences, so a lot of names in a short window.",
+              "move": "concretize",
+              "chips": [
+                "maybe thirty names over three days",
+                "honestly I stopped counting",
+                "only a handful, but the ones that mattered",
+                "I never learned them in the first place"
+              ],
+              "questionSource": "model",
+              "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000015000,
+              "answeredAt": 1760000020000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "bar",
+              "question": "What would make you delete this in the first week?",
+              "bridge": "Thirty names, and the evening ones go first.",
+              "move": "anti_goal",
+              "chips": [
+                "if I had to type during a conversation",
+                "if it was just another contacts list",
+                "if it took more than five seconds",
+                "honestly, if I forgot it was there"
+              ],
+              "questionSource": "model",
+              "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000025000,
+              "answeredAt": 1760000030000,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "no sense of what the app hands back",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "the numbers are there, but not one real encounter",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "dimension": "outcome",
+              "fact": "A phone app for recalling names met at conferences."
+            },
+            {
+              "dimension": "substance",
+              "fact": "Roughly thirty names lost over a three-day conference."
+            },
+            {
+              "dimension": "substance",
+              "fact": "The losses cluster around the evening receptions."
+            },
+            {
+              "dimension": "bar",
+              "fact": "Three seconds."
+            },
+            {
+              "dimension": "nope",
+              "fact": "x"
+            }
+          ],
+          "moveHistory": [
+            "concretize",
+            "anti_goal"
+          ],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "skipQuestion on a closed turn throws",
+      "fn": "skipQuestion",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#0875ee064d"
+        },
+        {
+          "now": 3
+        }
+      ],
+      "expect": {
+        "throws": "no open turn to skip"
+      }
+    },
+    {
+      "name": "answerQuestion with draft source unedited",
+      "fn": "answerQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@2#8e69154c1a"
+        },
+        {
+          "text": "draft words",
+          "source": "draft",
+          "now": 3
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 3,
+          "createdAt": 1760000000000,
+          "updatedAt": 3,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "draft words",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "bar",
+              "question": "Q?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "draft words",
+              "answerSource": "draft-unedited",
+              "draftText": "draft words",
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 3,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "answerQuestion with draft source edited",
+      "fn": "answerQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@2#8e69154c1a"
+        },
+        {
+          "text": "draft words, edited",
+          "source": "draft",
+          "now": 3
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 3,
+          "createdAt": 1760000000000,
+          "updatedAt": 3,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "draft words, edited",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "bar",
+              "question": "Q?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "draft words, edited",
+              "answerSource": "draft-edited",
+              "draftText": "draft words",
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 3,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "askQuestion without question throws",
+      "fn": "askQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "dimension": "bar"
+        }
+      ],
+      "expect": {
+        "throws": "askQuestion requires a question"
+      }
+    },
+    {
+      "name": "isLowConfidence chip",
+      "fn": "isLowConfidence",
+      "args": [
+        {
+          "answerSource": "chip"
+        }
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "isLowConfidence typed",
+      "fn": "isLowConfidence",
+      "args": [
+        {
+          "answerSource": "typed"
+        }
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "resumeDimension",
+      "fn": "resumeDimension",
+      "args": [
+        {
+          "$ref": "s_cov@1#d6ced6a01f"
+        },
+        "bar",
+        2
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "copySession",
+      "fn": "copySession",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#0875ee064d"
+        },
+        {
+          "id": "s_copy",
+          "now": 1760000005000
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_copy",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 1760000005000,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "An app that helps me remember the names of people I meet at conferences.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "An app that helps me remember the names of people I meet at conferences.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000000000,
+              "answeredAt": 1760000010000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "substance",
+              "question": "At the last conference, how many names did you actually lose?",
+              "bridge": "Conferences, so a lot of names in a short window.",
+              "move": "concretize",
+              "chips": [
+                "maybe thirty names over three days",
+                "honestly I stopped counting",
+                "only a handful, but the ones that mattered",
+                "I never learned them in the first place"
+              ],
+              "questionSource": "model",
+              "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000015000,
+              "answeredAt": 1760000020000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "bar",
+              "question": "What would make you delete this in the first week?",
+              "bridge": "Thirty names, and the evening ones go first.",
+              "move": "anti_goal",
+              "chips": [
+                "if I had to type during a conversation",
+                "if it was just another contacts list",
+                "if it took more than five seconds",
+                "honestly, if I forgot it was there"
+              ],
+              "questionSource": "model",
+              "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000025000,
+              "answeredAt": 1760000030000,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "no sense of what the app hands back",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "the numbers are there, but not one real encounter",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "dimension": "outcome",
+              "fact": "A phone app for recalling names met at conferences."
+            },
+            {
+              "dimension": "substance",
+              "fact": "Roughly thirty names lost over a three-day conference."
+            },
+            {
+              "dimension": "substance",
+              "fact": "The losses cluster around the evening receptions."
+            }
+          ],
+          "moveHistory": [
+            "concretize",
+            "anti_goal"
+          ],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "reopen",
+      "fn": "reopen",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#9eabc491e0"
+        },
+        1760000006000
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_walkthrough",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 1760000006000,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "An app that helps me remember the names of people I meet at conferences.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "An app that helps me remember the names of people I meet at conferences.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000000000,
+              "answeredAt": 1760000010000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "substance",
+              "question": "At the last conference, how many names did you actually lose?",
+              "bridge": "Conferences, so a lot of names in a short window.",
+              "move": "concretize",
+              "chips": [
+                "maybe thirty names over three days",
+                "honestly I stopped counting",
+                "only a handful, but the ones that mattered",
+                "I never learned them in the first place"
+              ],
+              "questionSource": "model",
+              "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000015000,
+              "answeredAt": 1760000020000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "bar",
+              "question": "What would make you delete this in the first week?",
+              "bridge": "Thirty names, and the evening ones go first.",
+              "move": "anti_goal",
+              "chips": [
+                "if I had to type during a conversation",
+                "if it was just another contacts list",
+                "if it took more than five seconds",
+                "honestly, if I forgot it was there"
+              ],
+              "questionSource": "model",
+              "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000025000,
+              "answeredAt": 1760000030000,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "no sense of what the app hands back",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "the numbers are there, but not one real encounter",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "dimension": "outcome",
+              "fact": "A phone app for recalling names met at conferences."
+            },
+            {
+              "dimension": "substance",
+              "fact": "Roughly thirty names lost over a three-day conference."
+            },
+            {
+              "dimension": "substance",
+              "fact": "The losses cluster around the evening receptions."
+            }
+          ],
+          "moveHistory": [
+            "concretize",
+            "anti_goal"
+          ],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": true,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "normalizeSessionName",
+      "fn": "normalizeSessionName",
+      "args": [
+        "  A  name\twith   spaces xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  "
+      ],
+      "expect": {
+        "value": "A name with spaces xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "name": "normalizeSessionName non-string",
+      "fn": "normalizeSessionName",
+      "args": [
+        42
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "normalizeTags",
+      "fn": "normalizeTags",
+      "args": [
+        [
+          "Work",
+          " work ",
+          "",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "Ideas",
+          7,
+          "ideas",
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8",
+          "t9"
+        ]
+      ],
+      "expect": {
+        "value": [
+          "Work",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "Ideas",
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8",
+          "t9"
+        ]
+      }
+    },
+    {
+      "name": "sessionDisplayTitle name wins",
+      "fn": "sessionDisplayTitle",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#fd53171bb0"
+        }
+      ],
+      "expect": {
+        "value": "Mine"
+      }
+    },
+    {
+      "name": "sessionDisplayTitle falls back",
+      "fn": "sessionDisplayTitle",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        }
+      ],
+      "expect": {
+        "value": "Untitled idea"
+      }
+    },
+    {
+      "name": "migrate future schema",
+      "fn": "migrate",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#460a411cb1"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "migrate garbage",
+      "fn": "migrate",
+      "args": [
+        "not a session"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "migrate array",
+      "fn": "migrate",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "migrate schema 1 with junk",
+      "fn": "migrate",
+      "args": [
+        {
+          "schema": 1,
+          "id": "s_old",
+          "createdAt": 5,
+          "turns": [
+            {
+              "question": "q",
+              "chips": [
+                "a",
+                3,
+                null
+              ]
+            },
+            "bad",
+            null
+          ],
+          "facts": [
+            {
+              "fact": "f"
+            },
+            2
+          ],
+          "moveHistory": [
+            "concretize",
+            9
+          ],
+          "tags": [
+            "A",
+            "a"
+          ],
+          "archivedAt": -1,
+          "name": "  n  "
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_old",
+          "rev": 0,
+          "createdAt": 5,
+          "updatedAt": 5,
+          "status": "interviewing",
+          "name": "n",
+          "title": "",
+          "tags": [
+            "A"
+          ],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "question": "q",
+              "chips": [
+                "a"
+              ]
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "fact": "f"
+            }
+          ],
+          "moveHistory": [
+            "concretize"
+          ],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "migrate current",
+      "fn": "migrate",
+      "args": [
+        {
+          "$ref": "s_walkthrough@16#0875ee064d"
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_walkthrough",
+          "rev": 16,
+          "createdAt": 1760000000000,
+          "updatedAt": 1760000030000,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "An app that helps me remember the names of people I meet at conferences.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "An app that helps me remember the names of people I meet at conferences.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000000000,
+              "answeredAt": 1760000010000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "substance",
+              "question": "At the last conference, how many names did you actually lose?",
+              "bridge": "Conferences, so a lot of names in a short window.",
+              "move": "concretize",
+              "chips": [
+                "maybe thirty names over three days",
+                "honestly I stopped counting",
+                "only a handful, but the ones that mattered",
+                "I never learned them in the first place"
+              ],
+              "questionSource": "model",
+              "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000015000,
+              "answeredAt": 1760000020000,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "bar",
+              "question": "What would make you delete this in the first week?",
+              "bridge": "Thirty names, and the evening ones go first.",
+              "move": "anti_goal",
+              "chips": [
+                "if I had to type during a conversation",
+                "if it was just another contacts list",
+                "if it took more than five seconds",
+                "honestly, if I forgot it was there"
+              ],
+              "questionSource": "model",
+              "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1760000025000,
+              "answeredAt": 1760000030000,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "no sense of what the app hands back",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "the numbers are there, but not one real encounter",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "dimension": "outcome",
+              "fact": "A phone app for recalling names met at conferences."
+            },
+            {
+              "dimension": "substance",
+              "fact": "Roughly thirty names lost over a three-day conference."
+            },
+            {
+              "dimension": "substance",
+              "fact": "The losses cluster around the evening receptions."
+            }
+          ],
+          "moveHistory": [
+            "concretize",
+            "anti_goal"
+          ],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "migrate missing id",
+      "fn": "migrate",
+      "args": [
+        {
+          "schema": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "recovered",
+          "rev": 0,
+          "createdAt": 0,
+          "updatedAt": 0,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    }
+  ]
+}
