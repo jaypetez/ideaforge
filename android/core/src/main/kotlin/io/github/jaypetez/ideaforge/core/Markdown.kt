@@ -180,7 +180,9 @@ private const val S = "[$JS_S]"
 private const val NS = "[^$JS_S]"
 private val CRLF = Regex("\r\n?")
 private val HR = Regex("^$S*(?:---|\\*\\*\\*|___)$S*$JS_END")
-private val HEAD = Regex("^(#{1,6})$S+($JS_DOT_RUN*)$JS_END")
+// HEAD and ITEM take the rest of the line with JS `[\s\S]*`, not `.*`: a `.` stops at U+2028
+// and U+2029, which once left such a line matched by no branch and hung the loop.
+private val HEAD = Regex("^(#{1,6})$S+([\\s\\S]*)$JS_END")
 private val FENCE = Regex("^$S*```")
 private val QUOTE = Regex("^$S*>")
 private val QUOTE_MARK = Regex("^$S*>$S?")
@@ -189,7 +191,7 @@ private val EDGE_PIPES = Regex("^\\||\\|$JS_END")
 private val SEPARATOR = Regex("^[$JS_S|:-]+$JS_END")
 private val BREAK_START = Regex("^(#{1,6}$S|$S*>|$S*```)")
 private val BULLET = Regex("^$S*([-*+]|\\d+[.)])$S+")
-private val ITEM = Regex("^$S*(?:[-*+]|\\d+[.)])$S+($JS_DOT_RUN*)$JS_END")
+private val ITEM = Regex("^$S*(?:[-*+]|\\d+[.)])$S+([\\s\\S]*)$JS_END")
 private val DIGIT = Regex("\\d")
 private val CONTINUATION = Regex("^$S+$NS")
 private val META = Regex("^_[^_]+_$JS_END")
@@ -265,12 +267,17 @@ fun renderBlocks(markdown: JsonElement?): List<JsonObject> {
                 }
                 break
             }
-            blocks.add(obj("type" to str("list"), "ordered" to bool(ordered), "items" to spans(items)))
-            continue
+            // A bullet that yielded no item consumed nothing; fall through to the paragraph guard.
+            if (items.isNotEmpty()) {
+                blocks.add(obj("type" to str("list"), "ordered" to bool(ordered), "items" to spans(items)))
+                continue
+            }
         }
 
         val para = mutableListOf<String>()
         while (i < lines.size && jsTrim(lines[i]).isNotEmpty() && !breaks(lines[i])) para.add(jsTrim(lines[i++]))
+        // Every pass must consume a line: one no branch took becomes a paragraph of its own.
+        if (para.isEmpty()) para.add(jsTrim(lines[i++]))
         val text = para.joinToString(" ")
         // A paragraph that is one whole emphasis run is the meta line or a placeholder.
         val meta = META.containsMatchIn(text)
