@@ -5,3 +5,18 @@ dist/
 CLAUDE.local.md
 .claude/settings.local.json
 .github/copilot/settings.local.json
+
+# The native Android project (android/) builds with Gradle. Build output, local SDK paths and
+# anything that can sign a release stay out of the repository. A leaked release keystore
+# lets anyone ship an update that existing installs will accept.
+android/.gradle/
+android/**/build/
+android/.kotlin/
+android/local.properties
+android/keystore.properties
+android/captures/
+android/.idea/
+*.jks
+*.keystore
+*.apk
+*.aab
