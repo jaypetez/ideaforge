@@ -900,6 +900,54 @@ export default async function run(check) {
         && JSON.stringify(completed.turns) === JSON.stringify(before.turns), detail(app));
   }, { seed: recorded });
 
+  // #100: a save that fails during a spoken wrap-up happens on the voice stage, and the move
+  // to Done after the read-back is a panel change that clears both toasts. The warning that
+  // the idea exists only in this tab has to be on Done anyway, and still there after the
+  // six seconds a note would get — a driver was not looking at the screen when it happened.
+  let unsaved = seedTurn(createSession({ id: 's_voice_wrap_unsaved', now: 1 }), { now: 1 });
+  for (let index = 0; index < 4; index++) {
+    unsaved = submitAnswer(unsaved, {
+      text: `Conference notebook requirement ${index + 1}: keep each contact useful and easy to find`,
+      source: 'voice', now: 2 + index * 2,
+    });
+    unsaved = askQuestion(unsaved, {
+      question: `Which notebook detail matters for conversation ${index + 1}?`,
+      dimension: 'outcome', source: 'model', now: 3 + index * 2,
+    });
+  }
+  await withApp(check, 'a failed save during a spoken wrap-up', async (app) => {
+    app.$('b-library').click();
+    const card = await expect(app, check, 'the unsaved-wrap interview is in the library', () =>
+      visible(app.$('panel-library'))
+        && app.$('library-rows').querySelector(`[data-session-id="${unsaved.id}"]`));
+    if (!card) return;
+    [...card.querySelectorAll('button')].find((button) => button.textContent === 'Continue').click();
+    if (!(await expect(app, check, 'the unsaved-wrap interview resumes', () =>
+      visible(app.$('manual-interview'))))) return;
+    app.$('handsfree').checked = true;
+    app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+    const capture = await listening(app, check, 'voice listens before the failing wrap-up');
+    if (!capture) return;
+    const put = app.win.IDBObjectStore.prototype.put;
+    app.win.IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'sessions') throw new app.win.DOMException('scripted full disk', 'QuotaExceededError');
+      return put.apply(this, args);
+    };
+    capture._step({ final: 'wrap it up', confidence: 0.9 });
+    const synthesis = await expect(app, check, 'the spoken wrap-up starts its synthesis', () =>
+      app.model.calls.length === 1 && app.model.calls[0].tier === 'complex' && app.model.calls[0]);
+    if (!synthesis) return;
+    synthesis.release();
+    if (!(await expect(app, check, 'the read-back finishes on Done', () =>
+      visible(app.$('panel-done')) && !visible(app.$('voice-stage')), 15000))) return;
+    await new Promise((resolve) => setTimeout(resolve, 6500));
+    check('the failed save is still shown on Done after the read-back and six seconds',
+      visible(app.$('err')) && /could not be saved/.test(app.$('err').textContent),
+      `err ${app.$('err').hidden ? 'hidden' : 'shown'}: ${app.$('err').textContent}`
+        + ` | note ${app.$('note').hidden ? 'hidden' : 'shown'}: ${app.$('note').textContent}`);
+    app.win.IDBObjectStore.prototype.put = put;
+  }, { seed: unsaved, speakMs: 20 });
+
   for (const command of ['pause voice', 'exit voice']) {
     for (const action of ['Pause', 'Exit']) {
       await withApp(check, `unsettled ${command} followed by ${action}`, async (app) => {
