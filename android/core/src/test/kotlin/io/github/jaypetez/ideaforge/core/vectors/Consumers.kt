@@ -36,6 +36,7 @@ val CONSUMERS: List<Consumer> = listOf(
         "filterSessions",
     )),
     Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
+    Consumer("keyring", ported = KEYRING_PORTS, pending = emptyMap()),
     Consumer("speech", ported = emptyMap(), pending = pending(
         "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "normalizeTrigger",
         "triggerWarning", "spokenExamples",

@@ -43,6 +43,10 @@ import { applyAuth, isLoopback, AUTH_BEARER, AUTH_NONE } from '../../src/provide
 import { resolveTiers, presetModels, createProvider, PROVIDER_CHOICES } from '../../src/providers/index.js';
 import { parseModelList, OPENAI_COMPAT_PRESETS } from '../../src/providers/openaiCompat.js';
 import { ANTHROPIC_AUTH, ANTHROPIC_TIERS } from '../../src/providers/anthropic.js';
+import {
+  CREDENTIALS_VERSION, emptyKeyring, migrateCredentials, credsFor, withCreds, withStt, withTts,
+  hasAnyKey, maskKey,
+} from '../../src/store/secrets.js';
 import { ANSWERS, TURNS, SYNTHESIS } from './walkthrough.mjs';
 import * as dimensionsModule from '../../src/core/dimensions.js';
 import * as sessionModule from '../../src/core/session.js';
@@ -880,6 +884,129 @@ function jsFamily() {
   return { source: 'ECMAScript semantics, as run by Node', cases };
 }
 
+/**
+ * keyring: the pure half of src/store/secrets.js — the v2 keyring shape, the v1 → v2
+ * migration and the record helpers — which android/ encrypts under the Keystore instead of
+ * WebCrypto. The encryption is platform code on both sides and is not recorded; what must
+ * agree is the plaintext shape, because a ring one side normalises differently is a key the
+ * other side silently drops.
+ */
+function keyringFamily() {
+  const speech = { kind: 'openai', apiKey: ' sk-tts-123456789 ', voice: 'cedar', verified: true };
+  const v2 = {
+    version: 2, active: 'groq',
+    byKind: {
+      groq: { apiKey: 'gsk-1', model: 'llama', wrapModel: 'llama-big' },
+      ollama: { baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:7b-instruct' },
+    },
+    stt: { kind: 'openai', apiKey: 'sk-stt' },
+    tts: speech,
+  };
+  const raws = [
+    ['null', null],
+    ['a number', 42],
+    ['a string', 'nope'],
+    ['true', true],
+    ['an array', []],
+    ['an array of a v1 blob', [{ kind: 'groq', apiKey: 'gsk-1' }]],
+    ['an empty object', {}],
+    ['an unknown version', { version: 99, byKind: { groq: { apiKey: 'gsk-1' } } }],
+    ['a string version', { version: '2', kind: 'groq', apiKey: 'gsk-1' }],
+    ['v1 full', { kind: 'groq', apiKey: 'gsk-1', model: 'whisper', baseUrl: 'http://127.0.0.1:1/v1', sttKind: 'openai', sttKey: 'sk-2' }],
+    ['v1 provider only', { kind: 'anthropic', apiKey: 'sk-ant' }],
+    ['v1 padded', { kind: '  openai \n', apiKey: ' sk-1\t', model: ' gpt ', sttKind: ' groq ', sttKey: ' gsk ' }],
+    ['v1 dictation only', { sttKind: 'groq', sttKey: 'gsk-2' }],
+    ['v1 dictation kind without a key', { kind: 'groq', sttKind: 'openai' }],
+    ['v1 blank kind', { kind: '   ', apiKey: 'sk-orphan' }],
+    ['v1 non-string fields', { kind: 7, apiKey: 'sk-1', sttKind: ['groq'], sttKey: 9 }],
+    ['v1 key not a string', { kind: 'groq', apiKey: 12345, model: null }],
+    ['v1 byKind string', { byKind: 'no' }],
+    ['v2 full', v2],
+    ['v2 empty', emptyKeyring()],
+    ['v2 bare', { version: 2 }],
+    ['v2 padded active', { version: 2, active: '  groq  ', byKind: {} }],
+    ['v2 blank active', { version: 2, active: '   ' }],
+    ['v2 non-string active', { version: 2, active: 3 }],
+    ['v2 byKind null', { version: 2, active: 'groq', byKind: null }],
+    ['v2 byKind string', { version: 2, byKind: 'no' }],
+    ['v2 byKind array', { version: 2, byKind: [{ apiKey: 'a' }, 'x', null] }],
+    ['v2 partial records', { version: 2, byKind: { a: {}, b: { apiKey: ' k ' }, c: null, d: 'str', e: 5, f: [], g: { apiKey: 5, baseUrl: true, model: ['m'], wrapModel: {} } } }],
+    ['v2 extra fields dropped', { version: 2, extra: 'x', byKind: { groq: { apiKey: 'gsk', junk: 1 } }, stt: { kind: 'groq', apiKey: 'g', junk: 2 }, tts: { ...speech, junk: 3 } }],
+    ['v2 stt blank kind', { version: 2, stt: { kind: '  ', apiKey: ' k ' } }],
+    ['v2 stt not an object', { version: 2, stt: 'groq' }],
+    ['v2 stt array', { version: 2, stt: ['groq'] }],
+    ['v2 tts preserved', { version: 2, tts: speech }],
+    ['v2 tts unknown kind and voice', { version: 2, tts: { kind: 'elevenlabs', apiKey: 'el', voice: 'alloy', verified: true } }],
+    ['v2 tts verified without a key', { version: 2, tts: { kind: 'openai', apiKey: '   ', verified: true } }],
+    ['v2 tts verified truthy not true', { version: 2, tts: { kind: 'openai', apiKey: 'k', verified: 'yes' } }],
+    ['v2 tts null', { version: 2, tts: null }],
+    ['v2 tts array', { version: 2, tts: ['openai'] }],
+    ['v2 tts string', { version: 2, tts: 'openai' }],
+  ];
+  const cases = [
+    { name: 'CREDENTIALS_VERSION', fn: 'constant', args: ['CREDENTIALS_VERSION'], expect: { value: CREDENTIALS_VERSION } },
+    rec('emptyKeyring', emptyKeyring),
+  ];
+  for (const [label, raw] of raws) cases.push(rec(`migrateCredentials ${label}`, migrateCredentials, raw));
+
+  const migrated = migrateCredentials(v2);
+  const rings = [
+    ['null', null],
+    ['empty', emptyKeyring()],
+    ['migrated', migrated],
+    ['v1 blob', { kind: 'groq', apiKey: 'gsk-1' }],
+    ['unnormalised v2', { version: 2, active: 'x', byKind: null, stt: null, tts: null, extra: 1 }],
+    ['v2 byKind array', { version: 2, byKind: [{ apiKey: 'a' }] }],
+    ['string version', { version: '2', byKind: { groq: { apiKey: 'gsk' } } }],
+  ];
+  for (const [label, ring] of rings) {
+    for (const [kind, r] of [
+      ['groq', { apiKey: ' gsk-new ', model: ' m ', wrapModel: 'w', baseUrl: '', junk: 1 }],
+      ['anthropic', { apiKey: 'sk-ant' }],
+      ['ollama', { baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen' }],
+      ['custom', null],
+      ['custom', 'not a record'],
+      ['openai', { apiKey: 7, model: null }],
+    ]) cases.push(rec(`withCreds ${label} ${kind} ${JSON.stringify(r)}`, withCreds, ring, kind, r));
+    for (const stt of [{ kind: ' groq ', apiKey: ' gsk ' }, { kind: '', apiKey: 'k' }, { kind: 5 }, null, 'groq', {}]) {
+      cases.push(rec(`withStt ${label} ${JSON.stringify(stt)}`, withStt, ring, stt));
+    }
+    for (const tts of [speech, { kind: 'openai', apiKey: 'k', voice: 'marin' }, { kind: 'browser' }, { verified: true }, null, 'openai', []]) {
+      cases.push(rec(`withTts ${label} ${JSON.stringify(tts)}`, withTts, ring, tts));
+    }
+  }
+
+  for (const [label, ring] of [...rings, ...raws.map(([l, r]) => [`migrated ${l}`, migrateCredentials(r)])]) {
+    for (const kind of ['groq', 'ollama', 'nope', 'stt']) cases.push(rec(`credsFor ${label} ${kind}`, credsFor, ring, kind));
+  }
+  cases.push(rec('credsFor non-string fields', credsFor, { byKind: { g: { apiKey: 5, baseUrl: 0, model: true, wrapModel: '' } } }, 'g'));
+  cases.push(rec('credsFor byKind null', credsFor, { byKind: null }, 'g'));
+
+  const hasRings = [
+    ...rings,
+    ...raws.map(([l, r]) => [`migrated ${l}`, migrateCredentials(r)]),
+    ['local only', withCreds(emptyKeyring(), 'ollama', { baseUrl: 'http://127.0.0.1:11434/v1', model: 'q' })],
+    ['stt key only', { stt: { apiKey: 'k' } }],
+    ['tts key only', { tts: { apiKey: 'k', kind: 'browser' } }],
+    ['stt key truthy number', { stt: { apiKey: 1 } }],
+    ['stt key zero', { stt: { apiKey: 0 } }],
+    ['byKind array with a key', { byKind: [{ apiKey: 'k' }] }],
+    ['byKind with a null record', { byKind: { a: null, b: { apiKey: '' } } }],
+    ['byKind key object', { byKind: { a: { apiKey: {} } } }],
+    ['a string', 'ring'],
+    ['a number', 5],
+    ['an empty array', []],
+  ];
+  for (const [label, ring] of hasRings) cases.push(rec(`hasAnyKey ${label}`, hasAnyKey, ring));
+
+  for (const key of [
+    null, '', 'short', '123456789012', '1234567890123', 'sk-ant-api03-abcdefghijklmnop-XYZW',
+    '  padded-key-with-spaces  ', 'gsk_éèê-unicode-key-1234', 0, 1234567890123, true, ['sk-ant-api03', 'tail-1234'], { a: 1 },
+  ]) cases.push(rec(`maskKey ${JSON.stringify(key)}`, maskKey, key));
+
+  return { source: 'src/store/secrets.js', cases };
+}
+
 export const FAMILIES = {
   constants: constantsFamily,
   js: jsFamily,
@@ -893,4 +1020,5 @@ export const FAMILIES = {
   backup: backupFamily,
   markdown: markdownFamily,
   providers: providersFamily,
+  keyring: keyringFamily,
 };
