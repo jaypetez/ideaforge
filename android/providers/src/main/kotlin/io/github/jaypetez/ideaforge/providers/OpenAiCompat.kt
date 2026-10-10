@@ -186,9 +186,8 @@ class OpenAiCompatProvider(
 
     private suspend fun getJson(path: String): JsonElement {
         val request = http.request("$root$path", auth, apiKey).get().build()
-        return http.execute(request, hostLabel).use { res ->
-            runCatching { Json.parseToJsonElement(res.body.string()) }.getOrDefault(JsonObject(emptyMap()))
-        }
+        val text = http.executeText(request, hostLabel)
+        return runCatching { Json.parseToJsonElement(text) }.getOrDefault(JsonObject(emptyMap()))
     }
 
     private suspend fun call(parts: PromptParts, modelTier: String, json: Boolean): Sampled {
@@ -196,7 +195,7 @@ class OpenAiCompatProvider(
         val request = http.request("$root/chat/completions", auth, apiKey, mapOf("content-type" to "application/json"))
             .post(jsonBody(body(parts, resolved, json)))
             .build()
-        val body = http.execute(request, hostLabel).use { readJsonReply(it, hostLabel) }
+        val body = readJsonReply(http.executeText(request, hostLabel), hostLabel)
 
         val choice = (body["choices"] as? JsonArray)?.firstOrNull() as? JsonObject
         val content = (choice?.get("message") as? JsonObject)?.get("content")

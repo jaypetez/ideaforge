@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 
 // Request and reply plumbing the two adapters share.
 
@@ -27,8 +26,7 @@ internal fun jsonBody(body: JsonElement): RequestBody =
  * A successful reply's JSON object. A body that is not JSON is the JS `res.json()` rejecting;
  * natively that is a `bad_response` (never retried) rather than an uncoded error.
  */
-internal fun readJsonReply(res: Response, label: String): JsonObject {
-    val text = res.body.string()
+internal fun readJsonReply(text: String, label: String): JsonObject {
     val parsed = runCatching { Json.parseToJsonElement(text) }.getOrNull()
     return parsed as? JsonObject
         ?: throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "$label returned a reply that is not a JSON object")

@@ -91,7 +91,7 @@ class AnthropicProvider(
         val request = http.request(endpoint, ANTHROPIC_AUTH, apiKey, mapOf("content-type" to "application/json"))
             .post(jsonBody(body(parts, resolved)))
             .build()
-        val body = http.execute(request, label).use { readJsonReply(it, label) }
+        val body = readJsonReply(http.executeText(request, label), label)
 
         val content = body["content"] as? JsonArray
         val text = content.orEmpty()
