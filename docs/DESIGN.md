@@ -24,7 +24,7 @@ scheme.
 | `--surface-container-high` | `surfaceContainerHigh` | `#dfe6e1` | `#313a3b` | Raised sheets and menus |
 | `--on-surface` | `onSurface` | `#202c2b` | `#eef0e9` | Body text and headings |
 | `--on-surface-variant` | `onSurfaceVariant` | `#566562` | `#abbab5` | Hints, metadata, secondary text |
-| `--outline` | `outline` | `#7b8c85` | `#6a7e79` | Field and chip borders (3:1) |
+| `--outline` | `outline` | `#73847d` | `#72867f` | Field and chip borders (3:1 on every surface) |
 | `--outline-variant` | `outlineVariant` | `#d4ded8` | `#364140` | Dividers and card edges |
 | `--primary` | `primary` | `#24665e` | `#9ecdc3` | The one primary action, links, focus |
 | `--on-primary` | `onPrimary` | `#ffffff` | `#142e29` | Text on a primary fill |

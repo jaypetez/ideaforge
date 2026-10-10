@@ -173,7 +173,8 @@ export default async function run(check, { subpath }) {
     probe.style.color = `var(${token})`;
     return rgbOf(win.getComputedStyle(probe).color);
   };
-  const surfaces = ['--surface-container-lowest', '--surface-container-low', '--surface-container'];
+  const surfaces = ['--surface-container-lowest', '--surface-container-low', '--surface-container',
+    '--surface-container-high'];
   const pairs = [
     ...['--on-surface', '--on-surface-variant', '--primary', '--error', '--success', '--warning']
       .flatMap((fg) => surfaces.map((bg) => [fg, bg, 4.5])),
@@ -208,10 +209,17 @@ export default async function run(check, { subpath }) {
   iconButton.textContent = 'Listening…';
   check('...and the icon survives app.js rewriting the label',
     /url\(/.test(win.getComputedStyle(iconButton, '::before').maskImage || win.getComputedStyle(iconButton, '::before').webkitMaskImage || ''));
+  // A misspelt name draws nothing and raises nothing, so check that the lookup can fail:
+  // an unknown name must resolve to no icon, and every name used in the app to a real one.
+  const unknown = doc.createElement('span');
+  unknown.dataset.icon = 'no-such-icon';
+  probe.append(unknown);
+  check('an unknown icon name resolves to no icon at all',
+    !win.getComputedStyle(unknown).getPropertyValue('--icon').includes('data:'));
   const icons = [...doc.querySelectorAll('[data-icon]')].filter((el) => !probe.contains(el));
-  check('every [data-icon] in the app names an icon that exists',
-    icons.every((el) => win.getComputedStyle(el).getPropertyValue('--icon').includes('data:')),
-    icons.map((el) => el.dataset.icon).join(','));
+  const missing = icons.filter((el) => !win.getComputedStyle(el).getPropertyValue('--icon').includes('data:'));
+  check('every [data-icon] the app uses names an icon that exists', missing.length === 0,
+    missing.map((el) => el.dataset.icon).join(',') || `${icons.length} in use`);
   probe.remove();
 
   // ── motion tokens collapse under reduced motion ──────────────────────────

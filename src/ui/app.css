@@ -13,9 +13,10 @@
   --on-surface:                light-dark(#202c2b, #eef0e9);
   --on-surface-variant:        light-dark(#566562, #abbab5);
   --outline-variant:           light-dark(#d4ded8, #364140);
-  /* 3:1 against every surface in both themes (WCAG non-text contrast); the light value was
-     #85968f, which measured 2.86:1 on the page ground. */
-  --outline:                   light-dark(#7b8c85, #6a7e79);
+  /* 3:1 against all four surfaces in both themes (WCAG non-text contrast). It was
+     #85968f / #6a7e79, which measured 2.86:1 on the light page ground and under 3:1 on
+     the raised surface in both themes. */
+  --outline:                   light-dark(#73847d, #72867f);
 
   --primary:            light-dark(#24665e, #9ecdc3);
   --on-primary:         light-dark(#ffffff, #142e29);
