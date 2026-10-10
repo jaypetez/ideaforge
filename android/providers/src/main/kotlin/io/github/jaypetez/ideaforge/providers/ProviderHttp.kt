@@ -130,7 +130,20 @@ class ProviderHttp(
      * [callFailure]. Cancelling the coroutine cancels the call and propagates as
      * cancellation — never as `timeout`, which is reserved for the deadline.
      */
-    suspend fun execute(request: Request, label: String, keyHint: String = DEFAULT_KEY_HINT): Response {
+    suspend fun execute(request: Request, label: String, keyHint: String = DEFAULT_KEY_HINT): Response =
+        run(request, label, keyHint) { it }
+
+    /**
+     * Run one request and return its 2xx body as text. The body is read on OkHttp's thread,
+     * inside the call, so cancelling the coroutine mid-body still cancels the call, and a
+     * caller on the main thread never does socket I/O. Reading it after [execute] returns
+     * does neither: the cancellation hook is gone once the headers arrive, and the read runs
+     * on whatever thread resumed the caller.
+     */
+    suspend fun executeText(request: Request, label: String, keyHint: String = DEFAULT_KEY_HINT): String =
+        run(request, label, keyHint) { res -> res.use { it.body.string() } }
+
+    private suspend fun <T> run(request: Request, label: String, keyHint: String, read: (Response) -> T): T {
         policy.check(request.url)
         if (!policy.carriesCredentials) {
             // Key-less by construction, not by convention: a hand-built request that carries a
@@ -151,7 +164,14 @@ class ProviderHttp(
 
                 override fun onResponse(call: Call, response: Response) {
                     if (response.isSuccessful) {
-                        cont.resume(response) { _, r, _ -> r.close() }
+                        val value = try {
+                            read(response)
+                        } catch (e: IOException) {
+                            response.close()
+                            cont.resumeWithException(callFailure(e, label, cancelled.get() || cont.isCancelled, deadlineMs))
+                            return
+                        }
+                        cont.resume(value) { _, v, _ -> (v as? Response)?.close() }
                     } else {
                         val err = response.use { httpError(it, label, keyHint, now()) }
                         cont.resumeWithException(err)

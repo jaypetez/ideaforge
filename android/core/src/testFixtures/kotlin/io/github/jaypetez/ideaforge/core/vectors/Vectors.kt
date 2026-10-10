@@ -99,10 +99,11 @@ object ProvidersFamily {
     val IN_PROVIDERS_MODULE: Set<String> = setOf(
         "isLoopback", "applyAuth", "codeForStatus", "isRetryableProviderError", "isRetryable",
         "retryAfterMs", "extractJson",
+        // The adapters and the registry (#79). `request` replays a whole provider call.
+        "resolveTiers", "presetModels", "parseModelList", "request",
     )
-    /** Owned by the adapters issue; still pending in both harnesses. */
-    val PENDING: Map<String, String> =
-        listOf("resolveTiers", "presetModels", "parseModelList", "request").associateWith { "#79" }
+    /** Nothing is owed: every recorded providers function is replayed in :providers. */
+    val PENDING: Map<String, String> = emptyMap()
 }
 
 /**
