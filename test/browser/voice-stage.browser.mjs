@@ -390,6 +390,9 @@ async function withApp(check, label, scenario, {
   let frame;
   const fake = window.__FakeVoice;
   try {
+    // Boot opens on Ideas when anything is stored (#103) and on Start otherwise; a seeded
+    // run is the former, a clean one the latter.
+    const home = (await listSessions()).length > 0 ? 'panel-library' : 'panel-setup';
     frame = await loadFrame();
     const win = frame.contentWindow;
     const doc = frame.contentDocument;
@@ -429,7 +432,7 @@ async function withApp(check, label, scenario, {
       doc.readyState === 'complete'
         && /^IdeaForge v\d+\.\d+\.\d+$/.test($('version').textContent)
         && $('provider').options.length > 0
-        && visible($('panel-setup'))
+        && visible($(home))
         && typeof $('b-start').onclick === 'function'
         && typeof $('b-start-voice').onclick === 'function');
     // Registration is optional background work, not evidence that app setup completed.

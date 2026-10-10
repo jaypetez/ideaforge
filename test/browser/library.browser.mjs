@@ -27,6 +27,24 @@ function loadFrame(src) {
   });
 }
 
+function idbRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('blocked by an open connection'));
+  });
+}
+
+/** boot() writes the version last, after it has chosen the first screen. */
+async function booted(frame) {
+  for (let waited = 0; waited < BOOT_MS; waited += 50) {
+    const version = frame.contentDocument && frame.contentDocument.getElementById('version');
+    if (version && version.textContent) return true;
+    await settle(50);
+  }
+  return false;
+}
+
 function activeSession(id, now, opening, { name = '', tags = [], draft = '' } = {}) {
   let session = seedTurn(createSession({ id, now }), { now });
   if (name) session = renameSession(session, name, now + 1);
@@ -103,10 +121,22 @@ export default async function run(check) {
   const $ = (id) => doc.getElementById(id);
   const rendered = (id) => win.getComputedStyle($(id)).display !== 'none';
 
-  check('the library starts hidden', !rendered('panel-library'));
+  // With saved ideas the app opens on them (#103), Ideas current; Start is a tap away.
+  check('with saved ideas the app boots to Ideas',
+    rendered('panel-library') && !rendered('panel-setup') && doc.body.dataset.panel === 'library',
+    doc.body.dataset.panel);
+  check('…with Ideas as the current destination',
+    $('b-library').getAttribute('aria-current') === 'page'
+      && !$('b-nav-new').hasAttribute('aria-current'));
+  check('…listing every stored idea from the boot read',
+    $('library-rows').querySelectorAll('.idea-card').length === sessions.length,
+    `${$('library-rows').querySelectorAll('.idea-card').length} cards`);
   check('the setup screen shows only three recent ideas',
     $('resume-rows').children.length === 3, `${$('resume-rows').children.length} rows`);
 
+  $('b-nav-new').click();
+  await settle(300);
+  check('New idea leaves the library for Start', rendered('panel-setup') && !rendered('panel-library'));
   $('b-library').click();
   await settle(300);
   check('the Ideas button opens the library', rendered('panel-library'));
@@ -401,17 +431,82 @@ export default async function run(check) {
 
   frame.remove();
 
-  // A failed first read is not an empty library. Someone with saved ideas whose first open
-  // of the library fails must see the error, not "No ideas yet" with the filters gone.
+  // Where the app opens (#103) follows what is stored, and nothing else: no ideas, Start;
+  // any idea, Ideas. Every idea was deleted above, so this is a returning visitor's device
+  // in the state a fresh one is in.
+  const empty = await loadFrame('/index.html');
+  const $e = (id) => empty.contentDocument.getElementById(id);
+  const shownE = (id) => empty.contentWindow.getComputedStyle($e(id)).display !== 'none';
+  check('with no saved ideas the app boots to Start',
+    await booted(empty) && shownE('panel-setup') && $e('panel-setup').dataset.view === 'start'
+      && !shownE('panel-library') && empty.contentDocument.body.dataset.panel === 'setup',
+    `${empty.contentDocument.body.dataset.panel}/${$e('panel-setup').dataset.view}`);
+  check('…with Start as the current destination',
+    $e('b-nav-new').getAttribute('aria-current') === 'page'
+      && !$e('b-library').hasAttribute('aria-current'));
+
+  // One idea saved, then the same tab reloaded: it opens on Ideas, showing that idea.
+  await saveSession(activeSession('s_one', now + 70, 'The only idea', { name: 'Only idea' }));
+  empty.contentWindow.location.reload();
+  await new Promise((resolve) => { empty.onload = resolve; });
+  check('reloading with one saved idea boots to Ideas',
+    await booted(empty) && shownE('panel-library') && !shownE('panel-setup')
+      && empty.contentDocument.body.dataset.panel === 'library',
+    empty.contentDocument.body.dataset.panel);
+  check('…with Ideas as the current destination',
+    $e('b-library').getAttribute('aria-current') === 'page'
+      && !$e('b-nav-new').hasAttribute('aria-current')
+      && !$e('b-library').hasAttribute('aria-label'));
+  check('…showing the stored idea from the boot read, not skeletons or the first-run state',
+    Boolean($e('library-rows').querySelector('.idea-card[data-session-id="s_one"]'))
+      && !$e('library-rows').hasAttribute('aria-busy') && !shownE('library-zero'));
+  check('…and no error', $e('err-toast').hidden, $e('err').textContent);
+  empty.remove();
+  await deleteSession('s_one');
+
+  // Archived ideas count: the library's default filter shows them, so a device holding only
+  // archived ideas has a populated library to open on, not a first run.
+  await saveSession(archiveSession(activeSession('s_only_archived', now + 75, 'Put away'), now + 76));
+  const archivedOnly = await loadFrame('/index.html');
+  const $a = (id) => archivedOnly.contentDocument.getElementById(id);
+  check('a device holding only archived ideas boots to Ideas, listing them',
+    await booted(archivedOnly) && !$a('panel-library').hidden
+      && Boolean($a('library-rows').querySelector('[data-session-id="s_only_archived"]')),
+    archivedOnly.contentDocument.body.dataset.panel);
+  archivedOnly.remove();
+  await deleteSession('s_only_archived');
+
+  // A failed read is not an empty device. The fault has to be in place before the app's
+  // modules run, so it is one the page cannot route around: this window upgrades the
+  // database past the version the app asks for, the way a newer build would, and every
+  // open the app makes fails with VersionError until it is put back.
   const kept = activeSession('s_kept', now + 80, 'An idea that is still stored', {
     name: 'Still stored',
   });
   await saveSession(kept);
+  const newer = await idbRequest(indexedDB.open('ideaforge', 2));
   const second = await loadFrame('/index.html');
   const win2 = second.contentWindow;
   const $2 = (id) => second.contentDocument.getElementById(id);
   const shown2 = (id) => win2.getComputedStyle($2(id)).display !== 'none';
-  await settle(BOOT_MS);
+  check('a failed sessions read at boot falls back to Start',
+    await booted(second) && shown2('panel-setup')
+      && $2('panel-setup').dataset.view === 'start' && !shown2('panel-library')
+      && second.contentDocument.body.dataset.panel === 'setup',
+    `panel: ${second.contentDocument.body.dataset.panel}`);
+  check('…with Start as the current destination',
+    $2('b-nav-new').getAttribute('aria-current') === 'page'
+      && !$2('b-library').hasAttribute('aria-current'));
+  check('…and says the saved ideas could not be read, and why',
+    !$2('err-toast').hidden && /saved ideas could not be read/i.test($2('err').textContent)
+      && /version/i.test($2('err').textContent),
+    $2('err').textContent);
+  newer.close();
+  await idbRequest(indexedDB.deleteDatabase('ideaforge'));
+  await saveSession(kept);
+
+  // Nothing has been read successfully yet, so opening the library while reads still fail
+  // must not report "No ideas yet" with the filters gone.
   const getAll = win2.IDBObjectStore.prototype.getAll;
   let planted = 0;
   win2.IDBObjectStore.prototype.getAll = function patched(...args) {
