@@ -458,6 +458,23 @@ test('migrate round-trips a stored session and rejects future schemas', () => {
   assert.equal(migrate([]), null);
 });
 
+// A backup is untrusted. With an unknown stored level every rank comparison in the ratchet
+// is against `undefined` and false, so one claim took every dimension to `covered` at once
+// and none of them counted as a rise. Found while porting the core to Kotlin.
+test('migrate resets an unknown coverage level or status, so the ratchet still holds', () => {
+  const stored = JSON.parse(JSON.stringify(createSession({ id: 's_bad', now: 1 })));
+  for (const id of DIMENSION_IDS) stored.coverage[id].level = 'COVERED';
+  stored.coverage.bar.status = 'banana';
+  const s = migrate(stored);
+  assert.ok(DIMENSION_IDS.every((id) => s.coverage[id].level === 'thin'));
+  assert.equal(s.coverage.bar.status, 'probing');
+  const claim = Object.fromEntries(DIMENSION_IDS.map((id) => [id, { level: 'covered', evidence: 'quote' }]));
+  const after = applyCoverage(s, claim);
+  assert.equal(DIMENSION_IDS.filter((id) => after.coverage[id].level !== 'thin').length, 2,
+    'at most two dimensions may rise, and only by one level');
+  assert.ok(DIMENSION_IDS.every((id) => after.coverage[id].level !== 'covered'));
+});
+
 test('migrate backfills dimensions added since the session was stored', () => {
   const old = { schema: 1, id: 's_old', turns: [], coverage: { outcome: { level: 'partial' } } };
   const m = migrate(old);

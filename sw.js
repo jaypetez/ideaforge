@@ -12,7 +12,7 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v8';
+const CACHE = 'ideaforge-v9';
 const GUIDE_PATH = new URL('./guide/', self.location.href).pathname;
 const GUIDE_SCREENSHOTS_PATH = new URL('./docs/screenshots/', self.location.href).pathname;
 
@@ -22,6 +22,7 @@ const SHELL = [
   './manifest.webmanifest',
   './src/version.js',
   './src/ui/app.css',
+  './src/ui/icons.css',
   './src/ui/app.js',
   './src/ui/voice-stage.js',
   './src/ui/install.js',

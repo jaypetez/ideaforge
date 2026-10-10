@@ -3,6 +3,102 @@
   "family": "session",
   "source": "src/core/session.js",
   "fixtures": {
+    "s_cov@0#358062470a": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 0,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000000000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": null,
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "COVERED",
+          "status": "banana",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
     "s_cov@0#af2ea44a31": {
       "schema": 2,
       "id": "s_cov",
@@ -4186,6 +4282,253 @@
           "wrapOffered": false,
           "meta": {
             "device": "phone"
+          }
+        }
+      }
+    },
+    {
+      "name": "migrate resets unknown levels and statuses",
+      "fn": "migrate",
+      "args": [
+        {
+          "$ref": "s_cov@0#358062470a"
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 0,
+          "createdAt": 1760000000000,
+          "updatedAt": 1760000000000,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "ratchet holds after migrating hostile coverage",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "substance": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "bar": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "constraints": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "audience": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "voice": {
+            "level": "covered",
+            "evidence": "quote"
+          },
+          "references": {
+            "level": "covered",
+            "evidence": "quote"
+          }
+        },
+        {
+          "now": 3
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 1,
+          "createdAt": 1760000000000,
+          "updatedAt": 3,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
           }
         }
       }

@@ -16,6 +16,7 @@ val CONSUMERS: List<Consumer> = listOf(
     Consumer("constants", ported = mapOf("constant" to CONSTANT_PORT), pending = emptyMap(),
         pendingCases = CONSTANTS_PENDING),
     Consumer("session", ported = SESSION_PORTS, pending = emptyMap()),
+    Consumer("js", ported = JS_PORTS, pending = emptyMap()),
     Consumer("engine", ported = ENGINE_PORTS, pending = emptyMap()),
     Consumer(
         "turn-prompt",

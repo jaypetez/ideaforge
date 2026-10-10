@@ -99,7 +99,8 @@ private fun createSession(id: JsonElement, now: JsonElement, device: JsonElement
     )
 }
 
-/** `{...session, ...patch, rev: rev + 1, updatedAt: now ?? updatedAt}`. */
+/** `{...session, ...patch, rev: rev + 1, updatedAt: now ?? updatedAt}`. Reducers always pass
+ *  a value (JS defaults it to 0); only an explicit JS null keeps the old updatedAt. */
 private fun bump(session: Session, patch: List<Pair<String, JsonElement?>>, now: JsonElement?): Session =
     session.spread(
         patch + listOf(
@@ -110,9 +111,9 @@ private fun bump(session: Session, patch: List<Pair<String, JsonElement?>>, now:
 
 /** Record a question that has been put to the user. */
 fun askQuestion(
-    session: Session, question: JsonElement?, dimension: JsonElement?, move: JsonElement? = JsonNull,
-    chips: JsonElement? = arr(emptyList()), bridge: JsonElement? = JsonNull,
-    source: JsonElement? = str("model"), now: JsonElement? = num(0),
+    session: Session, question: JsonElement?, dimension: JsonElement?, move: JsonElement = JsonNull,
+    chips: JsonElement = arr(emptyList()), bridge: JsonElement = JsonNull,
+    source: JsonElement = str("model"), now: JsonElement = num(0),
 ): Session {
     if (!truthy(question)) throw IllegalArgumentException("askQuestion requires a question")
     val n = turnsOf(session).size + 1
@@ -141,8 +142,8 @@ fun askQuestion(
  * words, not the user's, and must never take a dimension to `covered`.
  */
 fun answerQuestion(
-    session: Session, text: JsonElement?, source: JsonElement? = str("typed"),
-    classification: JsonElement? = JsonNull, now: JsonElement? = num(0),
+    session: Session, text: JsonElement?, source: JsonElement = str("typed"),
+    classification: JsonElement = JsonNull, now: JsonElement = num(0),
 ): Session {
     val turns = turnsOf(session).toMutableList()
     val idx = turns.size - 1
@@ -172,7 +173,7 @@ private fun strictEquals(a: JsonElement?, b: JsonElement?): Boolean = when {
  * The user declined to answer. `skipped` is structurally distinct from an answer reading
  * "(skipped)": openTurn, the transcript and the export all branch on the flag.
  */
-fun skipQuestion(session: Session, now: JsonElement? = num(0)): Session {
+fun skipQuestion(session: Session, now: JsonElement = num(0)): Session {
     val turns = turnsOf(session).toMutableList()
     val idx = turns.size - 1
     if (idx < 0) throw IllegalStateException("no open turn to skip")
@@ -184,7 +185,7 @@ fun skipQuestion(session: Session, now: JsonElement? = num(0)): Session {
     return bump(session, listOf("turns" to arr(turns), "draftAnswer" to str("")), now)
 }
 
-fun setDraftText(session: Session, text: JsonElement?, now: JsonElement? = num(0)): Session {
+fun setDraftText(session: Session, text: JsonElement?, now: JsonElement = num(0)): Session {
     val turns = turnsOf(session).toMutableList()
     val idx = turns.size - 1
     if (idx < 0) return session
@@ -192,7 +193,7 @@ fun setDraftText(session: Session, text: JsonElement?, now: JsonElement? = num(0
     return bump(session, listOf("turns" to arr(turns), "draftAnswer" to text), now)
 }
 
-fun setDraftAnswer(session: Session, text: JsonElement?, now: JsonElement? = num(0)): Session =
+fun setDraftAnswer(session: Session, text: JsonElement?, now: JsonElement = num(0)): Session =
     bump(session, listOf("draftAnswer" to text), now)
 
 /** True when this answer's provenance means it cannot support a `covered` grade. */
@@ -206,8 +207,8 @@ fun isLowConfidence(turn: JsonElement?): Boolean =
  * any of it makes the interview stop early and produce a useless prompt.
  */
 fun applyCoverage(
-    session: Session, claimed: JsonElement?, lowConfidenceDimension: JsonElement? = JsonNull,
-    cappedDimensions: JsonElement? = arr(emptyList()), now: JsonElement? = num(0),
+    session: Session, claimed: JsonElement?, lowConfidenceDimension: JsonElement = JsonNull,
+    cappedDimensions: JsonElement = arr(emptyList()), now: JsonElement = num(0),
 ): Session {
     val coverage = session["coverage"] as JsonObject
     val next = LinkedHashMap<String, JsonElement>()
@@ -280,7 +281,7 @@ private fun normalizeFact(e: JsonElement?): String =
     jsTrim(collapseJsSpace(jsLower(jsString(e)).filter { it in 'a'..'z' || it in '0'..'9' || it == ' ' }))
 
 /** Merge new facts into the ledger, skipping near-duplicates. */
-fun addFacts(session: Session, facts: JsonElement?, now: JsonElement? = num(0)): Session {
+fun addFacts(session: Session, facts: JsonElement?, now: JsonElement = num(0)): Session {
     if (facts !is JsonArray || facts.isEmpty()) return session
     val seen = items(session["facts"]).map { normalizeFact(it["fact"]) }.toMutableSet()
     val added = mutableListOf<JsonElement>()
@@ -299,14 +300,14 @@ fun addFacts(session: Session, facts: JsonElement?, now: JsonElement? = num(0)):
 }
 
 /** The user told us to stop asking about this. Permanent, with an undo. */
-fun waiveDimension(session: Session, id: String?, reason: JsonElement? = JsonNull, now: JsonElement? = num(0)) =
+fun waiveDimension(session: Session, id: String?, reason: JsonElement = JsonNull, now: JsonElement = num(0)) =
     setStatus(session, id, "waived", listOf("waivedReason" to reason), now)
 
 /** The user genuinely cannot know this yet. Stops counting against readiness. */
-fun deferDimension(session: Session, id: String?, now: JsonElement? = num(0)) =
+fun deferDimension(session: Session, id: String?, now: JsonElement = num(0)) =
     setStatus(session, id, "deferred", emptyList(), now)
 
-fun resumeDimension(session: Session, id: String?, now: JsonElement? = num(0)) =
+fun resumeDimension(session: Session, id: String?, now: JsonElement = num(0)) =
     setStatus(session, id, "probing", listOf("waivedReason" to JsonNull), now)
 
 private fun setStatus(
@@ -318,18 +319,18 @@ private fun setStatus(
     return bump(session, listOf("coverage" to coverage.spread(id to cur.spread(listOf("status" to str(status)) + extra))), now)
 }
 
-fun setPending(session: Session, pending: JsonElement?, now: JsonElement? = num(0)) = bump(session, listOf("pending" to pending), now)
-fun clearPending(session: Session, now: JsonElement? = num(0)) = bump(session, listOf("pending" to JsonNull), now)
-fun setZeroGainStreak(session: Session, n: Int, now: JsonElement? = num(0)) = bump(session, listOf("zeroGainStreak" to num(n)), now)
-fun setWrapOffered(session: Session, v: Boolean, now: JsonElement? = num(0)) = bump(session, listOf("wrapOffered" to bool(v)), now)
-fun setTitle(session: Session, title: JsonElement?, now: JsonElement? = num(0)) = bump(session, listOf("title" to title), now)
-fun setStatusField(session: Session, status: String, now: JsonElement? = num(0)) = bump(session, listOf("status" to str(status)), now)
-fun renameSession(session: Session, name: JsonElement?, now: JsonElement? = num(0)) =
+fun setPending(session: Session, pending: JsonElement?, now: JsonElement = num(0)) = bump(session, listOf("pending" to pending), now)
+fun clearPending(session: Session, now: JsonElement = num(0)) = bump(session, listOf("pending" to JsonNull), now)
+fun setZeroGainStreak(session: Session, n: Int, now: JsonElement = num(0)) = bump(session, listOf("zeroGainStreak" to num(n)), now)
+fun setWrapOffered(session: Session, v: Boolean, now: JsonElement = num(0)) = bump(session, listOf("wrapOffered" to bool(v)), now)
+fun setTitle(session: Session, title: JsonElement?, now: JsonElement = num(0)) = bump(session, listOf("title" to title), now)
+fun setStatusField(session: Session, status: String, now: JsonElement = num(0)) = bump(session, listOf("status" to str(status)), now)
+fun renameSession(session: Session, name: JsonElement?, now: JsonElement = num(0)) =
     bump(session, listOf("name" to str(normalizeSessionName(name))), now)
-fun setSessionTags(session: Session, tags: JsonElement?, now: JsonElement? = num(0)) =
+fun setSessionTags(session: Session, tags: JsonElement?, now: JsonElement = num(0)) =
     bump(session, listOf("tags" to arr(normalizeTags(tags).map(::str))), now)
 
-fun archiveSession(session: Session, now: JsonElement? = num(0)): Session {
+fun archiveSession(session: Session, now: JsonElement = num(0)): Session {
     val at = when {
         truthy(now) -> now
         truthy(session["updatedAt"]) -> session["updatedAt"]
@@ -338,17 +339,17 @@ fun archiveSession(session: Session, now: JsonElement? = num(0)): Session {
     return bump(session, listOf("archivedAt" to at), now)
 }
 
-fun restoreSession(session: Session, now: JsonElement? = num(0)) = bump(session, listOf("archivedAt" to num(0)), now)
+fun restoreSession(session: Session, now: JsonElement = num(0)) = bump(session, listOf("archivedAt" to num(0)), now)
 
-fun copySession(session: Session, id: JsonElement?, name: JsonElement? = JsonNull, now: JsonElement? = num(0)): Session {
+fun copySession(session: Session, id: JsonElement?, name: JsonElement = JsonNull, now: JsonElement = num(0)): Session {
     if (!truthy(id)) throw IllegalArgumentException("copySession requires a new id")
     val chosen = if (name == null || name is JsonNull) session["name"] else name
     return bump(session, listOf("id" to id, "name" to str(normalizeSessionName(chosen))), now)
 }
 
 fun setSynthesis(
-    session: Session, text: JsonElement?, tier: JsonElement? = str(""), assumptions: JsonElement? = arr(emptyList()),
-    openQuestions: JsonElement? = JsonNull, now: JsonElement? = num(0),
+    session: Session, text: JsonElement?, tier: JsonElement = str(""), assumptions: JsonElement = arr(emptyList()),
+    openQuestions: JsonElement = JsonNull, now: JsonElement = num(0),
 ): Session {
     val patch = mutableListOf<Pair<String, JsonElement?>>(
         "synthesis" to obj("text" to text, "tier" to tier, "at" to now, "stale" to bool(false), "assumptions" to assumptions),
@@ -359,7 +360,7 @@ fun setSynthesis(
 }
 
 /** Re-entry: a finished session that gains a turn has a stale synthesis. */
-fun reopen(session: Session, now: JsonElement? = num(0)): Session = bump(
+fun reopen(session: Session, now: JsonElement = num(0)): Session = bump(
     session,
     listOf(
         "status" to str("interviewing"),
@@ -395,7 +396,13 @@ fun migrate(stored: JsonElement?): Session? {
     val coverage = LinkedHashMap<String, JsonElement>(baseCoverage)
     for (id in DIMENSION_IDS) {
         val c = stored["coverage"]
-        if (isRecord(c) && isRecord(c[id])) coverage[id] = (baseCoverage[id] as JsonObject).spread(c[id] as JsonObject)
+        if (isRecord(c) && isRecord(c[id])) {
+            var entry = (baseCoverage[id] as JsonObject).spread(c[id] as JsonObject)
+            // An unknown level or status disables the ratchet (see session.js); reset it.
+            if (stringOf(entry["level"]) !in LEVELS) entry = entry.spread("level" to str("thin"))
+            if (stringOf(entry["status"]) !in STATUSES) entry = entry.spread("status" to str("probing"))
+            coverage[id] = entry
+        }
     }
     merged["coverage"] = JsonObject(coverage)
     val synthesis = stored["synthesis"] as? JsonObject ?: JsonObject(emptyMap())

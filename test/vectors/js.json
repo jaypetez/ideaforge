@@ -1,0 +1,1793 @@
+{
+  "vectorsVersion": 1,
+  "family": "js",
+  "source": "ECMAScript semantics, as run by Node",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "String 0 0",
+      "fn": "String",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": "0"
+      }
+    },
+    {
+      "name": "Number 0 0",
+      "fn": "Number",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 0 0",
+      "fn": "plusOne",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "String 1 0",
+      "fn": "String",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": "0"
+      }
+    },
+    {
+      "name": "Number 1 0",
+      "fn": "Number",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 1 0",
+      "fn": "plusOne",
+      "args": [
+        0
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "String 2 1",
+      "fn": "String",
+      "args": [
+        1
+      ],
+      "expect": {
+        "value": "1"
+      }
+    },
+    {
+      "name": "Number 2 1",
+      "fn": "Number",
+      "args": [
+        1
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "plusOne 2 1",
+      "fn": "plusOne",
+      "args": [
+        1
+      ],
+      "expect": {
+        "value": 2
+      }
+    },
+    {
+      "name": "String 3 -1",
+      "fn": "String",
+      "args": [
+        -1
+      ],
+      "expect": {
+        "value": "-1"
+      }
+    },
+    {
+      "name": "Number 3 -1",
+      "fn": "Number",
+      "args": [
+        -1
+      ],
+      "expect": {
+        "value": -1
+      }
+    },
+    {
+      "name": "plusOne 3 -1",
+      "fn": "plusOne",
+      "args": [
+        -1
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "String 4 1.5",
+      "fn": "String",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": "1.5"
+      }
+    },
+    {
+      "name": "Number 4 1.5",
+      "fn": "Number",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": 1.5
+      }
+    },
+    {
+      "name": "plusOne 4 1.5",
+      "fn": "plusOne",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": 2.5
+      }
+    },
+    {
+      "name": "String 5 1.5",
+      "fn": "String",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": "1.5"
+      }
+    },
+    {
+      "name": "Number 5 1.5",
+      "fn": "Number",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": 1.5
+      }
+    },
+    {
+      "name": "plusOne 5 1.5",
+      "fn": "plusOne",
+      "args": [
+        1.5
+      ],
+      "expect": {
+        "value": 2.5
+      }
+    },
+    {
+      "name": "String 6 0.1",
+      "fn": "String",
+      "args": [
+        0.1
+      ],
+      "expect": {
+        "value": "0.1"
+      }
+    },
+    {
+      "name": "Number 6 0.1",
+      "fn": "Number",
+      "args": [
+        0.1
+      ],
+      "expect": {
+        "value": 0.1
+      }
+    },
+    {
+      "name": "plusOne 6 0.1",
+      "fn": "plusOne",
+      "args": [
+        0.1
+      ],
+      "expect": {
+        "value": 1.1
+      }
+    },
+    {
+      "name": "String 7 0.000001",
+      "fn": "String",
+      "args": [
+        0.000001
+      ],
+      "expect": {
+        "value": "0.000001"
+      }
+    },
+    {
+      "name": "Number 7 0.000001",
+      "fn": "Number",
+      "args": [
+        0.000001
+      ],
+      "expect": {
+        "value": 0.000001
+      }
+    },
+    {
+      "name": "plusOne 7 0.000001",
+      "fn": "plusOne",
+      "args": [
+        0.000001
+      ],
+      "expect": {
+        "value": 1.000001
+      }
+    },
+    {
+      "name": "String 8 1e-7",
+      "fn": "String",
+      "args": [
+        1e-7
+      ],
+      "expect": {
+        "value": "1e-7"
+      }
+    },
+    {
+      "name": "Number 8 1e-7",
+      "fn": "Number",
+      "args": [
+        1e-7
+      ],
+      "expect": {
+        "value": 1e-7
+      }
+    },
+    {
+      "name": "plusOne 8 1e-7",
+      "fn": "plusOne",
+      "args": [
+        1e-7
+      ],
+      "expect": {
+        "value": 1.0000001
+      }
+    },
+    {
+      "name": "String 9 1.5e-7",
+      "fn": "String",
+      "args": [
+        1.5e-7
+      ],
+      "expect": {
+        "value": "1.5e-7"
+      }
+    },
+    {
+      "name": "Number 9 1.5e-7",
+      "fn": "Number",
+      "args": [
+        1.5e-7
+      ],
+      "expect": {
+        "value": 1.5e-7
+      }
+    },
+    {
+      "name": "plusOne 9 1.5e-7",
+      "fn": "plusOne",
+      "args": [
+        1.5e-7
+      ],
+      "expect": {
+        "value": 1.00000015
+      }
+    },
+    {
+      "name": "String 10 123456789",
+      "fn": "String",
+      "args": [
+        123456789
+      ],
+      "expect": {
+        "value": "123456789"
+      }
+    },
+    {
+      "name": "Number 10 123456789",
+      "fn": "Number",
+      "args": [
+        123456789
+      ],
+      "expect": {
+        "value": 123456789
+      }
+    },
+    {
+      "name": "plusOne 10 123456789",
+      "fn": "plusOne",
+      "args": [
+        123456789
+      ],
+      "expect": {
+        "value": 123456790
+      }
+    },
+    {
+      "name": "String 11 1000000000000000",
+      "fn": "String",
+      "args": [
+        1000000000000000
+      ],
+      "expect": {
+        "value": "1000000000000000"
+      }
+    },
+    {
+      "name": "Number 11 1000000000000000",
+      "fn": "Number",
+      "args": [
+        1000000000000000
+      ],
+      "expect": {
+        "value": 1000000000000000
+      }
+    },
+    {
+      "name": "plusOne 11 1000000000000000",
+      "fn": "plusOne",
+      "args": [
+        1000000000000000
+      ],
+      "expect": {
+        "value": 1000000000000001
+      }
+    },
+    {
+      "name": "String 12 10000000000000000",
+      "fn": "String",
+      "args": [
+        10000000000000000
+      ],
+      "expect": {
+        "value": "10000000000000000"
+      }
+    },
+    {
+      "name": "Number 12 10000000000000000",
+      "fn": "Number",
+      "args": [
+        10000000000000000
+      ],
+      "expect": {
+        "value": 10000000000000000
+      }
+    },
+    {
+      "name": "plusOne 12 10000000000000000",
+      "fn": "plusOne",
+      "args": [
+        10000000000000000
+      ],
+      "expect": {
+        "value": 10000000000000000
+      }
+    },
+    {
+      "name": "String 13 9007199254740992",
+      "fn": "String",
+      "args": [
+        9007199254740992
+      ],
+      "expect": {
+        "value": "9007199254740992"
+      }
+    },
+    {
+      "name": "Number 13 9007199254740992",
+      "fn": "Number",
+      "args": [
+        9007199254740992
+      ],
+      "expect": {
+        "value": 9007199254740992
+      }
+    },
+    {
+      "name": "plusOne 13 9007199254740992",
+      "fn": "plusOne",
+      "args": [
+        9007199254740992
+      ],
+      "expect": {
+        "value": 9007199254740992
+      }
+    },
+    {
+      "name": "String 14 100000000000000000000",
+      "fn": "String",
+      "args": [
+        100000000000000000000
+      ],
+      "expect": {
+        "value": "100000000000000000000"
+      }
+    },
+    {
+      "name": "Number 14 100000000000000000000",
+      "fn": "Number",
+      "args": [
+        100000000000000000000
+      ],
+      "expect": {
+        "value": 100000000000000000000
+      }
+    },
+    {
+      "name": "plusOne 14 100000000000000000000",
+      "fn": "plusOne",
+      "args": [
+        100000000000000000000
+      ],
+      "expect": {
+        "value": 100000000000000000000
+      }
+    },
+    {
+      "name": "String 15 1e+21",
+      "fn": "String",
+      "args": [
+        1e+21
+      ],
+      "expect": {
+        "value": "1e+21"
+      }
+    },
+    {
+      "name": "Number 15 1e+21",
+      "fn": "Number",
+      "args": [
+        1e+21
+      ],
+      "expect": {
+        "value": 1e+21
+      }
+    },
+    {
+      "name": "plusOne 15 1e+21",
+      "fn": "plusOne",
+      "args": [
+        1e+21
+      ],
+      "expect": {
+        "value": 1e+21
+      }
+    },
+    {
+      "name": "String 16 1.5e+21",
+      "fn": "String",
+      "args": [
+        1.5e+21
+      ],
+      "expect": {
+        "value": "1.5e+21"
+      }
+    },
+    {
+      "name": "Number 16 1.5e+21",
+      "fn": "Number",
+      "args": [
+        1.5e+21
+      ],
+      "expect": {
+        "value": 1.5e+21
+      }
+    },
+    {
+      "name": "plusOne 16 1.5e+21",
+      "fn": "plusOne",
+      "args": [
+        1.5e+21
+      ],
+      "expect": {
+        "value": 1.5e+21
+      }
+    },
+    {
+      "name": "String 17 1.7976931348623157e+308",
+      "fn": "String",
+      "args": [
+        1.7976931348623157e+308
+      ],
+      "expect": {
+        "value": "1.7976931348623157e+308"
+      }
+    },
+    {
+      "name": "Number 17 1.7976931348623157e+308",
+      "fn": "Number",
+      "args": [
+        1.7976931348623157e+308
+      ],
+      "expect": {
+        "value": 1.7976931348623157e+308
+      }
+    },
+    {
+      "name": "plusOne 17 1.7976931348623157e+308",
+      "fn": "plusOne",
+      "args": [
+        1.7976931348623157e+308
+      ],
+      "expect": {
+        "value": 1.7976931348623157e+308
+      }
+    },
+    {
+      "name": "String 18 5e-324",
+      "fn": "String",
+      "args": [
+        5e-324
+      ],
+      "expect": {
+        "value": "5e-324"
+      }
+    },
+    {
+      "name": "Number 18 5e-324",
+      "fn": "Number",
+      "args": [
+        5e-324
+      ],
+      "expect": {
+        "value": 5e-324
+      }
+    },
+    {
+      "name": "plusOne 18 5e-324",
+      "fn": "plusOne",
+      "args": [
+        5e-324
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "String 19 0.3333333333333333",
+      "fn": "String",
+      "args": [
+        0.3333333333333333
+      ],
+      "expect": {
+        "value": "0.3333333333333333"
+      }
+    },
+    {
+      "name": "Number 19 0.3333333333333333",
+      "fn": "Number",
+      "args": [
+        0.3333333333333333
+      ],
+      "expect": {
+        "value": 0.3333333333333333
+      }
+    },
+    {
+      "name": "plusOne 19 0.3333333333333333",
+      "fn": "plusOne",
+      "args": [
+        0.3333333333333333
+      ],
+      "expect": {
+        "value": 1.3333333333333333
+      }
+    },
+    {
+      "name": "String 20 100",
+      "fn": "String",
+      "args": [
+        100
+      ],
+      "expect": {
+        "value": "100"
+      }
+    },
+    {
+      "name": "Number 20 100",
+      "fn": "Number",
+      "args": [
+        100
+      ],
+      "expect": {
+        "value": 100
+      }
+    },
+    {
+      "name": "plusOne 20 100",
+      "fn": "plusOne",
+      "args": [
+        100
+      ],
+      "expect": {
+        "value": 101
+      }
+    },
+    {
+      "name": "String 21 255.5",
+      "fn": "String",
+      "args": [
+        255.5
+      ],
+      "expect": {
+        "value": "255.5"
+      }
+    },
+    {
+      "name": "Number 21 255.5",
+      "fn": "Number",
+      "args": [
+        255.5
+      ],
+      "expect": {
+        "value": 255.5
+      }
+    },
+    {
+      "name": "plusOne 21 255.5",
+      "fn": "plusOne",
+      "args": [
+        255.5
+      ],
+      "expect": {
+        "value": 256.5
+      }
+    },
+    {
+      "name": "String 22 \"\"",
+      "fn": "String",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "Number 22 \"\"",
+      "fn": "Number",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 22 \"\"",
+      "fn": "plusOne",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": "1"
+      }
+    },
+    {
+      "name": "String 23 \" \"",
+      "fn": "String",
+      "args": [
+        " "
+      ],
+      "expect": {
+        "value": " "
+      }
+    },
+    {
+      "name": "Number 23 \" \"",
+      "fn": "Number",
+      "args": [
+        " "
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 23 \" \"",
+      "fn": "plusOne",
+      "args": [
+        " "
+      ],
+      "expect": {
+        "value": " 1"
+      }
+    },
+    {
+      "name": "String 24 \"  42 \"",
+      "fn": "String",
+      "args": [
+        "  42 "
+      ],
+      "expect": {
+        "value": "  42 "
+      }
+    },
+    {
+      "name": "Number 24 \"  42 \"",
+      "fn": "Number",
+      "args": [
+        "  42 "
+      ],
+      "expect": {
+        "value": 42
+      }
+    },
+    {
+      "name": "plusOne 24 \"  42 \"",
+      "fn": "plusOne",
+      "args": [
+        "  42 "
+      ],
+      "expect": {
+        "value": "  42 1"
+      }
+    },
+    {
+      "name": "String 25 \"0x1F\"",
+      "fn": "String",
+      "args": [
+        "0x1F"
+      ],
+      "expect": {
+        "value": "0x1F"
+      }
+    },
+    {
+      "name": "Number 25 \"0x1F\"",
+      "fn": "Number",
+      "args": [
+        "0x1F"
+      ],
+      "expect": {
+        "value": 31
+      }
+    },
+    {
+      "name": "plusOne 25 \"0x1F\"",
+      "fn": "plusOne",
+      "args": [
+        "0x1F"
+      ],
+      "expect": {
+        "value": "0x1F1"
+      }
+    },
+    {
+      "name": "String 26 \"0X1f\"",
+      "fn": "String",
+      "args": [
+        "0X1f"
+      ],
+      "expect": {
+        "value": "0X1f"
+      }
+    },
+    {
+      "name": "Number 26 \"0X1f\"",
+      "fn": "Number",
+      "args": [
+        "0X1f"
+      ],
+      "expect": {
+        "value": 31
+      }
+    },
+    {
+      "name": "plusOne 26 \"0X1f\"",
+      "fn": "plusOne",
+      "args": [
+        "0X1f"
+      ],
+      "expect": {
+        "value": "0X1f1"
+      }
+    },
+    {
+      "name": "String 27 \"0b11\"",
+      "fn": "String",
+      "args": [
+        "0b11"
+      ],
+      "expect": {
+        "value": "0b11"
+      }
+    },
+    {
+      "name": "Number 27 \"0b11\"",
+      "fn": "Number",
+      "args": [
+        "0b11"
+      ],
+      "expect": {
+        "value": 3
+      }
+    },
+    {
+      "name": "plusOne 27 \"0b11\"",
+      "fn": "plusOne",
+      "args": [
+        "0b11"
+      ],
+      "expect": {
+        "value": "0b111"
+      }
+    },
+    {
+      "name": "String 28 \"0o17\"",
+      "fn": "String",
+      "args": [
+        "0o17"
+      ],
+      "expect": {
+        "value": "0o17"
+      }
+    },
+    {
+      "name": "Number 28 \"0o17\"",
+      "fn": "Number",
+      "args": [
+        "0o17"
+      ],
+      "expect": {
+        "value": 15
+      }
+    },
+    {
+      "name": "plusOne 28 \"0o17\"",
+      "fn": "plusOne",
+      "args": [
+        "0o17"
+      ],
+      "expect": {
+        "value": "0o171"
+      }
+    },
+    {
+      "name": "String 29 \"0x+3\"",
+      "fn": "String",
+      "args": [
+        "0x+3"
+      ],
+      "expect": {
+        "value": "0x+3"
+      }
+    },
+    {
+      "name": "Number 29 \"0x+3\"",
+      "fn": "Number",
+      "args": [
+        "0x+3"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 29 \"0x+3\"",
+      "fn": "plusOne",
+      "args": [
+        "0x+3"
+      ],
+      "expect": {
+        "value": "0x+31"
+      }
+    },
+    {
+      "name": "String 30 \"0x-3\"",
+      "fn": "String",
+      "args": [
+        "0x-3"
+      ],
+      "expect": {
+        "value": "0x-3"
+      }
+    },
+    {
+      "name": "Number 30 \"0x-3\"",
+      "fn": "Number",
+      "args": [
+        "0x-3"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 30 \"0x-3\"",
+      "fn": "plusOne",
+      "args": [
+        "0x-3"
+      ],
+      "expect": {
+        "value": "0x-31"
+      }
+    },
+    {
+      "name": "String 31 \"0x1FFFFFFFFFFFFFFFF\"",
+      "fn": "String",
+      "args": [
+        "0x1FFFFFFFFFFFFFFFF"
+      ],
+      "expect": {
+        "value": "0x1FFFFFFFFFFFFFFFF"
+      }
+    },
+    {
+      "name": "Number 31 \"0x1FFFFFFFFFFFFFFFF\"",
+      "fn": "Number",
+      "args": [
+        "0x1FFFFFFFFFFFFFFFF"
+      ],
+      "expect": {
+        "value": 36893488147419103000
+      }
+    },
+    {
+      "name": "plusOne 31 \"0x1FFFFFFFFFFFFFFFF\"",
+      "fn": "plusOne",
+      "args": [
+        "0x1FFFFFFFFFFFFFFFF"
+      ],
+      "expect": {
+        "value": "0x1FFFFFFFFFFFFFFFF1"
+      }
+    },
+    {
+      "name": "String 32 \"+5\"",
+      "fn": "String",
+      "args": [
+        "+5"
+      ],
+      "expect": {
+        "value": "+5"
+      }
+    },
+    {
+      "name": "Number 32 \"+5\"",
+      "fn": "Number",
+      "args": [
+        "+5"
+      ],
+      "expect": {
+        "value": 5
+      }
+    },
+    {
+      "name": "plusOne 32 \"+5\"",
+      "fn": "plusOne",
+      "args": [
+        "+5"
+      ],
+      "expect": {
+        "value": "+51"
+      }
+    },
+    {
+      "name": "String 33 \"-5\"",
+      "fn": "String",
+      "args": [
+        "-5"
+      ],
+      "expect": {
+        "value": "-5"
+      }
+    },
+    {
+      "name": "Number 33 \"-5\"",
+      "fn": "Number",
+      "args": [
+        "-5"
+      ],
+      "expect": {
+        "value": -5
+      }
+    },
+    {
+      "name": "plusOne 33 \"-5\"",
+      "fn": "plusOne",
+      "args": [
+        "-5"
+      ],
+      "expect": {
+        "value": "-51"
+      }
+    },
+    {
+      "name": "String 34 \"1e3\"",
+      "fn": "String",
+      "args": [
+        "1e3"
+      ],
+      "expect": {
+        "value": "1e3"
+      }
+    },
+    {
+      "name": "Number 34 \"1e3\"",
+      "fn": "Number",
+      "args": [
+        "1e3"
+      ],
+      "expect": {
+        "value": 1000
+      }
+    },
+    {
+      "name": "plusOne 34 \"1e3\"",
+      "fn": "plusOne",
+      "args": [
+        "1e3"
+      ],
+      "expect": {
+        "value": "1e31"
+      }
+    },
+    {
+      "name": "String 35 \".5\"",
+      "fn": "String",
+      "args": [
+        ".5"
+      ],
+      "expect": {
+        "value": ".5"
+      }
+    },
+    {
+      "name": "Number 35 \".5\"",
+      "fn": "Number",
+      "args": [
+        ".5"
+      ],
+      "expect": {
+        "value": 0.5
+      }
+    },
+    {
+      "name": "plusOne 35 \".5\"",
+      "fn": "plusOne",
+      "args": [
+        ".5"
+      ],
+      "expect": {
+        "value": ".51"
+      }
+    },
+    {
+      "name": "String 36 \"5.\"",
+      "fn": "String",
+      "args": [
+        "5."
+      ],
+      "expect": {
+        "value": "5."
+      }
+    },
+    {
+      "name": "Number 36 \"5.\"",
+      "fn": "Number",
+      "args": [
+        "5."
+      ],
+      "expect": {
+        "value": 5
+      }
+    },
+    {
+      "name": "plusOne 36 \"5.\"",
+      "fn": "plusOne",
+      "args": [
+        "5."
+      ],
+      "expect": {
+        "value": "5.1"
+      }
+    },
+    {
+      "name": "String 37 \"1_000\"",
+      "fn": "String",
+      "args": [
+        "1_000"
+      ],
+      "expect": {
+        "value": "1_000"
+      }
+    },
+    {
+      "name": "Number 37 \"1_000\"",
+      "fn": "Number",
+      "args": [
+        "1_000"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 37 \"1_000\"",
+      "fn": "plusOne",
+      "args": [
+        "1_000"
+      ],
+      "expect": {
+        "value": "1_0001"
+      }
+    },
+    {
+      "name": "String 38 \"Infinity\"",
+      "fn": "String",
+      "args": [
+        "Infinity"
+      ],
+      "expect": {
+        "value": "Infinity"
+      }
+    },
+    {
+      "name": "Number 38 \"Infinity\"",
+      "fn": "Number",
+      "args": [
+        "Infinity"
+      ],
+      "expect": {
+        "value": "Infinity"
+      }
+    },
+    {
+      "name": "plusOne 38 \"Infinity\"",
+      "fn": "plusOne",
+      "args": [
+        "Infinity"
+      ],
+      "expect": {
+        "value": "Infinity1"
+      }
+    },
+    {
+      "name": "String 39 \"-Infinity\"",
+      "fn": "String",
+      "args": [
+        "-Infinity"
+      ],
+      "expect": {
+        "value": "-Infinity"
+      }
+    },
+    {
+      "name": "Number 39 \"-Infinity\"",
+      "fn": "Number",
+      "args": [
+        "-Infinity"
+      ],
+      "expect": {
+        "value": "-Infinity"
+      }
+    },
+    {
+      "name": "plusOne 39 \"-Infinity\"",
+      "fn": "plusOne",
+      "args": [
+        "-Infinity"
+      ],
+      "expect": {
+        "value": "-Infinity1"
+      }
+    },
+    {
+      "name": "String 40 \"+Infinity\"",
+      "fn": "String",
+      "args": [
+        "+Infinity"
+      ],
+      "expect": {
+        "value": "+Infinity"
+      }
+    },
+    {
+      "name": "Number 40 \"+Infinity\"",
+      "fn": "Number",
+      "args": [
+        "+Infinity"
+      ],
+      "expect": {
+        "value": "Infinity"
+      }
+    },
+    {
+      "name": "plusOne 40 \"+Infinity\"",
+      "fn": "plusOne",
+      "args": [
+        "+Infinity"
+      ],
+      "expect": {
+        "value": "+Infinity1"
+      }
+    },
+    {
+      "name": "String 41 \"infinity\"",
+      "fn": "String",
+      "args": [
+        "infinity"
+      ],
+      "expect": {
+        "value": "infinity"
+      }
+    },
+    {
+      "name": "Number 41 \"infinity\"",
+      "fn": "Number",
+      "args": [
+        "infinity"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 41 \"infinity\"",
+      "fn": "plusOne",
+      "args": [
+        "infinity"
+      ],
+      "expect": {
+        "value": "infinity1"
+      }
+    },
+    {
+      "name": "String 42 \"NaN\"",
+      "fn": "String",
+      "args": [
+        "NaN"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "Number 42 \"NaN\"",
+      "fn": "Number",
+      "args": [
+        "NaN"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 42 \"NaN\"",
+      "fn": "plusOne",
+      "args": [
+        "NaN"
+      ],
+      "expect": {
+        "value": "NaN1"
+      }
+    },
+    {
+      "name": "String 43 \"abc\"",
+      "fn": "String",
+      "args": [
+        "abc"
+      ],
+      "expect": {
+        "value": "abc"
+      }
+    },
+    {
+      "name": "Number 43 \"abc\"",
+      "fn": "Number",
+      "args": [
+        "abc"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 43 \"abc\"",
+      "fn": "plusOne",
+      "args": [
+        "abc"
+      ],
+      "expect": {
+        "value": "abc1"
+      }
+    },
+    {
+      "name": "String 44 \"12px\"",
+      "fn": "String",
+      "args": [
+        "12px"
+      ],
+      "expect": {
+        "value": "12px"
+      }
+    },
+    {
+      "name": "Number 44 \"12px\"",
+      "fn": "Number",
+      "args": [
+        "12px"
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 44 \"12px\"",
+      "fn": "plusOne",
+      "args": [
+        "12px"
+      ],
+      "expect": {
+        "value": "12px1"
+      }
+    },
+    {
+      "name": "String 45 \"  7 ﻿\"",
+      "fn": "String",
+      "args": [
+        "  7 ﻿"
+      ],
+      "expect": {
+        "value": "  7 ﻿"
+      }
+    },
+    {
+      "name": "Number 45 \"  7 ﻿\"",
+      "fn": "Number",
+      "args": [
+        "  7 ﻿"
+      ],
+      "expect": {
+        "value": 7
+      }
+    },
+    {
+      "name": "plusOne 45 \"  7 ﻿\"",
+      "fn": "plusOne",
+      "args": [
+        "  7 ﻿"
+      ],
+      "expect": {
+        "value": "  7 ﻿1"
+      }
+    },
+    {
+      "name": "String 46 null",
+      "fn": "String",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": "null"
+      }
+    },
+    {
+      "name": "Number 46 null",
+      "fn": "Number",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 46 null",
+      "fn": "plusOne",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "String 47 true",
+      "fn": "String",
+      "args": [
+        true
+      ],
+      "expect": {
+        "value": "true"
+      }
+    },
+    {
+      "name": "Number 47 true",
+      "fn": "Number",
+      "args": [
+        true
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "plusOne 47 true",
+      "fn": "plusOne",
+      "args": [
+        true
+      ],
+      "expect": {
+        "value": 2
+      }
+    },
+    {
+      "name": "String 48 false",
+      "fn": "String",
+      "args": [
+        false
+      ],
+      "expect": {
+        "value": "false"
+      }
+    },
+    {
+      "name": "Number 48 false",
+      "fn": "Number",
+      "args": [
+        false
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 48 false",
+      "fn": "plusOne",
+      "args": [
+        false
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "String 49 []",
+      "fn": "String",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "Number 49 []",
+      "fn": "Number",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 49 []",
+      "fn": "plusOne",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": "1"
+      }
+    },
+    {
+      "name": "String 50 [5]",
+      "fn": "String",
+      "args": [
+        [
+          5
+        ]
+      ],
+      "expect": {
+        "value": "5"
+      }
+    },
+    {
+      "name": "Number 50 [5]",
+      "fn": "Number",
+      "args": [
+        [
+          5
+        ]
+      ],
+      "expect": {
+        "value": 5
+      }
+    },
+    {
+      "name": "plusOne 50 [5]",
+      "fn": "plusOne",
+      "args": [
+        [
+          5
+        ]
+      ],
+      "expect": {
+        "value": "51"
+      }
+    },
+    {
+      "name": "String 51 [\"7\"]",
+      "fn": "String",
+      "args": [
+        [
+          "7"
+        ]
+      ],
+      "expect": {
+        "value": "7"
+      }
+    },
+    {
+      "name": "Number 51 [\"7\"]",
+      "fn": "Number",
+      "args": [
+        [
+          "7"
+        ]
+      ],
+      "expect": {
+        "value": 7
+      }
+    },
+    {
+      "name": "plusOne 51 [\"7\"]",
+      "fn": "plusOne",
+      "args": [
+        [
+          "7"
+        ]
+      ],
+      "expect": {
+        "value": "71"
+      }
+    },
+    {
+      "name": "String 52 [1,2]",
+      "fn": "String",
+      "args": [
+        [
+          1,
+          2
+        ]
+      ],
+      "expect": {
+        "value": "1,2"
+      }
+    },
+    {
+      "name": "Number 52 [1,2]",
+      "fn": "Number",
+      "args": [
+        [
+          1,
+          2
+        ]
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 52 [1,2]",
+      "fn": "plusOne",
+      "args": [
+        [
+          1,
+          2
+        ]
+      ],
+      "expect": {
+        "value": "1,21"
+      }
+    },
+    {
+      "name": "String 53 [true]",
+      "fn": "String",
+      "args": [
+        [
+          true
+        ]
+      ],
+      "expect": {
+        "value": "true"
+      }
+    },
+    {
+      "name": "Number 53 [true]",
+      "fn": "Number",
+      "args": [
+        [
+          true
+        ]
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 53 [true]",
+      "fn": "plusOne",
+      "args": [
+        [
+          true
+        ]
+      ],
+      "expect": {
+        "value": "true1"
+      }
+    },
+    {
+      "name": "String 54 [\"0b11\"]",
+      "fn": "String",
+      "args": [
+        [
+          "0b11"
+        ]
+      ],
+      "expect": {
+        "value": "0b11"
+      }
+    },
+    {
+      "name": "Number 54 [\"0b11\"]",
+      "fn": "Number",
+      "args": [
+        [
+          "0b11"
+        ]
+      ],
+      "expect": {
+        "value": 3
+      }
+    },
+    {
+      "name": "plusOne 54 [\"0b11\"]",
+      "fn": "plusOne",
+      "args": [
+        [
+          "0b11"
+        ]
+      ],
+      "expect": {
+        "value": "0b111"
+      }
+    },
+    {
+      "name": "String 55 [null]",
+      "fn": "String",
+      "args": [
+        [
+          null
+        ]
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "Number 55 [null]",
+      "fn": "Number",
+      "args": [
+        [
+          null
+        ]
+      ],
+      "expect": {
+        "value": 0
+      }
+    },
+    {
+      "name": "plusOne 55 [null]",
+      "fn": "plusOne",
+      "args": [
+        [
+          null
+        ]
+      ],
+      "expect": {
+        "value": "1"
+      }
+    },
+    {
+      "name": "String 56 {}",
+      "fn": "String",
+      "args": [
+        {}
+      ],
+      "expect": {
+        "value": "[object Object]"
+      }
+    },
+    {
+      "name": "Number 56 {}",
+      "fn": "Number",
+      "args": [
+        {}
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 56 {}",
+      "fn": "plusOne",
+      "args": [
+        {}
+      ],
+      "expect": {
+        "value": "[object Object]1"
+      }
+    },
+    {
+      "name": "String 57 {\"a\":1}",
+      "fn": "String",
+      "args": [
+        {
+          "a": 1
+        }
+      ],
+      "expect": {
+        "value": "[object Object]"
+      }
+    },
+    {
+      "name": "Number 57 {\"a\":1}",
+      "fn": "Number",
+      "args": [
+        {
+          "a": 1
+        }
+      ],
+      "expect": {
+        "value": "NaN"
+      }
+    },
+    {
+      "name": "plusOne 57 {\"a\":1}",
+      "fn": "plusOne",
+      "args": [
+        {
+          "a": 1
+        }
+      ],
+      "expect": {
+        "value": "[object Object]1"
+      }
+    }
+  ]
+}
