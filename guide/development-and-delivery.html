@@ -35,6 +35,7 @@
           <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
           <li><a href="./ideas-library.html">Ideas library</a></li>
           <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./android.html">Android app</a></li>
           <li><a href="./providers.html">Providers</a></li>
           <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
           <li><a href="./privacy-and-security.html">Privacy and security</a></li>
@@ -333,13 +334,33 @@ npm run serve</code></pre>
       <h2 id="continuous-integration">Continuous integration</h2>
       <p>
         The CI workflow runs <code>npm test</code> and the module graph on Linux, Windows, and
-        macOS with Node 22 and 24. A separate Ubuntu job runs the required browser suite.
+        macOS with Node 22 and 24. A separate Ubuntu job runs the required browser suite,
+        and an <code>android</code> job runs <code>./gradlew check :app:assembleDebug</code>
+        in <code>android/</code> and uploads the debug APK as an artifact.
         Branch protection requires one stable aggregator named <code>ci</code>; it fails
-        unless every matrix and browser job succeeds, including cancelled or skipped jobs.
+        unless every matrix, browser and Android job succeeds, including cancelled or skipped
+        jobs.
       </p>
       <p>
-        The workflow is read-only and has no install or package-cache step. Do not bypass the
+        The workflow is read-only. The Node and browser jobs have no install or
+        package-cache step; the Android job installs a JDK and keeps a Gradle dependency
+        cache that only <code>main</code> may write. Do not bypass the
         aggregator or add path filters that can leave a required check waiting forever.
+      </p>
+
+      <h2 id="android">The native Android app</h2>
+      <p>
+        <code>android/</code> is a separate Gradle project: <code>:core</code> is a pure
+        Kotlin port of <code>src/core/</code> and <code>src/runtime/</code>,
+        <code>:providers</code> ports <code>src/providers/</code>, and <code>:app</code> is
+        the Compose application. None of it is published with the site. The JavaScript core
+        stays the reference: <code>npm run vectors</code> records its behaviour as golden
+        vectors in <code>test/vectors/</code>, and the Kotlin tests replay them, so a
+        behaviour change that regenerates them turns the Android job red until the port
+        follows. The build and emulator ladder is the shared
+        <a href="https://github.com/jaypetez/ideaforge/tree/main/.claude/skills/android-verify">
+        android-verify skill</a>; installing the app is covered in
+        <a href="./android.html">Android app</a>.
       </p>
 
       <h2 id="pages">GitHub Pages publishes the tested tree</h2>

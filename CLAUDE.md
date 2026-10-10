@@ -445,6 +445,70 @@ enough that the eighth failure case never gets written.
 
 Use the `add-provider` skill when changing an inference or transcription provider.
 
+## Android invariants
+
+`android/` is the native app: `:core` (Kotlin port of `src/core` + `src/runtime`),
+`:providers` (port of `src/providers`, on OkHttp) and `:app` (Compose). Run
+`./gradlew check :app:assembleDebug` from `android/`; the `android-verify` skill is the full
+ladder, including the emulator smoke run. Most of these rules fail silently too.
+
+- **The vectors are the contract, and the JavaScript is the reference.** Behaviour changes
+  land in JS, `npm run vectors` regenerates `test/vectors/` in the same PR, and the Kotlin
+  replays (`Consumers.kt`, with `VectorCoverageTest` failing on an unconsumed family) go red
+  until the port follows. Never hand-edit a vector, loosen a consumer's comparison, or move a
+  function back to `pending` to get green: #76 did that by accident and the markdown vectors
+  were recorded and never replayed until #85. Porting a function moves it from `pending` to
+  `ported` in the same PR as the Kotlin.
+- **`:core` is pure, guarded twice.** It is a plain JVM module (nothing Android is on the
+  classpath, which `ModuleBoundaryTest` asserts) and `CorePurityTest` bans clocks,
+  randomness, `UUID`, files, `java.net`, `okhttp` and `Dispatchers.IO` from its sources. Wall
+  time and ids come from `:app`'s `Clock` and `IdGen` in `AppGraph`, injected as arguments.
+  The byte-identical turn prompt depends on it, exactly as on the web. `:providers` may use
+  `:core`, never the reverse.
+- **The network policy is code, not `network_security_config.xml`.** Cleartext is allowed
+  there because a LAN model server speaks plain http; widening it is not the gate.
+  `NetworkPolicy.Hosted` is a preset's fixed `https` origin on a `MODERN_TLS`-only client,
+  and nothing the user types reaches it. `NetworkPolicy.Local` is a private network
+  (loopback, RFC 1918, CGNAT, link-local, ULA, `localhost`/`*.localhost`/`*.local`), never
+  carries a key, and uses no proxy. It is enforced by `LocalNetworkDns`, which refuses the
+  whole lookup if any resolved address is public, so the check and the connection use the
+  same address list and DNS rebinding has nothing to race; IP literals skip `Dns`, so
+  `LocalNetworkPolicy.check` validates them and refuses odd numeric spellings (`127.1`).
+  Redirects are never followed: OkHttp keeps `x-api-key` across hosts, and a redirect to a
+  public literal would bypass the Dns guard. This deliberately differs from the web's
+  loopback-only rule (`assertLoopback`), whose reason is the CSP.
+- **The keyring is Keystore-encrypted, two-slot, and never in a backup.** `KeyringStore`
+  seals the web's v2 keyring JSON with AES-256-GCM under a non-exportable Android Keystore key
+  (no user authentication, so it works mid-drive) and writes `[format][slot][IV][ct]` to
+  `noBackupFilesDir`, outside the sessions directory. The header names the slot; a
+  permanently invalidated key is replaced under the *other* slot, and the old key is not
+  deleted until the new blob is durable. An unreadable blob reads as empty with status
+  `UNREADABLE` and is kept, not deleted, because a Keystore hiccup looks identical to a lost
+  key. `allowBackup="false"` and `data_extraction_rules.xml` (enforced by `BackupRulesTest`)
+  keep it, and everything else, out of Android backup; `buildBackup` never sees it.
+- **`SessionStore` never loses or clobbers a row.** One `<id>.json` per session, written by
+  `writeAtomically` (temp file, `fsync`, atomic replace, then `fsync` of the directory, not
+  androidx `AtomicFile`, which swallows a failed rename). It saves exactly the object it is
+  given, as `runTurn`'s caller expects. A file `migrate` rejects (newer schema, corrupt) is
+  skipped, never deleted and never overwritten, and `save` refuses its id; deleted ids are
+  remembered for the process, so an in-flight turn cannot write a deleted idea back; imports
+  go through `insert`, which refuses any id held, skipped, deleted or already on disk.
+- **The scripted provider is debug-only.** `adb shell am start … --es provider scripted`
+  swaps in `ScriptedProvider`, which replays the `walkthrough` vector that the build copies
+  into the *debug* assets. The release source set's `DebugProviders` returns null and
+  packages neither the script nor the provider. It replaces only the interview model; it
+  does not skip onboarding.
+- **Windows test hosts have two known quirks; do not loosen a test around them.**
+  Defender and the indexer briefly lock fresh files, so `writeAtomicallyWith` retries a
+  transient rename failure on Windows only (six attempts, backed off; one attempt
+  elsewhere), and skips the directory `fsync` there because a Windows JVM cannot open a
+  directory as a channel. FileProvider finds no root under Robolectric on Windows, so
+  `ResultActions.contentUri` is a seam `ResultScreenTest` swaps only after a real-provider
+  probe fails, and only on Windows.
+- **The release keystore never enters the repository.** `android/keystore.properties` is
+  ignored and `test/wiring.test.mjs` pins that it is never published. Signing arrives with
+  #95.
+
 ## Tests
 
 `node:test` + `node:assert/strict`, flat tests, no `describe`. Every test runs with **no

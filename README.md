@@ -286,6 +286,9 @@ and hosted speech.
 
 ### Android
 
+This installs the web app. A native Android app is also in alpha; see
+[the native Android app](#the-native-android-app-alpha) below.
+
 Open [the hosted app](https://jaypetez.github.io/ideaforge/) in Chrome. Use
 **Install IdeaForge** when the app offers it; if Chrome does not show that button, open its
 menu and choose **Install app** or **Add to Home screen**. Google's
@@ -319,6 +322,39 @@ On either phone, use a hosted provider such as Groq, Anthropic, OpenAI or OpenRo
 `localhost` and `127.0.0.1` mean the phone itself, not an Ollama or LM Studio server on your
 computer, and IdeaForge deliberately refuses arbitrary LAN model endpoints rather than
 weakening its key-exfiltration boundary.
+
+## The native Android app (alpha)
+
+`android/` holds a native Kotlin and Jetpack Compose app that runs the same interview engine,
+ported to Kotlin and held to the web app's behaviour by golden vectors. It is an early alpha:
+
+- **Works today:** two-step onboarding, the typed interview with suggestion chips, coverage and
+  the built-in checklist fallback, the result screen (Share .md, Copy markdown, Save .md, Ask
+  me more), the Ideas library and Settings. Backups move both ways between Android and the web
+  app.
+- **Not yet:** voice. The app does not ask for the microphone; press-to-talk and hands-free
+  driving are in progress, and hosted speech is not offered. Use the installed web app above
+  if you want voice on a phone today.
+- **Not yet:** a signed release or a Play Store listing.
+  <!-- TODO(#95): link the signed APK on GitHub releases once the release job attaches it. -->
+  The signed APK on GitHub releases arrives with
+  [issue #95](https://github.com/jaypetez/ideaforge/issues/95).
+
+Until then, install the debug build by sideloading. It needs Android 10 (API 29) or newer and
+installs as `io.github.jaypetez.ideaforge.debug`, beside any later release build. Build it with
+JDK 21 and the Android SDK, or download the `ideaforge-debug-apk` artifact from a CI run, then
+install it on an emulator or a phone with USB debugging:
+
+```sh
+cd android && ./gradlew :app:assembleDebug     # gradlew.bat on Windows
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Unlike the web app, the native app can reach a model server on your private network, such as
+Ollama at `10.0.2.2` from the emulator or through `adb reverse tcp:11434 tcp:11434` on a phone,
+and it never sends a key there. The
+[Android guide](https://jaypetez.github.io/ideaforge/guide/android.html) covers the emulator,
+USB and wireless adb, Play Protect, providers and backups.
 
 ## Run it with Docker
 
@@ -577,7 +613,7 @@ silently when broken, which is most of them. Security policy and the honest thre
 [SECURITY.md](SECURITY.md).
 
 Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
-local-model, README, review, and explicit release work, plus client-specific read-only
+local-model, Android, README, review, and explicit release work, plus client-specific read-only
 review agents. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
 discovery and use.
 
