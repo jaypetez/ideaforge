@@ -944,13 +944,17 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
    keyboard that shrank only the visual viewport; scroll-padding keeps focus from scrolling
    anything else in underneath it. */
 @media (max-width: 600px) {
+  /* One definition of the dock's gap above the screen edge, used by both rules: the scroll
+     padding must clear the same offset the dock sits at, including a home-bar safe area
+     (about 34px on a Face ID iPhone) that headless Chrome always reports as 0. */
+  :root { --composer-gap: max(var(--s2), env(safe-area-inset-bottom)); }
   .composer {
     position: sticky; z-index: 2;
-    bottom: calc(var(--keyboard-inset, 0px) + max(var(--s2), env(safe-area-inset-bottom)));
+    bottom: calc(var(--keyboard-inset, 0px) + var(--composer-gap));
     padding: var(--s2);
   }
   html:has(body[data-panel="interview"]) {
-    scroll-padding-bottom: calc(var(--composer-block, 0px) + var(--keyboard-inset, 0px) + var(--s4));
+    scroll-padding-bottom: calc(var(--composer-block, 0px) + var(--keyboard-inset, 0px) + var(--composer-gap) + var(--s2));
   }
   #answer { min-height: 72px; max-height: 30dvh; }
   .interview-actions { gap: var(--s1); }
