@@ -29,17 +29,29 @@ import javax.crypto.spec.SecretKeySpec
  * A software stand-in for [AndroidKeystoreKey]: a plain JVM has no AndroidKeyStore. The
  * cipher, IV handling and file format under test are the production code unchanged.
  */
-class SoftwareKey(var key: SecretKey? = null) : KeyringKey {
+class SoftwareKey(initial: SecretKey? = null) : KeyringKey {
+    val keys = arrayOfNulls<SecretKey>(2).also { it[0] = initial }
     var created = 0
+
+    /** Deletions that actually removed a key. */
     var deleted = 0
 
-    override fun existing(): SecretKey? = key
+    /** The key in slot 0, where every keyring starts. */
+    val key: SecretKey? get() = keys[0]
 
-    override fun getOrCreate(): SecretKey = key ?: fresh().also { key = it; created++ }
+    /** Thrown by the next getOrCreate(), once: a Keystore that is busy, or a key it invalidated. */
+    var failNext: Exception? = null
 
-    override fun delete() {
-        deleted++
-        key = null
+    override fun existing(slot: Int): SecretKey? = keys[slot]
+
+    override fun getOrCreate(slot: Int): SecretKey {
+        failNext?.let { failNext = null; throw it }
+        return keys[slot] ?: fresh().also { keys[slot] = it; created++ }
+    }
+
+    override fun delete(slot: Int) {
+        if (keys[slot] != null) deleted++
+        keys[slot] = null
     }
 
     companion object {
@@ -99,12 +111,13 @@ class KeyringStoreTest {
     }
 
     @Test
-    fun theBlobIsFormatThenA12ByteIvThenCiphertextAndA128BitTag() = runBlocking {
+    fun theBlobIsFormatSlotThenA12ByteIvThenCiphertextAndA128BitTag() = runBlocking {
         store(SoftwareKey()).save(ring)
         val plainSize = Json.encodeToString(JsonObject.serializer(), ring).encodeToByteArray().size
         val bytes = file.readBytes()
         assertEquals(KeyringStore.FORMAT_V1, bytes[0])
-        assertEquals(1 + 12 + plainSize + 16, bytes.size)
+        assertEquals(0.toByte(), bytes[1]) // key slot
+        assertEquals(2 + 12 + plainSize + 16, bytes.size)
     }
 
     // GCM under one key with a repeated IV leaks the XOR of plaintexts and the auth key.
@@ -117,12 +130,12 @@ class KeyringStoreTest {
         repeat(32) {
             s.save(ring)
             val bytes = file.readBytes()
-            ivs += bytes.copyOfRange(1, 13).joinToString(",")
+            ivs += bytes.copyOfRange(2, 14).joinToString(",")
             blobs += bytes.joinToString(",")
         }
         assertEquals("IVs repeated across 32 writes of the same ring", 32, ivs.size)
         assertEquals(32, blobs.size)
-        val direct = (1..64).map { KeyringStore.encrypt(key.key!!, ByteArray(8)).copyOfRange(1, 13).joinToString(",") }.toSet()
+        val direct = (1..64).map { KeyringStore.encrypt(key.key!!, ByteArray(8)).copyOfRange(2, 14).joinToString(",") }.toSet()
         assertEquals(64, direct.size)
     }
 
@@ -177,7 +190,7 @@ class KeyringStoreTest {
         val key = SoftwareKey()
         for ((plain, status) in listOf("[1,2]" to KeyringState.Status.STORED, "not json" to KeyringState.Status.UNREADABLE)) {
             file.parentFile!!.mkdirs()
-            file.writeBytes(KeyringStore.encrypt(key.getOrCreate(), plain.toByteArray()))
+            file.writeBytes(KeyringStore.encrypt(key.getOrCreate(0), plain.toByteArray()))
             val state = store(key).load()
             assertEquals(plain, status, state.status)
             assertEquals(emptyKeyring(), state.ring)
@@ -203,7 +216,60 @@ class KeyringStoreTest {
         store(key).save(ring)
         assertEquals(1, key.deleted)
         assertEquals(1, key.created)
+        assertNull("the invalid key survived a durable replacement", key.keys[0])
+        assertNotNull(key.keys[1])
+        assertEquals(1, file.readBytes()[1].toInt())
         assertEquals(ring, store(key).load().ring)
+    }
+
+    // The slot follows the blob: later saves stay on the replacement key, and a second
+    // invalidation moves back to the first slot rather than overwriting the live key.
+    @Test
+    fun replacementsAlternateBetweenTheTwoSlots() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        key.failNext = java.security.InvalidKeyException("invalidated")
+        store(key).save(ring)
+        store(key).save(ring)
+        assertEquals(1, file.readBytes()[1].toInt())
+        key.failNext = java.security.InvalidKeyException("invalidated again")
+        store(key).save(ring)
+        assertEquals(0, file.readBytes()[1].toInt())
+        assertNotNull(key.keys[0])
+        assertNull(key.keys[1])
+        assertEquals(ring, store(key).load().ring)
+    }
+
+    // A transient Keystore error must not cost the key that reads the keyring already on disk.
+    @Test
+    fun aTransientKeystoreFailureOnSaveTouchesNoKey() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        val before = key.key
+        key.failNext = java.security.KeyStoreException("keystore busy")
+        val next = withCreds(ring, "groq", obj("apiKey" to "gsk-new"))
+        val saved = runCatching { store(key).save(next) }
+        assertEquals("a key was deleted over a transient failure", 0, key.deleted)
+        assertEquals(before, key.key)
+        val loaded = store(key).load()
+        assertEquals(KeyringState.Status.STORED, loaded.status)
+        assertEquals(if (saved.isSuccess) next else ring, loaded.ring)
+    }
+
+    // A replacement key must not orphan the existing blob if the new blob never lands.
+    @Test
+    fun aFailedWriteAfterAKeyReplacementLeavesTheEarlierRingReadable() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        key.failNext = java.security.InvalidKeyException("key permanently invalidated")
+        val failing = KeyringStore(file, key, io = Dispatchers.Unconfined) { _, _ -> throw java.io.IOException("disk full") }
+        failing.load()
+        val failure = runCatching { failing.save(withCreds(ring, "groq", obj("apiKey" to "gsk-new"))) }.exceptionOrNull()
+        assertNotNull("the failed write must be reported", failure)
+        assertEquals("state must not claim the unsaved ring", ring, failing.state.value.ring)
+        val loaded = store(key).load()
+        assertEquals("the earlier keyring became unreadable", KeyringState.Status.STORED, loaded.status)
+        assertEquals(ring, loaded.ring)
     }
 
     @Test
@@ -216,6 +282,7 @@ class KeyringStoreTest {
         assertFalse(file.exists())
         assertFalse(File(file.path + ATOMIC_NEW_SUFFIX).exists())
         assertNull("the key alias survived Forget", key.key)
+        assertNull(key.keys[1])
         assertEquals(1, key.deleted)
         assertEquals(KeyringState.Status.NONE, s.state.value.status)
         assertEquals(KeyringState.Status.NONE, store(key).load().status)
@@ -224,8 +291,10 @@ class KeyringStoreTest {
     @Test
     fun forgetWithNothingStoredStillDeletesTheKey() = runBlocking {
         val key = SoftwareKey(SoftwareKey.fresh())
+        key.keys[1] = SoftwareKey.fresh() // a replacement left behind by an interrupted save
         store(key).forget()
         assertNull(key.key)
+        assertNull("Forget left the second key slot", key.keys[1])
     }
 
     @Test
