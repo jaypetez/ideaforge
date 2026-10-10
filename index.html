@@ -66,25 +66,35 @@
 
 <div class="wrap">
 
+  <!--
+    The app shell. One set of controls, laid out by body[data-panel] (set in show()):
+    - on a phone (600px or narrower), on Ideas and Start/Settings, .bar-right is a fixed
+      bottom navigation bar of three destinations;
+    - on Interview and Done it is a top app bar instead: Ideas becomes a back arrow, then
+      the title, the compact coverage meter and Settings;
+    - wider than that, it is an ordinary top bar.
+    The ids stay put because the probes and tools/screenshots.mjs click them by id. The
+    labels are spans so the icon (a ::before mask) adds no text to the accessible name.
+  -->
   <header class="bar">
     <h1>IdeaForge</h1>
-    <div class="bar-right">
-      <button type="button" class="ghost small" id="b-library">Ideas</button>
-      <button type="button" class="ghost small" id="b-settings">Settings</button>
+    <!--
+      The coverage ratchet is the product, so it gets a full-width row of its own during a
+      desktop interview, and a compact place in the phone's top app bar. role="progressbar"
+      and aria-valuenow mean the percentage is announced, not just drawn.
+    -->
+    <div class="meter" id="meter" hidden
+         role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+         aria-label="Coverage of this idea">
+      <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
+      <span class="meter-label" id="meter-label">0%</span>
     </div>
+    <nav class="bar-right" aria-label="Main">
+      <button type="button" class="ghost small nav-item" id="b-library" data-icon="lightbulb"><span class="nav-label">Ideas</span></button>
+      <button type="button" class="ghost small nav-item" id="b-nav-new" data-icon="add"><span class="nav-label">New idea</span></button>
+      <button type="button" class="ghost small nav-item" id="b-settings" data-icon="settings"><span class="nav-label">Settings</span></button>
+    </nav>
   </header>
-
-  <!--
-    The coverage ratchet is the product, so it gets a full-width row of its own during an
-    interview rather than 84px beside the title. role="progressbar" and aria-valuenow are
-    new: the percentage updated on screen and was never announced to anyone.
-  -->
-  <div class="meter" id="meter" hidden
-       role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
-       aria-label="Coverage of this idea">
-    <span class="meter-track"><span class="meter-fill" id="meter-fill"></span></span>
-    <span class="meter-label" id="meter-label">0%</span>
-  </div>
 
   <main id="main">
 

@@ -169,6 +169,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   spoken-replies choice, dictation, finish word and start actions stay outside them.
   `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
   app layout when that gate fails; do not hide required controls just for a capture.
+- **The phone shell is laid out from `body[data-panel]`, which `show()` sets.** At 600px and
+  narrower `.bar-right` is a fixed bottom navigation bar on `setup`/`library` and a top app
+  bar (back arrow, title, meter, Settings) on `interview`/`done`. The room under the fixed
+  bar is `body`'s `padding-bottom: var(--nav-bar-height)`, never `.wrap`'s, because
+  `screenshots.mjs` measures and crops `.wrap`'s 72px. `test/browser/shell.browser.mjs`
+  proves nothing sits under the bar at 390px and nothing scrolls sideways at 360px.
 - **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
   warns forever otherwise, and a run that warns about fonts is a run to throw away.
 

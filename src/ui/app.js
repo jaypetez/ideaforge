@@ -48,7 +48,7 @@ import { VERSION } from '../version.js';
 const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of [
-  'meter', 'meter-fill', 'meter-label', 'b-library', 'b-settings',
+  'meter', 'meter-fill', 'meter-label', 'b-library', 'b-nav-new', 'b-settings',
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
   'field-wrapmodel', 'wrapmodel', 'model-settings',
@@ -126,10 +126,34 @@ const barActions = document.querySelector('.bar-right');
 
 // ─────────────────────────────────────────────────────────────── plumbing
 
-function show(panel) {
+/**
+ * Which top-level destination each nav button stands for. Start and Settings share
+ * #panel-setup for now, so the panel alone cannot say which of the two is current.
+ */
+const DESTINATIONS = { ideas: 'b-library', start: 'b-nav-new', settings: 'b-settings' };
+
+/**
+ * Toggle panels with `hidden` — never a route — and tell the shell which one is showing.
+ *
+ * body[data-panel] is what app.css lays the navigation out from: a bottom bar on a phone
+ * for Ideas and Start/Settings, a top app bar with a back arrow on Interview and Done.
+ * Interview and Done are detail screens, so no destination is current there.
+ */
+function show(panel, destination) {
   for (const p of ['panel-setup', 'panel-interview', 'panel-library', 'panel-done']) {
     els[p].hidden = p !== panel;
   }
+  const name = panel.replace(/^panel-/, '');
+  document.body.dataset.panel = name;
+  const current = destination
+    || (name === 'setup' ? 'start' : name === 'library' ? 'ideas' : null);
+  for (const [key, id] of Object.entries(DESTINATIONS)) {
+    if (key === current) els[id].setAttribute('aria-current', 'page');
+    else els[id].removeAttribute('aria-current');
+  }
+  // On a detail screen the Ideas button is drawn as a back arrow, so say so to the ear too.
+  if (current) els['b-library'].removeAttribute('aria-label');
+  else els['b-library'].setAttribute('aria-label', 'Back to ideas');
   if (panel === 'panel-setup' || panel === 'panel-library') els.meter.hidden = true;
   renderVoiceStage();
 }
@@ -1861,17 +1885,20 @@ function setupLibrary() {
     onBackup: exportLibraryBackup,
     onImport: importLibraryBackup,
     onError: fail,
-    onNew: async () => {
-      const navigation = ++state.navigation;
-      teardownVoice();
-      say('');
-      fail(null);
-      if (!(await flushDraft())) return;
-      if (navigation !== state.navigation) return;
-      show('panel-setup');
-      await renderResumeList();
-    },
+    onNew: openStart,
   });
+}
+
+/** The New idea destination: the start screen, from anywhere. */
+async function openStart() {
+  const navigation = ++state.navigation;
+  teardownVoice();
+  say('');
+  fail(null);
+  if (!(await flushDraft())) return;
+  if (navigation !== state.navigation) return;
+  show('panel-setup', 'start');
+  await renderResumeList();
 }
 
 function renderInstall(info = state.install && state.install.state()) {
@@ -2191,6 +2218,7 @@ function bind() {
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
   els['b-library'].onclick = openLibrary;
+  els['b-nav-new'].onclick = () => openStart().catch(fail);
   els['b-view-all'].onclick = openLibrary;
   els['b-settings'].onclick = async () => {
     const navigation = ++state.navigation;
@@ -2199,7 +2227,7 @@ function bind() {
     fail(null);
     if (!(await flushDraft())) return;
     if (navigation !== state.navigation) return;
-    show('panel-setup');
+    show('panel-setup', 'settings');
     renderSpeechSettings();
     await renderResumeList();
   };
