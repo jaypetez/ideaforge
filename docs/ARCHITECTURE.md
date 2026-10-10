@@ -215,8 +215,12 @@ hardcodes the seven labels, and `test/docs.test.mjs` will fail on the README sti
 "seven dimensions" — which is the system working.
 
 **A UI panel.** A `<section>` in `index.html`, its ids added to the `els` list in
-`src/ui/app.js`, and the panel id added to `show()`. Panel-specific DOM belongs in a module
-such as `src/ui/library.js`; `app.js` keeps ownership of the active session and navigation.
+`src/ui/app.js`, and the panel id added to `show()`. `show()` also writes the panel's name to
+`body[data-panel]`, which is what `src/ui/app.css` lays the shell out from: on a phone, a
+fixed bottom navigation bar for the top-level destinations (Ideas, New idea, Settings) and a
+top app bar with a back arrow for detail screens (Interview, Done). Decide which kind the new
+panel is and add it to those selectors. Panel-specific DOM belongs in a module such as
+`src/ui/library.js`; `app.js` keeps ownership of the active session and navigation.
 
 **A dictation backend.** `STT_PRESETS` in `src/voice/transcribe.js`, plus an `<option>` in
 `index.html` — the select is not data-driven. Read the voice section of
