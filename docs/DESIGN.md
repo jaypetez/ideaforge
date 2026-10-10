@@ -75,6 +75,12 @@ Android app follows the system's animator duration scale.
 | `--ease-emph-decel` | `EasingEmphasizedDecelerate` | `cubic-bezier(.05, .7, .1, 1)` |
 | `--ease-emph-accel` | `EasingEmphasizedAccelerate` | `cubic-bezier(.3, 0, .8, .15)` |
 
+Loading placeholders (library cards, the skeleton question card, the write-up in `#output`)
+share one `skeleton-pulse` on `--surface-container`, timed from `--dur-long2`, under
+`aria-busy` on the region they stand in for; reduced motion stills them. The skeleton
+question is sized in its real rows' own type (`1lh` of each, a chip's min-height), so a
+typical question replaces it with no visible shift.
+
 ## Icons
 
 Material Symbols Rounded at 24px, weight 400: the same glyphs as Compose's
