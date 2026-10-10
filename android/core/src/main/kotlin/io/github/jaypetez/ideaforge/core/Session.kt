@@ -401,6 +401,7 @@ fun migrate(stored: JsonElement?): Session? {
             // An unknown level or status disables the ratchet (see session.js); reset it.
             if (stringOf(entry["level"]) !in LEVELS) entry = entry.spread("level" to str("thin"))
             if (stringOf(entry["status"]) !in STATUSES) entry = entry.spread("status" to str("probing"))
+            if (!isFiniteNumber(entry["turnsSpent"])) entry = entry.spread("turnsSpent" to num(0))
             coverage[id] = entry
         }
     }

@@ -175,6 +175,8 @@ async function sessionFamily() {
   const hostileCoverage = JSON.parse(JSON.stringify(fresh));
   for (const d of DIMS) hostileCoverage.coverage[d] = { ...hostileCoverage.coverage[d], level: d === 'outcome' ? null : 'COVERED' };
   hostileCoverage.coverage.bar.status = 'banana';
+  hostileCoverage.coverage.substance.turnsSpent = '10';
+  hostileCoverage.coverage.audience.turnsSpent = null;
   const cases = [
     rec('createSession', createSession, { id: 's_new', now: tick(0), device: 'phone' }),
     rec('createSession without id throws', createSession, {}),
@@ -267,6 +269,8 @@ async function engineFamily() {
     'At the last conference, how many names did you actually lose?',
     `Tell me about ${'the very long winding '.repeat(4)}thing and what else`, 'Why?', '', null,
     'Which value prop matters most', 'what WHO when, or where',
+    // JS `.` is one UTF-16 unit and excludes \n \r U+2028 U+2029, not U+0085; Java's differs.
+    'Is this a go\u0085to market thing?', 'Is this a go\u{1F600}to\u{1F600}market plan?', 'go\nto market',
   ];
   for (const [i, t] of tripwires.entries()) cases.push(rec(`questionTripwire ${i}`, questionTripwire, t, mid));
 
@@ -279,6 +283,8 @@ async function engineFamily() {
     { question: 'Q?', coverage: { 1: { level: 'partial', gap: 'unkeyed claim' } } },
     { question: 'Q?', coverage: [{ level: 'partial' }] },
     { question: 'Q?', suggest_wrap: true, wrap_reason: 'enough', chips: 'not an array', new_facts: 'nope' },
+    { question: 'Why?', move: { toString: 0 } },
+    { question: 'Why?', move: 7 },
   ];
   for (const [i, raw] of hostile.entries()) {
     cases.push(rec(`parseTurnResult ${i}`, parseTurnResult, raw, { moves, target: 'bar' }));

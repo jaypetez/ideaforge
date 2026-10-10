@@ -8323,6 +8323,45 @@
       }
     },
     {
+      "name": "questionTripwire 11",
+      "fn": "questionTripwire",
+      "args": [
+        "Is this a goto market thing?",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": "generic"
+      }
+    },
+    {
+      "name": "questionTripwire 12",
+      "fn": "questionTripwire",
+      "args": [
+        "Is this a go😀to😀market plan?",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "questionTripwire 13",
+      "fn": "questionTripwire",
+      "args": [
+        "go\nto market",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
       "name": "parseTurnResult 0",
       "fn": "parseTurnResult",
       "args": [
@@ -8768,6 +8807,78 @@
           "suggestWrap": true,
           "wrapReason": "enough",
           "warnings": []
+        }
+      }
+    },
+    {
+      "name": "parseTurnResult 11",
+      "fn": "parseTurnResult",
+      "args": [
+        {
+          "question": "Why?",
+          "move": {
+            "toString": 0
+          }
+        },
+        {
+          "moves": [
+            "concretize",
+            "contrast",
+            "stress_test"
+          ],
+          "target": "bar"
+        }
+      ],
+      "expect": {
+        "value": {
+          "ok": true,
+          "bridge": null,
+          "question": "Why?",
+          "move": "concretize",
+          "dimension": "bar",
+          "chips": [],
+          "facts": [],
+          "coverage": {},
+          "suggestWrap": false,
+          "wrapReason": null,
+          "warnings": [
+            "illegal move object"
+          ]
+        }
+      }
+    },
+    {
+      "name": "parseTurnResult 12",
+      "fn": "parseTurnResult",
+      "args": [
+        {
+          "question": "Why?",
+          "move": 7
+        },
+        {
+          "moves": [
+            "concretize",
+            "contrast",
+            "stress_test"
+          ],
+          "target": "bar"
+        }
+      ],
+      "expect": {
+        "value": {
+          "ok": true,
+          "bridge": null,
+          "question": "Why?",
+          "move": "concretize",
+          "dimension": "bar",
+          "chips": [],
+          "facts": [],
+          "coverage": {},
+          "suggestWrap": false,
+          "wrapReason": null,
+          "warnings": [
+            "illegal move number"
+          ]
         }
       }
     },

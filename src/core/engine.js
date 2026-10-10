@@ -394,7 +394,11 @@ export function parseTurnResult(raw, { moves = MOVE_IDS, target = null } = {}) {
   }
 
   const move = moves.includes(o.move) ? o.move : (moves[0] || null);
-  if (o.move && !moves.includes(o.move)) warnings.push(`illegal move ${o.move}`);
+  // Interpolating a non-string can throw ({"toString": 0} has no callable conversion), and
+  // runTurn calls this outside its try, so name the type instead of the value.
+  if (o.move && !moves.includes(o.move)) {
+    warnings.push(`illegal move ${typeof o.move === 'string' ? o.move : typeof o.move}`);
+  }
 
   const dimension = DIMENSION_IDS.includes(o.dimension) ? o.dimension : target;
 
