@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">IdeaForge</string>
     <string name="tagline">Turn a half-formed idea into a prompt worth sending.</string>
     <string name="nav_ideas">Ideas</string>
@@ -8,11 +8,41 @@
     <string name="screen_interview">Interview</string>
     <string name="screen_result">Result</string>
     <string name="screen_settings">Settings</string>
-    <string name="screen_onboarding">Welcome</string>
     <string name="library_empty">No ideas yet. Start one with New idea.</string>
     <string name="action_how_it_works">How it works</string>
     <string name="action_see_result">See result</string>
-    <string name="action_done">Done</string>
     <string name="pref_hands_free">Hands-free</string>
     <string name="pref_trigger">Finish word: %1$s</string>
+    <string name="onboarding_step">Step %1$d of 2</string>
+    <string name="onboarding_pick_title">Choose who answers</string>
+    <string name="onboarding_pick_body">IdeaForge runs on your own key or your own model server. Requests go straight from this phone to the provider you pick.</string>
+    <string name="onboarding_hosted">Hosted</string>
+    <string name="onboarding_hosted_hint">No key yet? Groq’s free tier is the cheapest way to start.</string>
+    <string name="onboarding_local">On your own network</string>
+    <string name="onboarding_local_card">%1$s on this phone or a computer on your network. No key, nothing leaves your network.</string>
+    <string name="onboarding_tiers">%1$s for questions, %2$s for the wrap-up.</string>
+    <string name="onboarding_tiers_one">%1$s for everything.</string>
+    <string name="onboarding_key_title">Add your %1$s key</string>
+    <string name="onboarding_get_key">Get a key at %1$s</string>
+    <string name="onboarding_key_label">API key</string>
+    <string name="onboarding_key_placeholder">Paste your key</string>
+    <string name="onboarding_key_show">Show</string>
+    <string name="onboarding_key_hide">Hide</string>
+    <string name="onboarding_key_privacy">Stored encrypted on this device, and sent only to %1$s.</string>
+    <string name="onboarding_check_key">Check key and continue</string>
+    <string name="onboarding_checking">Checking…</string>
+    <string name="onboarding_local_title">Connect to %1$s</string>
+    <string name="onboarding_base_label">Server address</string>
+    <string name="onboarding_base_hint" tools:ignore="PluralsCandidate">On the Android emulator, your computer is 10.0.2.2, so its server is http://10.0.2.2:%1$d/v1. On a phone over USB, run adb reverse tcp:%1$d tcp:%1$d and keep localhost.</string>
+    <string name="onboarding_base_hint_generic">Any OpenAI-compatible server on a private address. On the Android emulator, your computer is 10.0.2.2.</string>
+    <string name="onboarding_use_emulator">Use the emulator’s address (10.0.2.2)</string>
+    <string name="onboarding_find_models">Find models</string>
+    <string name="onboarding_no_models">That server answered, but it has no models. Pull one first.</string>
+    <plurals name="onboarding_models_found">
+        <item quantity="one">%1$d model installed.</item>
+        <item quantity="other">%1$d models installed.</item>
+    </plurals>
+    <string name="onboarding_model_label">Model</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_back">Back</string>
 </resources>

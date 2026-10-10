@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -39,7 +40,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -56,6 +56,9 @@ import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SessionStore
+import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
+import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
+import io.github.jaypetez.ideaforge.ui.onboarding.rememberStartDestination
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -98,11 +101,17 @@ private data class TopLevel(val route: Any, @StringRes val label: Int, @Drawable
 @Composable
 fun AppShell(nav: NavHostController = rememberNavController()) {
     val library: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory)
+    val graph = (LocalContext.current.applicationContext as IdeaForgeApp).graph
+    // Null while the keyring is read: nothing renders rather than a frame of the wrong screen.
+    val start = rememberStartDestination(graph.keyringStore) ?: return
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
 
+    // Pop to the library, not to the graph's start destination: after first-run onboarding
+    // the start destination (Onboarding) is no longer on the back stack, and popping to it
+    // pops nothing, so every bottom-bar tap would stack another copy of the library.
     fun goTopLevel(route: Any) = nav.navigate(route) {
-        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+        popUpTo<LibraryRoute> { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
@@ -144,7 +153,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
             }
         },
     ) { padding ->
-        NavHost(nav, startDestination = LibraryRoute, modifier = Modifier.padding(padding)) {
+        NavHost(nav, startDestination = start, modifier = Modifier.padding(padding)) {
             composable<LibraryRoute> {
                 LibraryScreen(
                     library,
@@ -167,8 +176,13 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 SettingsScreen(viewModel(factory = SettingsViewModel.Factory))
             }
             composable<OnboardingRoute> {
-                Placeholder(stringResource(R.string.screen_onboarding), stringResource(R.string.tagline)) {
-                    Button(onClick = { nav.popBackStack() }) { Text(stringResource(R.string.action_done)) }
+                OnboardingScreen(viewModel(factory = OnboardingViewModel.Factory)) {
+                    // Onboarding leaves the back stack: Back from the library exits the app
+                    // rather than returning to a finished setup.
+                    nav.navigate(LibraryRoute) {
+                        popUpTo<OnboardingRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
         }
