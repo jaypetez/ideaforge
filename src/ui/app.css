@@ -382,7 +382,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .thread-wrap .thread-more { padding-inline: 0; }
 
 .question-card {
-  display: flex; flex-direction: column; gap: var(--s3);
+  position: relative; display: flex; flex-direction: column; gap: var(--s3);
   padding: var(--s5); border-radius: var(--r-lg);
   background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
   box-shadow: var(--elev-1);
@@ -392,7 +392,42 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   margin: 0; font-size: clamp(var(--t-xl), 1rem + 2vw, var(--t-2xl)); font-weight: 600;
   line-height: 1.3; letter-spacing: -.03em; text-wrap: balance;
 }
+/* The skeleton question (#107). Every row is sized in its real counterpart's own type —
+   `1lh` of the bridge, of the question, of the turn line, and a chip's min-height — so the
+   card is the height of a typical question and the next one lands without shoving the
+   composer down the page. The real rows stay mounted: #question is clipped rather than
+   removed, which keeps its live region in the accessibility tree for the new question. */
+.question-card[aria-busy="true"] > .bridge,
+.question-card[aria-busy="true"] > .chips,
+.question-card[aria-busy="true"] > .turnline { display: none; }
+.question-card[aria-busy="true"] > .question {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
 .asking { margin: 0; font-family: var(--mono); font-size: var(--t-sm); color: var(--ink-dim); }
+.question-skeleton { display: flex; flex-direction: column; gap: var(--s3); }
+.question-skeleton > * { display: block; }
+.question-skeleton .sk-bridge { font-family: var(--sans); font-size: var(--t-md); --w: 62%; }
+.question-skeleton .sk-question {
+  font-family: var(--sans); font-size: clamp(var(--t-xl), 1rem + 2vw, var(--t-2xl)); line-height: 1.3;
+}
+.question-skeleton .sk-question .sk-line:first-child { --w: 78%; }
+.question-skeleton .sk-line { display: flex; align-items: center; height: 1lh; }
+.question-skeleton .sk-line::before { content: ""; height: .6em; width: var(--w, 100%); }
+/* A typical question is one line wide and two at phone width; so is the skeleton's. */
+.question-skeleton .sk-phone { display: none; }
+@media (max-width: 600px) {
+  .question-skeleton .sk-phone { display: flex; --w: 52%; }
+}
+/* One row, always: chips that wrapped would make the skeleton taller than the card it
+   stands in for, so they shrink at a narrow width instead. */
+.question-skeleton .sk-chips { display: flex; gap: var(--s2); overflow: hidden; }
+.question-skeleton .sk-chip {
+  display: block; flex: 0 1 6rem; min-width: 0; height: 40px; border-radius: var(--r-pill);
+}
+.question-skeleton .sk-chip:nth-child(2) { flex-basis: 7.5rem; }
+.question-skeleton .sk-chip:nth-child(3) { flex-basis: 4.5rem; }
+.question-skeleton .sk-caption { line-height: 1.6; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .chips:empty { display: none; }
 /* Tonal: a suggestion is an offer, quieter than Send and louder than a link. */
@@ -818,12 +853,22 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .idea-skeleton span {
   display: block; height: var(--s4); border-radius: var(--r-pill);
-  background: var(--surface-container);
+}
+/* One pulse for every placeholder bar — library cards, the skeleton question and the
+   write-up — so reduced motion (which zeroes the token and kills animations) stills them all. */
+.idea-skeleton span, .question-skeleton .sk-line::before, .question-skeleton .sk-chip,
+.output-skeleton span {
+  border-radius: var(--r-pill); background: var(--surface-container);
   animation: skeleton-pulse calc(var(--dur-long2) * 3) var(--ease-standard) infinite alternate;
 }
 .idea-skeleton .idea-skeleton-title { width: 55%; height: var(--s5); }
 .idea-skeleton .idea-skeleton-meta { width: 80%; }
 .idea-skeleton .idea-skeleton-action { width: 7rem; height: var(--control-height); border-radius: var(--r-sm); }
+/* The question card and #output sit on the lowest container, where --surface-container
+   barely shows; one step up keeps the bars visible in both themes. */
+.question-skeleton .sk-line::before, .question-skeleton .sk-chip, .output-skeleton span {
+  background: var(--surface-container-high);
+}
 @keyframes skeleton-pulse { to { opacity: .45; } }
 
 .idea-edit { border-top: 1px solid var(--line); padding-top: var(--s3); }
@@ -848,6 +893,15 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   overflow-wrap: anywhere; line-height: 1.7;
 }
 .output > * { margin: 0; }
+/* While the write-up runs (#107): a heading bar and paragraph lines where the document will
+   be, under #output[aria-busy]. drawExport() replaces it wholesale. */
+.output-skeleton { display: flex; flex-direction: column; gap: var(--s3); }
+.output-skeleton span { display: block; height: var(--s3); }
+.output-skeleton .sk-heading { height: var(--s5); width: 45%; margin-bottom: var(--s2); }
+.output-skeleton .sk-gap { margin-top: var(--s4); }
+.output-skeleton .sk-w1 { width: 96%; }
+.output-skeleton .sk-w2 { width: 88%; }
+.output-skeleton .sk-w3 { width: 64%; }
 /* The panel heading above already carries the title and the counts, and two identical
    headings stacked read as a mistake. Hidden in the view only — the element stays in the
    DOM, so #output.textContent is still the whole document and the export is untouched. */
@@ -1154,6 +1208,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
 @media (pointer: coarse) {
   button, input, select { min-height: var(--control-height); }
   .row button, button.small, .chip { min-height: 44px; }
+  .question-skeleton .sk-chip { height: 44px; }
   .toggle input { min-height: 0; }
 }
 

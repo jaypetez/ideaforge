@@ -382,13 +382,31 @@
       <ol class="thread" id="thread"></ol>
     </section>
 
-    <div class="question-card">
+    <!--
+      aria-busy while a turn runs: #asking stands in for the question as a skeleton card the
+      shape of a typical one (a bridge line, the question — one line wide, two on a phone — a
+      row of chips and the turn line),
+      so the next question lands without pushing the composer around. The real children stay
+      in the DOM — #question visually clipped rather than display:none — so its live region
+      still announces the new question once the region stops being busy.
+      tools/screenshots.mjs settles on #asking[hidden]; keep that contract.
+    -->
+    <div class="question-card" id="question-card">
       <p class="bridge" id="bridge" hidden></p>
       <!-- The question text is swapped on every turn. Without a live region a screen-reader
            user was never told a new one had arrived — they heard the old question, answered,
            and nothing announced the next. -->
       <h2 class="question" id="question" aria-live="polite" aria-atomic="true">…</h2>
-      <p class="asking" id="asking" hidden>thinking of the next question…</p>
+      <div class="asking question-skeleton" id="asking" hidden>
+        <span class="sk-line sk-bridge" aria-hidden="true"></span>
+        <span class="sk-question" aria-hidden="true">
+          <span class="sk-line"></span><span class="sk-line sk-phone"></span>
+        </span>
+        <span class="sk-chips" aria-hidden="true">
+          <span class="sk-chip"></span><span class="sk-chip"></span><span class="sk-chip"></span>
+        </span>
+        <span class="sk-caption" id="asking-label">thinking of the next question…</span>
+      </div>
       <div class="chips" id="chips" role="group" aria-label="Suggested answers"></div>
       <p class="turnline" id="turnline"></p>
     </div>
