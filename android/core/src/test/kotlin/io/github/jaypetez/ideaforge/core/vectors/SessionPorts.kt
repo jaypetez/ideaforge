@@ -32,6 +32,7 @@ import io.github.jaypetez.ideaforge.core.migrate
 import io.github.jaypetez.ideaforge.core.normalizeSessionName
 import io.github.jaypetez.ideaforge.core.normalizeTags
 import io.github.jaypetez.ideaforge.core.reopen
+import io.github.jaypetez.ideaforge.core.restoreSession
 import io.github.jaypetez.ideaforge.core.resumeDimension
 import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.skipQuestion
@@ -87,6 +88,7 @@ val SESSION_PORTS: Map<String, Port> = mapOf(
         copySession(c.arg(0).s(), o["id"], o.opt("name", JsonNull), o.opt("now", num(0)))
     },
     "reopen" to { c -> reopen(c.arg(0).s(), c.arg(1).orNow()) },
+    "restoreSession" to { c -> restoreSession(c.arg(0).s(), c.arg(1).orNow()) },
     "normalizeSessionName" to { c -> str(normalizeSessionName(c.arg(0))) },
     "normalizeTags" to { c -> arr(normalizeTags(c.arg(0)).map(::str)) },
     "sessionDisplayTitle" to { c ->
