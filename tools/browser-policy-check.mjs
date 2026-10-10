@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ROOT, findChrome, serveRepo, launchChrome, connectChrome } from './lib/harness.mjs';
 import { runAppAudioPolicy } from '../test/browser/app-audio-policy.probe.mjs';
+import { runA11yKeyboard } from '../test/browser/a11y-keyboard.probe.mjs';
 
 const NORMAL_POLICY = [
   '--autoplay-policy=document-user-activation-required',
@@ -27,6 +28,14 @@ const CASES = [
 const APP_CASE = {
   name: 'audio-policy-app', mode: 'app',
   flags: [...NORMAL_POLICY, '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+};
+
+// Real keyboard and coarse-pointer input on every panel (#111). Here rather than in the
+// in-page suite for the same reason the app case is: Tab, Enter and Escape must be keys the
+// browser dispatches, and pointer: coarse a media state the browser really matches.
+const A11Y_CASE = {
+  name: 'a11y-keyboard', mode: 'a11y',
+  flags: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
 };
 
 /** A short PCM WAV: real decode/playback without a provider, stored recording, or dependency. */
@@ -98,10 +107,11 @@ async function closeBrowser(browser, cdp) {
 
 /** Fail-closed both as a standalone command and as a phase of browser-check.mjs. */
 export async function runBrowserPolicyChecks({
-  chrome = findChrome(), siteRoot = ROOT, appOnly = false, untrustedPreview = false,
+  chrome = findChrome(), siteRoot = ROOT, appOnly = false, a11yOnly = false, untrustedPreview = false,
 } = {}) {
   if (!chrome) throw new Error('no Chrome found: audio policy checks are required');
   if (untrustedPreview && !appOnly) throw new Error('the negative control requires --app-only');
+  if (appOnly && a11yOnly) throw new Error('--app-only and --a11y-only are exclusive');
   const results = [];
   const wav = toneWav();
   const server = await serveRepo({
@@ -125,7 +135,8 @@ export async function runBrowserPolicyChecks({
   });
   try {
     const origin = `http://127.0.0.1:${server.address().port}`;
-    for (const testCase of appOnly ? [APP_CASE] : [...CASES, APP_CASE]) {
+    const cases = appOnly ? [APP_CASE] : a11yOnly ? [A11Y_CASE] : [...CASES, APP_CASE, A11Y_CASE];
+    for (const testCase of cases) {
       let browser;
       let cdp;
       const check = (name, ok, detail = '') =>
@@ -156,8 +167,9 @@ export async function runBrowserPolicyChecks({
         const fakeMedia = args.some((arg) => arg.startsWith('--use-fake-'));
         check('fresh-profile launch uses the declared policy',
           (testCase.mode === 'observe' ? autoplayFlags.length === 0
-            : autoplayFlags.length === 1 && autoplayFlags[0] === NORMAL_POLICY[0])
-            && (['microphone', 'app'].includes(testCase.mode)
+            : testCase.mode === 'a11y' ? autoplayFlags.length === 0
+              : autoplayFlags.length === 1 && autoplayFlags[0] === NORMAL_POLICY[0])
+            && (['microphone', 'app', 'a11y'].includes(testCase.mode)
               ? testCase.flags.every((flag) => args.includes(flag)) : !fakeMedia),
           `${version.product}; ${args.join(' ')}`);
         await cdp.send('Page.enable');
@@ -170,6 +182,15 @@ export async function runBrowserPolicyChecks({
             wav: toneWav(3).toString('base64'),
           })};\n${recognition}\n${fixture}`;
           await runAppAudioPolicy(cdp, { origin, bootstrap, check, untrustedPreview });
+          continue;
+        }
+        if (testCase.mode === 'a11y') {
+          const [voice, fixture] = await Promise.all([
+            readFile(join(ROOT, 'test', 'browser', 'fixtures', 'fake-voice.js'), 'utf8'),
+            readFile(join(ROOT, 'test', 'browser', 'fixtures', 'a11y-keyboard.js'), 'utf8'),
+          ]);
+          await runA11yKeyboard(cdp, { origin, bootstrap: `${voice}
+${fixture}`, check });
           continue;
         }
         await cdp.send('Page.navigate', { url: `${origin}/__audio-policy.html?mode=${testCase.mode}` });
@@ -209,10 +230,13 @@ async function main() {
     return 0;
   }
   for (const arg of args) {
-    if (!['--app-only', '--negative-control'].includes(arg)) throw new Error(`unknown policy option: ${arg}`);
+    if (!['--app-only', '--a11y-only', '--negative-control'].includes(arg)) {
+      throw new Error(`unknown policy option: ${arg}`);
+    }
   }
   const results = await runBrowserPolicyChecks({
-    appOnly: args.includes('--app-only'), untrustedPreview: args.includes('--negative-control'),
+    appOnly: args.includes('--app-only'), a11yOnly: args.includes('--a11y-only'),
+    untrustedPreview: args.includes('--negative-control'),
   });
   for (const result of results) {
     console.log(`${result.ok ? 'ok  ' : 'FAIL'} ${result.probe}: ${result.name}`

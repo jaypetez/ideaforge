@@ -91,7 +91,10 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Browser policy evidence.** Sources:
   [`tools/browser-check.mjs`](../../../../tools/browser-check.mjs),
   [`tools/browser-policy-check.mjs`](../../../../tools/browser-policy-check.mjs), and
-  [`test/browser/audio-policy.probe.mjs`](../../../../test/browser/audio-policy.probe.mjs).
+  [`test/browser/audio-policy.probe.mjs`](../../../../test/browser/audio-policy.probe.mjs),
+  plus the accessibility phase in
+  [`test/browser/a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs)
+  and [`test/browser/contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs).
   Re-check delivery guidance: real Web Audio/trusted-gesture checks are separate from the
   synthetic-media/autoplay-bypassed suite, and neither is physical-mobile or live-provider
   evidence. The main browser harness reports assertions through a CDP binding rather than

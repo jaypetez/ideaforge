@@ -153,44 +153,10 @@ export default async function run(check, { subpath }) {
     /dark/.test(win.getComputedStyle(doc.documentElement).colorScheme || ''),
     win.getComputedStyle(doc.documentElement).colorScheme);
 
-  // ── contrast of the colour roles, in both themes ─────────────────────────
-  //
-  // Read off the live page rather than the stylesheet text, so it measures what light-dark()
-  // actually resolved to under each theme. Text needs 4.5:1 and UI parts 3:1 (WCAG 2.2 AA).
-  // The light --outline failed this on the page ground (2.86:1) until the v2 tokens.
-  const rgbOf = (value) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
-  const luminance = ([r, g, b]) => {
-    const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  };
-  const ratio = (a, b) => {
-    const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
-    return (x + 0.05) / (y + 0.05);
-  };
+  // The contrast of every colour role and component, in both themes, is measured in
+  // contrast.browser.mjs (#111).
   const probe = doc.createElement('div');
   doc.body.append(probe);
-  const resolve = (token) => {
-    probe.style.color = `var(${token})`;
-    return rgbOf(win.getComputedStyle(probe).color);
-  };
-  const surfaces = ['--surface-container-lowest', '--surface-container-low', '--surface-container',
-    '--surface-container-high'];
-  const pairs = [
-    ...['--on-surface', '--on-surface-variant', '--primary', '--error', '--success', '--warning']
-      .flatMap((fg) => surfaces.map((bg) => [fg, bg, 4.5])),
-    ['--on-primary', '--primary', 4.5],
-    ...surfaces.map((bg) => ['--outline', bg, 3]),
-  ];
-  for (const theme of ['light', 'dark']) {
-    doc.documentElement.dataset.theme = theme;
-    const failures = pairs
-      .map(([fg, bg, min]) => [fg, bg, min, ratio(resolve(fg), resolve(bg))])
-      .filter(([, , min, r]) => !(r >= min))
-      .map(([fg, bg, min, r]) => `${fg} on ${bg} ${r.toFixed(2)} < ${min}`);
-    check(`every colour role meets WCAG AA contrast in the ${theme} theme`, failures.length === 0,
-      failures.join('; ') || `${pairs.length} pairs`);
-  }
-  delete doc.documentElement.dataset.theme;
 
   // ── icons: a mask on ::before, never a text node ─────────────────────────
   //

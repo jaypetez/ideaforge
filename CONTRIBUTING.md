@@ -234,6 +234,12 @@ hosted-speech audition. Record untested cases explicitly, including tab versus i
 mode. No live hosted CORS/quality or physical Android/iPhone result is recorded for this
 redesign; its per-browser preview gate must not be described as general compatibility.
 
+The same runner also owns the accessibility phase (`test/browser/a11y-keyboard.probe.mjs`):
+real Tab, Enter and Escape keys on every panel, and 48px targets under emulated touch. Run it
+alone with `node tools/browser-policy-check.mjs --a11y-only`. A new control has to fit the
+reading order and the coarse-pointer target size. A new colour pair belongs in
+`test/browser/contrast.browser.mjs`.
+
 ## Pull requests
 
 Small and focused is easier to merge. CI runs the suite on Linux, Windows and macOS across

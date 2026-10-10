@@ -206,6 +206,14 @@ native recognition contention or physical mobile behaviour. The optional hosted 
 has no developer-verified live CORS or quality result for this redesign; its in-app preview
 is a local enablement gate, not a universal compatibility claim.
 
+The same policy runner also owns the accessibility phase
+(`test/browser/a11y-keyboard.probe.mjs`), because its claims need input that the in-page
+suite cannot send. Real Tab, Enter and Escape keys walk every panel at phone and desktop
+widths, and touch emulation makes `pointer: coarse` really match while it measures target
+sizes. Colour contrast for every token and component pair, in both themes, is the in-page
+`test/browser/contrast.browser.mjs`; [DESIGN.md](DESIGN.md#contrast-and-targets) lists what
+it measures and what it exempts.
+
 ## Extension seams
 
 **A provider.** See the walkthrough in [CONTRIBUTING.md](../CONTRIBUTING.md) — it is the

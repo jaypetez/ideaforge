@@ -2807,6 +2807,13 @@ function bindCoveragePanel() {
 function bind() {
   trackComposer();
   bindCoveragePanel();
+  // The skip link moves focus itself (#111). Following its href would set location.hash to
+  // #main, and a hash change re-prompts for the microphone in an installed iOS app — the
+  // reason the app has no hash routing. The href stays for a page whose script never ran.
+  document.querySelector('.skip-link').addEventListener('click', (event) => {
+    event.preventDefault();
+    els.main.focus();
+  });
   els.provider.onchange = () => { onProviderChange(); onSttChange(); };
   els.stt.onchange = onSttChange;
   // On change, not on input: normalising every keystroke fights whoever is typing.
