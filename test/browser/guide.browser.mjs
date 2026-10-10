@@ -5,6 +5,7 @@ const GUIDE_PAGES = [
   'interviews-and-coverage.html',
   'ideas-library.html',
   'mobile-and-voice.html',
+  'android.html',
   'providers.html',
   'local-models-and-docker.html',
   'privacy-and-security.html',

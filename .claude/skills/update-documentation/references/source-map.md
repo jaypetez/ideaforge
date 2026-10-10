@@ -163,9 +163,26 @@ source wins over prose, and a generated artifact wins over a description of that
   first interview, result), `interviews-and-coverage.html` (engine, meter, wrap-up,
   fallback), `ideas-library.html` (library, backup, import, sharing),
   `mobile-and-voice.html` (voice stage, installation, dictation, hands-free),
+  `android.html` (native Android alpha: sideloading, providers, backups, status),
   `providers.html` (inference, transcription, speech), `local-models-and-docker.html`,
   `privacy-and-security.html`, `troubleshooting.html` and `development-and-delivery.html`.
   `test/docs.test.mjs` fails when a page is missing from this list.
+- **Native Android app.** Sources:
+  [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) (SDK levels,
+  application id, `.debug` suffix, version from `package.json`),
+  [`android/gradle/libs.versions.toml`](../../../../android/gradle/libs.versions.toml) (AGP,
+  Kotlin and every library version),
+  [`android/gradle/wrapper/gradle-wrapper.properties`](../../../../android/gradle/wrapper/gradle-wrapper.properties),
+  [`AndroidManifest.xml`](../../../../android/app/src/main/AndroidManifest.xml) (permissions,
+  backup off), the onboarding and settings strings in
+  [`strings.xml`](../../../../android/app/src/main/res/values/strings.xml), the `android` job in
+  [`ci.yml`](../../../../.github/workflows/ci.yml), and the open Android issues for what is
+  not built yet. Re-check `guide/android.html`, the README's Android section,
+  `CONTRIBUTING.md#the-android-app`, `docs/ARCHITECTURE.md`, CLAUDE.md's Android invariants
+  and [`android-verify`](../../android-verify/SKILL.md). `test/docs.test.mjs` fails when a
+  stated SDK level, AGP, Kotlin, Gradle or JDK version, the debug id or the CI artifact
+  drifts. Voice input and signed releases are not shipped: say so rather than describing
+  plans as features.
 - **Assistant discovery.** Sources:
   [Copilot instructions](../../../../.github/copilot-instructions.md),
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and
@@ -200,6 +217,9 @@ source wins over prose, and a generated artifact wins over a description of that
   live-provider and physically tested claims separate.
 - Changes to CI, Pages, release, Docker, or site assembly require a re-check of the
   development guide, architecture, contributor guidance, and release guidance.
+- Changes under `android/`, or to `test/vectors/` and `test/fixtures/backup-*.json`, require a
+  re-check of the Android guide, the README's Android section, the Android parts of
+  `CONTRIBUTING.md`, `docs/ARCHITECTURE.md` and `CLAUDE.md`, and `android-verify`.
 - Changes to instructions, skills, agents, or discovery behaviour require a re-check of
   `CONTRIBUTING.md`, Copilot instructions, the development guide, and agent-support
   expectations.
