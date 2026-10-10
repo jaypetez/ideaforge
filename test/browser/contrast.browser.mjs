@@ -348,14 +348,14 @@ export default async function run(report) {
           measure(`${at}: the voice status, ${phase}`, $('voice-status'));
           measure(`${at}: the voice phase glyph, ${phase}`, signal,
             { fg: css(signal, 'color'), bg: backdrop(orbit), min: 3 });
+          for (const id of ['voice-question', 'voice-transcript', 'voice-detail', 'voice-backend']) {
+            $(id).textContent = 'Probe text';
+            measure(`${at}: #${id}, ${phase}`, $(id));
+            $(id).textContent = '';
+          }
+          measure(`${at}: the voice eyebrow, ${phase}`, stage.querySelector('.voice-eyebrow'));
         }
         stage.dataset.phase = 'listening';
-        for (const id of ['voice-question', 'voice-transcript', 'voice-detail', 'voice-backend']) {
-          $(id).textContent = 'Probe text';
-          measure(`${at}: #${id}`, $(id));
-          $(id).textContent = '';
-        }
-        measure(`${at}: the voice eyebrow`, stage.querySelector('.voice-eyebrow'));
         for (const id of ['b-voice-pause', 'b-voice-exit']) {
           const button = $(id);
           button.dataset.icon = id === 'b-voice-pause' ? 'pause' : 'close';

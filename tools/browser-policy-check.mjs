@@ -224,8 +224,10 @@ ${fixture}`, check });
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('Usage: node tools\\browser-policy-check.mjs [--app-only [--negative-control]]\n'
-      + 'Default: the original 40 checks plus real-app normal-policy integration.\n'
+    console.log('Usage: node tools\\browser-policy-check.mjs [--app-only [--negative-control] | --a11y-only]\n'
+      + 'Default: the original 40 checks, real-app normal-policy integration, and the\n'
+      + 'real-keyboard and coarse-pointer accessibility phase.\n'
+      + '--a11y-only runs only the accessibility phase.\n'
       + '--negative-control deliberately uses an untrusted preview and must exit nonzero.');
     return 0;
   }
@@ -243,7 +245,9 @@ async function main() {
       + (result.detail ? ` (${result.detail})` : ''));
   }
   const failed = results.filter((result) => !result.ok).length;
-  console.log(`${results.length} audio policy checks, ${failed} failed`);
+  const a11y = results.filter((result) => result.probe === A11Y_CASE.name).length;
+  console.log(`${results.length - a11y} audio policy checks and ${a11y} accessibility checks, `
+    + `${failed} failed`);
   return failed ? 1 : 0;
 }
 

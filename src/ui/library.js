@@ -332,6 +332,8 @@ export function createLibraryView({
     rows.removeAttribute('aria-busy');
     if (!loaded) {
       panel.dataset.libraryState = 'unavailable';
+      // renderLoading said "Loading ideas…"; a read that failed must not leave that behind.
+      count.textContent = 'Ideas unavailable';
       zero.hidden = true;
       empty.hidden = true;
       syncSelection();
