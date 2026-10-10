@@ -1331,7 +1331,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
 
 /* A heading is focused after navigation so the screen reader announces it (focusHeading in
    app.js). It is not a control, so it draws no ring — the same choice as #main. */
-#main h2[tabindex="-1"]:focus { outline: none; }
+#main h2[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
