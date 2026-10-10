@@ -1,13 +1,17 @@
 package io.github.jaypetez.ideaforge
 
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,11 +19,26 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class MainActivityTest {
     @get:Rule
-    val compose = createAndroidComposeRule<MainActivity>()
+    val compose = createEmptyComposeRule()
+
+    private lateinit var scenario: ActivityScenario<MainActivity>
+
+    // A returning user: with no usable provider the app opens on onboarding instead
+    // (OnboardingFlowTest covers that path).
+    @Before
+    fun launch() {
+        installTestGraph(ring = usableRing())
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText("v${BuildConfig.VERSION_NAME}"), timeoutMillis = 10_000)
+    }
+
+    @After
+    fun close() = scenario.close()
 
     // The library's FAB is also labelled "New idea"; the bar's items are found inside the bar.
     private fun navItem(label: String) =

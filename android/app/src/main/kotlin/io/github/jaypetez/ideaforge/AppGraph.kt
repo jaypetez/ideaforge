@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge
 
 import android.app.Application
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.jaypetez.ideaforge.data.AndroidKeystoreKey
 import io.github.jaypetez.ideaforge.data.Clock
@@ -11,6 +12,7 @@ import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,6 +33,8 @@ class AppGraph(
     // Tests replace this: Robolectric has no AndroidKeyStore. Constructing the default
     // touches nothing; the Keystore is first reached when a keyring is read or written.
     private val keyringKey: KeyringKey = AndroidKeystoreKey(),
+    // The network call onboarding makes. Tests hand in a fake, so no test opens a socket.
+    val providerCheck: ProviderCheck = ProviderCheck.Default,
 ) {
     /** Outlives every screen; work that must finish (a save) runs here, not in a ViewModel. */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -61,7 +65,8 @@ class AppGraph(
 /** Holds the [AppGraph]; registered as the application class in the manifest. */
 class IdeaForgeApp : Application() {
     lateinit var graph: AppGraph
-        private set
+        // Tests swap in a graph with a software key and a fake provider check before launch.
+        @VisibleForTesting internal set
 
     override fun onCreate() {
         super.onCreate()
