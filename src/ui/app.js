@@ -70,6 +70,7 @@ for (const id of [
   'b-library-new', 'b-backup', 'b-import', 'backup-file',
   'panel-done', 'done-title', 'done-meta', 'output',
   'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
+  'main', 'toasts', 'err-toast', 'b-err-dismiss',
 ]) els[id] = $(id);
 
 const state = {
@@ -112,6 +113,13 @@ const state = {
   captureConfirm: false,
   readback: false,
   writing: null,
+  /**
+   * A failed wrap-up waiting for the Done panel: `{ id, message }` or null. A spoken
+   * write-up fails on the voice stage, and the move to Done afterwards is a panel change
+   * that clears #err — so showDone() puts the failure back where it is read. Dropped when
+   * the app leaves for Start, Settings or Ideas, where it would be stale.
+   */
+  doneFailure: null,
   credentialEpoch: 0,
   wakeLock: null,
   wakeLockRequest: null,
@@ -154,6 +162,18 @@ function show(panel, destination) {
   document.body.dataset.panel = name;
   const current = destination
     || (name === 'setup' ? 'start' : name === 'library' ? 'ideas' : null);
+  // A toast belongs to the screen it was raised on. "Enough here to write up" outlived the
+  // interview and sat on the finished document; a key error followed the user into the
+  // library. Only a real change of screen clears them: wrapUp shows Done twice, and its
+  // failure, raised in between, must survive the second call. So every say() or fail()
+  // meant for a new screen comes AFTER the show() that opens it.
+  const view = `${name}:${current || ''}`;
+  if (view !== shownView) {
+    shownView = view;
+    say('');
+    fail(null);
+  }
+  if (name === 'setup' || name === 'library') state.doneFailure = null;
   for (const [key, id] of Object.entries(DESTINATIONS)) {
     if (key === current) els[id].setAttribute('aria-current', 'page');
     else els[id].removeAttribute('aria-current');
@@ -165,9 +185,36 @@ function show(panel, destination) {
   renderVoiceStage();
 }
 
+/** The screen show() last drew, as `panel:destination`, so re-showing it clears nothing. */
+let shownView = null;
+
+/**
+ * A note is a toast: it hides itself after #toasts' data-note-ms (6s; a probe shortens it
+ * there rather than waiting), and a new note restarts the clock rather than inheriting the
+ * old one's remaining time. A note takes no pointer events — it must never be what a tap
+ * meant for Send or Download lands on — so it cannot be held by hovering; a long one
+ * stays up longer instead, at about 240 words a minute.
+ */
+const NOTE_MS = 6000;
+let noteTimer = null;
+
+function noteMs() {
+  const ms = Number(els.toasts.dataset.noteMs);
+  return Number.isFinite(ms) && ms > 0 ? ms : NOTE_MS;
+}
+
+function armNoteTimer() {
+  clearTimeout(noteTimer);
+  noteTimer = null;
+  if (els.note.hidden) return;
+  const words = els.note.textContent.split(/\s+/).filter(Boolean).length;
+  noteTimer = setTimeout(() => { noteTimer = null; say(''); }, Math.max(noteMs(), words * 250));
+}
+
 function say(msg) {
   els.note.textContent = msg || '';
   els.note.hidden = !msg;
+  armNoteTimer();
 }
 
 /**
@@ -206,7 +253,24 @@ function fail(err) {
   const msg = err && err.message ? err.message : String(err || '');
   els.err.textContent = msg;
   els.err.hidden = !msg;
+  els['err-toast'].hidden = !msg;
   if (msg) console.error(err);
+}
+
+/** Errors persist until read: the only ways out are this button, a retry, or a new screen. */
+function dismissError() {
+  const hadFocus = els['err-toast'].contains(document.activeElement);
+  fail(null);
+  // The button just vanished under the keyboard; land somewhere that still exists.
+  if (hadFocus) els.main.focus({ preventScroll: true });
+}
+
+/** Done, with a wrap-up failure raised elsewhere (the voice stage) put back on it. */
+function showDone() {
+  show('panel-done');
+  const failure = state.doneFailure;
+  state.doneFailure = null;
+  if (failure && state.session && failure.id === state.session.id) fail(failure.message);
 }
 
 function busy(on, label) {
@@ -232,9 +296,24 @@ async function persist(session = state.session) {
     await saveSession(session);
     return true;
   } catch (e) {
-    say(`This session could not be saved to this device (${e.message}). Export before you close the tab.`);
+    lastSaveError = e.message;
+    say(notSavedNote());
     return false;
   }
+}
+
+/**
+ * Why the last save failed. Kept because the two persists that run just before a new
+ * screen opens (Start, Ask me more) have their note cleared by that show(), and say it
+ * again after it.
+ */
+let lastSaveError = '';
+function notSavedNote() {
+  return `This session could not be saved to this device (${lastSaveError}). Export before you close the tab.`;
+}
+
+function withoutModelNote(error) {
+  return `Continuing without a model (${error.message}). Questions will come from the built-in checklist.`;
 }
 
 function currentSession(id) {
@@ -1559,7 +1638,7 @@ async function exitVoice({ command = false } = {}) {
   await flushDraft();
   if (navigation !== state.navigation) return;
   if (done) {
-    show('panel-done');
+    showDone();
     if (state.session.status === 'done') renderDone();
     els['b-copy'].focus();
   } else {
@@ -1636,9 +1715,12 @@ async function wrapUp(note) {
     if (out.discarded || out.aborted || !currentView(session.id, navigation)) return;
     warn(out);
     if (!out.ok) {
-      fail(out.error
+      const message = out.error
         ? `The wrap-up call failed: ${out.error.message}`
-        : 'The model returned no usable prompt.');
+        : 'The model returned no usable prompt.';
+      fail(message);
+      // A spoken write-up reaches Done later, through a panel change that clears #err.
+      state.doneFailure = { id: session.id, message };
     }
     renderDone();
     if (state.readback && state.voiceMode === 'active') {
@@ -1649,7 +1731,7 @@ async function wrapUp(note) {
       renderVoiceStage();
     } else {
       teardownVoice();
-      show('panel-done');
+      showDone();
     }
   } catch (error) {
     if (currentView(session.id, navigation)) fail(error);
@@ -1667,7 +1749,7 @@ async function finishReadback() {
   await speakLong(spokenResult(!!state.session.synthesis.text));
   if (epoch !== state.voiceEpoch || !currentSession(id) || state.voiceMode !== 'active') return;
   teardownVoice();
-  show('panel-done');
+  showDone();
   renderDone();
 }
 
@@ -1990,10 +2072,11 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   els.answer.value = '';
   state.answerSource = 'typed';
   state.capturePrefix = '';
-  await persist();
+  const saved = await persist();
   state.starting = false;
   if (navigation !== state.navigation) return;
   show('panel-interview');
+  if (!saved) say(notSavedNote());
   render();
   await setupVoice({ defer: !handsFree, automatic: handsFree });
   if (state.voiceMode === 'manual') els.answer.focus();
@@ -2031,17 +2114,20 @@ async function resumeInterview(id) {
     return;
   }
 
+  // Said after the show() below, never here: the panel change would clear it unread.
+  let providerNote = '';
   try {
     await buildProvider();
   } catch (e) {
     if (navigation !== state.navigation) return;
-    say(`Continuing without a model (${e.message}). Questions will come from the built-in checklist.`);
+    providerNote = withoutModelNote(e);
     state.provider = null;
   }
   if (navigation !== state.navigation) return;
 
   if (s.pending && s.pending.kind === 'synthesis') {
     show('panel-done');
+    say(providerNote);
     els['done-title'].textContent = 'Picking up the write-up…';
     els.output.textContent = '';
     els['done-meta'].textContent = '';
@@ -2065,6 +2151,7 @@ async function resumeInterview(id) {
   state.voiceMode = state.wantHandsFree ? 'active' : 'manual';
   state.voicePhase = 'thinking';
   show('panel-interview');
+  say(providerNote);
 
   if (s.pending && s.pending.kind === 'turn') {
     busy(true, 'picking up where the last question left off…');
@@ -2285,6 +2372,7 @@ function bind() {
     } catch { say('Could not reach the clipboard — select the text above instead.'); }
   };
   els['b-download'].onclick = download;
+  els['b-err-dismiss'].onclick = dismissError;
   els['b-new'].onclick = async () => {
     state.navigation++;
     teardownVoice();
@@ -2301,20 +2389,23 @@ function bind() {
     teardownVoice();
     state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
     prepareSpeechOutput();
+    // Both notes are said after show('panel-interview'), which would otherwise clear them.
+    let providerNote = '';
     try {
       await buildProvider();
     } catch (error) {
-      say(`Continuing without a model (${error.message}). Questions will come from the built-in checklist.`);
+      providerNote = withoutModelNote(error);
       state.provider = null;
     }
     if (!currentView(session.id, navigation)) return;
     const reopenedAt = now();
     state.session = reopen(state.session, reopenedAt);
     if (state.session.archivedAt) state.session = restoreSession(state.session, reopenedAt);
-    await persist();
+    const saved = await persist();
     if (!currentView(session.id, navigation)) return;
     state.voiceMode = state.wantHandsFree ? 'active' : 'manual';
     show('panel-interview');
+    say([providerNote, saved ? '' : notSavedNote()].filter(Boolean).join(' '));
     await nextQuestion();
     if (currentView(session.id, navigation) && !els['panel-interview'].hidden) {
       await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });

@@ -137,17 +137,6 @@ export function splitSpeechText(text, { maxChars = 350, maxWords = Infinity } = 
   return out;
 }
 
-/**
- * The chunks native output actually speaks at `rate`: a word budget that shrinks at slower
- * rates, so one chunk's duration (and so its timeout) stays inside the engine's watchdog.
- * Exported, and pure, because the Android port speaks the same chunks (test/vectors/speak).
- */
-export function speechChunksForRate(text, rate = 1) {
-  validateSpeechRate(rate);
-  const maxWords = Math.max(1, Math.floor(24 * Math.min(rate, 1)));
-  return splitSpeechText(text, { maxChars: maxWords * 5, maxWords });
-}
-
 export function speechTimeoutMs(text, rate = 1) {
   validateSpeechRate(rate);
   const words = String(text).trim().split(/\s+/).length;
@@ -242,7 +231,8 @@ export async function speak(text, {
       ...(meta.voiceFallback ? { message:
         'The selected browser voice is unavailable; using a voice for this language instead.' } : {}),
     });
-    for (const chunk of speechChunksForRate(text, rate)) {
+    const maxWords = Math.max(1, Math.floor(24 * Math.min(rate, 1)));
+    for (const chunk of splitSpeechText(text, { maxChars: maxWords * 5, maxWords })) {
       const spoken = await utter(chunk, {
         synth: op.synth, voice, lang, rate, signal: stop, onStatus, meta,
       });

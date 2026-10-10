@@ -550,18 +550,68 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .output th { color: var(--ink-dim); font-weight: 600; }
 
-/* ───────────────────────────────────────────────────────────── banners */
-.note, .err {
-  margin: 0; font-size: var(--t-md); border-radius: var(--r-sm); padding: var(--s3) var(--s4);
-  border: 1px solid transparent;
+/* ────────────────────────────────────────────────────────────── toasts */
+/* #note and #err, floating. The region is fixed and lets every tap through, and so does a
+   note: it is text with nothing to press, and it auto-hides, so it may sit over Download
+   for a few seconds but can never be what the tap lands on. The error toast has a dismiss
+   button and takes pointer events, so where the region sits is what keeps it off the
+   controls that matter:
+
+   - by default, bottom centre, inside the safe area;
+   - on a phone's Ideas and Start/Settings, above the bottom navigation (the same
+     --nav-bar-height the body's padding uses, so the two cannot drift);
+   - on a phone's Interview, where Send is pinned to the bottom, at the top instead, and
+     inset past the app bar's back and Settings buttons;
+   - whenever the voice stage is up, at the top, clear of Pause and Exit pinned below.
+
+   Toasts are opaque: they float over content, and a translucent one is unreadable over
+   text. test/browser/toasts.browser.mjs hit-tests every one of these controls with both
+   toasts showing. */
+.toasts {
+  position: fixed; z-index: 6; pointer-events: none;
+  inset-inline: 0; bottom: max(var(--s4), calc(env(safe-area-inset-bottom) + var(--s2)));
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  padding-inline: max(var(--s4), env(safe-area-inset-left)) max(var(--s4), env(safe-area-inset-right));
 }
-.note {
-  background: color-mix(in srgb, var(--pend) 14%, transparent); color: var(--ink);
-  border-color: color-mix(in srgb, var(--pend) 30%, transparent);
+.toast {
+  pointer-events: auto;
+  width: min(100%, 560px); margin: 0;
+  font-size: var(--t-md); line-height: 1.5; color: var(--on-surface);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline-variant); border-radius: var(--r-md);
+  box-shadow: var(--elev-3);
+  animation: toast-in var(--dur-medium2) var(--ease-emph-decel);
 }
-.err {
-  background: color-mix(in srgb, var(--fail) 14%, transparent); color: var(--ink);
-  border-color: color-mix(in srgb, var(--fail) 45%, transparent);
+.note.toast { padding: var(--s3) var(--s4); pointer-events: none; }
+.toast-err {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  padding: var(--s1) var(--s1) var(--s1) var(--s4);
+  border-color: var(--error); border-inline-start-width: var(--s1);
+}
+/* A provider can send back a paragraph. Capped, so a persistent error on a narrow phone
+   cannot grow down over Send; the text scrolls inside it instead. The error comes first in
+   the region, so at the top of the screen it is the note (which takes no taps) that is
+   pushed further down, not the error. */
+.toast-err .err {
+  flex: 1; min-width: 0; margin: 0; padding-block: var(--s2);
+  max-height: min(7.5rem, 22dvh); overflow-y: auto;
+}
+/* Two classes, to outrank button.quiet's padding. */
+.toast-err .toast-dismiss {
+  flex: none; display: grid; place-items: center;
+  width: var(--control-height); min-width: var(--control-height); padding: 0;
+  color: var(--on-surface-variant); border-radius: var(--r-pill);
+}
+.toast-dismiss::before { --icon-size: 20px; }
+.toast-err .toast-dismiss:hover { color: var(--on-surface); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(var(--s2)); }
+}
+#main:focus { outline: none; }
+
+/* The voice stage pins Pause and Exit to the bottom at every width. */
+body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
+  top: max(var(--s4), env(safe-area-inset-top)); bottom: auto;
 }
 
 /* ─────────────────────────────────────────────────────── phone shell */
@@ -650,6 +700,18 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   }
   body:is([data-panel="interview"], [data-panel="done"]) .meter-track {
     flex: none; width: var(--s7);
+  }
+
+  body:is([data-panel="setup"], [data-panel="library"]) .toasts {
+    bottom: calc(var(--nav-bar-height) + var(--s2));
+  }
+  /* Send is pinned to the bottom here, so the toasts go to the top, between the app bar's
+     back arrow and Settings (each a 48px target inside the .wrap gutter). */
+  body[data-panel="interview"] .toasts {
+    top: max(var(--s4), env(safe-area-inset-top)); bottom: auto;
+    padding-inline:
+      calc(max(20px, env(safe-area-inset-left)) + var(--control-height) + var(--s2))
+      calc(max(20px, env(safe-area-inset-right)) + var(--control-height) + var(--s2));
   }
 }
 

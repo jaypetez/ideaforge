@@ -49,7 +49,6 @@ import {
   hasAnyKey, maskKey,
 } from '../../src/store/secrets.js';
 import { ANSWERS, TURNS, SYNTHESIS } from './walkthrough.mjs';
-import { splitSpeechText, speechChunksForRate, speechTimeoutMs } from '../../src/voice/speak.js';
 import * as dimensionsModule from '../../src/core/dimensions.js';
 import * as sessionModule from '../../src/core/session.js';
 import * as engineModule from '../../src/core/engine.js';
@@ -1102,53 +1101,6 @@ async function walkthroughFamily() {
   return { source: 'tools/fixtures/walkthrough.mjs through src/runtime/turn.js, as src/ui/app.js drives it', cases };
 }
 
-/**
- * speak cases: native output's chunking and its per-chunk wait (src/voice/speak.js). The
- * Android Speaker (#90) speaks exactly these chunks and waits exactly this long, so a chunk
- * that outlasts the engine's watchdog, or a timeout that is shorter here than on the web,
- * fails here. Infinity cannot cross JSON, so `maxWords` is only ever omitted or finite.
- */
-function speakFamily() {
-  const cases = [];
-  const texts = [
-    '', 'Short.', 'One. Two! Three? Four.', 'a'.repeat(900), `${'word '.repeat(200)}end.`,
-    `x${'🌌'.repeat(30)}`, 'alpha beta gamma delta　epsilon', '   padded   ',
-    '﻿BOM first. Then more.', `tiny ${'z'.repeat(40)} tail`, 'Wait... really?! Yes. ok',
-    forSpeech('# Refined prompt\n\nBuild a **small** app that remembers names.\n\n- one\n- two\n'),
-  ];
-  const limits = [undefined, { maxChars: 10 }, { maxChars: 2 }, { maxChars: 40, maxWords: 3 },
-    { maxWords: 1 }, { maxChars: 120, maxWords: 24 }, { maxChars: 11 }];
-  for (const [i, t] of texts.entries()) {
-    for (const [j, o] of limits.entries()) {
-      cases.push(o === undefined ? rec(`splitSpeechText ${i}`, splitSpeechText, t)
-        : rec(`splitSpeechText ${i}.${j}`, splitSpeechText, t, o));
-    }
-  }
-  for (const [i, t] of [null, 42].entries()) cases.push(rec(`splitSpeechText non-string ${i}`, splitSpeechText, t));
-  for (const [i, o] of [{ maxChars: 1 }, { maxChars: 2.5 }, { maxWords: 0 }, { maxWords: 1.5 },
-    { maxChars: '10' }, { maxWords: null }, { maxChars: null }].entries()) {
-    cases.push(rec(`splitSpeechText bad limits ${i}`, splitSpeechText, 'Some words here.', o));
-  }
-  const rates = [0.1, 0.5, 0.75, 1, 1.02, 1.25, 2, 10];
-  for (const [i, t] of [texts[2], texts[3], texts[4], texts[9], texts[11]].entries()) {
-    cases.push(rec(`speechChunksForRate ${i} default`, speechChunksForRate, t));
-    for (const r of rates) cases.push(rec(`speechChunksForRate ${i} @${r}`, speechChunksForRate, t, r));
-  }
-  // NaN and Infinity are left out: JSON records both as null, so they would only repeat
-  // the null case under another name.
-  for (const [i, r] of [0, 0.05, 11, '1', null].entries()) {
-    cases.push(rec(`speechChunksForRate bad rate ${i}`, speechChunksForRate, 'Hello there.', r));
-  }
-  for (const [i, t] of ['', 'Hi.', texts[2], texts[3], texts[4], 'one two three four five six seven', '日本語のテキストは空白がない'.repeat(5)].entries()) {
-    cases.push(rec(`speechTimeoutMs ${i} default`, speechTimeoutMs, t));
-    for (const r of rates) cases.push(rec(`speechTimeoutMs ${i} @${r}`, speechTimeoutMs, t, r));
-  }
-  for (const [i, r] of [0, 11, '1', null].entries()) {
-    cases.push(rec(`speechTimeoutMs bad rate ${i}`, speechTimeoutMs, 'Hello.', r));
-  }
-  return { source: 'src/voice/speak.js', cases };
-}
-
 export const FAMILIES = {
   constants: constantsFamily,
   js: jsFamily,
@@ -1164,5 +1116,4 @@ export const FAMILIES = {
   providers: providersFamily,
   keyring: keyringFamily,
   walkthrough: walkthroughFamily,
-  speak: speakFamily,
 };

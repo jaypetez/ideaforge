@@ -44,6 +44,4 @@ val CONSUMERS: List<Consumer> = listOf(
         portedElsewhere = ProvidersFamily.IN_PROVIDERS_MODULE.associateWith { ProvidersFamily.MODULE }),
     // Also replayed through InterviewViewModel by :app (WalkthroughVectorTest).
     Consumer("walkthrough", ported = WALKTHROUGH_PORTS, pending = emptyMap()),
-    // Native speech output's chunking and per-chunk wait (src/voice/speak.js), for the Speaker (#90).
-    Consumer("speak", ported = SPEAK_PORTS, pending = emptyMap()),
 )
