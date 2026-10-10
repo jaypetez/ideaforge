@@ -59,7 +59,7 @@ class BackupViewModelTest {
     private fun dir() = File(tmp.root, "sessions").apply { mkdirs() }
 
     private fun vm(store: SessionStore, docs: FakeDocuments) =
-        BackupViewModel(store, docs, Clock { now }, IdGen(Clock { now }), scope)
+        BackupViewModel(store, docs, Clock { now }, IdGen(Clock { now }), BackupJobs(scope))
 
     private fun web(id: String) = webSessions.first { stringOf(it["id"]) == id } as JsonObject
 

@@ -9,7 +9,7 @@
 //   test/fixtures/backup-from-web.json      written here, by the real buildBackup over
 //                                           sessions from a real (scripted) interview;
 //                                           android/app imports it through BackupViewModel.
-//   test/fixtures/backup-from-android.json  written by android/app's BackupViewModelTest
+//   test/fixtures/backup-from-android.json  written by android/app's BackupInteropTest
 //                                           through the real export path; test/backup.test.mjs
 //                                           imports it through parseBackup + mergeImported.
 //

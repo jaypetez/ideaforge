@@ -84,7 +84,7 @@ class BackupInteropTest {
         val docs = FakeDocuments()
         val uri = Uri.parse("content://test/export.json")
         val clock = Clock { t0 + 3_600_000L }
-        val vm = BackupViewModel(store, docs, clock, IdGen(clock), CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        val vm = BackupViewModel(store, docs, clock, IdGen(clock), BackupJobs(CoroutineScope(SupervisorJob() + Dispatchers.Default)))
 
         vm.export(uri)
         val state = vm.settled()

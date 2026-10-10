@@ -13,6 +13,7 @@ import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
+import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,6 +45,9 @@ class AppGraph(
     val sessionStore: SessionStore by lazy { SessionStore(File(context.filesDir, "sessions")) }
 
     val sessionWorker: SessionWorker by lazy { SessionWorker() }
+
+    /** Backup import/export and its state: outlives the settings screen (see BackupJobs). */
+    val backupJobs: BackupJobs by lazy { BackupJobs(appScope) }
 
     /**
      * The encrypted keyring, in noBackupFilesDir and deliberately outside the sessions

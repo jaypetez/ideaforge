@@ -26,11 +26,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -168,11 +171,62 @@ internal suspend fun importIntoStore(
 }
 
 data class BackupState(
+    /** A backup job is running or queued. */
     val busy: Boolean = false,
     /** The last outcome, in the web's words: a summary, or the error the web would show. */
     val message: String? = null,
     val failed: Boolean = false,
 )
+
+/**
+ * Backup work and its state, for the life of the process rather than of a screen.
+ *
+ * An import keeps writing after its screen is gone (Back mid-import), so the busy flag and
+ * the outcome belong here, beside the work, and a ViewModel only observes them: a screen
+ * reopened mid-import shows it still running and then its result, instead of an idle
+ * section inviting a second import of the same file.
+ *
+ * Each job runs whole behind one [Mutex]. An import's snapshot of the store's ids and its
+ * writes are one unit; two imports interleaved would plan from snapshots that miss each
+ * other's writes, and the second would mint "(imported)" copies of ideas the first had just
+ * added, then trip [SessionStore.insert]'s refusal part way. Queued behind the first, the
+ * second sees them and counts them as duplicates.
+ */
+class BackupJobs(private val scope: CoroutineScope) {
+    private val mutex = Mutex()
+    private val lock = Any()
+    private var pending = 0
+    private val _state = MutableStateFlow(BackupState())
+    val state: StateFlow<BackupState> = _state.asStateFlow()
+
+    /** Queues [action]; its return value is the message shown when it succeeds. */
+    fun launch(action: suspend () -> String): Job {
+        synchronized(lock) {
+            pending++
+            _state.update { it.copy(busy = true) }
+        }
+        return scope.launch {
+            var outcome: BackupState? = null
+            try {
+                outcome = mutex.withLock {
+                    try {
+                        BackupState(message = action())
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        BackupState(message = e.message ?: "The backup could not be read.", failed = true)
+                    }
+                }
+            } finally {
+                synchronized(lock) {
+                    pending--
+                    val result = outcome
+                    _state.value = (result ?: _state.value).copy(busy = pending > 0)
+                }
+            }
+        }
+    }
+}
 
 /**
  * Export and import of the web backup format through the Storage Access Framework.
@@ -182,52 +236,39 @@ data class BackupState(
  * exported, as the browser does not export rows it cannot read. Backups contain sessions and
  * nothing else: this reads the session store only, never the keyring or preferences.
  *
- * Work runs on [writes] (the app scope): an import that has started saving must finish even
- * if the screen goes away.
+ * The work and its state live in [jobs] (app-scoped, see [BackupJobs]); this only starts
+ * jobs and shows their state.
  */
 class BackupViewModel(
     private val store: SessionStore,
     private val documents: BackupDocuments,
     private val clock: Clock,
     private val ids: IdGen,
-    private val writes: CoroutineScope,
+    private val jobs: BackupJobs,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(BackupState())
-    val state: StateFlow<BackupState> = _state.asStateFlow()
+    val state: StateFlow<BackupState> = jobs.state
 
     /** What the create-document picker suggests: the web's `ideaforge-backup-YYYY-MM-DD.json`. */
     fun exportFilename(): String = backupFilename(clock.now())
 
-    fun export(uri: Uri) = work {
-        store.load()
-        val sessions = store.sessions.value
-        val bytes = buildBackup(JsonArray(sessions), num(clock.now())).encodeToByteArray()
-        withContext(io) { documents.openOutput(uri).use { it.write(bytes) } }
-        backedUpMessage(sessions.size)
+    fun export(uri: Uri) {
+        jobs.launch {
+            store.load()
+            val sessions = store.sessions.value
+            val bytes = buildBackup(JsonArray(sessions), num(clock.now())).encodeToByteArray()
+            withContext(io) { documents.openOutput(uri).use { it.write(bytes) } }
+            backedUpMessage(sessions.size)
+        }
     }
 
-    fun import(uri: Uri) = work {
-        val text = withContext(io) { readBackupText(documents.size(uri), { documents.openInput(uri) }) }
-        val parsed = parseBackup(text)
-        val skipped = toNumber(parsed["skipped"]).toInt()
-        val summary = importIntoStore(store, parsed["sessions"] as JsonArray, clock.now(), ids::newSessionId)
-        importSummaryMessage(summary, skipped)
-    }
-
-    private fun work(action: suspend () -> String) {
-        if (_state.value.busy) return
-        _state.value = BackupState(busy = true)
-        writes.launch {
-            val next = try {
-                BackupState(message = action())
-            } catch (e: CancellationException) {
-                _state.update { it.copy(busy = false) }
-                throw e
-            } catch (e: Exception) {
-                BackupState(message = e.message ?: "The backup could not be read.", failed = true)
-            }
-            _state.value = next
+    fun import(uri: Uri) {
+        jobs.launch {
+            val text = withContext(io) { readBackupText(documents.size(uri), { documents.openInput(uri) }) }
+            val parsed = parseBackup(text)
+            val skipped = toNumber(parsed["skipped"]).toInt()
+            val summary = importIntoStore(store, parsed["sessions"] as JsonArray, clock.now(), ids::newSessionId)
+            importSummaryMessage(summary, skipped)
         }
     }
 
@@ -241,7 +282,7 @@ class BackupViewModel(
                     ContentResolverDocuments(app.contentResolver),
                     graph.clock,
                     graph.idGen,
-                    graph.appScope,
+                    graph.backupJobs,
                 )
             }
         }
