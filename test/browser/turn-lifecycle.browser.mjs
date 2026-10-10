@@ -568,8 +568,11 @@ export default async function run(check) {
     const wrapping = click(app, 'b-wrap');
     if (!(await expect(app, check, 'the original same-session synthesis is held in flight', () =>
       app.model.calls.length === 1 && app.model.calls[0].tier === 'complex'))) return;
+    // Ask me more lives in Done's overflow menu (#106): open it, as a person would, to see it.
+    app.$('done-menu').showPopover();
     check('Ask me more is disabled while the same interview is being synthesized',
       visible(app.$('b-reopen')) && app.$('b-reopen').disabled, detail(app));
+    app.$('done-menu').hidePopover();
     app.$('b-reopen').click();
     // A dispatched event bypasses native disabled-click suppression, not the app's guard.
     const reopening = click(app, 'b-reopen', { dispatch: true });

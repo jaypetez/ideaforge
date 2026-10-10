@@ -130,8 +130,15 @@ function raiseBoth(app) {
 function doneHitTest(app, check, label) {
   raiseBoth(app);
   app.win.scrollTo(0, app.doc.documentElement.scrollHeight);
-  hitTest(app, check, `${label}, scrolled to the end`,
-    ['b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new']);
+  // One primary action and the overflow trigger (#106); whichever of Share and Copy is the
+  // primary in this browser, it is the first button in the row.
+  const primary = app.$('done-actions').querySelector('button:not(.done-more)');
+  hitTest(app, check, `${label}, scrolled to the end`, [primary.id, 'b-done-more']);
+  // The menu is in the top layer, over the toasts: every item in it takes its own tap.
+  app.$('done-menu').showPopover();
+  hitTest(app, check, `${label}, menu open`, [...app.$('done-menu').querySelectorAll('button')]
+    .filter((button) => !button.hidden).map((button) => button.id));
+  app.$('done-menu').hidePopover();
   app.win.scrollTo(0, 0);
 }
 

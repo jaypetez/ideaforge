@@ -166,8 +166,8 @@ the full verbatim transcript.
             srcset="docs/screenshots/06-refined-prompt.dark.png">
     <img src="docs/screenshots/06-refined-prompt.light.png" width="760"
          alt="The finished document on screen, titled ‘Conference name recall app’, showing
-              eight questions and 86% coverage, with buttons to share, copy or download the
-              markdown, ask more questions, or start a new idea.">
+              eight questions and 86% coverage, with a Share .md button and a More actions
+              menu to copy or download the markdown, ask more questions, or start a new idea.">
   </picture>
 </p>
 
@@ -199,8 +199,9 @@ The backup never contains API keys, but its interview text is deliberately unenc
 treat it like any other personal document.
 
 On a finished idea, **Share .md** opens the phone's native share sheet with the complete
-markdown file. If a browser cannot share files it shares the markdown as text; copy and
-download remain available either way.
+markdown file. Where a browser cannot share files, **Copy markdown** takes its place as the
+main button; the **More actions** menu beside it holds the rest — download, ask more
+questions, start a new idea, and share as text where the browser can.
 
 ## Why it stops on its own
 

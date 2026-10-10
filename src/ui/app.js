@@ -42,7 +42,8 @@ import {
 } from '../core/backup.js';
 import { createInstallController } from './install.js';
 import { createLibraryView } from './library.js';
-import { downloadText, shareTextFile } from './share.js';
+import { canShareFile, canShareText, downloadText, shareTextFile } from './share.js';
+import { wireOverflowMenu } from './menu.js';
 import { VERSION } from '../version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -71,6 +72,7 @@ for (const id of [
   'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
   'b-library-new', 'b-backup', 'b-import', 'backup-file',
   'panel-done', 'done-title', 'done-meta', 'output',
+  'done-actions', 'b-done-more', 'done-menu',
   'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
   'main', 'toasts', 'err-toast', 'b-err-dismiss',
 ]) els[id] = $(id);
@@ -206,11 +208,42 @@ function show(panel, destination) {
   else els['b-library'].setAttribute('aria-label', 'Back to ideas');
   // Interview only: Done prints the final figure in its own meta line.
   if (panel !== 'panel-interview') els.meter.hidden = true;
+  if (panel === 'panel-done') layoutDoneActions();
+  else closeDoneMenu();
   renderVoiceStage();
 }
 
 /** The screen show() last drew, as `panel:destination`, so re-showing it clears nothing. */
 let shownView = null;
+
+/**
+ * Done has one primary action, and it is the one this browser can actually do best.
+ *
+ * Share .md where the share sheet takes a file; everywhere else Copy markdown, with Share
+ * moved into the overflow menu if the sheet can at least take text, and gone if there is no
+ * sheet at all — it would only download, and Download is already in the menu. The decision
+ * is synchronous and made as the panel is drawn, so the Share click itself still calls
+ * navigator.share before anything can await. Buttons are moved, never copied: every id is
+ * one element, which is what the probes and screenshots find.
+ */
+function layoutDoneActions() {
+  const files = canShareFile({ filename: 'idea.md', type: 'text/markdown' });
+  const primary = files ? els['b-share'] : els['b-copy'];
+  const secondary = files ? els['b-copy'] : els['b-share'];
+  primary.className = '';
+  els['done-actions'].prepend(primary);
+  secondary.className = 'quiet idea-menu-item';
+  els['done-menu'].prepend(secondary);
+  els['b-share'].hidden = !files && !canShareText();
+  els['done-actions'].dataset.primary = files ? 'share' : 'copy';
+}
+
+/** Done's primary action as last laid out: where focus lands when Done is reached by voice. */
+function donePrimary() {
+  return els['done-actions'].dataset.primary === 'copy' ? els['b-copy'] : els['b-share'];
+}
+
+let closeDoneMenu = () => {};
 
 /**
  * A note is a toast: it hides itself after #toasts' data-note-ms (6s; a probe shortens it
@@ -1825,7 +1858,7 @@ async function exitVoice({ command = false } = {}) {
   if (done) {
     showDone();
     if (state.session.status === 'done') renderDone();
-    els['b-copy'].focus();
+    donePrimary().focus();
   } else {
     show('panel-interview');
     await setupVoice({ defer: true, automatic: false });
@@ -2650,8 +2683,17 @@ function bind() {
     renderSpeechSettings();
     await renderResumeList();
   };
-  els['b-share'].onclick = () => shareSession(state.session);
+  // Every Done action closes the overflow menu first, synchronously: focus goes back to the
+  // trigger before the panel can change, and Share still reaches navigator.share inside the
+  // click — closeDoneMenu() is hidePopover(), and shareSession() calls shareTextFile(), which
+  // calls navigator.share, before its first await.
+  closeDoneMenu = wireOverflowMenu(els['done-menu'], els['b-done-more']);
+  els['b-share'].onclick = () => {
+    closeDoneMenu();
+    return shareSession(state.session);
+  };
   els['b-copy'].onclick = async () => {
+    closeDoneMenu();
     try {
       // exportFor, not the DOM. #output renders the markdown now, so reading its textContent
       // back would hand over the prose with every marker stripped — which is not the thing
@@ -2660,9 +2702,13 @@ function bind() {
       say('Copied.');
     } catch { say('Could not reach the clipboard — select the text above instead.'); }
   };
-  els['b-download'].onclick = download;
+  els['b-download'].onclick = () => {
+    closeDoneMenu();
+    return download();
+  };
   els['b-err-dismiss'].onclick = dismissError;
   els['b-new'].onclick = async () => {
+    closeDoneMenu();
     state.navigation++;
     teardownVoice();
     say('');
@@ -2671,6 +2717,7 @@ function bind() {
     await renderResumeList();
   };
   els['b-reopen'].onclick = async () => {
+    closeDoneMenu();
     if (!state.session || state.busy || workBySession.has(state.session.id)
         || state.writing === state.session.id) return;
     const navigation = ++state.navigation;

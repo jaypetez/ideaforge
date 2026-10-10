@@ -252,6 +252,54 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     check('Esc closes the library overflow menu', !closed.open, JSON.stringify(closed));
     check('…and returns focus to its trigger', closed.focus, JSON.stringify(closed));
   }
+  // Done's overflow menu (#106), with the same trusted Esc. A finished idea is stored through
+  // the app's own modules, then opened from its card the way a person would.
+  await cdp.evaluate(`(async () => {
+    const { createSession, setSynthesis } = await import('/src/core/session.js');
+    const { seedTurn, submitAnswer } = await import('/src/runtime/turn.js');
+    const { saveSession } = await import('/src/store/sessions.js');
+    const at = Date.now();
+    let s = seedTurn(createSession({ id: 's_policy_done', now: at }), { now: at });
+    s = submitAnswer(s, { text: 'A finished idea for the menu check', now: at + 1 });
+    s = setSynthesis(s, { text: '## Task\\nCheck the menu.', assumptions: [], openQuestions: [], now: at + 2 });
+    await saveSession(s);
+  })()`);
+  await click('#b-settings');
+  await click('#b-library');
+  const doneCard = '#library-rows [data-session-id="s_policy_done"] .idea-actions > button:first-child';
+  let doneReady = false;
+  for (const end = Date.now() + 5000; Date.now() < end && !doneReady;) {
+    doneReady = await cdp.evaluate(`!!document.querySelector(${JSON.stringify(doneCard)})`);
+    if (!doneReady) await sleep(40);
+  }
+  check('a finished idea is a card in the library', doneReady);
+  if (doneReady) {
+    await click(doneCard);
+    let onDone = false;
+    for (const end = Date.now() + 5000; Date.now() < end && !onDone;) {
+      onDone = await cdp.evaluate(`document.getElementById('b-done-more').getClientRects().length > 0`);
+      if (!onDone) await sleep(40);
+    }
+    check('View result opens Done with its overflow trigger', onDone);
+    if (onDone) {
+      await click('#b-done-more');
+      await sleep(150);
+      check('a trusted click on Done’s overflow trigger opens the menu with focus inside it',
+        await cdp.evaluate(`document.getElementById('done-menu').matches(':popover-open')
+          && document.getElementById('done-menu').contains(document.activeElement)`));
+      const key = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 };
+      await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+      await sleep(150);
+      const closed = await cdp.evaluate(`({
+        open: document.getElementById('done-menu').matches(':popover-open'),
+        focus: document.activeElement === document.getElementById('b-done-more'),
+        active: document.activeElement && (document.activeElement.id || document.activeElement.tagName),
+      })`);
+      check('Esc closes Done’s overflow menu', !closed.open, JSON.stringify(closed));
+      check('…and returns focus to Done’s trigger', closed.focus, JSON.stringify(closed));
+    }
+  }
   // The error and CSP check below must see the library steps too, not a snapshot from before.
   state = await snapshot();
 

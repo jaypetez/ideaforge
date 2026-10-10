@@ -764,8 +764,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .idea-actions .idea-more:hover { color: var(--on-surface); background: var(--surface-container); }
 .idea-more::before { --icon-size: 24px; }
 
-/* The overflow menu: a native popover in the top layer. The UA centres popovers with
-   inset:0 and margin:auto; library.js places this one under its trigger instead. */
+/* The overflow menu: a native popover in the top layer, on a library card and on Done
+   (.done-menu). The UA centres popovers with inset:0 and margin:auto; src/ui/menu.js places
+   each one under its trigger instead. */
 .idea-menu {
   position: absolute; inset: auto; margin: 0;
   min-width: 12rem; max-width: calc(100vw - var(--s5));
@@ -878,6 +879,26 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   text-align: left; padding: var(--s2); border-bottom: 1px solid var(--line);
 }
 .output th { color: var(--ink-dim); font-weight: 600; }
+
+/* Done's actions (#106): one primary, filled, and an overflow trigger beside it. Which button
+   is the primary is decided in app.js (layoutDoneActions), so nothing here names b-share or
+   b-copy: the first button is the primary, whichever it is. */
+.done-actions { flex-wrap: nowrap; }
+.done-actions > button:first-child {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 1 auto; min-width: 0;
+}
+/* Two classes, to outrank button.quiet's padding. */
+.done-actions .done-more {
+  flex: none; display: grid; place-items: center;
+  width: var(--control-height); min-width: var(--control-height); padding: 0;
+  color: var(--on-surface-variant); border-radius: var(--r-pill);
+}
+.done-actions .done-more:hover { color: var(--on-surface); background: var(--surface-container); }
+.done-more::before { --icon-size: 24px; }
+.done-menu .idea-menu-item:disabled,
+.done-menu .idea-menu-item:disabled:hover {
+  background: transparent; border-color: transparent; color: var(--on-surface-variant); opacity: .6;
+}
 
 /* ────────────────────────────────────────────────────────────── toasts */
 /* #note and #err, floating. The region is fixed and lets every tap through, and so does a
