@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createInstallController, mobilePlatform, standaloneMode,
 } from '../src/ui/install.js';
-import { shareTextFile } from '../src/ui/share.js';
+import { canShareFile, canShareText, shareTextFile } from '../src/ui/share.js';
 
 class FakeWindow extends EventTarget {
   constructor({ standalone = false } = {}) {
@@ -109,4 +109,21 @@ test('sharing treats cancellation as normal and reports unsupported browsers', a
     text: 'x', filename: 'x.md', title: 'x',
   }, { navigatorRef: {}, FileCtor: FakeFile });
   assert.equal(unsupported.kind, 'unsupported');
+});
+
+// Done's primary action is chosen from this (#106): Share .md only where the sheet would take
+// the markdown as a file, the same test shareTextFile makes, so the primary never promises a
+// file and then hands over text. A canShare that throws is a no, not a crash while drawing.
+test('canShareFile mirrors the file test shareTextFile makes, and never throws', () => {
+  const share = async () => {};
+  const md = { filename: 'idea.md', type: 'text/markdown' };
+  const opts = (navigatorRef) => ({ navigatorRef, FileCtor: FakeFile });
+  assert.equal(canShareFile(md, opts({ share, canShare: ({ files }) => files[0].type === 'text/markdown' })), true);
+  assert.equal(canShareFile(md, opts({ share, canShare: () => false })), false);
+  assert.equal(canShareFile(md, opts({ share })), false, 'no canShare: shareTextFile would send text');
+  assert.equal(canShareFile(md, opts({ canShare: () => true })), false, 'no share at all');
+  assert.equal(canShareFile(md, opts({ share, canShare: () => { throw new TypeError('x'); } })), false);
+  assert.equal(canShareFile(md, opts({ share, canShare: () => 'yes' })), false);
+  assert.equal(canShareText({ navigatorRef: { share } }), true);
+  assert.equal(canShareText({ navigatorRef: {} }), false);
 });

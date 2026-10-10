@@ -2,6 +2,7 @@
 // view receives rows and delegates every mutation back to it.
 
 import { availableTags, filterSessions, libraryCard } from '../core/library.js';
+import { wireOverflowMenu } from './menu.js';
 
 function button(label, className = 'ghost small') {
   const element = document.createElement('button');
@@ -114,7 +115,6 @@ export function createLibraryView({
     const more = button('', 'quiet idea-more');
     more.dataset.icon = 'more-vert';
     more.setAttribute('aria-label', `More actions for ${card.title}`);
-    more.setAttribute('popovertarget', menu.id);
     actions.append(open, more);
 
     const item = (label, icon, className = 'quiet') => {
@@ -126,7 +126,9 @@ export function createLibraryView({
     // Closing the menu first, synchronously, matters twice over. It hands focus back to the
     // trigger before the card can re-render, and Share must still reach navigator.share inside
     // the click gesture: hidePopover() and run() add no await before onShare is called.
-    const close = () => { if (menu.matches(':popover-open')) menu.hidePopover(); };
+    // wireOverflowMenu (menu.js) places it under its trigger, flips it near the bottom,
+    // closes it on resize and moves focus into it.
+    const close = wireOverflowMenu(menu, more);
 
     if (card.canExport) {
       const share = item('Share .md', 'share');
@@ -149,37 +151,6 @@ export function createLibraryView({
       if (confirmDelete(card.title)) await onDelete(session);
     }, onError);
     remove.onclick = () => { close(); removeAction(); };
-
-    // Positioned against its trigger by hand rather than with CSS anchor positioning, which
-    // Safari and Firefox do not all have. Absolute in the top layer means document
-    // coordinates, so the menu scrolls with its card instead of floating over another one.
-    menu.addEventListener('beforetoggle', (event) => {
-      if (event.newState !== 'open') return;
-      const rect = more.getBoundingClientRect();
-      const root = document.documentElement;
-      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-      menu.style.right = `${Math.max(8, root.clientWidth - rect.right)}px`;
-    });
-    // The position is measured once, so a resize or rotation would leave the menu pointing
-    // at nothing. Close it instead; it reopens in the right place from its trigger.
-    const closeOnResize = () => close();
-    menu.addEventListener('toggle', (event) => {
-      if (event.newState !== 'open') {
-        window.removeEventListener('resize', closeOnResize);
-        return;
-      }
-      window.addEventListener('resize', closeOnResize);
-      // Flip above the trigger when the menu would run off the bottom of the viewport.
-      const rect = more.getBoundingClientRect();
-      const height = menu.getBoundingClientRect().height;
-      if (rect.bottom + 4 + height > window.innerHeight && rect.top - 4 - height > 0) {
-        menu.style.top = `${rect.top + window.scrollY - 4 - height}px`;
-      }
-      // Focus inside the menu is also what makes the browser return it to the trigger on
-      // Esc: popover focus restoration only applies when focus was in the popover.
-      const first = menu.querySelector('button');
-      if (first) first.focus();
-    });
 
     const edit = document.createElement('details');
     edit.className = 'idea-edit';

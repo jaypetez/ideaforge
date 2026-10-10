@@ -1325,7 +1325,7 @@ export default async function run(check) {
     if (!(await expect(app, check, 'Exit reveals the completed export without losing any text', () =>
       !visible(app.$('voice-stage')) && visible(app.$('panel-done'))
         && app.$('done-title').textContent === synthesis.title
-        && app.$('output').dataset.source === exported && app.doc.activeElement === app.$('b-copy')))) return;
+        && app.$('output').dataset.source === exported && app.doc.activeElement === app.$('done-actions').querySelector('button:not(.done-more)')))) return;
     if (!(await expect(app, check, 'the exited narration also receives its queued late endpoint',
       () => resumed.endedAt > exitedAt))) return;
     check('late narration after Exit leaves the completed export and microphone state alone',

@@ -245,7 +245,8 @@ Each of these is a deliberate debt with a trigger for paying it down, not an ove
 
 **`src/ui/app.js` still owns navigation and the active session.** The fourth panel paid down
 the old all-in-one rendering cost: the library DOM lives in `src/ui/library.js`, installation
-events in `src/ui/install.js`, outbound files in `src/ui/share.js`, and voice-stage rendering
+events in `src/ui/install.js`, outbound files in `src/ui/share.js`, the overflow menu shared
+by library cards and Done in `src/ui/menu.js`, and voice-stage rendering
 in `src/ui/voice-stage.js`. The coordinator is still a shared edit point, but a new panel
 no longer has to put its rendering logic there.
 *Trigger: navigation itself needs history, deep links or independently mounted screens.*

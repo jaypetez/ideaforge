@@ -43,3 +43,28 @@ export async function shareTextFile({
     throw error;
   }
 }
+
+/**
+ * Whether this browser can hand a file of `type` to its share sheet, without sharing one.
+ *
+ * Synchronous on purpose: the Done screen decides its primary action from this as it draws,
+ * and the decision must never put an await in front of the navigator.share call a click on
+ * that action makes.
+ */
+export function canShareFile({ filename = 'idea.md', type = 'text/plain' } = {}, {
+  navigatorRef = navigator,
+  FileCtor = File,
+} = {}) {
+  if (!navigatorRef || typeof navigatorRef.share !== 'function'
+      || typeof navigatorRef.canShare !== 'function') return false;
+  try {
+    return navigatorRef.canShare({ files: [new FileCtor([''], filename, { type })] }) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether this browser has a share sheet at all, even one that only takes text. */
+export function canShareText({ navigatorRef = navigator } = {}) {
+  return !!navigatorRef && typeof navigatorRef.share === 'function';
+}

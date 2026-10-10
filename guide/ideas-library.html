@@ -298,7 +298,11 @@
         A library card's <strong>More actions</strong> menu offers
         <strong>Share .md</strong> and <strong>Download .md</strong> once the conversation
         has a recorded answer or skip.
-        The completed result screen also offers <strong>Copy markdown</strong>.
+        The completed result screen offers one main button — <strong>Share .md</strong>
+        where the browser can share a file, otherwise <strong>Copy markdown</strong> — and
+        puts the other export actions in its own <strong>More actions</strong> menu. On a
+        browser with no share sheet at all, the result screen leaves Share out rather than
+        offer a second Download.
       </p>
       <div class="table-wrap">
         <table>
@@ -324,7 +328,7 @@
             </tr>
             <tr>
               <th scope="row">Copy markdown</th>
-              <td>Copies the rendered export text; if clipboard access fails, the text remains selectable on screen.</td>
+              <td>Copies the Markdown export, unchanged; if clipboard access fails, the text remains selectable on screen.</td>
             </tr>
           </tbody>
         </table>

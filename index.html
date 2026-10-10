@@ -532,12 +532,23 @@
       depends on to stop the export pane growing with the viewport it is being framed in.
     -->
     <div class="output" id="output"></div>
-    <div class="btns">
-      <button type="button" id="b-share">Share .md</button>
-      <button type="button" class="ghost" id="b-copy">Copy markdown</button>
-      <button type="button" class="ghost" id="b-download">Download .md</button>
-      <button type="button" class="ghost" id="b-reopen">Ask me more</button>
-      <button type="button" class="ghost" id="b-new">New idea</button>
+    <!--
+      One primary action and an overflow menu (#106). Share .md is the primary where this
+      browser can share a file; elsewhere Copy markdown takes its place and Share, when it can
+      still share text, moves into the menu. layoutDoneActions() in app.js moves the two
+      buttons between this row and the menu, so every id and label below is the same element
+      wherever it sits. The menu is the library cards' native popover (src/ui/menu.js).
+    -->
+    <div class="btns done-actions" id="done-actions">
+      <button type="button" id="b-share" data-icon="share">Share .md</button>
+      <button type="button" class="quiet done-more" id="b-done-more" data-icon="more-vert"
+        aria-label="More actions"></button>
+    </div>
+    <div class="idea-menu done-menu" id="done-menu" popover="auto" aria-label="More actions">
+      <button type="button" class="quiet idea-menu-item" id="b-copy" data-icon="content-copy">Copy markdown</button>
+      <button type="button" class="quiet idea-menu-item" id="b-download" data-icon="download">Download .md</button>
+      <button type="button" class="quiet idea-menu-item" id="b-reopen" data-icon="refresh">Ask me more</button>
+      <button type="button" class="quiet idea-menu-item" id="b-new" data-icon="add">New idea</button>
     </div>
   </section>
 
