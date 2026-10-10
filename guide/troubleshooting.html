@@ -158,7 +158,7 @@
         <strong>An OpenAI invalid key can look like a network error in browser fetch.</strong>
         The chat endpoint may reject an invalid credential without CORS headers, leaving the
         page only an opaque failure. IdeaForge validates OpenAI-compatible keys through
-        <code>/models</code> first so the setup screen can give a more useful result.
+        <code>/models</code> first so <strong>Check the key</strong> can give a more useful result.
       </div>
 
       <div class="table-wrap">
@@ -363,7 +363,7 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
         repetitive or compound after one regeneration.
       </p>
       <ol>
-        <li>Read the visible error beside the turn; it names the provider or response failure.</li>
+        <li>Read the error message; it names the provider or response failure and stays on screen until you dismiss it or leave that screen.</li>
         <li>Return to Settings and run Check the key or Check the connection.</li>
         <li>
           For a local model, inspect the browser console for <code>[ideaforge]</code>
@@ -431,7 +431,7 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
           disables voice input, not a provider connection.
         </li>
         <li>
-          Read the voice stage or setup message. It distinguishes the two
+          Read the message on the voice stage or the error on screen. It distinguishes the two
           causes that look identical from inside the page: a microphone blocked for the site,
           which you fix in the browser's site settings before tapping Resume, and
           a recogniser that exists but fails its proof-of-life check, which you work around
@@ -593,7 +593,7 @@ docker inspect &lt;ollama-container&gt; --format '{{json .HostConfig.DeviceReque
             <tr>
               <td>A question came from the checklist</td>
               <td>The real provider call or model output failed during the run.</td>
-              <td>Read the turn error and <code>[ideaforge]</code> console warning, then rerun.</td>
+              <td>Read the on-screen error and <code>[ideaforge]</code> console warning, then rerun.</td>
             </tr>
             <tr>
               <td>Too few browser POSTs</td>

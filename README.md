@@ -57,12 +57,12 @@ Choose **Type instead** for the answer box, suggestion chips and coverage detail
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/03-mid-interview.dark.png">
     <img src="docs/screenshots/03-mid-interview.light.png" width="760"
-         alt="Question seven of an interview. The last two answers sit above it as a
-              conversation, with ‘Show 4 earlier’ for the rest. A grey bridge line reads ‘The
-              clarinet does more work than the job title.’ The question card asks ‘What
-              existing thing is this closest to?’, with four tappable suggestion chips; below
-              it are an answer box with Send, Skip this one and Write it up, and a seven-segment
-              coverage meter at 64%.">
+         alt="Question seven of an interview, under a seven-segment coverage meter at 64%.
+              The last two answers sit above it as a conversation, with ‘Show 4 earlier’ for
+              the rest. A grey bridge line reads ‘The clarinet does more work than the job
+              title.’ The question card asks ‘What existing thing is this closest to?’, with
+              four tappable suggestion chips; below it are a folded Coverage list and an
+              answer box with Skip this one, Write it up and Send.">
   </picture>
 </p>
 
@@ -188,9 +188,9 @@ not throw it away.
   </picture>
 </p>
 
-**Ideas** is the whole local library, not only a recent list. Search reaches names, tags,
-questions, answers and the refined prompt. An idea can be renamed, tagged, archived,
-restored or permanently deleted.
+**Ideas** is the whole local library, not only a recent list, and once the device holds an
+idea it is where IdeaForge opens. Search reaches names, tags, questions, answers and the
+refined prompt. An idea can be renamed, tagged, archived, restored or permanently deleted.
 
 In a window 1024px or wider the library is a list beside a detail pane. Click a card, or
 its **Details** button, and the pane shows that idea's status and counts, its main action

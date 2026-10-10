@@ -314,7 +314,8 @@ strong { font-weight: 600; }
 
 .screenshot picture { display: block; }
 .screenshot .hero-shot { margin: 0; }
-.screenshot.voice-shot { max-width: 422px; margin-inline: auto; }
+.screenshot.voice-shot,
+.screenshot.tall-shot { max-width: 422px; margin-inline: auto; }
 .screenshot figcaption {
   max-width: var(--text-width);
   margin: var(--s4) auto 0;
