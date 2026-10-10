@@ -150,6 +150,8 @@ class KeyringStore(
     // A seam for tests that need the write itself to fail (a full disk). Production always
     // uses [writeAtomically].
     private val writer: (File, ByteArray) -> Unit = ::writeAtomically,
+    // A seam for tests that need reading the file to fail (an I/O error). Production reads it.
+    private val reader: (File) -> ByteArray = File::readBytes,
 ) {
     private val mutex = Mutex()
     private val _state = MutableStateFlow(KeyringState(emptyKeyring(), KeyringState.Status.NOT_LOADED))
@@ -174,7 +176,7 @@ class KeyringStore(
     private fun read(): KeyringState {
         if (!file.isFile) return KeyringState(emptyKeyring(), KeyringState.Status.NONE)
         return try {
-            val blob = file.readBytes()
+            val blob = reader(file)
             val slot = slotOf(blob)
             val k = key.existing(slot) ?: throw GeneralSecurityException("the keyring's key (slot $slot) is missing")
             val plain = decrypt(k, blob)
@@ -191,11 +193,13 @@ class KeyringStore(
      * write: "your key was not saved" must reach the user.
      *
      * A key the Keystore has permanently invalidated (an [InvalidKeyException], which
-     * KeyPermanentlyInvalidatedException is) is replaced under the other slot, and the old key
-     * is deleted only after the new blob has landed. If anything fails before that, the file
-     * on disk and the key that reads it are untouched and the state still describes them.
-     * Any other failure (a Keystore that is busy or briefly away) is reported and touches no
-     * key at all.
+     * KeyPermanentlyInvalidatedException is) is replaced under the other slot. The old key is
+     * never deleted here: until the directory entry is durable a power cut can revert the
+     * rename to the old blob, which only the old key reads. A stale key is cleared only when
+     * a later replacement needs its slot, or by [forget]. If anything fails, the file on disk
+     * and the key that reads it are untouched and the state still describes them. Any other
+     * failure (a Keystore that is busy or briefly away, an unreadable file header) is reported
+     * and touches no key at all.
      */
     suspend fun save(ring: JsonElement?): Keyring = mutex.withLock {
         val payload = if (ring is JsonObject && jsEq(ring["version"], CREDENTIALS_VERSION)) ring else migrateCredentials(ring)
@@ -207,8 +211,9 @@ class KeyringStore(
                 try {
                     encrypt(key.getOrCreate(current), plain, current)
                 } catch (e: InvalidKeyException) {
-                    // The blob on disk names `current`, so the other slot holds nothing anyone
-                    // reads: clearing it first is safe, and gives a fresh key.
+                    // The blob on disk names `current` (read reliably, or there is no blob any
+                    // key reads), so the other slot holds nothing anyone reads: clearing it
+                    // first is safe, and gives a fresh key.
                     slot = 1 - current
                     key.delete(slot)
                     encrypt(key.getOrCreate(slot), plain, slot)
@@ -219,21 +224,24 @@ class KeyringStore(
             writer(file, blob)
             val saved = migrateCredentials(payload)
             _state.value = KeyringState(saved, KeyringState.Status.STORED)
-            // Only now is the old key unneeded. Best effort: a leftover alias reads nothing,
-            // and the next replacement or Forget removes it.
-            if (slot != current) runCatching { key.delete(current) }
             saved
         }
     }
 
-    /** The slot that sealed the blob on disk; 0 when there is none or it cannot be read. */
-    private fun currentSlot(): Int = runCatching {
-        file.inputStream().use { input ->
-            val header = ByteArray(HEADER_BYTES)
-            val ok = input.read(header) == HEADER_BYTES && header[0] == FORMAT_V1 && header[1].toInt() in KeyringKey.SLOTS
-            if (ok) header[1].toInt() else 0
-        }
-    }.getOrDefault(0)
+    /**
+     * The slot that sealed the blob on disk. 0 when there is no file or its format is not one
+     * this build wrote: no key reads such a file, so either slot is free to replace.
+     *
+     * An I/O error is NOT read as 0. With the blob on slot 1 and a stale key in slot 0,
+     * guessing 0 would hit the stale key, "replace" it into slot 1 and delete the live key.
+     * The error propagates and fails the save before any key is touched.
+     */
+    private fun currentSlot(): Int {
+        if (!file.exists()) return 0
+        val header = reader(file)
+        val ok = header.size >= HEADER_BYTES && header[0] == FORMAT_V1 && header[1].toInt() in KeyringKey.SLOTS
+        return if (ok) header[1].toInt() else 0
+    }
 
     /** Delete the blob AND every key alias. Both are attempted even if the first fails. */
     suspend fun forget(): Unit = mutex.withLock {

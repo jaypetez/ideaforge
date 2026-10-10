@@ -214,9 +214,8 @@ class KeyringStoreTest {
     fun aKeyThatCannotEncryptIsReplacedOnSave() = runBlocking {
         val key = SoftwareKey(SecretKeySpec(ByteArray(7), "AES")) // an invalid AES key length
         store(key).save(ring)
-        assertEquals(1, key.deleted)
+        assertEquals(0, key.deleted)
         assertEquals(1, key.created)
-        assertNull("the invalid key survived a durable replacement", key.keys[0])
         assertNotNull(key.keys[1])
         assertEquals(1, file.readBytes()[1].toInt())
         assertEquals(ring, store(key).load().ring)
@@ -236,7 +235,8 @@ class KeyringStoreTest {
         store(key).save(ring)
         assertEquals(0, file.readBytes()[1].toInt())
         assertNotNull(key.keys[0])
-        assertNull(key.keys[1])
+        assertNotNull("the key behind the previous blob was deleted", key.keys[1])
+        assertEquals("only the stale slot-0 key, cleared to mint its replacement", 1, key.deleted)
         assertEquals(ring, store(key).load().ring)
     }
 
@@ -262,13 +262,50 @@ class KeyringStoreTest {
         val key = SoftwareKey()
         store(key).save(ring)
         key.failNext = java.security.InvalidKeyException("key permanently invalidated")
-        val failing = KeyringStore(file, key, io = Dispatchers.Unconfined) { _, _ -> throw java.io.IOException("disk full") }
+        val failing = KeyringStore(file, key, io = Dispatchers.Unconfined, writer = { _, _ -> throw java.io.IOException("disk full") })
         failing.load()
         val failure = runCatching { failing.save(withCreds(ring, "groq", obj("apiKey" to "gsk-new"))) }.exceptionOrNull()
         assertNotNull("the failed write must be reported", failure)
         assertEquals("state must not claim the unsaved ring", ring, failing.state.value.ring)
         val loaded = store(key).load()
         assertEquals("the earlier keyring became unreadable", KeyringState.Status.STORED, loaded.status)
+        assertEquals(ring, loaded.ring)
+    }
+
+    // A rename can revert on power loss until the directory is synced, so the key that reads
+    // the previous blob must outlive a replacement: it is cleared only when a later
+    // replacement needs its slot, or by Forget.
+    @Test
+    fun aReplacementLeavesTheOldSlotsKeyInPlace() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        val old = key.keys[0]
+        key.failNext = java.security.InvalidKeyException("invalidated")
+        store(key).save(ring)
+        assertEquals(1, file.readBytes()[1].toInt())
+        assertEquals("the old slot's key was deleted after a replacement", old, key.keys[0])
+        assertNotNull(key.keys[1])
+        assertEquals(0, key.deleted)
+    }
+
+    // The blob is on slot 1 and slot 0 holds a stale, invalid key. If the header cannot be
+    // read, guessing slot 0 would hit the stale key, "replace" it into slot 1 and delete the
+    // live key. The save must fail instead, touching nothing.
+    @Test
+    fun aHeaderReadFailureFailsTheSaveWithoutTouchingAnyKey() = runBlocking {
+        val key = SoftwareKey()
+        key.keys[1] = SoftwareKey.fresh()
+        file.parentFile!!.mkdirs()
+        file.writeBytes(KeyringStore.encrypt(key.keys[1]!!, Json.encodeToString(JsonObject.serializer(), ring).encodeToByteArray(), 1))
+        key.keys[0] = SecretKeySpec(ByteArray(7), "AES") // stale and unusable
+        val live = key.keys[1]
+        val broken = KeyringStore(file, key, io = Dispatchers.Unconfined, reader = { throw java.io.IOException("EIO") })
+        val failure = runCatching { broken.save(withCreds(ring, "groq", obj("apiKey" to "gsk-new"))) }.exceptionOrNull()
+        assertNotNull("an unreadable header must fail the save", failure)
+        assertEquals("the live key was touched", live, key.keys[1])
+        assertEquals(0, key.deleted)
+        val loaded = store(key).load()
+        assertEquals(KeyringState.Status.STORED, loaded.status)
         assertEquals(ring, loaded.ring)
     }
 
