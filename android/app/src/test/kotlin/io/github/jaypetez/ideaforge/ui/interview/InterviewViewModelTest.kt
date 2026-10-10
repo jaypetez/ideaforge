@@ -12,6 +12,10 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -227,6 +231,7 @@ class InterviewViewModelTest {
         vm.writeUp()
         idle()
         assertTrue(vm.state.value.finished)
+        assertFalse(vm.state.value.writeUpFailed)
         val s = stored()!!
         assertEquals("done", stringOf(s["status"]))
         assertTrue(stringOf(s["synthesis"]["text"])!!.startsWith("## Task"))
@@ -246,6 +251,18 @@ class InterviewViewModelTest {
         answer(vm, "One more thing about the teammates.")
         assertNull("said once, not after every answer", vm.state.value.wrapOffer)
         assertFalse(vm.state.value.finished)
+    }
+
+    @Test
+    fun aFailedWriteUpStillFinishesAndSaysSo() {
+        val vm = h.vm(ScriptedModel(failSynthesis = ProviderException("network", "offline")))
+        idle()
+        for (a in ANSWERS.take(4)) answer(vm, a)
+        vm.writeUp()
+        idle()
+        assertTrue(vm.state.value.finished)
+        assertTrue("the result is told the prompt is missing", vm.state.value.writeUpFailed)
+        assertEquals("done", stringOf(stored()!!["status"]))
     }
 
     // A failed call falls back to the question bank. Correct, and invisible unless flagged:
@@ -278,5 +295,61 @@ class InterviewViewModelTest {
         assertEquals("the stale question is never saved", 1, turns(stored()).size)
         assertNull(openTurn(vm.state.value.session!!))
         assertNull(vm.state.value.busy)
+    }
+
+    // viewModelScope is cancelled before onCleared runs, so a flush that asks whether the
+    // debounce job is still active always finds it dead. A draft typed just before Back or
+    // "New idea" was then lost unless ON_STOP happened to fire first.
+    @Test
+    fun aDraftTypedJustBeforeLeavingIsWrittenWhenTheViewModelIsCleared() {
+        val owner = ViewModelStore()
+        val vm = ViewModelProvider.create(owner, viewModelFactory { initializer { h.vm(ScriptedModel()) } })[InterviewViewModel::class]
+        idle()
+        answer(vm, ANSWERS[0])
+        vm.onAnswerChange("Probably thirty")
+        h.scheduler.advanceTimeBy(DRAFT_DEBOUNCE_MS / 3)
+        h.scheduler.runCurrent()
+        owner.clear()
+        idle()
+        assertEquals("Probably thirty", stringOf(stored()!!["draftAnswer"]))
+    }
+
+    private fun ownedVm(): Pair<ViewModelStore, InterviewViewModel> {
+        val owner = ViewModelStore()
+        return owner to ViewModelProvider.create(owner, viewModelFactory { initializer { h.vm(ScriptedModel()) } })[InterviewViewModel::class]
+    }
+
+    // Back right after Send clears the ViewModel. A turn queued on viewModelScope was
+    // cancelled before it ran, and the answer went with it: it is started in the app scope,
+    // synchronously, instead.
+    @Test
+    fun anAnswerSentJustBeforeLeavingIsStillSaved() {
+        val (owner, vm) = ownedVm()
+        idle()
+        answer(vm, ANSWERS[0])
+        vm.onAnswerChange(ANSWERS[1])
+        vm.send()
+        owner.clear()
+        idle()
+        assertEquals(3, turns(stored()).size)
+        assertEquals(ANSWERS[1], stringOf(turns(stored())[1]["answer"]))
+        assertEquals("", stringOf(stored()!!["draftAnswer"]))
+    }
+
+    // An answer already sent is not a draft any more. Leaving once the next question is up
+    // must not flush it into that question's draft.
+    @Test
+    fun leavingAfterTheNextQuestionArrivesDoesNotWriteTheOldAnswerAsItsDraft() {
+        val (owner, vm) = ownedVm()
+        idle()
+        answer(vm, ANSWERS[0])
+        vm.onAnswerChange(ANSWERS[1])
+        vm.send()
+        h.scheduler.advanceTimeBy(DRAFT_DEBOUNCE_MS / 3)
+        h.scheduler.runCurrent()
+        assertNotNull("question 3 is already open", vm.state.value.openTurn)
+        owner.clear()
+        idle()
+        assertEquals("", stringOf(stored()!!["draftAnswer"]))
     }
 }

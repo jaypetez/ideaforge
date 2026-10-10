@@ -31,6 +31,8 @@ class ScriptedModel(
     private val script: JsonElement = WALKTHROUGH_SCRIPT,
     var gate: CompletableDeferred<Unit>? = null,
     var fail: ProviderException? = null,
+    /** Fails only the wrap-up call, leaving every turn working. */
+    var failSynthesis: ProviderException? = null,
 ) : Provider {
     val requests = mutableListOf<Pair<String, PromptParts>>()
     private val turns get() = script["turns"] as JsonObject
@@ -38,6 +40,7 @@ class ScriptedModel(
     override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
         requests += modelTier to parts
         fail?.let { throw it }
+        if (modelTier == "complex") failSynthesis?.let { throw it }
         if (modelTier == "complex") return SampleResult(script["synthesis"], modelTierApplied = modelTier)
         gate?.await()
         val n = Regex("Turn number: (\\d+)").find(parts.tail)?.groupValues?.get(1)

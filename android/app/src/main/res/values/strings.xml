@@ -122,6 +122,7 @@
     <string name="interview_suggestions">Suggested answers</string>
     <string name="notice_no_provider">Continuing without a model (%1$s). Questions will come from the built-in checklist.</string>
     <string name="notice_fallback">%1$s — falling back to the built-in checklist for this question.</string>
-    <string name="notice_write_up_failed">The wrap-up call failed: %1$s. Nothing else was lost.</string>
+    <!-- The web's done-panel message when the wrap-up call failed. -->
+    <string name="result_synthesis_failed">The refined prompt could not be generated, but nothing else was lost.</string>
     <string name="notice_interview_failed">Something went wrong: %1$s</string>
 </resources>

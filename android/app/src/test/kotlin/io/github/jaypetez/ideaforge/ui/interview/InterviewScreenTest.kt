@@ -58,12 +58,12 @@ class InterviewScreenTest {
         (Vectors.load("walkthrough").cases.first().input["steps"] as JsonArray).map { stringOf(it["text"])!! }
     }
 
-    private fun show(model: ScriptedModel, onFinished: () -> Unit = {}): InterviewViewModel {
+    private fun show(model: ScriptedModel, onFinished: (Boolean) -> Unit = {}): InterviewViewModel {
         store = SessionStore(tmp.newFolder(), io = Dispatchers.Unconfined)
         return show(store, model, onFinished)
     }
 
-    private fun show(store: SessionStore, model: ScriptedModel, onFinished: () -> Unit = {}): InterviewViewModel {
+    private fun show(store: SessionStore, model: ScriptedModel, onFinished: (Boolean) -> Unit = {}): InterviewViewModel {
         this.store = store
         val vm = InterviewViewModel(
             id, store, SessionWorker(), Clock { 1_760_000_000_000 }, ring = { emptyKeyring() },
@@ -119,10 +119,8 @@ class InterviewScreenTest {
         assertEquals("bank", stringOf(turn(2)["questionSource"]))
     }
 
-    @Test
-    fun theWrapOfferAcceptedWritesItUpAndLeaves() {
-        // Seven answers in, through the core directly: the eighth earns the coverage offer.
-        val model = ScriptedModel()
+    /** Seven answers in, through the core directly: the eighth earns the coverage offer. */
+    private fun sevenAnswersIn(model: ScriptedModel): java.io.File {
         val dir = tmp.newFolder()
         val seeded = runBlocking {
             val now = num(1_760_000_000_000)
@@ -135,15 +133,36 @@ class InterviewScreenTest {
             s
         }
         assertEquals(8, (seeded["turns"] as JsonArray).size)
-        var finished = false
-        show(SessionStore(dir, io = Dispatchers.Unconfined), model) { finished = true }
+        return dir
+    }
+
+    /** Answer the eighth question, accept the offer, and return what onFinished was told. */
+    private fun acceptTheOffer(model: ScriptedModel): Boolean? {
+        val dir = sevenAnswersIn(model)
+        var failed: Boolean? = null
+        show(SessionStore(dir, io = Dispatchers.Unconfined), model) { failed = it }
         compose.waitForIdle()
         compose.onNodeWithTag("write-up").assertExists()
         send(answers[7])
         compose.waitUntilAtLeastOneExists(hasTestTag("wrap-offer"), 5_000)
         compose.onNodeWithTag("wrap-accept").performClick()
-        compose.waitUntil(5_000) { finished }
-        assertTrue(finished)
+        compose.waitUntil(5_000) { failed != null }
+        return failed
+    }
+
+    @Test
+    fun theWrapOfferAcceptedWritesItUpAndLeaves() {
+        assertEquals(false, acceptTheOffer(ScriptedModel()))
         assertEquals("done", stringOf(store.get(id)!!["status"]))
+    }
+
+    // The interview leaves in the same moment the write-up fails, so a snackbar here would
+    // never be seen. The failure has to travel with the navigation (ResultRoute.synthesisFailed).
+    @Test
+    fun aFailedWriteUpIsCarriedToTheResult() {
+        assertEquals(true, acceptTheOffer(ScriptedModel(failSynthesis = ProviderException("network", "offline"))))
+        val s = store.get(id)!!
+        assertEquals("done", stringOf(s["status"]))
+        assertEquals("", stringOf(s["synthesis"]["text"]))
     }
 }

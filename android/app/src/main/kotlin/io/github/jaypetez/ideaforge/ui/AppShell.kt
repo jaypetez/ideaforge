@@ -160,8 +160,8 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 val vm: InterviewViewModel = viewModel(key = route.sessionId, factory = InterviewViewModel.factory(route.sessionId))
                 InterviewScreen(
                     vm,
-                    onFinished = {
-                        nav.navigate(ResultRoute(route.sessionId)) {
+                    onFinished = { failed ->
+                        nav.navigate(ResultRoute(route.sessionId, synthesisFailed = failed)) {
                             popUpTo<InterviewRoute> { inclusive = true }
                         }
                     },
@@ -171,7 +171,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 )
             }
             composable<ResultRoute> { backStack ->
-                Placeholder(stringResource(R.string.screen_result), backStack.toRoute<ResultRoute>().sessionId)
+                ResultPlaceholder(backStack.toRoute<ResultRoute>())
             }
             composable<SettingsRoute> {
                 SettingsScreen(viewModel(factory = SettingsViewModel.Factory))
@@ -203,6 +203,23 @@ private fun SettingsScreen(vm: SettingsViewModel) {
             stringResource(R.string.pref_trigger, prefs.effectiveTrigger),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Stands in for the Result screen until #86 builds it: the idea's id, and the write-up failure
+ * the interview carried over in [ResultRoute.synthesisFailed].
+ */
+@Composable
+internal fun ResultPlaceholder(route: ResultRoute) {
+    Placeholder(stringResource(R.string.screen_result), route.sessionId) {
+        if (route.synthesisFailed) {
+            Text(
+                stringResource(R.string.result_synthesis_failed),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("synthesis-failed"),
+            )
+        }
     }
 }
 

@@ -102,7 +102,7 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
  * bridge and suggestion chips, and a composer docked above the keyboard.
  */
 @Composable
-fun InterviewScreen(vm: InterviewViewModel, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+fun InterviewScreen(vm: InterviewViewModel, onFinished: (synthesisFailed: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
@@ -112,7 +112,8 @@ fun InterviewScreen(vm: InterviewViewModel, onFinished: () -> Unit, modifier: Mo
     LaunchedEffect(state.finished) {
         if (state.finished) {
             vm.finishedShown()
-            onFinished()
+            // The failure travels with the navigation: a snackbar here would never be seen.
+            onFinished(state.writeUpFailed)
         }
     }
     // Shown from a scope that outlives the notice: clearing it must not cancel the snackbar.
@@ -144,7 +145,6 @@ fun InterviewScreen(vm: InterviewViewModel, onFinished: () -> Unit, modifier: Mo
 private fun noticeText(n: InterviewNotice): String = when (n) {
     is InterviewNotice.NoProvider -> stringResource(R.string.notice_no_provider, n.detail)
     is InterviewNotice.Fallback -> stringResource(R.string.notice_fallback, n.detail)
-    is InterviewNotice.WriteUpFailed -> stringResource(R.string.notice_write_up_failed, n.detail)
     is InterviewNotice.Failed -> stringResource(R.string.notice_interview_failed, n.detail)
 }
 

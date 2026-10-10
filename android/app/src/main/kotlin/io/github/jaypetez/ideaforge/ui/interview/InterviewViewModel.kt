@@ -45,7 +45,9 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +55,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -73,9 +76,6 @@ sealed interface InterviewNotice {
     /** The model call failed; this one question came from the checklist. */
     data class Fallback(override val detail: String) : InterviewNotice
 
-    /** The wrap-up call failed or returned nothing usable; the export keeps the transcript. */
-    data class WriteUpFailed(override val detail: String) : InterviewNotice
-
     /** Saving or running the turn threw. */
     data class Failed(override val detail: String) : InterviewNotice
 }
@@ -92,6 +92,8 @@ data class InterviewState(
     val notice: InterviewNotice? = null,
     /** The write-up has settled: show the result. */
     val finished: Boolean = false,
+    /** The write-up behind [finished] failed; the result screen says so (ResultRoute). */
+    val writeUpFailed: Boolean = false,
 ) {
     val openTurn: JsonObject? get() = session?.let(::openTurn)
 
@@ -133,6 +135,14 @@ class InterviewViewModel(
 
     private var provider: Provider? = null
     private var draftJob: Job? = null
+
+    /**
+     * Text queued for a draft write and not yet saved. The debounce job cannot answer this:
+     * viewModelScope is cancelled before onCleared runs, so a flush that asked whether the job
+     * was still active always found it dead and dropped a draft typed just before leaving.
+     */
+    @Volatile
+    private var pendingDraft: String? = null
 
     private fun now(): JsonElement = num(clock.now())
 
@@ -228,34 +238,45 @@ class InterviewViewModel(
 
     private fun advance(answered: Session) {
         _state.update { it.copy(session = answered, answer = "", answerSource = "typed", wrapOffer = null) }
-        viewModelScope.launch { nextQuestion(answered, resume = false) }
+        // Started here, synchronously, not from inside a viewModelScope coroutine: Back right
+        // after Send clears the ViewModel, and a turn still queued on its scope would be
+        // cancelled before it ran, losing the answer with it.
+        val turn = startTurn(answered, resume = false)
+        viewModelScope.launch { finishTurn(turn) }
     }
 
     /** Ask the next question: the web's nextQuestion, or resumeTurn for an interrupted one. */
-    private suspend fun nextQuestion(session: Session, resume: Boolean) {
+    private suspend fun nextQuestion(session: Session, resume: Boolean) = finishTurn(startTurn(session, resume))
+
+    /** Starts the turn's work in the app scope, where it outlives this screen. */
+    private fun startTurn(session: Session, resume: Boolean): Deferred<SessionWorker.Outcome<SettledTurn>> {
         _state.update { it.copy(busy = if (resume) Busy.Resuming else Busy.Thinking) }
         val provider = provider
         val tag = worker.tag(sessionId)
+        return writes.async {
+            worker.run(
+                tag,
+                work = {
+                    val base = withLibraryMetadata(session, store.get(sessionId), now())
+                    val out = if (resume) {
+                        resumeTurn(base, provider, now())
+                    } else {
+                        // The answer, with a marker saying a turn is in flight and which
+                        // prompt it sent. If the process dies before the reply, reopening
+                        // finds the marker and re-issues the byte-identical prompt.
+                        store.save(if (provider != null) withPendingTurn(base, now()) else base)
+                        runTurn(base, provider, now())
+                    }
+                    settle(out)
+                },
+                commit = { (_, settled, _) -> store.save(settled) },
+            )
+        }
+    }
+
+    private suspend fun finishTurn(turn: Deferred<SessionWorker.Outcome<SettledTurn>>) {
         val outcome = try {
-            writes.async {
-                worker.run(
-                    tag,
-                    work = {
-                        val base = withLibraryMetadata(session, store.get(sessionId), now())
-                        val out = if (resume) {
-                            resumeTurn(base, provider, now())
-                        } else {
-                            // The answer, with a marker saying a turn is in flight and which
-                            // prompt it sent. If the process dies before the reply, reopening
-                            // finds the marker and re-issues the byte-identical prompt.
-                            store.save(if (provider != null) withPendingTurn(base, now()) else base)
-                            runTurn(base, provider, now())
-                        }
-                        settle(out)
-                    },
-                    commit = { (_, settled, _) -> store.save(settled) },
-                )
-            }.await()
+            turn.await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -282,7 +303,7 @@ class InterviewViewModel(
      * What a turn's result becomes on disk, and the advisory to show: the offer is recorded
      * (setWrapOffered) so it is made once, as the web's nextQuestion does.
      */
-    private fun settle(out: TurnResult): Triple<TurnResult, Session, String?> {
+    private fun settle(out: TurnResult): SettledTurn {
         val advisory = if (out.aborted) null else wrapAdvisory(out.session, out.wrap)
         val settled = if (advisory != null) setWrapOffered(out.session, true, now()) else out.session
         return Triple(out, settled, advisory)
@@ -297,48 +318,55 @@ class InterviewViewModel(
     fun writeUp() {
         val st = _state.value
         if (st.session == null || st.busy != null) return
-        viewModelScope.launch { writeUp(resume = false) }
+        writeUp(resume = false)
     }
 
-    private suspend fun writeUp(resume: Boolean) {
+    /**
+     * Like a turn, the write-up starts in the app scope synchronously, so leaving the screen
+     * the moment it is tapped cannot cancel it before it runs; only the UI update afterwards
+     * belongs to viewModelScope.
+     */
+    private fun writeUp(resume: Boolean) {
         val session = _state.value.session ?: return
         cancelDraft()
         _state.update { it.copy(busy = Busy.Writing, wrapOffer = null) }
         val provider = provider
         val tag = worker.tag(sessionId)
-        val outcome = try {
-            writes.async {
-                worker.run(
-                    tag,
-                    work = {
-                        val base = withLibraryMetadata(session, store.get(sessionId), now())
-                        val result = if (resume) resumeSynthesis(base, provider, now()) else runSynthesis(base, provider, now())
-                        // A failed write-up still finishes the interview: the export renders the
-                        // transcript, the open questions and the coverage table without it.
-                        val settled = if (result.ok || result.aborted) result.session else setStatusField(result.session, "done", now())
-                        result to settled
-                    },
-                    commit = { (_, settled) -> store.save(settled) },
-                )
-            }.await()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e))) }
-            return
-        }
-        val (result, settled) = (outcome as? SessionWorker.Outcome.Committed)?.value ?: run {
-            _state.update { it.copy(busy = null) }
-            return
-        }
-        _state.update {
-            it.copy(
-                session = settled,
-                busy = null,
-                finished = !result.aborted,
-                notice = if (result.ok || result.aborted) it.notice
-                else InterviewNotice.WriteUpFailed(result.error?.let(::message) ?: result.warnings.lastOrNull().orEmpty()),
+        val job = writes.async {
+            worker.run(
+                tag,
+                work = {
+                    val base = withLibraryMetadata(session, store.get(sessionId), now())
+                    val result = if (resume) resumeSynthesis(base, provider, now()) else runSynthesis(base, provider, now())
+                    // A failed write-up still finishes the interview: the export renders the
+                    // transcript, the open questions and the coverage table without it.
+                    val settled = if (result.ok || result.aborted) result.session else setStatusField(result.session, "done", now())
+                    result to settled
+                },
+                commit = { (_, settled) -> store.save(settled) },
             )
+        }
+        viewModelScope.launch {
+            val outcome = try {
+                job.await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e))) }
+                return@launch
+            }
+            val (result, settled) = (outcome as? SessionWorker.Outcome.Committed)?.value ?: run {
+                _state.update { it.copy(busy = null) }
+                return@launch
+            }
+            _state.update {
+                it.copy(
+                    session = settled,
+                    busy = null,
+                    finished = !result.aborted,
+                    writeUpFailed = !result.ok && !result.aborted,
+                )
+            }
         }
     }
 
@@ -352,6 +380,7 @@ class InterviewViewModel(
     private fun queueDraft(text: String) {
         draftJob?.cancel()
         if (_state.value.openTurn == null) return
+        pendingDraft = text
         draftJob = viewModelScope.launch {
             delay(draftDelayMs)
             writeDraft(text)
@@ -361,15 +390,20 @@ class InterviewViewModel(
     private fun cancelDraft() {
         draftJob?.cancel()
         draftJob = null
+        pendingDraft = null
     }
 
     private suspend fun writeDraft(text: String) {
         val s = _state.value.session ?: return
-        if (openTurn(s) == null || stringOf(s["draftAnswer"]).orEmpty() == text) return
+        if (openTurn(s) == null || stringOf(s["draftAnswer"]).orEmpty() == text) {
+            if (pendingDraft == text) pendingDraft = null
+            return
+        }
         val drafted = setDraftAnswer(s, str(text), now())
         _state.update { it.copy(session = drafted) }
         try {
-            worker.run(worker.tag(sessionId), work = { store.save(drafted) })
+            val out = worker.run(worker.tag(sessionId), work = { store.save(drafted) })
+            if (out is SessionWorker.Outcome.Committed && pendingDraft == text) pendingDraft = null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -377,12 +411,16 @@ class InterviewViewModel(
         }
     }
 
-    /** The screen is going away (stopped, or this entry popped): write the draft now. */
+    /**
+     * The screen is going away (stopped, or this entry popped): write the queued draft now.
+     * In the app scope and NonCancellable, because from onCleared viewModelScope is already
+     * dead, and through writeDraft so it takes the session's lock like every other write.
+     */
     fun flushDraft() {
-        if (draftJob?.isActive != true) return
-        cancelDraft()
-        val text = _state.value.answer
-        writes.launch { runCatching { writeDraft(text) } }
+        val text = pendingDraft ?: return
+        draftJob?.cancel()
+        draftJob = null
+        writes.launch { withContext(NonCancellable) { runCatching { writeDraft(text) } } }
     }
 
     fun noticeShown() = _state.update { it.copy(notice = null) }
@@ -410,6 +448,9 @@ class InterviewViewModel(
         }
     }
 }
+
+/** A turn's outcome, the session to save for it, and the wrap advisory to show (or null). */
+private typealias SettledTurn = Triple<TurnResult, Session, String?>
 
 private fun message(e: Throwable): String = e.message?.takeIf { it.isNotEmpty() } ?: e.toString()
 
