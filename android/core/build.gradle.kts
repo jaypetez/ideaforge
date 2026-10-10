@@ -19,6 +19,8 @@ java {
 dependencies {
     // Sessions are JSON documents shared with the web app; the port works on them directly.
     implementation(libs.kotlinx.serialization.json)
+    // The runtime awaits an injected provider; suspend functions keep that cancellable.
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
