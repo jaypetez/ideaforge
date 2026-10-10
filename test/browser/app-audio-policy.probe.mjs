@@ -22,9 +22,34 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     } while (Date.now() < end);
     throw new Error(`${label}: ${JSON.stringify(current)}`);
   }
+  // Every trusted click first proves the toast region cannot take it: both toasts are raised
+  // with long text, the target's centre (where cdp.click lands) is hit-tested, and the toasts
+  // are put back exactly as the app left them before the real click goes in (#100).
+  const intercepted = [];
   async function click(selector) {
     await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)})
       .scrollIntoView({ block: 'center', behavior: 'instant' })`);
+    const hit = await cdp.evaluate(`(() => {
+      const target = document.querySelector(${JSON.stringify(selector)});
+      const parts = ['note', 'err', 'err-toast'].map((id) => document.getElementById(id));
+      const saved = parts.map((el) => [el.hidden, el.id === 'err-toast' ? null : el.textContent]);
+      const long = 'A long toast, several lines at any width, raised to prove it never takes this click.';
+      for (const el of parts) { el.hidden = false; if (el.id !== 'err-toast') el.textContent = long; }
+      const rect = target.getBoundingClientRect();
+      const found = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      parts.forEach((el, i) => {
+        el.hidden = saved[i][0];
+        if (saved[i][1] !== null) el.textContent = saved[i][1];
+      });
+      return found && (found === target || target.contains(found))
+        ? '' : (found ? found.id || found.className || found.tagName : 'nothing');
+    })()`);
+    if (hit) {
+      // Fail here, naming the cause: the click itself would be swallowed and the phase would
+      // otherwise time out on whatever the handler never did.
+      intercepted.push(`${selector} → ${hit}`);
+      throw new Error(`the toast region would take the trusted click on ${selector} (${hit})`);
+    }
     await cdp.click(selector);
   }
   function primedInHandler(state, control, label) {
@@ -172,6 +197,8 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     state.requests.length === 5 && state.requests.every((request) => request.consent
       && request.model === 'gpt-4o-mini-tts' && request.format === 'wav'));
   check('no provider POST left the browser', network.length === 0, network.join(', '));
+  check('the toast region never sat over a trusted click target', intercepted.length === 0,
+    intercepted.join('; '));
   check('no uncaught error or CSP violation in the real-app policy phase',
     state.errors.length === 0, state.errors.join('; '));
 }

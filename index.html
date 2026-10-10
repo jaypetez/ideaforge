@@ -98,7 +98,7 @@
     </nav>
   </header>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
 
   <!-- ─────────────────────────────────────────────────────────── setup -->
   <section id="panel-setup">
@@ -451,8 +451,23 @@
     </div>
   </section>
 
-  <p class="note" id="note" role="status" aria-live="polite" aria-atomic="true" hidden></p>
-  <p class="err" id="err" role="alert" aria-live="assertive" aria-atomic="true" hidden></p>
+  <!--
+    Toasts. #note and #err keep their ids, roles and live-region settings; only where they
+    are drawn changed. The region is fixed and lets taps through (pointer-events: none),
+    and so does a note; only the error toast, with its button, takes them. The error comes
+    first so it is never pushed down the screen. Notes hide themselves after data-note-ms, errors stay
+    until dismissed, and show() in app.js clears both whenever the panel changes. The
+    dismiss button sits beside #err rather than inside it, so the alert's atomic
+    announcement is the message alone and #err's textContent is still exactly the error.
+  -->
+  <div class="toasts" id="toasts" data-note-ms="6000">
+    <div class="toast toast-err" id="err-toast" hidden>
+      <p class="err" id="err" role="alert" aria-live="assertive" aria-atomic="true" hidden></p>
+      <button type="button" class="quiet toast-dismiss" id="b-err-dismiss" data-icon="close"
+        aria-label="Dismiss error"></button>
+    </div>
+    <p class="note toast" id="note" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+  </div>
 
   </main>
 </div>

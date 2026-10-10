@@ -169,6 +169,19 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   is what stops the engine offering again (#12). `screenshots.mjs` waits for the card to
   capture 05 and `test/browser/wrap-offer.browser.mjs` pins the once-only rule, including
   that hands-free still speaks the offer and never shows the card.
+- **`#note` and `#err` are toasts, scoped to a screen.** `show()` clears both when the
+  panel (or Start/Settings destination) actually changes, so a `say()` or `fail()` meant
+  for a new screen must come *after* the `show()` that opens it, or it is wiped unread;
+  `showDone()` carries a voice-stage wrap-up failure onto Done. Notes auto-hide after
+  `#toasts`' `data-note-ms` (probes shorten it there) and take no pointer events; the error
+  toast does, so `.toasts` is placed clear of Send (top on a phone's Interview), Pause/Exit
+  (top on the voice stage) and the bottom navigation, and Done's body grows by the
+  error's maximum height while one shows (never `.wrap`'s 72px). A failed save is an
+  error, not a note, held in `state.saveFailure`: `fail(null)` shows it again on that
+  idea's Interview and Done until it saves or is dismissed, so neither a turn nor the
+  move to Done can drop it. `test/browser/toasts.browser.mjs` hit-tests those controls
+  (Done scrolled to the end), and the real-app policy probe refuses any trusted click a
+  raised toast would take.
 - **Setup disclosures are real UI, not screenshot overrides.** `Model options` opens for
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
   speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,
