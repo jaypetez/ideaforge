@@ -2582,8 +2582,9 @@ async function boot() {
   // Where to open (#103): on Ideas when this device holds any idea, on Start when it holds
   // none. "Any" is what the library itself counts, archived ideas included — its default
   // filter shows them, so an archived-only device opens on a populated list, never on
-  // "No ideas yet". The read starts here, beside the keyring's, so the decision costs no
-  // extra wait; index.html already paints Start, which a fresh profile keeps.
+  // "No ideas yet". The read starts here, beside the keyring's, so it overlaps that read
+  // rather than queueing behind it (the switch still waits for the keyring to decrypt);
+  // index.html already paints Start, which a fresh profile keeps.
   const navigation = state.navigation;
   const stored = listSessions().then((rows) => ({ rows }), (error) => ({ error }));
   try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
