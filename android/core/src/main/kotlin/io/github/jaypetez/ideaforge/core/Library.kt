@@ -58,7 +58,12 @@ fun libraryCard(session: JsonElement?): JsonObject {
     )
 }
 
-/** JS `localeCompare` in an English locale; the browser's default collation for this app. */
+/**
+ * JS `localeCompare` in an English locale. On Android, Collator is ICU-backed and agrees
+ * with the browser; the desktop JVM that runs the unit tests uses an older collator that
+ * weighs spaces differently ("side project" vs "sideline"), which is why the tag vectors
+ * stick to single words.
+ */
 private val COLLATOR: Collator = Collator.getInstance(Locale.ENGLISH)
 
 fun availableTags(sessions: JsonElement?): List<JsonElement> {
