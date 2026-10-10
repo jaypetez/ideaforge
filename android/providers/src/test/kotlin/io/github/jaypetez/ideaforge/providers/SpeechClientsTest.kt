@@ -17,6 +17,11 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
+import okio.Source
+import okio.Timeout
+import okio.buffer
+import okhttp3.ResponseBody.Companion.asResponseBody
+import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -142,6 +147,42 @@ class SpeechClientsTest {
         runBlocking { createTtsProvider("k", clients = probe).synthesize("Hi.") }
         runBlocking { createTtsProvider("k", deadlineMs = 5000, clients = probe).synthesize("Hi.") }
         assertEquals(listOf(TTS_DEADLINE_MS.toInt(), 5000), captureTimeout)
+    }
+
+    /**
+     * The 8 MB response bound is enforced while streaming, not after buffering the whole body:
+     * a reply that never ends fails just past the bound. The source refuses to go past 64 MB
+     * and the call has a timeout, so a regression to read-everything fails instead of hanging
+     * or exhausting memory.
+     */
+    @Test
+    fun anEndlessSpeechBodyFailsJustPastTheBound() {
+        var served = 0L
+        val endless = object : Source {
+            override fun read(sink: Buffer, byteCount: Long): Long {
+                if (served >= 64L * 1024 * 1024) throw IOException("read far past the bound")
+                val n = minOf(byteCount, 8192L)
+                sink.write(ByteArray(n.toInt()))
+                served += n
+                return n
+            }
+            override fun timeout() = Timeout.NONE
+            override fun close() {}
+        }
+        val endlessClients = ClientFactory { policy ->
+            ProviderHttpClients.create(policy).newBuilder().addInterceptor { chain ->
+                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                    .header("content-type", "audio/wav")
+                    .body(endless.buffer().asResponseBody("audio/wav".toMediaType(), -1)).build()
+            }.build()
+        }
+        val err = assertFailsWith<ProviderException> {
+            runBlocking { withTimeout(20_000) { createTtsProvider("k", clients = endlessClients).synthesize("Hi.") } }
+        }
+        assertEquals(ProviderErrorCode.BAD_RESPONSE, err.code)
+        assertEquals("Speech audio exceeds the response size limit.", err.message)
+        assertTrue(served > MAX_TTS_AUDIO_BYTES, "it read up to the bound ($served)")
+        assertTrue(served <= MAX_TTS_AUDIO_BYTES + 256L * 1024, "it stopped just past the bound, not later ($served)")
     }
 
     @Test

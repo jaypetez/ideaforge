@@ -194,6 +194,15 @@ class ProviderHttp(
                             response.close()
                             cont.resumeWithException(e)
                             return
+                        } catch (e: Exception) {
+                            // Anything else must not escape: rethrown here it lands on OkHttp's
+                            // dispatcher thread (an uncaught exception kills an Android app) and
+                            // the caller's continuation never resumes.
+                            response.close()
+                            cont.resumeWithException(
+                                ProviderException(ProviderErrorCode.BAD_RESPONSE, "$label returned a reply that could not be read", e),
+                            )
+                            return
                         }
                         cont.resume(value) { _, v, _ -> (v as? Response)?.close() }
                     } else {

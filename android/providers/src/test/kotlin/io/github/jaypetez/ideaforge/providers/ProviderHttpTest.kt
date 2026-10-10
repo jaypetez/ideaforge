@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
@@ -50,6 +51,26 @@ class ProviderHttpTest {
     private fun failure(response: MockResponse, h: ProviderHttp = http()): ProviderException {
         server.enqueue(response)
         return assertFailsWith<ProviderException> { runBlocking { h.execute(get(h), "OpenAI") } }
+    }
+
+    /**
+     * A `read` that throws something other than IOException or ProviderException must still
+     * resume the caller. Before the catch-all it was rethrown on OkHttp's dispatcher thread and
+     * the continuation never resumed, so the timeout here turns that hang into a failure.
+     */
+    @Test
+    fun aReadThatThrowsAnythingElseIsABadResponseNotAHang() {
+        server.enqueue(MockResponse.Builder().body("{\"ok\":true}").build())
+        val h = http()
+        val err = assertFailsWith<ProviderException> {
+            runBlocking {
+                withTimeout(10_000) {
+                    h.executeReading(get(h), "OpenAI") { throw IllegalStateException("parser bug") }
+                }
+            }
+        }
+        assertEquals(ProviderErrorCode.BAD_RESPONSE, err.code)
+        assertIs<IllegalStateException>(err.cause)
     }
 
     @Test
