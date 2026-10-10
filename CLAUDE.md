@@ -167,9 +167,11 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   `src/core/` is purity-linted — the UI builds the elements.
 - **`screenshots.mjs` hardcodes `.wrap`, `details.cov`, `.idea-card`, `#output`'s height cap,
   `#library-detail .library-preview` (the 1280px `11-library-wide` shot)
-  and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
-  `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
-  any of them breaks the harness, sometimes by hanging rather than failing.
+  and `.wrap`'s 72px bottom padding**, plus about thirty element ids (`test/docs.test.mjs`
+  checks each one still exists in `index.html`, which fails in a second where the harness
+  can hang), and `library.browser.mjs` finds card buttons by their visible text. Restyle
+  them freely; renaming any of them breaks the harness, sometimes by hanging rather than
+  failing.
 - **The wrap-up offer is the `#wrap-offer` card, not `#note`.** `nextQuestion` sets
   `state.wrapOffer` only in manual mode, on the turn `wrapAdvisory` returns text, and the
   card is cleared by answering, skipping, Keep going or a write-up; `session.wrapOffered`

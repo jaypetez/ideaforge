@@ -256,15 +256,74 @@ test('the guide uses local assets and the README points readers to it', () => {
   }
 });
 
+const SHOT_STEMS = [
+  '01-setup', '02-first-question', '03-mid-interview', '04-coverage',
+  '05-ready-to-wrap', '06-refined-prompt', '07-ideas-library',
+  '08-voice-listening', '09-voice-paused', '10-settings', '11-library-wide',
+];
+const SCREENSHOTS_TOOL = readFileSync(join(ROOT, 'tools', 'screenshots.mjs'), 'utf8');
+const APP_HTML = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const SOURCE_MAP = readFileSync(join(ROOT, '.claude', 'skills', 'update-documentation',
+  'references', 'source-map.md'), 'utf8');
+
 test('the generated inventory retains every manual and voice screenshot pair', () => {
-  const stems = [
-    '01-setup', '02-first-question', '03-mid-interview', '04-coverage',
-    '05-ready-to-wrap', '06-refined-prompt', '07-ideas-library',
-    '08-voice-listening', '09-voice-paused', '10-settings', '11-library-wide',
-  ];
+  const stems = SHOT_STEMS;
   const expected = stems.flatMap((stem) => ['light', 'dark'].map((theme) => `${stem}.${theme}.png`));
   const missing = expected.filter((file) => !existsSync(join(ROOT, 'docs', 'screenshots', file)));
   assert.deepEqual(missing, [], `regenerate the missing screenshot pairs: ${missing.join(', ')}`);
+});
+
+test('the harness shot list, the expected inventory and the source map name the same stems', () => {
+  // A capture added to tools/screenshots.mjs without a line here, or a stem the source map
+  // never learned about, is how a screenshot ends up generated, committed and documented
+  // nowhere — or documented and no longer generated.
+  const shot = [...SCREENSHOTS_TOOL.matchAll(/\bapp\.shot\('([^']+)'/g)].map((m) => m[1]);
+  assert.ok(shot.length >= 10, `only found ${shot.length} app.shot calls; the regex stopped matching`);
+  assert.deepEqual([...shot].sort(), [...SHOT_STEMS].sort(),
+    'tools/screenshots.mjs and SHOT_STEMS disagree about the screenshot inventory');
+  const unmapped = SHOT_STEMS.filter((stem) => !SOURCE_MAP.includes(`\`${stem}\``));
+  assert.deepEqual(unmapped, [], `the documentation source map omits: ${unmapped.join(', ')}`);
+  const pages = GUIDE_PAGES.filter((page) => !SOURCE_MAP.includes(`\`${page}\``));
+  assert.deepEqual(pages, [], `the documentation source map omits guide pages: ${pages.join(', ')}`);
+});
+
+test('every element id the screenshot harness hardcodes still exists in index.html', () => {
+  // The harness finds about thirty controls by id. A renamed one makes it throw at best and
+  // wait out a step timeout at worst; this fails in a second instead (CLAUDE.md, "The look").
+  const found = new Set();
+  for (const m of SCREENSHOTS_TOOL.matchAll(/getElementById\('([^']+)'\)/g)) found.add(m[1]);
+  for (const m of SCREENSHOTS_TOOL.matchAll(/\.\.\.\[((?:'[\w-]+',?\s*)+)\]\s*\.map\(\(id\)/g)) {
+    for (const id of m[1].matchAll(/'([\w-]+)'/g)) found.add(id[1]);
+  }
+  for (const m of SCREENSHOTS_TOOL.matchAll(/querySelector(?:All)?\('([^']+)'\)/g)) {
+    for (const id of m[1].matchAll(/#([\w-]+)/g)) found.add(id[1]);
+  }
+  assert.ok(found.size >= 20, `only found ${found.size} ids; the patterns stopped matching`);
+  const missing = [...found].filter((id) => !APP_HTML.includes(`id="${id}"`));
+  assert.deepEqual(missing, [], `tools/screenshots.mjs looks for ids index.html lacks: ${missing.join(', ')}`);
+});
+
+test('the Settings groups the docs name are the ones the app shows', () => {
+  // Settings' groups are named once, by the desktop index in index.html. The README and the
+  // getting-started guide both list them and count them, which is what drifts when a group
+  // is added or renamed.
+  const nav = APP_HTML.match(/<nav class="settings-index[^>]*>([\s\S]*?)<\/nav>/);
+  assert.ok(nav, 'index.html has no #settings-index');
+  const groups = [...nav[1].matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1].trim());
+  assert.ok(groups.length >= 3, `only found ${groups.length} settings groups`);
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+  const count = words[groups.length];
+  const start = guide('getting-started.html');
+  for (const [name, text] of [['README', README], ['getting-started guide', start]]) {
+    assert.ok(text.includes(` ${count} groups`), `${name} no longer counts ${count} settings groups`);
+    for (const group of groups) {
+      assert.ok(text.includes(group), `${name} omits the Settings group: ${group}`);
+    }
+  }
+  for (const group of groups) {
+    assert.ok(start.includes(`<strong>${group}</strong>`),
+      `getting-started guide does not name the Settings group: ${group}`);
+  }
 });
 
 test('the README and mobile guide show both voice states with theme pairs and useful alt text', () => {

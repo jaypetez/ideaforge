@@ -49,8 +49,9 @@ Read the harness output before moving on. It reports three things that matter:
   write it up whenever you like."* If it now ends on the exhaustion or ceiling message, the
   interview is no longer demonstrating the coverage exit and the fixture's coverage claims
   need rebalancing.
-- **`docs/ is now …`** — keep it under about 1.5 MiB. If it jumps, something is rendering
-  wrong rather than something being bigger.
+- **`docs/ is now …`** — compare it with the same line on `main`. It grows by roughly a
+  hundred to a few hundred KiB for each new screenshot pair; a jump with no new pair means
+  something is rendering wrong rather than something being bigger.
 
 Two failure modes worth recognising, because both have happened:
 

@@ -18,10 +18,10 @@ scheme.
 
 | Web token | Compose `ColorScheme` | Light | Dark | Used for |
 |---|---|---|---|---|
-| `--surface-container-low` | `surfaceContainerLow` / `background` | `#f5f6f2` | `#15191a` | The page ground |
+| `--surface-container-low` | `surfaceContainerLow` / `background` / `surface` | `#f5f6f2` | `#15191a` | The page ground |
 | `--surface-container-lowest` | `surfaceContainerLowest` | `#fdfefb` | `#1d2324` | Cards, fields, grouped settings |
 | `--surface-container` | `surfaceContainer` | `#e9eeea` | `#293132` | Tracks, disabled fills, quiet hover |
-| `--surface-container-high` | `surfaceContainerHigh` | `#dfe6e1` | `#313a3b` | Raised sheets and menus |
+| `--surface-container-high` | `surfaceContainerHigh` / `surfaceContainerHighest` | `#dfe6e1` | `#313a3b` | Raised sheets and menus |
 | `--on-surface` | `onSurface` | `#202c2b` | `#eef0e9` | Body text and headings |
 | `--on-surface-variant` | `onSurfaceVariant` | `#566562` | `#abbab5` | Hints, metadata, secondary text |
 | `--outline` | `outline` | `#73847d` | `#72867f` | Field and chip borders (3:1 on every surface) |
@@ -29,13 +29,31 @@ scheme.
 | `--primary` | `primary` | `#24665e` | `#9ecdc3` | The one primary action, links, focus |
 | `--on-primary` | `onPrimary` | `#ffffff` | `#142e29` | Text on a primary fill |
 | `--primary-container` | `primaryContainer` | primary at 10% | primary at 10% | Selected and hovered tonal fills |
+| `--on-primary-container` | `onPrimaryContainer` | `--on-surface` | `--on-surface` | Text on a tonal fill |
 | `--error` | `error` | `#9e3e37` | `#e8a396` | Destructive actions and failures |
 | `--error-container` | `errorContainer` | error at 12% | error at 12% | Destructive hover |
 | `--success` | custom | `#306445` | `#a0c9a9` | Coverage reached, checks passed |
 | `--warning` | custom | `#786120` | `#cfbd8a` | Pending and partial states |
 
+The web's containers are translucent; Compose wants opaque roles, so `Theme.kt`
+composites `primaryContainer` and `errorContainer` over the ground. The web has one accent,
+so the Compose scheme's `secondary` and `tertiary` roles (and their containers) follow
+`primary` rather than Material's baseline purple. The fallback scheme lives in
+`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt`, whose
+comment points back at this table.
+
 The v1 names (`--ground`, `--surface`, `--ink`, `--accent` and the rest) are aliases of
 these roles while the redesign migrates rule by rule. New rules use the role names.
+
+## Theme choice
+
+Settings → Appearance offers System, Light or Dark. Both apps store it under the same key
+and values: `theme` in `src/store/prefs.js` (`themePreference`) on the web, `Prefs.theme`
+on Android. System follows the device. On the web an explicit choice sets
+`<html data-theme>`, which the `color-scheme` rules in `app.css` follow, and
+`src/ui/theme-boot.js` applies a stored choice before first paint. On Android `PrefsTheme`
+waits for the stored value before rendering, for the same reason: no flash of the other
+theme. Like every device preference, the choice is never in a backup.
 
 ## State, focus and elevation
 
@@ -87,8 +105,10 @@ presses and checks the reading order.
 
 ## Type
 
-IBM Plex Sans throughout. Weight 600 carries headline and title roles, and the screenshot
-harness checks the font has loaded before it captures anything.
+IBM Plex Sans on the web. Weight 600 carries headline and title roles, and the screenshot
+harness checks the font has loaded before it captures anything. The Android app has no
+bundled or downloadable font yet, so it uses the platform default family with the same
+sizes, line heights and 600 weight.
 
 | Web token | Compose `Typography` | Size / line height |
 |---|---|---|
@@ -97,6 +117,15 @@ harness checks the font has loaded before it captures anything.
 | `--type-title-*` | `titleMedium` | 1.125rem / 1.35 |
 | `--type-body-*` | `bodyLarge` | 1rem / 1.6 |
 | `--type-label-*` | `labelLarge` | .875rem / 1.35 |
+
+## Spacing and shape
+
+The web's spacing steps are `--s1` … `--s8` (4, 8, 12, 16, 24, 32, 48 and 64px), its radii
+`--r-sm`, `--r-md`, `--r-lg` and `--r-pill` (10, 16, 24px and a full pill), and its control
+height `--control-height` (48px, the minimum target above). Compose has no spacing or
+shape tokens of its own yet: `IdeaForgeTheme` sets colour and type only, so
+`MaterialTheme.shapes` is Material's default and screens use `dp` values directly. A shared
+`Shapes` object is the place to start if the two drift visibly.
 
 ## Motion
 

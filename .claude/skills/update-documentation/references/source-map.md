@@ -58,8 +58,40 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Start and Settings views.** Sources: [`index.html`](../../../../index.html)
   (`#panel-setup` `data-view`, `.start-only`, `.settings-only`, `#connect`) and
   [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `connectionReady`, `renderConnect`).
-  Start holds the connection card and start actions; Settings holds Connection, Listen and
-  speak, Data (backup and import) and About. Re-check the getting-started and library guides.
+  Start holds the connection card, start actions and recent ideas; Settings holds the five
+  groups named by `#settings-index`: Connection, Listen and speak, Appearance, Data (backup
+  and import) and About. Re-check the getting-started, providers and library guides, the
+  README and the 01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
+  and their count to the README and the getting-started guide.
+- **App shell, navigation and opening destination.** Sources:
+  [`index.html`](../../../../index.html) (`.bar`, `#b-library`, `#b-nav-new`,
+  `#b-settings`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `navigateTo`,
+  `boot`). The three destinations are a top bar on a wide screen, a bottom bar on a phone,
+  and a back arrow on Interview and Done. The app opens on Ideas once any idea is stored,
+  otherwise on Start. Re-check getting started, the library guide and the README.
+- **Theme choice.** Sources: [`src/store/prefs.js`](../../../../src/store/prefs.js)
+  (`themePreference`), [`src/ui/theme.js`](../../../../src/ui/theme.js) and
+  [`src/ui/theme-boot.js`](../../../../src/ui/theme-boot.js). System, Light or Dark under
+  Appearance; a device preference, never in backups. Re-check getting started, privacy and
+  `docs/DESIGN.md`.
+- **Interview presentation.** Sources: [`index.html`](../../../../index.html) (`#thread`,
+  `#question-card`, `#wrap-offer`, `#composer`, `#meter`, `details.cov`) and
+  [`src/ui/app.js`](../../../../src/ui/app.js) (`renderThread`, `renderWrapOffer`,
+  `renderMeter`). The wrap-up offer is a card above the composer shown once; the composer's
+  Write it up appears after four questions. Re-check getting started, interviews and
+  coverage, the README and its 02-05 alt text.
+- **Messages.** Sources: `#toasts` in [`index.html`](../../../../index.html) and `fail` /
+  `dismissError` in [`src/ui/app.js`](../../../../src/ui/app.js). Notes hide themselves
+  and errors stay until dismissed, retried or the screen changes (`show()` clears both). Both sit at the bottom of Start, Settings and Ideas but
+  at the top of a phone's Interview and of the voice stage, so guide wording that names a
+  position must fit the screen it describes. Re-check
+  troubleshooting, interviews and the library guide's import steps.
+- **Library cards and the result screen.** Sources:
+  [`src/ui/library.js`](../../../../src/ui/library.js) (`renderActions`, `renderCard`, the
+  detail pane), [`src/ui/menu.js`](../../../../src/ui/menu.js) and `layoutDoneActions` in
+  [`src/ui/app.js`](../../../../src/ui/app.js). One main button per card and on Done, with
+  the rest in a More actions menu. Re-check the library guide, getting started, interviews
+  and the README's 06/07/11 alt text.
 - **Voice stage, entry and lifecycle.** Sources:
   [`index.html`](../../../../index.html),
   [`src/ui/app.js`](../../../../src/ui/app.js) (`startInterview`, `pauseVoice`, `resumeVoice`,
@@ -101,14 +133,39 @@ source wins over prose, and a generated artifact wins over a description of that
   page fetch, so the reporting channel is independent of the service worker under test.
   Missing or malformed reporting still fails the run.
 - **Generated screenshot inventory.** Sources:
-  [`tools/screenshots.mjs`](../../../../tools/screenshots.mjs) and
-  [`test/docs.test.mjs`](../../../../test/docs.test.mjs). Preserve the existing 01-07
-  light/dark pairs, the 08-voice-listening / 09-voice-paused pairs, the 10-settings pair and the
-  11-library-wide pair (the desktop list/detail library, shown in the README and the library
-  guide; captured at a fixed 1280x800 viewport rather than fitted, so no clip gate guards it). Both voice states
-  belong in the README and mobile/voice guide, with descriptive alt text. Regenerate;
-  never hand-edit PNGs or the worked example. The setup capture's bounds check must retain
-  both start controls and the footer and keep Start within 1100px; fix layout in the app, not by hiding controls for shots.
+  [`tools/screenshots.mjs`](../../../../tools/screenshots.mjs) (every `app.shot` call) and
+  [`test/docs.test.mjs`](../../../../test/docs.test.mjs), which fails when the harness's
+  shot list, the expected inventory and this list disagree. Every stem is a light/dark pair:
+
+  | Stem | What it captures | Shown in |
+  |---|---|---|
+  | `01-setup` | Start on a first visit, connection card unfolded | README, getting started |
+  | `02-first-question` | the seed question in the typed interview | README, getting started |
+  | `03-mid-interview` | thread, bridge, chips, meter and composer | README, guide index |
+  | `04-coverage` | the same turn with the Coverage list open | README, interviews |
+  | `05-ready-to-wrap` | the inline wrap-up card | README, interviews |
+  | `06-refined-prompt` | Done: rendered result, Share .md and More actions | README, interviews |
+  | `07-ideas-library` | the library at a narrow width, one card | README, Ideas library |
+  | `08-voice-listening` | the voice stage listening, phone width | README, mobile and voice |
+  | `09-voice-paused` | the voice stage paused, phone width | README, mobile and voice |
+  | `10-settings` | Settings, all five groups | README, getting started |
+  | `11-library-wide` | the list/detail library at a fixed 1280x800 viewport | README, Ideas library |
+
+  `11-library-wide` is not fitted, so no clip gate guards it. Both voice states belong in
+  the README and mobile/voice guide, with descriptive alt text. Regenerate; never hand-edit
+  PNGs or the worked example. The setup capture's bounds check must retain both start
+  controls and the footer and keep Start within 1100px, and the Settings capture must keep
+  its Data and About groups; fix layout in the app, not by hiding controls for shots.
+- **Guide page inventory.** Sources: `GUIDE_PAGES` in
+  [`test/docs.test.mjs`](../../../../test/docs.test.mjs) and the page list in
+  [`test/browser/guide.browser.mjs`](../../../../test/browser/guide.browser.mjs). The pages,
+  in navigation order: `index.html` (overview), `getting-started.html` (Start, Settings,
+  first interview, result), `interviews-and-coverage.html` (engine, meter, wrap-up,
+  fallback), `ideas-library.html` (library, backup, import, sharing),
+  `mobile-and-voice.html` (voice stage, installation, dictation, hands-free),
+  `providers.html` (inference, transcription, speech), `local-models-and-docker.html`,
+  `privacy-and-security.html`, `troubleshooting.html` and `development-and-delivery.html`.
+  `test/docs.test.mjs` fails when a page is missing from this list.
 - **Assistant discovery.** Sources:
   [Copilot instructions](../../../../.github/copilot-instructions.md),
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and

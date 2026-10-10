@@ -232,7 +232,12 @@ hardcodes the seven labels, and `test/docs.test.mjs` will fail on the README sti
 `body[data-panel]`, which is what `src/ui/app.css` lays the shell out from: on a phone, a
 fixed bottom navigation bar for the top-level destinations (Ideas, New idea, Settings) and a
 top app bar with a back arrow for detail screens (Interview, Done). Decide which kind the new
-panel is and add it to those selectors. Panel-specific DOM belongs in a module such as
+panel is and add it to those selectors. Start and Settings are not two panels: they are
+two `data-view` values of `#panel-setup`, so a new settings group is a `.settings-only`
+block plus a button in `#settings-index`, not a panel. `boot` in `src/ui/app.js` picks the
+opening panel (Ideas when any session is stored, Start otherwise), and `show()` clears the
+`#toasts` messages whenever the screen changes, so a message meant for the new screen is
+raised after it. The toast rules are in [CLAUDE.md](../CLAUDE.md). Panel-specific DOM belongs in a module such as
 `src/ui/library.js`; `app.js` keeps ownership of the active session and navigation.
 
 **A dictation backend.** `STT_PRESETS` in `src/voice/transcribe.js`, plus an `<option>` in
