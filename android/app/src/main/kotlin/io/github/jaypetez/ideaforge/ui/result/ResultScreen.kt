@@ -137,7 +137,7 @@ fun ResultScreen(
                         Button(
                             onClick = {
                                 try {
-                                    context.startActivity(ResultActions.chooser(context, state.export, state.filename, title, chooserTitle))
+                                    context.startActivity(ResultActions.chooser(context, state.export, state.filename, title, chooserTitle, vm.now()))
                                 } catch (e: Exception) {
                                     say(resources.getString(R.string.result_share_failed, e.message ?: e.toString()))
                                 }

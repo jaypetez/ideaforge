@@ -63,8 +63,10 @@ class ResultScreenTest {
     fun windowsHostFileProvider() {
         if (File.separatorChar == '\\') {
             ResultActions.contentUri = { c, f ->
-                Uri.Builder().scheme("content").authority(ResultActions.authority(c))
-                    .appendPath(ResultActions.SHARE_DIR).appendPath(f.name).build()
+                val root = File(c.cacheDir, ResultActions.SHARE_DIR)
+                f.relativeTo(root).invariantSeparatorsPath.split('/')
+                    .fold(Uri.Builder().scheme("content").authority(ResultActions.authority(c)).appendPath(ResultActions.SHARE_DIR)) { b, seg -> b.appendPath(seg) }
+                    .build()
             }
         }
     }
@@ -153,17 +155,58 @@ class ResultScreenTest {
         assertEquals("the grant travels on ClipData through the chooser", uri, send.clipData!!.getItemAt(0).uri)
 
         // The file behind the URI is the export, byte for byte, inside cache/exports only.
-        val file = java.io.File(java.io.File(app.cacheDir, ResultActions.SHARE_DIR), vm.state.value.filename)
+        val file = fileFor(uri)
+        assertTrue(file.canonicalPath.startsWith(File(app.cacheDir, ResultActions.SHARE_DIR).canonicalPath))
         assertEquals(ResultVectors.expected(ResultVectors.markdown("buildExport final")), file.readText())
     }
 
+    /** The file a share URI names: `exports` is the cache-path root in export_paths.xml. */
+    private fun fileFor(uri: Uri): File = File(app.cacheDir, uri.path!!.removePrefix("/"))
+
+    private fun shared(session: JsonObject, now: Long): Pair<Uri, String> {
+        val export = exportFor(session)
+        val intent = ResultActions.shareIntent(app, export, io.github.jaypetez.ideaforge.core.exportFilename(session), "t", now)
+        return intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)!! to export
+    }
+
+    // A target may read its URI long after the sheet closes (a queued message, an upload).
+    // Shares used to delete every other file and rewrite a same-named one in place, and the
+    // name is only per idea per day: the next share killed or truncated the earlier one.
     @Test
-    fun aSecondShareLeavesOneFileInTheCache() {
-        val dir = java.io.File(app.cacheDir, ResultActions.SHARE_DIR).apply { mkdirs() }
-        java.io.File(dir, "ideaforge-older-idea-2025-01-01.md").writeText("old")
-        val (_, vm) = show(ResultVectors.written)
-        compose.onNodeWithTag(ResultTags.SHARE).performClick()
-        assertEquals(listOf(vm.state.value.filename), dir.list()!!.toList())
+    fun anEarlierShareStillReadsItsOwnBytesAfterLaterShares() {
+        val t = 1_760_000_000_000
+        val (first, firstBytes) = shared(ResultVectors.written, t)
+        val (again, _) = shared(ResultVectors.written, t + 1_000)
+        assertTrue("same idea, same visible name", first.lastPathSegment == again.lastPathSegment)
+        assertTrue("but its own URI", first != again)
+        assertEquals("the first share survives a second of the same idea", firstBytes, fileFor(first).readText())
+
+        val (other, otherBytes) = shared(ResultVectors.unwritten, t + 2_000)
+        assertEquals("and a share of a different idea", firstBytes, fileFor(first).readText())
+        assertEquals(firstBytes, fileFor(again).readText())
+        assertEquals(otherBytes, fileFor(other).readText())
+    }
+
+    // Only shares past the age limit are cleaned up, at share time and at app start; the
+    // directory being written is never one of them.
+    @Test
+    fun shareDirectoriesPastADayAreCleanedUp() {
+        val t = 1_760_000_000_000
+        val root = File(app.cacheDir, ResultActions.SHARE_DIR)
+        val old = File(root, "${t - ResultActions.SHARE_TTL_MS - 1}-0ld").apply { mkdirs() }
+        File(old, "ideaforge-old-2025-01-01.md").writeText("old")
+        val young = File(root, "${t - 60 * 60 * 1000}-y0ung").apply { mkdirs() }
+        File(young, "ideaforge-young-2025-01-01.md").writeText("young")
+
+        val (uri, bytes) = shared(ResultVectors.written, t)
+        assertFalse("past a day: removed", old.exists())
+        assertTrue("an hour old: kept", young.exists())
+        assertEquals(bytes, fileFor(uri).readText())
+
+        // App start, a day and an hour later: the hour-old share is now past the limit too.
+        ResultActions.pruneShares(app, t + ResultActions.SHARE_TTL_MS + 1)
+        assertFalse(young.exists())
+        assertFalse(fileFor(uri).exists())
     }
 
     @Test

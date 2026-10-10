@@ -216,6 +216,9 @@ class ResultViewModel(
         }
     }
 
+    /** The injected clock, for the share directory's timestamp. */
+    fun now(): Long = clock.now()
+
     fun noticeShown() = _state.update { it.copy(notice = null) }
 
     fun reopenedShown() = _state.update { it.copy(reopened = false) }

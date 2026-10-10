@@ -11,6 +11,7 @@ import android.os.PersistableBundle
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.FileProvider
 import java.io.File
+import java.security.SecureRandom
 
 /**
  * Share and Copy: the two ways out that need a Context. Both take the export string the
@@ -34,17 +35,30 @@ object ResultActions {
         FileProvider.getUriForFile(context, authority(context), file)
     }
 
+    /** How long a shared file stays readable before a later share or app start removes it. */
+    const val SHARE_TTL_MS = 24L * 60 * 60 * 1000
+
+    private val random = SecureRandom()
+
     /**
      * ACTION_SEND for [export] as a `text/markdown` file named [filename], through the
      * FileProvider, with the text itself as EXTRA_TEXT for targets that ignore streams: the
      * web's shareTextFile, which offers a file and falls back to text.
      *
-     * The file is rewritten on every share, and earlier exports in the directory are removed
-     * first, so the cache holds one document at a time rather than every idea ever shared.
+     * Every share gets its own directory, `cache/exports/<now>-<random>/<filename>`, and is
+     * never rewritten: a target may read its URI long after the sheet closes (a queued
+     * message, an upload), and the filename is only per idea per day, so writing in place
+     * would truncate a file under a reader and deleting siblings would hand an earlier share
+     * a dead URI. Only directories older than [SHARE_TTL_MS] are cleaned up, here and at app
+     * start ([pruneShares]); the one being written is never among them.
      */
-    fun shareIntent(context: Context, export: String, filename: String, title: String): Intent {
-        val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
-        dir.listFiles()?.forEach { if (it.name != filename) it.delete() }
+    fun shareIntent(
+        context: Context, export: String, filename: String, title: String, now: Long = System.currentTimeMillis(),
+    ): Intent {
+        val root = File(context.cacheDir, SHARE_DIR)
+        pruneShares(root, now)
+        val suffix = ByteArray(6).also(random::nextBytes).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val dir = File(root, "$now-$suffix").apply { mkdirs() }
         val file = File(dir, filename)
         file.writeBytes(export.encodeToByteArray())
         val uri = contentUri(context, file)
@@ -61,9 +75,27 @@ object ResultActions {
         }
     }
 
+    /**
+     * Removes share directories under [root] created more than [SHARE_TTL_MS] before [now].
+     * A directory's age is the timestamp its name starts with (the clock that made it, so a
+     * test can inject one), or its modification time when the name has none. Anything
+     * younger, and anything created in the future by a clock that moved back, is kept.
+     */
+    fun pruneShares(root: File, now: Long) {
+        for (entry in root.listFiles().orEmpty()) {
+            val made = entry.name.substringBefore('-').toLongOrNull() ?: entry.lastModified()
+            if (now - made > SHARE_TTL_MS) entry.deleteRecursively()
+        }
+    }
+
+    /** App start: clear out shares that have aged past [SHARE_TTL_MS]. Never throws. */
+    fun pruneShares(context: Context, now: Long) {
+        runCatching { pruneShares(File(context.cacheDir, SHARE_DIR), now) }
+    }
+
     /** The system share sheet over [shareIntent]. */
-    fun chooser(context: Context, export: String, filename: String, title: String, chooserTitle: String): Intent =
-        Intent.createChooser(shareIntent(context, export, filename, title), chooserTitle)
+    fun chooser(context: Context, export: String, filename: String, title: String, chooserTitle: String, now: Long = System.currentTimeMillis()): Intent =
+        Intent.createChooser(shareIntent(context, export, filename, title, now), chooserTitle)
 
     /**
      * Copy markdown: exactly [export] on the clipboard. Marked not sensitive on Android 13+
