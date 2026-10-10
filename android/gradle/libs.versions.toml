@@ -13,6 +13,9 @@ robolectric = "4.17"
 kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.11.0"
 navigation = "2.10.2"
+# material3 already brings adaptive 1.3.0 and the Compose BOM constrains the family to it;
+# the layout and navigation artifacts are pinned to the same version explicitly.
+material3-adaptive = "1.3.0"
 datastore = "1.2.1"
 okhttp = "5.5.0"
 
@@ -27,6 +30,8 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-material3-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "material3-adaptive" }
+compose-material3-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "material3-adaptive" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
