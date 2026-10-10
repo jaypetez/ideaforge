@@ -17,6 +17,21 @@ const val JS_S: String = "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u20
  *  can never match a whole surrogate pair in one step. */
 const val JS_DOT: String = "[^\\n\\r\\u2028\\u2029\\x{10000}-\\x{10FFFF}]"
 
+/** JS `.` for use inside a run such as `.*`: anything but \n \r U+2028 U+2029. A Java class
+ *  consumes a whole code point, which is right for a run (JS takes both surrogate halves one
+ *  at a time). Java's own `.` also refuses U+0085, which JS accepts. */
+const val JS_DOT_RUN: String = "[^\\n\\r\\u2028\\u2029]"
+
+/** JS `^` under the m flag: start of input or just after \n \r U+2028 U+2029. Java's MULTILINE
+ *  `^` also breaks after U+0085 and treats \r\n as one terminator. */
+const val JS_ML_START: String = "(?<![^\\n\\r\\u2028\\u2029])"
+
+/** JS `$` under the m flag: end of input or just before \n \r U+2028 U+2029. */
+const val JS_ML_END: String = "(?![^\\n\\r\\u2028\\u2029])"
+
+/** JS `$` without the m flag: the very end. Java's `$` also matches before a final terminator. */
+const val JS_END: String = "\\z"
+
 /** JS `\s+`. */
 val JS_SPACES: Regex = Regex("[$JS_S]+")
 
