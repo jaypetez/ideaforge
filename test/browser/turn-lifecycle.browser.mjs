@@ -596,4 +596,64 @@ export default async function run(check) {
       writes.length === 1 && !app.$('b-reopen').disabled,
       `${writes.length} settled writes; reopen disabled=${app.$('b-reopen').disabled}`);
   }, { seed: pendingSynthesis });
+
+  // A manual write-up lays Done out twice: show('panel-done') while it is being written, then
+  // showDone() when the synthesis settles. Each layout used to prepend() the primary and the
+  // menu's first item even when they were already in place, and re-inserting a node takes
+  // focus off it — a focused Share .md dropped to <body>, and an open menu was left with focus
+  // nowhere inside it, so closing it could no longer hand focus back to its trigger (#106).
+  async function heldWriteUp(app, label) {
+    if (!(await openLibrary(app, check, label + ': the interview appears in the library'))) return null;
+    const card = app.$('library-rows').querySelector(`[data-session-id="${pendingSynthesis.id}"]`);
+    const opening = click(app, [...card.querySelector('.idea-actions').querySelectorAll('button')]
+      .find((button) => button.textContent === 'Continue'));
+    if (!(await expect(app, check, label + ': the interview is ready to write up', () =>
+      opening.done && visible(app.$('b-wrap')) && !app.$('b-wrap').disabled))) return null;
+    const wrapping = click(app, 'b-wrap');
+    if (!(await expect(app, check, label + ': Done shows while the write-up is held in flight', () =>
+      app.model.calls.length === 1 && app.model.calls[0].tier === 'complex'
+        && visible(app.$('panel-done')) && visible(app.$('b-done-more'))))) return null;
+    return wrapping;
+  }
+  const primaryOf = (app) => app.$('done-actions').querySelector('button:not(.done-more)');
+
+  await withApp(check, 'focused primary across a manual write-up', async (app) => {
+    const wrapping = await heldWriteUp(app, 'focused primary');
+    if (!wrapping) return;
+    const primary = primaryOf(app);
+    primary.focus();
+    check('the primary action takes focus while the write-up is in flight',
+      app.frame.contentDocument.activeElement === primary, detail(app));
+    app.model.calls[0].release(synthesisResult());
+    if (!(await expect(app, check, 'the held write-up settles on Done', () =>
+      wrapping.done && app.$('output').dataset.source?.includes(WRITE_UP)))) return;
+    const active = app.frame.contentDocument.activeElement;
+    check('the focused primary keeps focus when the finished write-up lays Done out again',
+      active === primary && primaryOf(app) === primary,
+      `focus on ${active && (active.id || active.tagName)}`);
+  }, { seed: pendingSynthesis });
+
+  await withApp(check, 'open menu across a manual write-up', async (app) => {
+    const wrapping = await heldWriteUp(app, 'open menu');
+    if (!wrapping) return;
+    const doc = app.frame.contentDocument;
+    const menu = app.$('done-menu');
+    app.$('b-done-more').focus();
+    app.$('b-done-more').click();
+    if (!(await expect(app, check, 'the menu opens with focus inside while the write-up is in flight',
+      () => menu.matches(':popover-open') && menu.contains(doc.activeElement)))) return;
+    const focused = doc.activeElement;
+    app.model.calls[0].release(synthesisResult());
+    if (!(await expect(app, check, 'the held write-up settles under the open menu', () =>
+      wrapping.done && app.$('output').dataset.source?.includes(WRITE_UP)))) return;
+    check('focus stays on the same menu item when the finished write-up lays Done out again',
+      menu.matches(':popover-open') && doc.activeElement === focused,
+      `open ${menu.matches(':popover-open')}; focus on ${doc.activeElement && (doc.activeElement.id || doc.activeElement.tagName)}`);
+    // Native popover focus restoration needs focus inside the popover when it closes — the
+    // same path Esc takes, which a synthetic KeyboardEvent cannot trigger.
+    menu.hidePopover();
+    check('closing the menu afterwards still returns focus to its trigger',
+      doc.activeElement === app.$('b-done-more'),
+      `focus on ${doc.activeElement && (doc.activeElement.id || doc.activeElement.tagName)}`);
+  }, { seed: pendingSynthesis });
 }
