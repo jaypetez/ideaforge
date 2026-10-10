@@ -1,0 +1,124 @@
+package io.github.jaypetez.ideaforge.data
+
+import androidx.core.util.AtomicFile
+import io.github.jaypetez.ideaforge.core.Session
+import io.github.jaypetez.ideaforge.core.migrate
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
+import java.io.File
+
+/**
+ * Sessions on disk: one JSON file per session, `<dir>/<id>.json`, each written atomically.
+ *
+ * One session is one library idea, so the store is the library. Three rules:
+ *
+ * - [save] writes exactly the object it is given. `runTurn` bumps `rev` several times in one
+ *   call; the caller persists the object it returns, once, and the store neither migrates
+ *   nor touches it on the way out.
+ * - Sessions are `JsonObject`s rather than data classes, so fields this build does not know
+ *   (a newer web build, a future Android build) round-trip untouched.
+ * - A file [migrate] rejects (a newer schema, a corrupt document) is skipped, never deleted
+ *   and never overwritten: it belongs to a newer build that may yet read it. [save] refuses
+ *   an id whose file was skipped rather than silently replacing it.
+ */
+class SessionStore(
+    private val dir: File,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) {
+    private val mutex = Mutex()
+    private val byId = LinkedHashMap<String, Session>()
+    private val skipped = LinkedHashSet<String>()
+    private var loaded = false
+
+    private val _sessions = MutableStateFlow<List<Session>>(emptyList())
+
+    /** Every loaded session, most recently updated first. */
+    val sessions: StateFlow<List<Session>> = _sessions.asStateFlow()
+
+    /** File names (without `.json`) that were left alone because they could not be read. */
+    val skippedIds: Set<String> get() = skipped.toSet()
+
+    /** Reads the directory once; later calls are no-ops. Returns the number loaded. */
+    suspend fun load(): Int = mutex.withLock {
+        if (loaded) return@withLock byId.size
+        withContext(io) {
+            val files = dir.listFiles { f -> f.isFile && f.name.endsWith(SUFFIX) }.orEmpty()
+            for (file in files.sortedBy { it.name }) {
+                val name = file.name.removeSuffix(SUFFIX)
+                val session = runCatching {
+                    // readFully also discards a `.new` left by a write that never finished.
+                    val text = AtomicFile(file).readFully().decodeToString()
+                    migrate(Json.parseToJsonElement(text))
+                }.getOrNull()
+                val id = (session?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content
+                if (session == null || id == null || id != name) {
+                    skipped += name
+                } else {
+                    byId[id] = session
+                }
+            }
+        }
+        loaded = true
+        publish()
+        byId.size
+    }
+
+    fun get(id: String): Session? = _sessions.value.firstOrNull { idOf(it) == id }
+
+    /** Persists [session] exactly as given, then updates the index. */
+    suspend fun save(session: Session) = mutex.withLock {
+        val id = requireNotNull(idOf(session)) { "a session needs a string id to be saved" }
+        require(SAFE_ID.matches(id)) { "unsafe session id: $id" }
+        check(id !in skipped) { "refusing to overwrite $id$SUFFIX, which this build could not read" }
+        withContext(io) { write(File(dir, "$id$SUFFIX"), encode(session)) }
+        byId[id] = session
+        publish()
+    }
+
+    private fun publish() {
+        _sessions.value = byId.values.sortedWith(
+            compareByDescending<Session> { updatedAt(it) }.thenBy { idOf(it) },
+        )
+    }
+
+    companion object {
+        private const val SUFFIX = ".json"
+
+        // Web ids are `s_<base36>_<hex>`; imported ids are kept, so allow the general shape
+        // but never a path separator or a dot-segment.
+        private val SAFE_ID = Regex("[A-Za-z0-9_-]{1,128}")
+
+        fun encode(session: Session): ByteArray =
+            Json.encodeToString(JsonObject.serializer(), session).encodeToByteArray()
+
+        /** Write-then-rename: a crash before [AtomicFile.finishWrite] leaves the old file. */
+        internal fun write(file: File, bytes: ByteArray) {
+            file.parentFile?.mkdirs()
+            val atomic = AtomicFile(file)
+            val out = atomic.startWrite()
+            try {
+                out.write(bytes)
+                atomic.finishWrite(out)
+            } catch (t: Throwable) {
+                atomic.failWrite(out)
+                throw t
+            }
+        }
+
+        private fun idOf(session: Session): String? =
+            (session["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+        private fun updatedAt(session: Session): Double =
+            (session["updatedAt"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull ?: 0.0
+    }
+}

@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -17,8 +18,19 @@ class MainActivityTest {
     val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun launchesToTheIdeaForgeScreen() {
+    fun launchesToTheLibraryWithTheBottomBar() {
         compose.onNodeWithText("IdeaForge").assertExists()
+        compose.onNodeWithText("v${BuildConfig.VERSION_NAME}").assertExists()
+        for (label in listOf("Ideas", "New idea", "Settings")) compose.onNodeWithText(label).assertExists()
+    }
+
+    @Test
+    fun theBottomBarNavigatesBetweenDestinations() {
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Hands-free").assertExists()
+        compose.onNodeWithText("New idea").performClick()
+        compose.onNodeWithText("Interview").assertExists()
+        compose.onNodeWithText("Ideas").performClick()
         compose.onNodeWithText("v${BuildConfig.VERSION_NAME}").assertExists()
     }
 
