@@ -27,7 +27,8 @@ object ResultActions {
     /**
      * The content URI for a file under cache/exports. A seam for one reason: FileProvider
      * matches roots by `/`-joined canonical paths, so under Robolectric on a Windows host it
-     * finds no root for any file. Tests swap this only there; on Linux CI and on devices
+     * finds no root for any file. ResultScreenTest swaps this only when a probe through the
+     * real provider fails, and requires the real one off Windows; on Linux CI and on devices
      * the real FileProvider, with the manifest's authority and paths, is what runs.
      */
     @VisibleForTesting

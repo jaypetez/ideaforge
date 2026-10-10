@@ -4,6 +4,7 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
@@ -56,12 +57,34 @@ class ResultScreenTest {
     private var askedMore = 0
     private val realContentUri = ResultActions.contentUri
 
-    // FileProvider joins canonical paths with `/` and so finds no root for any file under
-    // Robolectric on a Windows host (see ResultActions.contentUri). There only, the URI is
-    // built the way FileProvider builds it for this paths file; Linux runs the real thing.
+    /** Whether the real FileProvider resolved a share URI on this host (see [fileProvider]). */
+    private var realProvider = false
+
+    // Two things stand between Robolectric and the real FileProvider.
+    //
+    // 1. FileProvider caches each authority's roots in a static map (`sCache`) the first time
+    //    it is asked. Robolectric gives every test a fresh data directory but keeps the class
+    //    loader, so from the second test on the cached root is the FIRST test's cache dir and
+    //    every share throws "Failed to find configured root". That is what failed on Linux CI;
+    //    a device never sees it because its cache dir cannot move under a running process.
+    //    The map is cleared before each test.
+    //
+    // 2. FileProvider matches roots with `/`-joined canonical paths, so on a Windows host it
+    //    finds no root at all. Rather than guess from the OS, ask: share a probe file through
+    //    the real provider, and only if that fails build the URI the way FileProvider would.
+    //    theRealFileProviderRunsOffWindows makes sure the fallback cannot hide a real failure
+    //    anywhere else.
     @Before
-    fun windowsHostFileProvider() {
-        if (File.separatorChar == '\\') {
+    fun fileProvider() {
+        val cache = FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }
+        (cache.get(null) as MutableMap<*, *>).clear()
+
+        val probe = File(File(app.cacheDir, ResultActions.SHARE_DIR), "probe/probe.md")
+        probe.parentFile!!.mkdirs()
+        probe.writeText("probe")
+        realProvider = runCatching { realContentUri(app, probe) }.isSuccess
+        probe.parentFile!!.deleteRecursively()
+        if (!realProvider) {
             ResultActions.contentUri = { c, f ->
                 val root = File(c.cacheDir, ResultActions.SHARE_DIR)
                 f.relativeTo(root).invariantSeparatorsPath.split('/')
@@ -69,6 +92,21 @@ class ResultScreenTest {
                     .build()
             }
         }
+    }
+
+    @Test
+    fun theRealFileProviderRunsOffWindows() {
+        if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) {
+            assertTrue("the real FileProvider must resolve shares on this host", realProvider)
+        }
+        // Whatever the host, the provider's cached root is this test's cache dir, not one
+        // left over from an earlier test (the probe above populated it on every OS).
+        val cache = FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }
+        val strategies = (cache.get(null) as Map<*, *>).values
+        assertEquals(1, strategies.size)
+        val roots = strategies.first()!!.javaClass.getDeclaredField("mRoots").apply { isAccessible = true }
+            .get(strategies.first()) as Map<*, *>
+        assertEquals(File(app.cacheDir, ResultActions.SHARE_DIR).canonicalFile, roots["exports"])
     }
 
     @After
