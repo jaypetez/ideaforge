@@ -1,0 +1,4808 @@
+{
+  "vectorsVersion": 1,
+  "family": "speak",
+  "source": "src/voice/speak.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "splitSpeechText 0",
+      "fn": "splitSpeechText",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 0.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText 1",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short."
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "Sh",
+          "or",
+          "t."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 1.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "Short.",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "Short."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four."
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "One. Two!",
+          "Three?",
+          "Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "On",
+          "e.",
+          "Tw",
+          "o!",
+          "Th",
+          "re",
+          "e?",
+          "Fo",
+          "ur",
+          "."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three?",
+          "Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "One.",
+          "Two!",
+          "Three?",
+          "Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 2.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "One. Two! Three? Four.",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "One. Two!",
+          "Three?",
+          "Four."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa",
+          "aa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 3.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaaaa",
+          "aaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end."
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "wo",
+          "rd",
+          "en",
+          "d."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word word",
+          "word word end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "word",
+          "end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 4.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "end."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌"
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "x",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌",
+          "🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 5.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "x🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌🌌",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "x🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌",
+          "🌌🌌🌌🌌🌌"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon"
+      ],
+      "expect": {
+        "value": [
+          "alpha beta gamma delta　epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "alpha beta",
+          "gamma",
+          "delta",
+          "epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "al",
+          "ph",
+          "a",
+          "be",
+          "ta",
+          "ga",
+          "mm",
+          "a",
+          "de",
+          "lt",
+          "a",
+          "ep",
+          "si",
+          "lo",
+          "n"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "alpha beta gamma",
+          "delta　epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "alpha",
+          "beta",
+          "gamma",
+          "delta",
+          "epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "alpha beta gamma delta　epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 6.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "alpha beta gamma delta　epsilon",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "alpha beta",
+          "gamma delta",
+          "epsilon"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   "
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "pa",
+          "dd",
+          "ed"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 7.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "   padded   ",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "padded"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more."
+      ],
+      "expect": {
+        "value": [
+          "BOM first. Then more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "BOM first.",
+          "Then more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "BO",
+          "M",
+          "fi",
+          "rs",
+          "t.",
+          "Th",
+          "en",
+          "mo",
+          "re",
+          "."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "BOM first. Then",
+          "more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "BOM",
+          "first.",
+          "Then",
+          "more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "BOM first. Then more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 8.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "﻿BOM first. Then more.",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "BOM first.",
+          "Then more."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "tiny",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "ti",
+          "ny",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "zz",
+          "ta",
+          "il"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "tiny",
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "tiny",
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 9.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "tiny",
+          "zzzzzzzzzzz",
+          "zzzzzzzzzzz",
+          "zzzzzzzzzzz",
+          "zzzzzzz",
+          "tail"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok"
+      ],
+      "expect": {
+        "value": [
+          "Wait... really?! Yes. ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wait...",
+          "really?!",
+          "Yes. ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wa",
+          "it",
+          "..",
+          ".",
+          "re",
+          "al",
+          "ly",
+          "?!",
+          "Ye",
+          "s.",
+          "ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wait... really?! Yes.",
+          "ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wait...",
+          "really?!",
+          "Yes.",
+          "ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wait... really?! Yes. ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 10.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "Wait... really?! Yes. ok",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "Wait...",
+          "really?!",
+          "Yes. ok"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two."
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.1",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxChars": 10
+        }
+      ],
+      "expect": {
+        "value": [
+          "Refined",
+          "prompt.",
+          "Build a",
+          "small app",
+          "that",
+          "remembers",
+          "names.",
+          "one. two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.2",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxChars": 2
+        }
+      ],
+      "expect": {
+        "value": [
+          "Re",
+          "fi",
+          "ne",
+          "d",
+          "pr",
+          "om",
+          "pt",
+          ".",
+          "Bu",
+          "il",
+          "d",
+          "a",
+          "sm",
+          "al",
+          "l",
+          "ap",
+          "p",
+          "th",
+          "at",
+          "re",
+          "me",
+          "mb",
+          "er",
+          "s",
+          "na",
+          "me",
+          "s.",
+          "on",
+          "e.",
+          "tw",
+          "o."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.3",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxChars": 40,
+          "maxWords": 3
+        }
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt.",
+          "Build a small",
+          "app that remembers",
+          "names.",
+          "one. two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.4",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxWords": 1
+        }
+      ],
+      "expect": {
+        "value": [
+          "Refined",
+          "prompt.",
+          "Build",
+          "a",
+          "small",
+          "app",
+          "that",
+          "remembers",
+          "names.",
+          "one.",
+          "two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.5",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxChars": 120,
+          "maxWords": 24
+        }
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText 11.6",
+      "fn": "splitSpeechText",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        {
+          "maxChars": 11
+        }
+      ],
+      "expect": {
+        "value": [
+          "Refined",
+          "prompt.",
+          "Build a",
+          "small app",
+          "that",
+          "remembers",
+          "names.",
+          "one. two."
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText non-string 0",
+      "fn": "splitSpeechText",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": []
+      }
+    },
+    {
+      "name": "splitSpeechText non-string 1",
+      "fn": "splitSpeechText",
+      "args": [
+        42
+      ],
+      "expect": {
+        "value": [
+          "42"
+        ]
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 0",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxChars": 1
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 1",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxChars": 2.5
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 2",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxWords": 0
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 3",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxWords": 1.5
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 4",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxChars": "10"
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 5",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxWords": null
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "splitSpeechText bad limits 6",
+      "fn": "splitSpeechText",
+      "args": [
+        "Some words here.",
+        {
+          "maxChars": null
+        }
+      ],
+      "expect": {
+        "throws": "Speech chunk limits must be positive integers."
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 default",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four."
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @0.1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        0.1
+      ],
+      "expect": {
+        "value": [
+          "One. Two!",
+          "Three?",
+          "Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @0.5",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        0.5
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @0.75",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        0.75
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        1
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @1.02",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        1.02
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @1.25",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        1.25
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        2
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 0 @10",
+      "fn": "speechChunksForRate",
+      "args": [
+        "One. Two! Three? Four.",
+        10
+      ],
+      "expect": {
+        "value": [
+          "One. Two! Three? Four."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 default",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @0.1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.1
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa",
+          "aaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @0.5",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.5
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @0.75",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.75
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @1.02",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1.02
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @1.25",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1.25
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        2
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 1 @10",
+      "fn": "speechChunksForRate",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        10
+      ],
+      "expect": {
+        "value": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 default",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end."
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @0.1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.1
+      ],
+      "expect": {
+        "value": [
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "word word",
+          "end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @0.5",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.5
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @0.75",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.75
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word",
+          "word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @1.02",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1.02
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @1.25",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1.25
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        2
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 2 @10",
+      "fn": "speechChunksForRate",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        10
+      ],
+      "expect": {
+        "value": [
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word word word word word word word word word word word word word word word word word",
+          "word word word word word word word word end."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 default",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @0.1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        0.1
+      ],
+      "expect": {
+        "value": [
+          "tiny",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "zzzzzzzzzz",
+          "tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @0.5",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        0.5
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @0.75",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        0.75
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        1
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @1.02",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        1.02
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @1.25",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        1.25
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        2
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 3 @10",
+      "fn": "speechChunksForRate",
+      "args": [
+        "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail",
+        10
+      ],
+      "expect": {
+        "value": [
+          "tiny zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz tail"
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 default",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two."
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @0.1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        0.1
+      ],
+      "expect": {
+        "value": [
+          "Refined",
+          "prompt.",
+          "Build a",
+          "small app",
+          "that",
+          "remembers",
+          "names.",
+          "one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @0.5",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        0.5
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one.",
+          "two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @0.75",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        0.75
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        1
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @1.02",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        1.02
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @1.25",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        1.25
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        2
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate 4 @10",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Refined prompt. Build a small app that remembers names. one. two.",
+        10
+      ],
+      "expect": {
+        "value": [
+          "Refined prompt. Build a small app that remembers names. one. two."
+        ]
+      }
+    },
+    {
+      "name": "speechChunksForRate bad rate 0",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Hello there.",
+        0
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechChunksForRate bad rate 1",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Hello there.",
+        0.05
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechChunksForRate bad rate 2",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Hello there.",
+        11
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechChunksForRate bad rate 3",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Hello there.",
+        "1"
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechChunksForRate bad rate 4",
+      "fn": "speechChunksForRate",
+      "args": [
+        "Hello there.",
+        null
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        0.1
+      ],
+      "expect": {
+        "value": 5847
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        0.5
+      ],
+      "expect": {
+        "value": 2770
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        0.75
+      ],
+      "expect": {
+        "value": 2513
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        1
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        1.02
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        1.25
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        2
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 0 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "",
+        10
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi."
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        0.1
+      ],
+      "expect": {
+        "value": 5847
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        0.5
+      ],
+      "expect": {
+        "value": 2770
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        0.75
+      ],
+      "expect": {
+        "value": 2513
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        1
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        1.02
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        1.25
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        2
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 1 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hi.",
+        10
+      ],
+      "expect": {
+        "value": 2385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four."
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        0.1
+      ],
+      "expect": {
+        "value": 18924
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        0.5
+      ],
+      "expect": {
+        "value": 5385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        0.75
+      ],
+      "expect": {
+        "value": 4257
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        1
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        1.02
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        1.25
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        2
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 2 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "One. Two! Three? Four.",
+        10
+      ],
+      "expect": {
+        "value": 3693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.1
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.5
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        0.75
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1.02
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        1.25
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        2
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 3 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        10
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end."
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.1
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.5
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        0.75
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1.02
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        1.25
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        2
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 4 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end.",
+        10
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven"
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        0.1
+      ],
+      "expect": {
+        "value": 28924
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        0.5
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        0.75
+      ],
+      "expect": {
+        "value": 5590
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        1
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        1.02
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        1.25
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        2
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 5 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "one two three four five six seven",
+        10
+      ],
+      "expect": {
+        "value": 4693
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 default",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない"
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @0.1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        0.1
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @0.5",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        0.5
+      ],
+      "expect": {
+        "value": 12770
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @0.75",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        0.75
+      ],
+      "expect": {
+        "value": 9180
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        1
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @1.02",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        1.02
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @1.25",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        1.25
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        2
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs 6 @10",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない日本語のテキストは空白がない",
+        10
+      ],
+      "expect": {
+        "value": 7385
+      }
+    },
+    {
+      "name": "speechTimeoutMs bad rate 0",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hello.",
+        0
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechTimeoutMs bad rate 1",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hello.",
+        11
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechTimeoutMs bad rate 2",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hello.",
+        "1"
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    },
+    {
+      "name": "speechTimeoutMs bad rate 3",
+      "fn": "speechTimeoutMs",
+      "args": [
+        "Hello.",
+        null
+      ],
+      "expect": {
+        "throws": "Speech rate must be a number from 0.1 to 10."
+      }
+    }
+  ]
+}
