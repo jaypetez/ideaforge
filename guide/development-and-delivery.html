@@ -269,8 +269,10 @@ npm run test:all</code></pre>
         example unchanged. Never substitute a hand-edited export or a live paid provider.
       </p>
       <p>
-        The setup capture rejects a crop that would cut off
-        <strong>Start with voice</strong>, <strong>Type instead</strong> or the footer.
+        The Start capture rejects a crop that would cut off
+        <strong>Start with voice</strong>, <strong>Type instead</strong> or the footer, and
+        a Start screen taller than 1100 CSS pixels. The Settings capture rejects one that
+        cuts off its Data or About group.
         Fix the real setup layout rather than hiding controls only for screenshots.
         <strong>Model options</strong> and <strong>Voice and speaking pace</strong> are
         disclosures in the shipped app, not capture-only shortcuts.

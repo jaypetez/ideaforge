@@ -55,6 +55,11 @@ source wins over prose, and a generated artifact wins over a description of that
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.
   Model options opens for local providers; Voice and speaking pace opens for OpenAI
   speech. Primary connection, input/output choices and start actions remain outside them.
+- **Start and Settings views.** Sources: [`index.html`](../../../../index.html)
+  (`#panel-setup` `data-view`, `.start-only`, `.settings-only`, `#connect`) and
+  [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `connectionReady`, `renderConnect`).
+  Start holds the connection card and start actions; Settings holds Connection, Listen and
+  speak, Data (backup and import) and About. Re-check the getting-started and library guides.
 - **Voice stage, entry and lifecycle.** Sources:
   [`index.html`](../../../../index.html),
   [`src/ui/app.js`](../../../../src/ui/app.js) (`startInterview`, `pauseVoice`, `resumeVoice`,
@@ -95,10 +100,10 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Generated screenshot inventory.** Sources:
   [`tools/screenshots.mjs`](../../../../tools/screenshots.mjs) and
   [`test/docs.test.mjs`](../../../../test/docs.test.mjs). Preserve the existing 01-07
-  light/dark pairs and the 08-voice-listening / 09-voice-paused pairs. Both voice states
+  light/dark pairs, the 08-voice-listening / 09-voice-paused pairs and the 10-settings pair. Both voice states
   belong in the README and mobile/voice guide, with descriptive alt text. Regenerate;
   never hand-edit PNGs or the worked example. The setup capture's bounds check must retain
-  both start controls and the footer; fix layout in the app, not by hiding controls for shots.
+  both start controls and the footer and keep Start within 1100px; fix layout in the app, not by hiding controls for shots.
 - **Assistant discovery.** Sources:
   [Copilot instructions](../../../../.github/copilot-instructions.md),
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and

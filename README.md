@@ -177,8 +177,8 @@ not throw it away.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/07-ideas-library.dark.png">
     <img src="docs/screenshots/07-ideas-library.light.png" width="760"
-         alt="The Ideas library with conversation search, status and tag filters, backup and
-              import controls, and a completed idea card offering view, share, download,
+         alt="The Ideas library with conversation search, status and tag filters, and a
+              completed idea card offering view, share, download,
               archive, delete, rename and tag actions.">
   </picture>
 </p>
@@ -187,8 +187,8 @@ not throw it away.
 questions, answers and the refined prompt. An idea can be renamed, tagged, archived,
 restored or permanently deleted.
 
-Nothing is synced to an IdeaForge account because there is no account or server. **Back up
-ideas** downloads one JSON file containing every active and archived interview; **Import
+Nothing is synced to an IdeaForge account because there is no account or server. In
+**Settings**, under **Data**, **Back up ideas** downloads one JSON file containing every active and archived interview; **Import
 backup** restores it on another device without silently overwriting a different local copy.
 The backup never contains API keys, but its interview text is deliberately unencrypted, so
 treat it like any other personal document.
@@ -345,14 +345,30 @@ depends on whose resolver is asking.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/01-setup.dark.png">
     <img src="docs/screenshots/01-setup.light.png" width="760"
-         alt="The setup screen: a provider dropdown set to Anthropic, an API key field,
-              a collapsed Model options section, and a Listen and speak group with
-              Spoken replies, Voice and speaking pace, and Dictation settings, above
-              separate Start with voice and Type instead buttons.">
+         alt="The Start screen: a one-line introduction, a connection card with a
+              provider dropdown set to Anthropic, an API key field, a collapsed Model
+              options section and a Check the key button, above separate Start with voice
+              and Type instead buttons and the version footer.">
   </picture>
 </p>
 
-Pick a provider and paste a key. The options:
+Pick a provider and paste a key on Start. Once a key is saved or checked, Start folds the
+connection card to one line with a **Change** action. Everything else lives in **Settings**:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/screenshots/10-settings.dark.png">
+    <img src="docs/screenshots/10-settings.light.png" width="760"
+         alt="The Settings screen in four groups: Connection with the provider, API key,
+              Model options and Check the key; Listen and speak with Dictation, the
+              hands-free finish word, Spoken replies and a collapsed Voice and speaking
+              pace section; Data with Back up ideas and Import backup; and About with the
+              version and a Guide link.">
+  </picture>
+</p>
+
+The provider options:
 
 | Provider | Connection | Notes |
 |---|---|---|

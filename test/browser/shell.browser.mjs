@@ -4,7 +4,7 @@
 // Layout claims, so they are measured off real boxes in a 390px frame (an iPhone 12-15
 // width) rather than read off class names. The one that matters most is "covers no
 // content": a fixed bar that overlaps the last control on the page looks fine in every
-// desktop screenshot and makes Start, Import backup or the version line untappable on the
+// desktop screenshot and makes Start, Back up ideas or the version line untappable on the
 // device the bar exists for.
 
 import { createSession, setSynthesis, setTitle } from '../../src/core/session.js';

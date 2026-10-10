@@ -147,14 +147,36 @@ export default async function run(check) {
     'ideaforge-backup.json',
     { type: 'application/json' },
   ));
+  // Backup and import live in Settings now (#101), not in the Library. Find them the way a
+  // person does, by their visible labels in the Settings view, and import from there.
+  const visible = (el) => !!el && el.getClientRects().length > 0;
+  check('the Library no longer carries the backup controls',
+    !$('panel-library').contains($('b-import')) && !$('panel-library').contains($('b-backup')));
+  $('b-settings').click();
+  await settle(300);
+  const importButton = findButton($('panel-setup'), 'Import backup');
+  check('Settings shows Back up ideas and Import backup in its Data group',
+    visible(findButton($('panel-setup'), 'Back up ideas')) && visible(importButton)
+      && importButton.closest('.group').querySelector('h2').textContent === 'Data');
+  let picked = false;
+  $('backup-file').addEventListener('click', (event) => { picked = true; event.preventDefault(); },
+    { once: true });
+  importButton.click();
+  check('Import backup in Settings opens the backup file picker', picked);
   Object.defineProperty($('backup-file'), 'files', {
     configurable: true,
     value: transfer.files,
   });
   $('backup-file').dispatchEvent(new win.Event('change'));
   await settle(300);
-  check('a JSON backup imports through the library file control',
+  check('a JSON backup imports through the Settings file control',
     Boolean(await loadSession('s_imported')));
+  check('…and reports what it imported', /1 imported/.test($('note').textContent),
+    $('note').textContent);
+  $('b-library').click();
+  await settle(300);
+  check('the imported idea is in the Library afterwards',
+    Boolean($('library-rows').querySelector('[data-session-id="s_imported"]')));
 
   frame.style.width = '390px';
   await settle(100);
