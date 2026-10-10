@@ -143,18 +143,28 @@ a { color: var(--accent); text-underline-offset: .18em; }
 .skip-link:focus-visible { transform: translateY(0); }
 
 /* ───────────────────────────────────────────────────────────────── bar */
+/* The app shell. One header, laid out by body[data-panel], which show() in app.js sets:
+   wider than 600px it is a plain top bar (title, the three destinations, and the coverage
+   meter on a row of its own during an interview); 600px and narrower see the phone rules
+   further down. The meter lives inside the header so the phone's top app bar can hold it. */
 .bar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3); flex-wrap: wrap; min-width: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  column-gap: var(--s3); row-gap: var(--s5); min-width: 0;
 }
 .bar h1 { font-size: var(--t-lg); font-weight: 600; margin: 0; letter-spacing: -.035em; }
-.bar-right { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.bar-right {
+  grid-column: 2; grid-row: 1;
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end;
+}
 .bar-right .ghost { background: transparent; border-color: var(--line); box-shadow: none; }
+.bar-right .nav-item[aria-current="page"] {
+  background: var(--primary-container); border-color: var(--primary); color: var(--on-surface);
+}
 
 /* The coverage ratchet is the product, so during an interview it is a full-width bar under
    the header rather than 84px of decoration beside the title. It carries role="progressbar"
    and aria-valuenow, which it never had. */
-.meter { display: flex; align-items: center; gap: var(--s3); }
+.meter { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: var(--s3); }
 .meter-track {
   flex: 1; height: var(--s1); border-radius: var(--r-pill);
   background: var(--surface-2); overflow: hidden;
@@ -296,6 +306,19 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .turnline { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
+
+/* A choice, not a status: a tonal primary card with the one action it offers, beside the
+   composer it competes with. The warning-tinted .note banner it replaces read as an alert. */
+.wrap-offer {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s4); border-radius: var(--r-md);
+  background: var(--primary-container); color: var(--on-primary-container);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.wrap-offer-text {
+  margin: 0; font-size: var(--type-body-size); line-height: var(--type-body-line);
+  font-weight: 600;
+}
 
 /* The stage owns presentation only. The parent sets hidden on the manual UI and navigation. */
 .voice-stage {
@@ -541,10 +564,97 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   border-color: color-mix(in srgb, var(--fail) 45%, transparent);
 }
 
+/* ─────────────────────────────────────────────────────── phone shell */
+/* 600px and narrower. Two layouts of the same header, chosen by body[data-panel]:
+
+   Ideas and Start/Settings (data-panel library | setup): .bar-right is a fixed bottom
+   navigation bar, three equal destinations with an icon over a label, aria-current on the
+   one showing, inside the safe area, every item at least 48px.
+
+   The bar is fixed, so the page has to make room for it — and not by touching .wrap, whose
+   72px bottom padding tools/screenshots.mjs measures and crops. body takes padding exactly
+   as tall as the bar instead (the same calc, so the two cannot drift), which puts .wrap's
+   thumb room above the bar rather than underneath it.
+
+   Interview and Done: a top app bar. Ideas becomes a back arrow (app.js gives it the name
+   "Back to ideas"), then the title, the compact meter (Interview only: Done hides it) and Settings. No New idea there: these
+   are detail screens, and starting another idea mid-interview is one tap further away on
+   purpose. Voice mode hides .bar-right and the meter with `hidden`, which beats all of this. */
+@media (max-width: 600px) {
+  :root {
+    --nav-item-height: 64px;
+    --nav-bar-height: calc(var(--s1) + var(--nav-item-height)
+      + max(var(--s2), env(safe-area-inset-bottom)) + 1px);
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) { padding-bottom: var(--nav-bar-height); }
+  /* Keyboard focus scrolls a control into view ignoring fixed boxes, so without this a
+     tabbed-to control below the fold lands under the bar (WCAG 2.4.11, focus not obscured). */
+  html:has(body:is([data-panel="setup"], [data-panel="library"])) {
+    scroll-padding-bottom: var(--nav-bar-height);
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) .bar-right {
+    position: fixed; inset: auto 0 0 0; z-index: 5;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1);
+    padding: var(--s1) max(var(--s2), env(safe-area-inset-right))
+      max(var(--s2), env(safe-area-inset-bottom)) max(var(--s2), env(safe-area-inset-left));
+    background: var(--surface-container-lowest);
+    border-top: 1px solid var(--outline-variant);
+    box-shadow: var(--elev-1);
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--s1); min-width: 0; min-height: var(--nav-item-height); margin: 0;
+    padding: var(--s2) var(--s1); border: 1px solid transparent; border-radius: var(--r-md);
+    background: transparent; box-shadow: none; color: var(--on-surface-variant);
+    font-size: var(--t-xs); font-weight: 600; line-height: 1.2; text-align: center;
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item::before {
+    --icon-size: 24px; margin: 0;
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item:hover {
+    background: color-mix(in srgb, var(--on-surface) var(--state-hover), transparent);
+  }
+  body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item[aria-current="page"] {
+    background: var(--primary-container); color: var(--primary);
+  }
+
+  body:is([data-panel="interview"], [data-panel="done"]) .bar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: var(--s2);
+    margin-inline-start: calc(-1 * var(--s2));
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) .bar h1 { grid-column: 2; grid-row: 1; }
+  body:is([data-panel="interview"], [data-panel="done"]) .bar-right { display: contents; }
+  body:is([data-panel="interview"], [data-panel="done"]) #b-nav-new { display: none; }
+  body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item {
+    grid-row: 1; width: var(--control-height); min-width: var(--control-height);
+    min-height: var(--control-height); padding: 0; display: grid; place-items: center;
+    border-color: transparent; border-radius: var(--r-pill); background: transparent;
+    box-shadow: none; color: var(--on-surface);
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item:hover {
+    background: color-mix(in srgb, var(--on-surface) var(--state-hover), transparent);
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item::before {
+    --icon-size: 24px; margin: 0;
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) .nav-label {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) #b-library {
+    grid-column: 1; --icon: var(--icon-arrow-back);
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) #b-settings { grid-column: 4; }
+  body:is([data-panel="interview"], [data-panel="done"]) .meter {
+    grid-column: 3; grid-row: 1; gap: var(--s2);
+  }
+  body:is([data-panel="interview"], [data-panel="done"]) .meter-track {
+    flex: none; width: var(--s7);
+  }
+}
+
 @media (max-width: 520px) {
   .wrap { gap: var(--s4); }
-  .bar { flex-wrap: nowrap; }
-  .bar-right { gap: var(--s1); }
   .install-card, .section-head, .library-summary { align-items: stretch; flex-direction: column; }
   .library-filters { grid-template-columns: 1fr; }
   .idea-actions button { flex: 1 1 130px; }

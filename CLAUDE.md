@@ -163,12 +163,27 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
   `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
   any of them breaks the harness, sometimes by hanging rather than failing.
+- **The wrap-up offer is the `#wrap-offer` card, not `#note`.** `nextQuestion` sets
+  `state.wrapOffer` only in manual mode, on the turn `wrapAdvisory` returns text, and the
+  card is cleared by answering, skipping, Keep going or a write-up; `session.wrapOffered`
+  is what stops the engine offering again (#12). `screenshots.mjs` waits for the card to
+  capture 05 and `test/browser/wrap-offer.browser.mjs` pins the once-only rule, including
+  that hands-free still speaks the offer and never shows the card.
 - **Setup disclosures are real UI, not screenshot overrides.** `Model options` opens for
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
   speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,
   spoken-replies choice, dictation, finish word and start actions stay outside them.
   `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
   app layout when that gate fails; do not hide required controls just for a capture.
+- **The phone shell is laid out from `body[data-panel]`, which `show()` sets.** At 600px and
+  narrower `.bar-right` is a fixed bottom navigation bar on `setup`/`library` and a top app
+  bar on `interview`/`done` (back arrow, title, Settings, plus the meter on Interview only).
+  `index.html` ships `<body data-panel="setup">` so the first paint already matches. The
+  room under the fixed bar is `body`'s `padding-bottom: var(--nav-bar-height)`, never
+  `.wrap`'s, because `screenshots.mjs` measures and crops `.wrap`'s 72px; `html` gets the
+  same `scroll-padding-bottom` so keyboard focus never scrolls a control under the bar.
+  `test/browser/shell.browser.mjs` proves nothing sits under the bar at 390px, focus is not
+  obscured, and nothing scrolls sideways at 360px.
 - **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
   warns forever otherwise, and a run that warns about fonts is a run to throw away.
 

@@ -231,8 +231,9 @@ When there is enough, it says so and leaves the decision to you:
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/05-ready-to-wrap.dark.png">
     <img src="docs/screenshots/05-ready-to-wrap.light.png" width="760"
-         alt="The interview with a banner reading ‘There is enough here to write it up
-              whenever you like.’ and a button labelled ‘That’s enough — write it up’.">
+         alt="The interview with a card above the answer box reading ‘There is enough
+              here to write it up whenever you like.’, with ‘Write it up’ and ‘Keep going’
+              buttons.">
   </picture>
 </p>
 
