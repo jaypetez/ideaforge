@@ -155,10 +155,30 @@ with the attribution line the session's instructions require.
 
 ```sh
 gh pr create --base main --title "Short imperative title (#42)" --body-file pr-body.md
-gh pr checks --watch --required
 ```
 
 Write `pr-body.md` in the scratchpad, not the repository.
+
+Then wait for `ci` on the head you pushed. Do not rely on `gh pr checks --watch --required`
+alone: right after a push the workflow has not registered its checks yet, and the watch
+exits 0 with "no required checks reported" having waited for nothing. Poll until `ci`
+exists on that exact head and has completed:
+
+```sh
+PR=99 TESTED=0123456789abcdef0123456789abcdef01234567 &&
+for i in $(seq 1 120); do
+  state=$(gh pr view "$PR" --json headRefOid,statusCheckRollup --jq '[.headRefOid, (((.statusCheckRollup | map(select(.name == "ci")) | .[0]) // {}) | "\(.status // "NONE"):\(.conclusion // "")")] | join(" ")')
+  echo "$i $state"
+  case "$state" in
+    "$TESTED COMPLETED:"*) break ;;
+    "$TESTED "*) sleep 30 ;;
+    "") echo "gh query failed; retrying" && sleep 30 ;;
+    *) echo "head moved; re-validate the new head" && break ;;
+  esac
+done
+```
+
+Run it in the background when the client allows that; a full run is several minutes.
 
 ## 8. Merge gate
 
@@ -173,7 +193,8 @@ the check and the merge. Put in the PR number and the literal SHA you validated:
 
 ```sh
 PR=99 TESTED=0123456789abcdef0123456789abcdef01234567 &&
-gate=$(gh pr view "$PR" --json headRefOid,mergeStateStatus,isDraft,statusCheckRollup   --jq '[.headRefOid, ((.statusCheckRollup | map(select(.name == "ci")) | .[0].conclusion) // "MISSING"), .mergeStateStatus, (.isDraft | tostring)] | join(" ")') &&
+gate=$(gh pr view "$PR" --json headRefOid,mergeStateStatus,isDraft,statusCheckRollup \
+  --jq '[.headRefOid, ((.statusCheckRollup | map(select(.name == "ci")) | .[0].conclusion) // "MISSING"), .mergeStateStatus, (.isDraft | tostring)] | join(" ")') &&
 set -- $gate &&
 echo "head=$1 ci=$2 state=$3 draft=$4" &&
 [[ "$1" =~ ^[0-9a-f]{40}$ ]] && [ "$1" = "$TESTED" ] &&
@@ -186,7 +207,7 @@ What each condition means, so a refusal can be diagnosed rather than worked arou
 - The head is a full SHA and equals the commit you validated and pushed. A different head
   means someone (or `update-branch`) moved it: re-run section 5 on the new head first.
 - `ci` concluded `SUCCESS` on that head. Pending, failure, cancelled, skipped and missing
-  all refuse. Wait with `gh pr checks --watch --required` and try again.
+  all refuse. Wait with the polling loop in section 7 and try again.
 - The branch is not `BEHIND` `main` (or conflicted). If it is, run
   `gh pr update-branch 99`, pull, re-run section 5 on the new head, and wait for `ci`.
   `BLOCKED` is expected and fine: that is the missing approval.
