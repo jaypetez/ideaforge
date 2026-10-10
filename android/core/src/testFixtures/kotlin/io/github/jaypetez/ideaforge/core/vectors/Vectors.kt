@@ -120,7 +120,10 @@ fun replay(port: Port, case: Case) {
         kotlin.test.assertEquals(message, err.message, case.name)
         return
     }
-    kotlin.test.assertEquals(case.expect["value"], port(case), case.name)
+    // A scenario family (drive-loop) records the whole outcome, {result, log}, not a value.
+    val expected = case.expect["value"] ?: case.expect.takeIf { "log" in it && "result" in it }
+        ?: kotlin.test.fail("${case.name}: the recorded case has no value to compare")
+    kotlin.test.assertEquals(expected, port(case), case.name)
 }
 
 fun str(e: JsonElement?): String = (e as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content ?: ""

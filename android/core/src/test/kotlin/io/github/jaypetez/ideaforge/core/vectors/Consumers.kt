@@ -35,11 +35,9 @@ val CONSUMERS: List<Consumer> = listOf(
     Consumer("markdown", ported = MARKDOWN_PORTS, pending = emptyMap()),
     Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
     Consumer("keyring", ported = KEYRING_PORTS, pending = emptyMap()),
-    // The trigger-word pair is the settings screen's (#88); the rest is the hands-free port's.
-    Consumer("speech", ported = SPEECH_PORTS, pending = pending(
-        "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "spokenExamples",
-    )),
-    Consumer("drive-loop", ported = emptyMap(), pending = pending("#77", "driveLoop")),
+    // The trigger-word pair came with the settings screen (#88), the rest with hands-free (#77).
+    Consumer("speech", ported = SPEECH_PORTS, pending = emptyMap()),
+    Consumer("drive-loop", ported = DRIVE_PORTS, pending = emptyMap()),
     Consumer("providers", ported = emptyMap(), pending = ProvidersFamily.PENDING,
         portedElsewhere = ProvidersFamily.IN_PROVIDERS_MODULE.associateWith { ProvidersFamily.MODULE }),
     // Also replayed through InterviewViewModel by :app (WalkthroughVectorTest).
