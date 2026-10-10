@@ -338,6 +338,20 @@
       <span>Hands-free — read each question aloud, with suggestions, and listen for the answer</span>
     </label>
 
+    <!--
+      The wrap-up offer, inline above the composer. It was a line in #note, a banner shared
+      with every other message, which read as a status rather than a choice. It is shown on
+      the one turn the engine offers (session.wrapOffered records that), and it goes when
+      the person answers, skips or taps Keep going — it never returns on the next turn.
+    -->
+    <div class="wrap-offer" id="wrap-offer" role="group" aria-labelledby="wrap-offer-text" hidden>
+      <p class="wrap-offer-text" id="wrap-offer-text" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="btns">
+        <button type="button" id="b-wrap-offer" data-icon="edit-note">Write it up</button>
+        <button type="button" class="quiet" id="b-wrap-keep">Keep going</button>
+      </div>
+    </div>
+
     <label class="sr-only" for="answer">Your answer</label>
     <textarea id="answer" rows="4" placeholder="Type your answer. Ctrl+Enter to send."></textarea>
 
