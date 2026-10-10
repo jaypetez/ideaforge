@@ -1505,6 +1505,200 @@
       }
     },
     {
+      "name": "extractJson 11",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": hello}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 12 chars starting \"{\"a\": hello}\")"
+      }
+    },
+    {
+      "name": "extractJson 12",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":\"x\ny\"}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 11 chars starting \"{\"a\":\"x\ny\"}\")"
+      }
+    },
+    {
+      "name": "extractJson 13",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": True}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 11 chars starting \"{\"a\": True}\")"
+      }
+    },
+    {
+      "name": "extractJson 14",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": NaN}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 10 chars starting \"{\"a\": NaN}\")"
+      }
+    },
+    {
+      "name": "extractJson 15",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": undefined}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 16 chars starting \"{\"a\": undefined}\")"
+      }
+    },
+    {
+      "name": "extractJson 16",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": Infinity}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 15 chars starting \"{\"a\": Infinity}\")"
+      }
+    },
+    {
+      "name": "extractJson 17",
+      "fn": "extractJson",
+      "args": [
+        "{'a': 1}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 8 chars starting \"{'a': 1}\")"
+      }
+    },
+    {
+      "name": "extractJson 18",
+      "fn": "extractJson",
+      "args": [
+        "{a: 1}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 6 chars starting \"{a: 1}\")"
+      }
+    },
+    {
+      "name": "extractJson 19",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": 01}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 9 chars starting \"{\"a\": 01}\")"
+      }
+    },
+    {
+      "name": "extractJson 20",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": .5}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 9 chars starting \"{\"a\": .5}\")"
+      }
+    },
+    {
+      "name": "extractJson 21",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": 1.}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 9 chars starting \"{\"a\": 1.}\")"
+      }
+    },
+    {
+      "name": "extractJson 22",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": +1}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 9 chars starting \"{\"a\": +1}\")"
+      }
+    },
+    {
+      "name": "extractJson 23",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":\"tab\there\"}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 16 chars starting \"{\"a\":\"tab\there\"}\")"
+      }
+    },
+    {
+      "name": "extractJson 24",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":\"\\x41\"}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 12 chars starting \"{\"a\":\"\\x41\"}\")"
+      }
+    },
+    {
+      "name": "extractJson 25",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":\"\\u12\"}"
+      ],
+      "expect": {
+        "throws": "model did not return a JSON object (got 12 chars starting \"{\"a\":\"\\u12\"}\")"
+      }
+    },
+    {
+      "name": "extractJson 26",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\": 1e5, \"b\": -0, \"c\": 1.50, \"d\": \"\\ud83c\\udf0c\", \"a\": 2}"
+      ],
+      "expect": {
+        "value": {
+          "a": 2,
+          "b": 0,
+          "c": 1.5,
+          "d": "🌌"
+        }
+      }
+    },
+    {
+      "name": "extractJson 27",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":[true,false,null,{}]}"
+      ],
+      "expect": {
+        "value": {
+          "a": [
+            true,
+            false,
+            null,
+            {}
+          ]
+        }
+      }
+    },
+    {
+      "name": "extractJson 28",
+      "fn": "extractJson",
+      "args": [
+        "{\"a\":1,}"
+      ],
+      "expect": {
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
       "name": "request 0 anthropic quick",
       "fn": "request",
       "input": {

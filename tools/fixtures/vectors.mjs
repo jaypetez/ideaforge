@@ -710,6 +710,14 @@ async function providersFamily() {
   for (const [i, t] of [
     '{"a":1}', '```json\n{"a":1}\n```', 'Sure! Here you go: {"a": {"b": [1,2]}} hope that helps', '', 'no json here',
     '{"a":1} {"b":2}', '[1,2,3]', '{"unterminated": ', '{"s":"a } brace"}', null, '  {"x":"\\u00e9"}  ',
+    // JSON.parse is strict where a lenient reader is not: each of these must fall through to
+    // bad_response (and so the bank), never be accepted as an object.
+    '{"a": hello}', '{"a":"x\ny"}', '{"a": True}', '{"a": NaN}', '{"a": undefined}', '{"a": Infinity}',
+    "{'a': 1}", '{a: 1}', '{"a": 01}', '{"a": .5}', '{"a": 1.}', '{"a": +1}', '{"a":"tab\there"}',
+    '{"a":"\\x41"}', '{"a":"\\u12"}',
+    // ...and these are valid JSON that must keep JS's values.
+    '{"a": 1e5, "b": -0, "c": 1.50, "d": "\\ud83c\\udf0c", "a": 2}', '{"a":[true,false,null,{}]}',
+    '{"a":1,}',
   ].entries()) cases.push(rec(`extractJson ${i}`, extractJson, t));
 
   // Exact requests, via a stubbed fetch.

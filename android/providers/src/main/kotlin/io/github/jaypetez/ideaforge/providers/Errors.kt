@@ -60,6 +60,9 @@ fun retryAfterMs(raw: String?, nowMs: Long): Long? {
 
 fun retryAfterMs(headers: Headers, nowMs: Long): Long? = retryAfterMs(headers["retry-after"], nowMs)
 
+/** The longest server-requested wait withRetry will honour: one call deadline. */
+const val MAX_RETRY_AFTER_MS: Long = DEADLINE_MS
+
 /**
  * Retry with exponential backoff and full jitter. Jitter matters more than it looks: every
  * turn of the interview issues one call, so a rate-limited user retrying on a fixed schedule
@@ -74,6 +77,7 @@ suspend fun <T> withRetry(
     attempts: Int = 3,
     baseMs: Long = 500,
     maxMs: Long = 8000,
+    maxRetryAfterMs: Long = MAX_RETRY_AFTER_MS,
     random: () -> Double = Math::random,
     delay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
     fn: suspend () -> T,
@@ -86,8 +90,12 @@ suspend fun <T> withRetry(
         } catch (err: ProviderException) {
             last = err
             if (!isRetryable(err) || i == attempts - 1) throw err
+            // A server asking for longer than the bound (Retry-After: 86400, or 1e300 read as
+            // Long.MAX_VALUE) is not asking for a retry this turn can wait for: surface it.
+            val asked = err.retryAfterMs
+            if (asked != null && asked > maxRetryAfterMs) throw err
             val backoff = minOf(maxMs, baseMs shl i)
-            delay(err.retryAfterMs ?: (random() * backoff).toLong())
+            delay(asked ?: (random() * backoff).toLong())
         }
     }
     throw last ?: IllegalArgumentException("withRetry needs at least one attempt")

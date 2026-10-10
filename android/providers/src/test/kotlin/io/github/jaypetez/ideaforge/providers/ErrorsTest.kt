@@ -41,6 +41,25 @@ class ErrorsTest {
     }
 
     @Test
+    fun anUnreasonableRetryAfterIsThrownNotWaitedFor() = runBlocking {
+        // 1e300 seconds saturates to Long.MAX_VALUE; a day is merely absurd. Neither is waited on.
+        for (header in listOf("1e300", "9999999999", "86400")) {
+            val err = fail("rate_limit", retryAfterMs = retryAfterMs(header, 0))
+            var calls = 0
+            val thrown = assertFailsWith<ProviderException>(header) {
+                withRetry(delay = { error("waited $it ms for Retry-After: $header") }) { calls++; throw err }
+            }
+            assertSame(err, thrown)
+            assertEquals(1, calls, header)
+        }
+        // The bound itself is still honoured.
+        val waits = mutableListOf<Long>()
+        var calls = 0
+        withRetry(delay = { waits += it }) { if (++calls < 2) throw fail("rate_limit", MAX_RETRY_AFTER_MS) else "ok" }
+        assertEquals(listOf(MAX_RETRY_AFTER_MS), waits)
+    }
+
+    @Test
     fun nonRetryableCodesAreThrownAtOnce() = runBlocking {
         for (code in listOf("auth", "bad_response", "timeout", "aborted", "config")) {
             var calls = 0

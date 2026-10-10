@@ -83,14 +83,22 @@ object ProviderHttpClients {
             .writeTimeout(0, TimeUnit.MILLISECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
+        // A shared base may carry another policy's settings; none of them may leak across.
+        b.interceptors().clear()
+        b.networkInterceptors().clear()
         when (policy) {
             is NetworkPolicy.Hosted -> b.dns(dns).connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
             NetworkPolicy.Local -> b.dns(LocalNetworkDns(dns)).proxy(Proxy.NO_PROXY)
+                .connectionSpecs(listOf(ConnectionSpec.CLEARTEXT, ConnectionSpec.MODERN_TLS))
             else -> b.dns(dns)
         }
         return b.build()
     }
 }
+
+/** Header names any auth descriptor in this app uses to carry a key (http.js's schemes). */
+internal val CREDENTIAL_HEADERS = setOf("authorization", "x-api-key", "x-goog-api-key", "api-key", "proxy-authorization")
+internal val CREDENTIAL_PARAMS = setOf("key", "api_key", "apikey")
 
 /**
  * One provider's HTTP: the policy check, credentials, the call, and the error vocabulary.
@@ -124,6 +132,14 @@ class ProviderHttp(
      */
     suspend fun execute(request: Request, label: String, keyHint: String = DEFAULT_KEY_HINT): Response {
         policy.check(request.url)
+        if (!policy.carriesCredentials) {
+            // Key-less by construction, not by convention: a hand-built request that carries a
+            // credential header never leaves for a local server.
+            val carried = request.headers.names().filter { it.lowercase() in CREDENTIAL_HEADERS }
+            if (carried.isNotEmpty() || request.url.queryParameterNames.any { it.lowercase() in CREDENTIAL_PARAMS }) {
+                throw ProviderException(ProviderErrorCode.CONFIG, "a local provider never sends a key (found ${carried.ifEmpty { listOf("a key parameter") }.joinToString()})")
+            }
+        }
         val call = client.newCall(request)
         val cancelled = AtomicBoolean(false)
         return suspendCancellableCoroutine { cont ->

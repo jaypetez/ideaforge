@@ -155,6 +155,38 @@ class LocalNetworkPolicyTest {
     }
 
     @Test
+    fun executeRefusesAHandBuiltRequestCarryingAKey() = runBlocking {
+        val http = localHttp(FakeDns(emptyMap()))
+        val url = "http://127.0.0.1:${server.port}/v1/chat"
+        for ((name, value) in listOf("Authorization" to "Bearer sk-x", "x-api-key" to "sk-x", "x-goog-api-key" to "k")) {
+            val req = okhttp3.Request.Builder().url(url).header(name, value).build()
+            val e = assertFailsWith<ProviderException>(name) { http.execute(req, "Ollama") }
+            assertEquals("config", e.code, name)
+        }
+        val query = okhttp3.Request.Builder().url("$url?key=sk-x").build()
+        assertEquals("config", assertFailsWith<ProviderException> { http.execute(query, "Ollama") }.code)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun aLocalClientBuiltFromAHostedBaseDropsItsTlsOnlySpecsAndInterceptors() = runBlocking {
+        val tagged = okhttp3.Interceptor { chain -> chain.proceed(chain.request().newBuilder().header("x-api-key", "leak").build()) }
+        val hosted = ProviderHttpClients.create(NetworkPolicy.Hosted("https://api.openai.com/v1"))
+            .newBuilder().addInterceptor(tagged).addNetworkInterceptor(tagged).build()
+        val local = ProviderHttpClients.create(NetworkPolicy.Local, base = hosted, dns = FakeDns(emptyMap()))
+        assertTrue(local.interceptors.isEmpty() && local.networkInterceptors.isEmpty())
+        assertTrue(okhttp3.ConnectionSpec.CLEARTEXT in local.connectionSpecs)
+        // And the reverse: a hosted client from a local base is TLS-only again.
+        val back = ProviderHttpClients.create(NetworkPolicy.Hosted("https://api.openai.com/v1"), base = local)
+        assertTrue(back.connectionSpecs.all { it.isTls })
+        // End to end: plain http to a loopback server works through the derived client.
+        server.enqueue(MockResponse.Builder().body("{}").build())
+        val http = ProviderHttp(NetworkPolicy.Local, local)
+        http.execute(http.request("http://127.0.0.1:${server.port}/").build(), "Ollama").use { assertEquals(200, it.code) }
+        assertNull(server.takeRequest().headers["x-api-key"])
+    }
+
+    @Test
     fun aLocalClientUsesTheGuardAndNoProxy() {
         val client = ProviderHttpClients.create(NetworkPolicy.Local)
         assertTrue(client.dns is LocalNetworkDns)
