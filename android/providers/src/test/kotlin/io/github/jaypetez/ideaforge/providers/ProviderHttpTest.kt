@@ -146,6 +146,36 @@ class ProviderHttpTest {
         assertTrue(idle.await(10, TimeUnit.SECONDS), "the underlying call was not cancelled")
     }
 
+    // Review of #79: the adapters read the body after execute() returned, when the
+    // cancellation hook was already gone, so Pause or Exit waited out a slow body (up to the
+    // 120s deadline) and the result still arrived. executeText reads it inside the call.
+    @Test
+    fun cancellingWhileTheBodyIsArrivingCancelsTheCall() = runBlocking {
+        server.enqueue(MockResponse.Builder().body("{\"" + "x".repeat(200) + "\":1}").throttleBody(1, 1, TimeUnit.SECONDS).build())
+        val h = http()
+        val idle = CountDownLatch(1)
+        h.client.dispatcher.idleCallback = Runnable { idle.countDown() }
+        val job = async(Dispatchers.Default) { h.executeText(get(h), "OpenAI") }
+        if (server.takeRequest(10, TimeUnit.SECONDS) == null) {
+            error("the request never arrived: ${runCatching { job.await() }}")
+        }
+        Thread.sleep(1500) // headers sent, body trickling
+        val started = System.nanoTime()
+        job.cancel()
+        val thrown = runCatching { job.await() }.exceptionOrNull()
+        assertIs<CancellationException>(thrown)
+        assertTrue(thrown !is ProviderException)
+        assertTrue(idle.await(10, TimeUnit.SECONDS), "the underlying call was not cancelled")
+        assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(10), "cancellation waited for the body")
+    }
+
+    @Test
+    fun executeTextReturnsTheBody() = runBlocking {
+        server.enqueue(MockResponse.Builder().body("{\"ok\":true}").build())
+        val h = http()
+        assertEquals("{\"ok\":true}", h.executeText(get(h), "OpenAI"))
+    }
+
     @Test
     fun failuresAreClassifiedCallerFirst() {
         val timeout = java.io.InterruptedIOException("timeout")
