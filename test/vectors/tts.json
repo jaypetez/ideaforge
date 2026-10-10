@@ -1,0 +1,3431 @@
+{
+  "vectorsVersion": 1,
+  "family": "tts",
+  "source": "src/providers/tts.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "constant MAX_TTS_INPUT_CHARS",
+      "fn": "constant",
+      "args": [
+        "MAX_TTS_INPUT_CHARS"
+      ],
+      "expect": {
+        "value": 4096
+      }
+    },
+    {
+      "name": "constant MAX_TTS_AUDIO_BYTES",
+      "fn": "constant",
+      "args": [
+        "MAX_TTS_AUDIO_BYTES"
+      ],
+      "expect": {
+        "value": 8388608
+      }
+    },
+    {
+      "name": "constant MAX_TTS_AUDIO_SECONDS",
+      "fn": "constant",
+      "args": [
+        "MAX_TTS_AUDIO_SECONDS"
+      ],
+      "expect": {
+        "value": 120
+      }
+    },
+    {
+      "name": "constant TTS_DEADLINE_MS",
+      "fn": "constant",
+      "args": [
+        "TTS_DEADLINE_MS"
+      ],
+      "expect": {
+        "value": 30000
+      }
+    },
+    {
+      "name": "constant TTS_PRESETS",
+      "fn": "constant",
+      "args": [
+        "TTS_PRESETS"
+      ],
+      "expect": {
+        "value": {
+          "openai": {
+            "label": "OpenAI speech",
+            "baseUrl": "https://api.openai.com/v1",
+            "url": "https://api.openai.com/v1/audio/speech",
+            "auth": {
+              "scheme": "bearer"
+            },
+            "model": "gpt-4o-mini-tts",
+            "voices": [
+              "marin",
+              "cedar"
+            ],
+            "responseFormat": "wav",
+            "maxChars": 4096
+          }
+        }
+      }
+    },
+    {
+      "name": "default voice and rate",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "cedar at 1.25",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "voice": "cedar",
+          "rate": 1.25
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "cedar",
+            "response_format": "wav",
+            "speed": 1.25
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "per-call rate overrides",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "rate": 1.5
+        },
+        "text": "What should it remember?",
+        "options": {
+          "rate": 0.5
+        },
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "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"
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 0.5
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 48000,
+          "channels": 2,
+          "size": 1978,
+          "sha256": "8abc50245cf330bb250f871562f0eeb082011ff112d2688e478e2d47b3269c80"
+        }
+      }
+    },
+    {
+      "name": "key is trimmed",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "  tts-test-key \n"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "input is sent untrimmed",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "  padded words  ",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "  padded words  ",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "rate bounds are inclusive",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "rate": 0.25
+        },
+        "text": "What should it remember?",
+        "options": {
+          "rate": 4
+        },
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 4
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "input at the 4096-char limit",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "streaming sizes are rewritten after EOF",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRv////9XQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0Yf////8FJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByY="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.02,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 1004,
+          "sha256": "ef2070631c2bc1f58d746eec8f759908544e8450eeb1e09b9b6b34c528858668"
+        }
+      }
+    },
+    {
+      "name": "content length that matches",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav",
+            "content-length": "524"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "config refused 0",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": ""
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech needs its own API key."
+        }
+      }
+    },
+    {
+      "name": "config refused 1",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "   "
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech needs its own API key."
+        }
+      }
+    },
+    {
+      "name": "config refused 2",
+      "fn": "synthesize",
+      "input": {
+        "config": {},
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech needs its own API key."
+        }
+      }
+    },
+    {
+      "name": "config refused 3",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "voice": "alloy"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Choose the Marin or Cedar speech voice."
+        }
+      }
+    },
+    {
+      "name": "config refused 4",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "voice": "Marin"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Choose the Marin or Cedar speech voice."
+        }
+      }
+    },
+    {
+      "name": "config refused 5",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "rate": 0.24
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech rate must be a number from 0.25 to 4."
+        }
+      }
+    },
+    {
+      "name": "config refused 6",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "rate": 4.01
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech rate must be a number from 0.25 to 4."
+        }
+      }
+    },
+    {
+      "name": "config refused 7",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "rate": "1"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech rate must be a number from 0.25 to 4."
+        }
+      }
+    },
+    {
+      "name": "config refused 8",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "deadlineMs": 0
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech requests need a deadline between 1 and 120000 ms."
+        }
+      }
+    },
+    {
+      "name": "config refused 9",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "deadlineMs": 120001
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech requests need a deadline between 1 and 120000 ms."
+        }
+      }
+    },
+    {
+      "name": "config refused 10",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key",
+          "deadlineMs": 1.5
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech requests need a deadline between 1 and 120000 ms."
+        }
+      }
+    },
+    {
+      "name": "input refused 0",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech input must contain 1 to 4096 characters."
+        }
+      }
+    },
+    {
+      "name": "input refused 1",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "   \n",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech input must contain 1 to 4096 characters."
+        }
+      }
+    },
+    {
+      "name": "input refused 2",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "Speech input must contain 1 to 4096 characters."
+        }
+      }
+    },
+    {
+      "name": "input refused 3",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {
+          "rate": 5
+        },
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech rate must be a number from 0.25 to 4."
+        }
+      }
+    },
+    {
+      "name": "input refused 4",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {
+          "rate": 0
+        },
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": null,
+        "throws": {
+          "code": "config",
+          "message": "OpenAI speech rate must be a number from 0.25 to 4."
+        }
+      }
+    },
+    {
+      "name": "status 401",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 401,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "auth",
+          "message": "OpenAI speech 401: speech request failed — check the speech key in Settings",
+          "status": 401
+        }
+      }
+    },
+    {
+      "name": "status 403",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 403,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "auth",
+          "message": "OpenAI speech 403: speech request failed — check the speech key in Settings",
+          "status": 403
+        }
+      }
+    },
+    {
+      "name": "status 429",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 429,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json",
+            "retry-after": "7"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "rate_limit",
+          "message": "OpenAI speech 429: speech request failed",
+          "status": 429,
+          "retryAfterMs": 7000
+        }
+      }
+    },
+    {
+      "name": "status 500",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 500,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "overloaded",
+          "message": "OpenAI speech 500: speech request failed",
+          "status": 500
+        }
+      }
+    },
+    {
+      "name": "status 400",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 400,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "OpenAI speech 400: speech request failed",
+          "status": 400
+        }
+      }
+    },
+    {
+      "name": "status 404",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 404,
+          "statusText": "Reason phrase with tts-test-key",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW5jb3JyZWN0IEFQSSBrZXkgcHJvdmlkZWQ6IHR0cy10ZXN0LWtleSJ9fQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "OpenAI speech 404: speech request failed",
+          "status": 404
+        }
+      }
+    },
+    {
+      "name": "content type 0",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav; codecs=1"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "content type 1",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "AUDIO/X-WAV"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "content type 2",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wave"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "content type 3",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/vnd.wave"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "content type 4",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "application/octet-stream"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "content type 5",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/mpeg"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported audio content type."
+        }
+      }
+    },
+    {
+      "name": "content type 6",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "text/html"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported audio content type."
+        }
+      }
+    },
+    {
+      "name": "content type 7",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {},
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported audio content type."
+        }
+      }
+    },
+    {
+      "name": "declared length over the limit",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav",
+            "content-length": "8388609"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech audio exceeds the response size limit."
+        }
+      }
+    },
+    {
+      "name": "declared length not a number",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav",
+            "content-length": "12x"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an invalid audio length."
+        }
+      }
+    },
+    {
+      "name": "declared length longer than the body",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav",
+            "content-length": "534"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech audio was truncated."
+        }
+      }
+    },
+    {
+      "name": "empty body",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav",
+            "content-length": "0"
+          },
+          "body": {
+            "base64": ""
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned empty audio."
+        }
+      }
+    },
+    {
+      "name": "body over the limit with no declared length",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "prefix": "UklGRvj/fwBXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdX/fwA=",
+            "size": 8388609
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech audio exceeds the response size limit."
+        }
+      }
+    },
+    {
+      "name": "body at the size limit",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "prefix": "UklGRvj/fwBXQVZFZm10IBAAAAABAAEAAHcBAAB3AQABAAgAZGF0YdT/fwA=",
+            "size": 8388608
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 87.380875,
+          "sampleRate": 96000,
+          "channels": 1,
+          "size": 8388608,
+          "sha256": "f108f7594d64fd9714250ddc4f50ca52a7ad46d9e59617d2c3f42e05ea113414"
+        }
+      }
+    },
+    {
+      "name": "duration at 120 s",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "prefix": "UklGRiSmDgBXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQCmDgA=",
+            "size": 960044
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 120,
+          "sampleRate": 8000,
+          "channels": 1,
+          "size": 960044,
+          "sha256": "c6aad0de42f8b5731a69f9d69bba9263ec854381778a6d8589641afe96758658"
+        }
+      }
+    },
+    {
+      "name": "duration one frame over 120 s",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "prefix": "UklGRiamDgBXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQGmDgA=",
+            "size": 960046
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech audio exceeds the duration limit."
+        }
+      }
+    },
+    {
+      "name": "validate valid mono",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "value": {
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1
+        }
+      }
+    },
+    {
+      "name": "wav valid mono",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "cb05ec2db4fd098c9aee6d7a364e7928c6d06a8d29e35e45ea5c0545c833196a"
+        }
+      }
+    },
+    {
+      "name": "validate valid stereo with a LIST chunk",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "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"
+      ],
+      "expect": {
+        "value": {
+          "duration": 0.01,
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      }
+    },
+    {
+      "name": "wav valid stereo with a LIST chunk",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "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"
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 48000,
+          "channels": 2,
+          "size": 1978,
+          "sha256": "8abc50245cf330bb250f871562f0eeb082011ff112d2688e478e2d47b3269c80"
+        }
+      }
+    },
+    {
+      "name": "validate streaming sentinel outside the adapter",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRv////9XQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0Yf////8FJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByY="
+      ],
+      "expect": {
+        "throws": "Speech returned truncated or unknown-length WAV audio."
+      }
+    },
+    {
+      "name": "wav streaming sentinel outside the adapter",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRv////9XQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0Yf////8FJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByY="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.02,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 1004,
+          "sha256": "ef2070631c2bc1f58d746eec8f759908544e8450eeb1e09b9b6b34c528858668"
+        }
+      }
+    },
+    {
+      "name": "validate too short",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAA=="
+      ],
+      "expect": {
+        "throws": "Speech returned empty or malformed WAV audio."
+      }
+    },
+    {
+      "name": "wav too short",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAA=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned empty or malformed WAV audio."
+        }
+      }
+    },
+    {
+      "name": "validate not RIFF",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGWAQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported audio format."
+      }
+    },
+    {
+      "name": "wav not RIFF",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGWAQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported audio format."
+        }
+      }
+    },
+    {
+      "name": "validate not WAVE",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABBVkkgZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported audio format."
+      }
+    },
+    {
+      "name": "wav not WAVE",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABBVkkgZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported audio format."
+        }
+      }
+    },
+    {
+      "name": "validate RIFF size off by two",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned truncated or unknown-length WAV audio."
+      }
+    },
+    {
+      "name": "wav RIFF size off by two",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned truncated or unknown-length WAV audio."
+        }
+      }
+    },
+    {
+      "name": "validate no fmt chunk",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRhICAABXQVZFZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJqdW5rHgAAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhA=="
+      ],
+      "expect": {
+        "throws": "Speech returned no playable WAV samples."
+      }
+    },
+    {
+      "name": "wav no fmt chunk",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRhICAABXQVZFZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJqdW5rHgAAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhA=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned no playable WAV samples."
+        }
+      }
+    },
+    {
+      "name": "validate no data chunk",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRkwAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAATElTVCgAAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu6"
+      ],
+      "expect": {
+        "throws": "Speech returned no playable WAV samples."
+      }
+    },
+    {
+      "name": "wav no data chunk",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRkwAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAATElTVCgAAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu6"
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned no playable WAV samples."
+        }
+      }
+    },
+    {
+      "name": "validate empty data chunk",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRiQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YQAAAAA="
+      ],
+      "expect": {
+        "throws": "Speech returned no playable WAV samples."
+      }
+    },
+    {
+      "name": "wav empty data chunk",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YQAAAAA="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned no playable WAV samples."
+        }
+      }
+    },
+    {
+      "name": "validate two fmt chunks",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRhwCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned a malformed WAV format."
+      }
+    },
+    {
+      "name": "wav two fmt chunks",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRhwCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned a malformed WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate two data chunks",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRuwDAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJkYXRh4AEAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAg=="
+      ],
+      "expect": {
+        "throws": "Speech returned multiple WAV data chunks."
+      }
+    },
+    {
+      "name": "wav two data chunks",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRuwDAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJkYXRh4AEAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAg=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned multiple WAV data chunks."
+        }
+      }
+    },
+    {
+      "name": "validate fmt too small",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgICAABXQVZFZm10IA4AAAAAAAAAAAAAAAAAAAAAAGRhdGHgAQAAASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMC"
+      ],
+      "expect": {
+        "throws": "Speech returned a malformed WAV format."
+      }
+    },
+    {
+      "name": "wav fmt too small",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgICAABXQVZFZm10IA4AAAAAAAAAAAAAAAAAAAAAAGRhdGHgAQAAASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMC"
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned a malformed WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate extended fmt",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgYCAABXQVZFZm10IBIAAAABAAEAwF0AAIC7AAACABAAAABkYXRh4AEAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAg=="
+      ],
+      "expect": {
+        "value": {
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1
+        }
+      }
+    },
+    {
+      "name": "wav extended fmt",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgYCAABXQVZFZm10IBIAAAABAAEAwF0AAIC7AAACABAAAABkYXRh4AEAAAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyOcGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinxuUEI0JhgJ++3fwbOll4l7bV9BMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+OrczrCilIZ4alxOMCIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAg=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 526,
+          "sha256": "d820bc6c55d7c4713d22a0b5e1fbbfae5d1081e23636770aaf9ac078574e9c96"
+        }
+      }
+    },
+    {
+      "name": "validate float encoding",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAADAAEAwF0AAAB3AQAEACAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav float encoding",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAADAAEAwF0AAAB3AQAEACAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate three channels",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAMAwF0AAIAyAgAGABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav three channels",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAMAwF0AAIAyAgAGABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate 12-bit samples",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACAAwAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav 12-bit samples",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACAAwAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate sample rate 7999",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAPx8AAH4+AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav sample rate 7999",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAPx8AAH4+AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate sample rate 96001",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAAXcBAALuAgACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav sample rate 96001",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAAXcBAALuAgACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate sample rate 96000",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAAHcBAADuAgACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "value": {
+          "duration": 0.0025,
+          "sampleRate": 96000,
+          "channels": 1
+        }
+      }
+    },
+    {
+      "name": "wav sample rate 96000",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAAHcBAADuAgACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.0025,
+          "sampleRate": 96000,
+          "channels": 1,
+          "size": 524,
+          "sha256": "8043f506cd806b27ded5de73cbd0ac80dc1a89253b859f5138385bc6eaf8abd4"
+        }
+      }
+    },
+    {
+      "name": "validate wrong block align",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAAB3AQAEABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav wrong block align",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAAB3AQAEABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate wrong byte rate",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAOgDAAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav wrong byte rate",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAOgDAAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate partial frame",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeEBAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhAA=="
+      ],
+      "expect": {
+        "throws": "Speech returned an unsupported or malformed PCM WAV format."
+      }
+    },
+    {
+      "name": "wav partial frame",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeEBAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhAA=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned an unsupported or malformed PCM WAV format."
+        }
+      }
+    },
+    {
+      "name": "validate odd chunk is padded",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRhACAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAb2RkIAMAAAABID8AZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "value": {
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1
+        }
+      }
+    },
+    {
+      "name": "wav odd chunk is padded",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRhACAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAb2RkIAMAAAABID8AZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "value": {
+          "contentType": "audio/wav",
+          "duration": 0.01,
+          "sampleRate": 24000,
+          "channels": 1,
+          "size": 536,
+          "sha256": "fa8baa2bd3a35d6c882574738b9a9d8c0edaa411f1325736071c510c30f80077"
+        }
+      }
+    },
+    {
+      "name": "validate chunk runs past the end",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YfQBAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+      ],
+      "expect": {
+        "throws": "Speech returned a truncated WAV chunk."
+      }
+    },
+    {
+      "name": "wav chunk runs past the end",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YfQBAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wI="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned a truncated WAV chunk."
+        }
+      }
+    },
+    {
+      "name": "validate truncated chunk header",
+      "fn": "validateSpeechAudio",
+      "args": [
+        "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJMSQ=="
+      ],
+      "expect": {
+        "throws": "Speech returned a truncated WAV chunk."
+      }
+    },
+    {
+      "name": "wav truncated chunk header",
+      "fn": "synthesize",
+      "input": {
+        "config": {
+          "apiKey": "tts-test-key"
+        },
+        "text": "What should it remember?",
+        "options": {},
+        "reply": {
+          "status": 200,
+          "statusText": "OK",
+          "headers": {
+            "content-type": "audio/wav"
+          },
+          "body": {
+            "base64": "UklGRgYCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcjnBiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIp8blBCNCYYCfvt38GzpZeJe21fQTMlFwj67N7AsqSWiHpsXkAyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnI5wYlRGOCocDf/h08W3qZuNf2FTRTcpGwz+4NLEtqiajH5gUkQ2KBoL/e/Rw7WnmYt9b1FDNScZCvzu0MK0ppiKfG5QQjQmGAn77d/Bs6WXiXttX0EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wJMSQ=="
+          }
+        }
+      },
+      "expect": {
+        "request": {
+          "url": "https://api.openai.com/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "audio/wav",
+            "authorization": "Bearer tts-test-key"
+          },
+          "redirect": "error",
+          "body": {
+            "model": "gpt-4o-mini-tts",
+            "input": "What should it remember?",
+            "voice": "marin",
+            "response_format": "wav",
+            "speed": 1
+          }
+        },
+        "throws": {
+          "code": "bad_response",
+          "message": "Speech returned a truncated WAV chunk."
+        }
+      }
+    }
+  ]
+}

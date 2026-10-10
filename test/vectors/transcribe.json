@@ -1,0 +1,2196 @@
+{
+  "vectorsVersion": 1,
+  "family": "transcribe",
+  "source": "src/voice/transcribe.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "constant MAX_AUDIO_BYTES",
+      "fn": "constant",
+      "args": [
+        "MAX_AUDIO_BYTES"
+      ],
+      "expect": {
+        "value": 26214400
+      }
+    },
+    {
+      "name": "constant STT_PRESETS",
+      "fn": "constant",
+      "args": [
+        "STT_PRESETS"
+      ],
+      "expect": {
+        "value": {
+          "groq": {
+            "label": "Groq Whisper",
+            "baseUrl": "https://api.groq.com/openai/v1",
+            "model": "whisper-large-v3-turbo",
+            "note": "About a penny per interview. Free tier, no card."
+          },
+          "openai": {
+            "label": "OpenAI",
+            "baseUrl": "https://api.openai.com/v1",
+            "model": "gpt-4o-mini-transcribe",
+            "note": "Around 0.3 cents a minute."
+          }
+        }
+      }
+    },
+    {
+      "name": "groq webm",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoiaGVsbG8gd29ybGQifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "hello world"
+      }
+    },
+    {
+      "name": "openai webm",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoiaGVsbG8gd29ybGQifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.openai.com/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "gpt-4o-mini-transcribe"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "hello world"
+      }
+    },
+    {
+      "name": "openai with language and prompt",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "stt-test-key",
+          "language": "en",
+          "prompt": "What should it remember?"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoiIG5hbWVzICJ9"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.openai.com/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "gpt-4o-mini-transcribe"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              },
+              {
+                "name": "language",
+                "value": "en"
+              },
+              {
+                "name": "prompt",
+                "value": "What should it remember?"
+              }
+            ]
+          }
+        ],
+        "value": "names"
+      }
+    },
+    {
+      "name": "model override",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key",
+          "model": "whisper-large-v3"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoieCJ9"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "x"
+      }
+    },
+    {
+      "name": "filename for \"audio/ogg;codecs=opus\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/ogg;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.ogg",
+                "contentType": "audio/ogg;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/mp4\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/mp4",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp4",
+                "contentType": "audio/mp4",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/x-m4a\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/x-m4a",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp4",
+                "contentType": "audio/x-m4a",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/aac\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/aac",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp4",
+                "contentType": "audio/aac",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/wav\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/wav",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.wav",
+                "contentType": "audio/wav",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/mpeg\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/mpeg",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp3",
+                "contentType": "audio/mpeg",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/mp3\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/mp3",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp3",
+                "contentType": "audio/mp3",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"audio/webm\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "application/octet-stream",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"AUDIO/OGG\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "AUDIO/OGG",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.ogg",
+                "contentType": "audio/ogg",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "filename for \"video/mp4\"",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "video/mp4",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.mp4",
+                "contentType": "video/mp4",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "prompt over 800 chars",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key",
+          "prompt": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              },
+              {
+                "name": "prompt",
+                "value": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "prompt cut through a surrogate pair",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key",
+          "prompt": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌌 more"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              },
+              {
+                "name": "prompt",
+                "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "prompt of exactly 800 chars",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key",
+          "prompt": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              },
+              {
+                "name": "prompt",
+                "value": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "empty language and prompt are not sent",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key",
+          "language": "",
+          "prompt": ""
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoib2sifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "ok"
+      }
+    },
+    {
+      "name": "reply 0",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoiICBwYWRkZWRcbiJ9"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "padded"
+      }
+    },
+    {
+      "name": "reply 1",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "e30="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": ""
+      }
+    },
+    {
+      "name": "reply 2",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjpudWxsfQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": ""
+      }
+    },
+    {
+      "name": "reply 3",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijo3fQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "7"
+      }
+    },
+    {
+      "name": "reply 4",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoiIn0="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": ""
+      }
+    },
+    {
+      "name": "reply 5",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijp0cnVlfQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "true"
+      }
+    },
+    {
+      "name": "audio at the 25 MB limit",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm",
+          "body": {
+            "prefix": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz",
+            "size": 26214400
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibG9uZyJ9"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm",
+                "size": 26214400,
+                "sha256": "3b419ed06990f691babe33fe3c5b1a08f79178dfdc67a8eb6dfed2c8c46d448e"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "long"
+      }
+    },
+    {
+      "name": "audio one byte over the limit",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm",
+          "body": {
+            "prefix": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz",
+            "size": 26214401
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibmV2ZXIifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [],
+        "throws": {
+          "code": "config",
+          "message": "that recording is 25.0 MB, over the 25 MB limit"
+        }
+      }
+    },
+    {
+      "name": "audio far over the limit",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm",
+          "body": {
+            "size": 31580736
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibmV2ZXIifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [],
+        "throws": {
+          "code": "config",
+          "message": "that recording is 30.1 MB, over the 25 MB limit"
+        }
+      }
+    },
+    {
+      "name": "no key",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": ""
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibmV2ZXIifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [],
+        "throws": {
+          "code": "config",
+          "message": "transcription needs an API key"
+        }
+      }
+    },
+    {
+      "name": "unknown kind",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "nope",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibmV2ZXIifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [],
+        "throws": {
+          "code": "config",
+          "message": "transcription needs a base URL and a model"
+        }
+      }
+    },
+    {
+      "name": "no kind and no key",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "apiKey": ""
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0IjoibmV2ZXIifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [],
+        "throws": {
+          "code": "config",
+          "message": "transcription needs a base URL and a model"
+        }
+      }
+    },
+    {
+      "name": "401 names the transcription key",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 401,
+            "statusText": "Unauthorized",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiSW52YWxpZCBBUEkgS2V5In19"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "throws": {
+          "code": "auth",
+          "message": "transcription 401: Invalid API Key — check the transcription key in Settings",
+          "status": 401
+        }
+      }
+    },
+    {
+      "name": "403 with only an error code",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "openai",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 403,
+            "statusText": "Forbidden",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJjb2RlIjoidW5zdXBwb3J0ZWRfY291bnRyeSJ9fQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.openai.com/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "gpt-4o-mini-transcribe"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "throws": {
+          "code": "auth",
+          "message": "transcription 403: unsupported_country — check the transcription key in Settings",
+          "status": 403
+        }
+      }
+    },
+    {
+      "name": "400 with a non-JSON body",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 400,
+            "statusText": "Bad Request",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "bm90IGpzb24="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "throws": {
+          "code": "bad_response",
+          "message": "transcription 400: Bad Request",
+          "status": 400
+        }
+      }
+    },
+    {
+      "name": "413 is a bad response",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 413,
+            "statusText": "Payload Too Large",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoiZmlsZSB0b28gbGFyZ2UifX0="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "throws": {
+          "code": "bad_response",
+          "message": "transcription 413: file too large",
+          "status": 413
+        }
+      }
+    },
+    {
+      "name": "429 three times",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 429,
+            "statusText": "Too Many Requests",
+            "headers": {
+              "content-type": "application/json",
+              "retry-after": "0"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoic2xvdyBkb3duIn19"
+            }
+          },
+          {
+            "status": 429,
+            "statusText": "Too Many Requests",
+            "headers": {
+              "content-type": "application/json",
+              "retry-after": "0"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoic2xvdyBkb3duIn19"
+            }
+          },
+          {
+            "status": 429,
+            "statusText": "Too Many Requests",
+            "headers": {
+              "content-type": "application/json",
+              "retry-after": "0"
+            },
+            "body": {
+              "base64": "eyJlcnJvciI6eyJtZXNzYWdlIjoic3RpbGwgc2xvdyJ9fQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          },
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          },
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "throws": {
+          "code": "rate_limit",
+          "message": "transcription 429: still slow",
+          "status": 429,
+          "retryAfterMs": 0
+        }
+      }
+    },
+    {
+      "name": "503 then success",
+      "fn": "transcribe",
+      "input": {
+        "config": {
+          "kind": "groq",
+          "apiKey": "stt-test-key"
+        },
+        "audio": {
+          "type": "audio/webm;codecs=opus",
+          "body": {
+            "base64": "T2dnUyBmYWtlIG9wdXMgZnJhbWVz"
+          }
+        },
+        "replies": [
+          {
+            "status": 503,
+            "statusText": "Service Unavailable",
+            "headers": {
+              "content-type": "application/json",
+              "retry-after": "0"
+            },
+            "body": {
+              "base64": "e30="
+            }
+          },
+          {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "base64": "eyJ0ZXh0Ijoic2Vjb25kIHRpbWUifQ=="
+            }
+          }
+        ]
+      },
+      "expect": {
+        "requests": [
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          },
+          {
+            "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+            "method": "POST",
+            "headers": {
+              "authorization": "Bearer stt-test-key"
+            },
+            "parts": [
+              {
+                "name": "file",
+                "filename": "answer.webm",
+                "contentType": "audio/webm;codecs=opus",
+                "size": 21,
+                "sha256": "6b9a5ce6f31f6da3477ba7a6bbc181a1576abf9799cfa99df6dbbac5b97a6eb8"
+              },
+              {
+                "name": "model",
+                "value": "whisper-large-v3-turbo"
+              },
+              {
+                "name": "response_format",
+                "value": "json"
+              }
+            ]
+          }
+        ],
+        "value": "second time"
+      }
+    }
+  ]
+}
