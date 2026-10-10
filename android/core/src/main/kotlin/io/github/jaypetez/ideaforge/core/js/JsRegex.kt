@@ -38,9 +38,14 @@ val JS_SPACES: Regex = Regex("[$JS_S]+")
 /** JS `\b` without the u flag: a boundary between [A-Za-z0-9_] and anything else. */
 const val JS_B: String = "(?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))"
 
-/** A case-insensitive JS-style pattern. The engine's patterns are ASCII, so ASCII folding
- *  is exactly the JS non-unicode behaviour for them. */
-fun jsRegexI(pattern: String): Regex = Regex(pattern, RegexOption.IGNORE_CASE)
+/**
+ * A case-insensitive JS-style pattern, folding ASCII only. Kotlin's RegexOption.IGNORE_CASE
+ * also sets UNICODE_CASE, which lets the Kelvin sign (U+212A) match `k` and the long s
+ * (U+017F) match `s`; JS `/i` without the u flag refuses both. The engine's patterns are
+ * ASCII, so ASCII folding is exactly the JS non-unicode behaviour for them.
+ */
+fun jsRegexI(pattern: String): Regex =
+    java.util.regex.Pattern.compile(pattern, java.util.regex.Pattern.CASE_INSENSITIVE).toRegex()
 
 /** JS `str.split(/\s+/)`, keeping leading and trailing empty strings as JS does. */
 fun jsSplitSpaces(s: String): List<String> = s.split(JS_SPACES)
