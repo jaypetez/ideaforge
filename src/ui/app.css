@@ -164,20 +164,35 @@ a { color: var(--accent); text-underline-offset: .18em; }
 
 /* The coverage ratchet is the product, so during an interview it is a full-width bar under
    the header rather than 84px of decoration beside the title. It carries role="progressbar"
-   and aria-valuenow, which it never had. */
+   and aria-valuenow, which it never had.
+
+   One segment per dimension (renderMeter in app.js), and each level is told apart by shape
+   as well as colour, so the meter survives greyscale and colour blindness: thin is an empty
+   outlined segment, partial is half filled, covered is filled, and a dimension set aside is
+   hatched with no outline. The paint is `currentColor`, so the colour each level uses is
+   the computed `color` a probe can read and hold to 3:1 against the bar in both themes
+   (WCAG 1.4.11). Partial and covered reuse the Coverage list's own --warning/--success. */
 .meter { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: var(--s3); }
-.meter-track {
-  flex: 1; height: var(--s1); border-radius: var(--r-pill);
-  background: var(--surface-2); overflow: hidden;
-  box-shadow: inset 0 0 0 1px var(--line);
+.meter-track { flex: 1; display: flex; gap: 3px; min-width: 0; }
+.meter-seg {
+  flex: 1 1 0; min-width: 0; height: var(--s2); border-radius: var(--r-pill);
+  color: var(--outline); background: var(--surface-container);
+  box-shadow: inset 0 0 0 1px currentColor;
+  transition: background-color var(--dur-medium3) var(--ease), color var(--dur-medium3) var(--ease);
 }
-.meter-fill {
-  display: block; height: 100%; width: 0%; border-radius: inherit;
-  background: var(--accent); transition: width var(--dur-medium3) var(--ease);
+.meter-seg[data-level="partial"] {
+  color: var(--warning);
+  background: linear-gradient(90deg, currentColor 50%, var(--surface-container) 50%);
+}
+.meter-seg[data-level="covered"] { color: var(--success); background: currentColor; }
+.meter-seg[data-level="skipped"] {
+  color: var(--outline); box-shadow: none;
+  background: repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 1.5px 4px);
 }
 .meter-label {
   font-family: var(--mono); font-size: var(--t-xs); font-weight: 600;
   color: var(--ink-dim); font-variant-numeric: tabular-nums; flex: none;
+  min-width: 4ch; text-align: end;
 }
 
 /* ─────────────────────────────────────────────────────────────── forms */
@@ -598,6 +613,39 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .lvl.partial { background: color-mix(in srgb, var(--pend) 18%, transparent); color: var(--pend); }
 .lvl.covered { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
 
+/* 1024px and wider: Coverage is a side panel beside the conversation instead of a fold
+   under the question. Same element, same id-free `details.cov` selector the harness uses;
+   bindCoveragePanel in app.js holds it open and stops the summary toggling while this query
+   matches, so the summary is drawn as the panel's heading, not a disclosure.
+
+   The grid has five auto rows and a 1fr row, and the panel spans all six. The panel is often
+   taller than what sits beside it (a fresh interview is one question and the composer), and a
+   spanning item's extra height goes to the flexible row it crosses rather than being shared
+   out between the auto rows — which would open holes between the question and the composer.
+   Row gaps would also be paid for every empty row, so the column's spacing is margins. */
+@media (min-width: 1024px) {
+  /* Not in voice mode: the voice stage keeps the single column it was designed in. */
+  body[data-panel="interview"]:not(.voice-active) .wrap { max-width: 1120px; }
+  #manual-interview {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+    grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+  }
+  #manual-interview > * { grid-column: 1; min-width: 0; }
+  #manual-interview > :not(.cov, :last-child) { margin-block-end: var(--s4); }
+  #manual-interview > .cov {
+    grid-column: 2; grid-row: 1 / -1; align-self: start;
+    position: sticky; top: var(--s4);
+    padding: var(--s4); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+    background: var(--surface-container-lowest);
+  }
+  .cov[data-side="true"] > summary {
+    cursor: default; list-style: none; color: var(--on-surface);
+    font-size: var(--t-base); font-weight: 600;
+  }
+  .cov[data-side="true"] > summary::-webkit-details-marker { display: none; }
+  .cov[data-side="true"] > summary:hover { color: var(--on-surface); }
+}
+
 /* ─────────────────────────────────────────────────────────────── library */
 .section-head, .library-summary {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -920,9 +968,11 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   body:is([data-panel="interview"], [data-panel="done"]) .meter {
     grid-column: 3; grid-row: 1; gap: var(--s2);
   }
+  /* Seven segments of about 10px: still one per dimension, and the row fits a 360px phone. */
   body:is([data-panel="interview"], [data-panel="done"]) .meter-track {
-    flex: none; width: var(--s7);
+    flex: none; width: calc(var(--s8) + var(--s5)); gap: 2px;
   }
+  body:is([data-panel="interview"], [data-panel="done"]) .meter-seg { height: 6px; }
 
   body:is([data-panel="setup"], [data-panel="library"]) .toasts {
     bottom: calc(var(--nav-bar-height) + var(--s2));
