@@ -20,6 +20,9 @@ class MainActivity : ComponentActivity() {
         DebugProviders.fromLaunch(this, intent?.getStringExtra("provider"))?.let {
             (application as IdeaForgeApp).graph.providerSource = it
         }
+        // Debug builds only: `--es probe recognizer` opens the SpeechRecognizer probe (#89)
+        // over the app. The release DebugProbes opens nothing.
+        if (savedInstanceState == null) DebugProbes.fromLaunch(this, intent)
         val prefs = (application as IdeaForgeApp).graph.prefsStore.prefs
         setContent {
             // The stored theme choice (Settings, Appearance). The system bars follow it too:

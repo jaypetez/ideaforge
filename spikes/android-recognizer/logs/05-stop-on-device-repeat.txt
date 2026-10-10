@@ -1,0 +1,78 @@
+       4.8 --  ==== report 2026-10-10 12:05:30.054 -0700 ====
+       8.9 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      10.2 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      12.6 --  app: io.github.jaypetez.ideaforge.debug
+      14.2 --  RECORD_AUDIO granted: true
+      17.1 --  isRecognitionAvailable: true
+      18.6 --  isOnDeviceRecognitionAvailable: true
+      21.1 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      23.4 --  RecognitionService resolvers: 2
+      25.5 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      27.1 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      30.0 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      31.8 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      35.1 --  default TTS engine: null
+       0.5 --  ==== trial 1 2026-10-10 12:05:30.089 -0700 ====
+       2.6 --  config: TrialConfig(onDevice=true, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=0, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=I want to make a game like Tetris over)
+      62.5 --  synthesising "I want to make a game like Tetris over" with the device TTS
+     169.4 --  activity onStart
+     191.0 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+    1470.9 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1478.5 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1481.1 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1486.8 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    2154.1 --  tts: synthesised via com.google.android.tts (24000 Hz, 1 ch, 2294 ms)
+    2159.3 --  created createOnDeviceSpeechRecognizer
+    2162.5 s1  startListening(AUDIO_SOURCE=<pipe>, AUDIO_SOURCE_CHANNEL_COUNT=1, AUDIO_SOURCE_ENCODING=2, AUDIO_SOURCE_SAMPLING_RATE=24000, LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    2203.2 s1  onReadyForSpeech {}
+    2594.4 s1  first onRmsChanged rmsdB=-2.0
+    2858.0 s1  onRmsChanged x22 min=-2.00 max=4.48 last=-1.76
+    3113.0 s1  onRmsChanged x16 min=-2.00 max=8.92 last=8.92
+    3221.0 s1  onRmsChanged x5 min=-2.00 max=9.28 last=-2.00
+    3223.0 s1  onBeginningOfSpeech
+    3480.4 s1  onRmsChanged x17 min=-2.00 max=9.76 last=9.64
+    3739.1 s1  onRmsChanged x15 min=-2.00 max=9.76 last=-2.00
+    3742.5 s1  onPartialResults ["I"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[], current_locale=en-us}
+    3867.7 s1  onRmsChanged x8 min=-2.00 max=9.76 last=-2.00
+    3870.1 s1  onPartialResults ["I want"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[], current_locale=en-us}
+    3872.5 s1  onPartialResults ["I want to"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[], current_locale=en-us}
+    3997.9 s1  onRmsChanged x8 min=-2.00 max=9.76 last=-2.00
+    4003.2 s1  onPartialResults ["I want to make"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[], current_locale=en-us}
+    4058.7 s1  user: stopListening()
+    4137.1 s1  onRmsChanged x8 min=-2.00 max=9.88 last=-2.00
+    4140.8 s1  onError ERROR_CLIENT
+    4143.5 s1  recognizer destroyed
+    4146.9 --  ==== trial 1 finished: ended by onError; sessions=1 restarts=0 ====
+    4149.9 --  log file: /storage/emulated/0/Android/data/io.github.jaypetez.ideaforge.debug/files/recognizer-probe.log
+       4.5 --  ==== report 2026-10-10 12:05:45.088 -0700 ====
+      10.2 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      12.9 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      14.5 --  app: io.github.jaypetez.ideaforge.debug
+      16.5 --  RECORD_AUDIO granted: true
+      20.6 --  isRecognitionAvailable: true
+      22.7 --  isOnDeviceRecognitionAvailable: true
+      26.8 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      29.7 --  RecognitionService resolvers: 2
+      38.4 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      42.3 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      44.7 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      50.9 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      54.1 --  default TTS engine: null
+       5.3 --  ==== trial 1 2026-10-10 12:05:45.145 -0700 ====
+       7.7 --  config: TrialConfig(onDevice=true, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=0, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=null)
+     178.3 --  activity onStart
+     240.2 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+     242.8 --  created createOnDeviceSpeechRecognizer
+     251.9 s1  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    1448.6 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1449.9 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1455.3 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1460.1 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1603.3 s1  onReadyForSpeech {}
+    2383.7 s1  first onRmsChanged rmsdB=-2.0
+    3479.2 s1  user: stopListening()
+    3633.6 s1  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+    3637.5 s1  onError ERROR_NO_MATCH
+    3641.3 s1  recognizer destroyed
+    3643.8 --  ==== trial 1 finished: ended by onError; sessions=1 restarts=0 ====
+    3649.5 --  log file: /storage/emulated/0/Android/data/io.github.jaypetez.ideaforge.debug/files/recognizer-probe.log
