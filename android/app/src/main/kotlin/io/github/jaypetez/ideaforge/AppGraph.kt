@@ -107,6 +107,7 @@ class AppGraph(
         HostedSpeaker(
             nativeSpeaker, AndroidWavPlayer(), AndroidAudioFocus(context),
             prefs = { prefsStore.current() },
+            // Read per chunk too: after Forget the ring is empty, so the gate is closed.
             synth = { hostedSynth(keyringStore.state.value.ring, prefsStore.current()) },
         )
     }
@@ -149,7 +150,15 @@ class AppGraph(
             },
             trigger = { prefsStore.current().effectiveTrigger },
             recognitionAvailable = { SpeechRecognizer.isRecognitionAvailable(context) },
-            whisper = { whisperFrom(keyringStore.state.value.ring, prefsStore.current()) { WhisperMicrophone() } },
+            whisper = {
+                val generation = keyringStore.generation.value
+                whisperFrom(
+                    keyringStore.state.value.ring, prefsStore.current(),
+                    stillAllowed = {
+                        keyringStore.generation.value == generation && prefsStore.current().hostedTranscriptionAllowed
+                    },
+                ) { WhisperMicrophone() }
+            },
         )
     }
 }

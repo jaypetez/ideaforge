@@ -166,6 +166,16 @@ class DriveController(
     private var recognizerBuilt = false
     /** The recogniser said it is unavailable once: the rest of the drive records instead. */
     private var recognizerUnavailable = false
+    /**
+     * What the Whisper fallback has transcribed of the current answer so far: its caption.
+     * Pause and Exit read it, as they read the recogniser's, so segments already transcribed
+     * are kept as the draft rather than lost with the capture.
+     */
+    private var whisperText = ""
+    private var whisperListening = false
+
+    /** The caption Pause/Exit keep: the recogniser's, or Whisper's while it is the one listening. */
+    private fun liveCaption(): String = if (whisperListening) whisperText else recognizer().caption.value
 
     private fun recognizer(): Recognizer = recognizerSource().also { recognizerBuilt = true }
 
@@ -207,6 +217,9 @@ class DriveController(
 
     /** Pause, from the stage or the notification. */
     fun pause() = pauseRun(command = false, detail = null)
+
+    /** Pause with a reason: hosted speech or transcription was revoked, or Forget ran. */
+    fun pauseFor(detail: String) = pauseRun(command = false, detail = detail)
 
     /** Resume after Pause or a stand-down: a tap, from the stage or the notification. */
     fun resume() {
@@ -264,6 +277,9 @@ class DriveController(
     }
 
     private fun begin(my: Long) {
+        // Every drive asks the recogniser afresh: one LanguageUnavailable (a language pack
+        // missing that afternoon) must not send every later drive to Whisper, or stand it down.
+        recognizerUnavailable = false
         val rec = recognizer()
         watch?.cancel()
         watch = main.launch {
@@ -354,7 +370,7 @@ class DriveController(
         if (st.mode != VoiceMode.ACTIVE) return
         // Read before the cancel: the caption is the best record of what was said, because
         // the on-device recogniser discards the utterance when it is stopped (#89).
-        val captured = if (!command && st.listening && !st.confirm) recognizer().caption.value else ""
+        val captured = if (!command && st.listening && !st.confirm) liveCaption() else ""
         val turnId = captureTurnId
         epoch++
         stopEffects()
@@ -378,7 +394,7 @@ class DriveController(
     private fun exitRun(command: Boolean) {
         val st = _state.value
         if (st.mode == null) return
-        val captured = if (!command && st.mode == VoiceMode.ACTIVE && st.listening && !st.confirm) recognizer().caption.value else ""
+        val captured = if (!command && st.mode == VoiceMode.ACTIVE && st.listening && !st.confirm) liveCaption() else ""
         val turnId = captureTurnId
         val written = st.writing || stringOf(session?.get("status")) == "done"
         halt()
@@ -496,7 +512,13 @@ class DriveController(
                     "with its own key and consent to send audio.",
                 name = "RecognizerUnavailable", recoverable = false,
             )
-            return w.listenForDrive(triggerWord, firstWordMs)
+            whisperText = ""
+            whisperListening = true
+            try {
+                return w.listenForDrive(triggerWord, firstWordMs) { heard -> if (my == epoch) whisperText = heard }
+            } finally {
+                if (my == epoch) whisperListening = false
+            }
         }
 
         override fun openTurn(): DriveTurn? {

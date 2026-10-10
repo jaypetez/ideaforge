@@ -189,4 +189,20 @@ class HostedSpeakerTest {
         assertEquals(16_000, pcm.frames)
         assertEquals(1000L, pcm.durationMs)
     }
+    // Review #93: Forget or a revoked consent mid-utterance stops the remaining chunks, and the
+    // deleted key signs nothing more. No fallback either: it is a stop, not a failure.
+    @Test
+    fun aGateClosedMidUtteranceStopsTheRestWithoutFallingBack() = runTest {
+        synth.hold = CompletableDeferred()
+        val speaking = async { speaker.speak("word ".repeat(150).trim()) }
+        runCurrent()
+        open = false // Forget ran while the first chunk was being synthesized
+        synth.hold!!.complete(Unit)
+        val r = speaking.await()
+        assertEquals(SpeakStatus.CANCELLED, r.status)
+        assertEquals("only the chunk already requested", 1, synth.asked.size)
+        assertNull(r.fallback)
+        assertTrue(native.said.isEmpty())
+    }
+
 }

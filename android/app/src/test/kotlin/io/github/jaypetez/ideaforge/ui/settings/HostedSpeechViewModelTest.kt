@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.ui.settings
 
+import io.github.jaypetez.ideaforge.FakeCheck
 import androidx.lifecycle.ViewModelStore
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.js.get
@@ -59,6 +60,8 @@ class HostedSpeechViewModelTest {
     private val previews = mutableListOf<Triple<String, String, Double>>()
     private var answer: (String) -> SpeakResult = { SpeakResult(SpeakStatus.SPOKEN, backend = SpeechBackend.HOSTED) }
 
+    private var hold: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+    private val revokes = mutableListOf<String>()
     private val prefs = PrefsStore(MemoryDataStore())
     private val keyring by lazy { KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, SoftwareKey()) }
     private val store = ViewModelStore()
@@ -68,10 +71,11 @@ class HostedSpeechViewModelTest {
             // An interview key already saved: speech must never borrow it.
             keyring.save(withCreds(emptyKeyring(), "openai", JsonObject(mapOf("apiKey" to JsonPrimitive(INFERENCE)))))
         }
-        HostedSpeechViewModel(prefs, keyring) { key, voice, rate ->
+        HostedSpeechViewModel(prefs, keyring, previewer = { key, voice, rate ->
             previews += Triple(key, voice, rate)
+            hold?.await()
             answer(key)
-        }.also { store.put("speech", it) }
+        }, onRevoke = { revokes += it }).also { store.put("speech", it) }
     }
 
     private fun join(job: Job?) = runBlocking { withTimeout(10_000) { job?.join() } }
@@ -199,6 +203,47 @@ class HostedSpeechViewModelTest {
         assertTrue(previews.isEmpty())
         // withStt is the only writer: the record shape is the web's.
         assertEquals(withStt(emptyKeyring(), null)["stt"], ring()["stt"])
+    }
+
+    // Review #93 (HIGH): Forget while a check is playing must not put the speech key back on
+    // disk or turn hosted speech on afterwards. The web's credentialEpoch.
+    @Test
+    fun forgetDuringACheckLeavesNoKeyAndNoPermission() {
+        val forgets = mutableListOf<Unit>()
+        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), onForget = { forgets += Unit }).also { store.put("settings", it) }
+        join(vm.chooseHosted(true))
+        vm.setKey(SPEECH)
+        consentAll()
+        hold = kotlinx.coroutines.CompletableDeferred()
+        val checking = vm.checkAndPreview()
+        settle { it.checking }
+        join(settings.forget())
+        assertEquals("Forget stopped speech and paused the drive first", 1, forgets.size)
+        hold!!.complete(Unit) // the preview "passes" after the keys are gone
+        join(checking)
+        assertFalse("no key file came back", File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").exists())
+        assertEquals("", stringOf(ring()["tts"]["apiKey"]))
+        assertFalse(runBlocking { prefs.current() }.hostedSpeechAllowed)
+        assertFalse(ready())
+    }
+
+    @Test
+    fun aTranscriptionSaveBegunBeforeForgetWritesNothing() {
+        vm.setSttKind("groq")
+        vm.setSttKey("gsk_transcription")
+        val generation = keyring.generation.value
+        keyring.revoke() // Forget has begun
+        assertFalse(runBlocking { keyring.saveIf(generation, withStt(ring(), JsonObject(mapOf("kind" to JsonPrimitive("groq"), "apiKey" to JsonPrimitive("gsk_x"))))) })
+        assertEquals("refused: nothing written", "", stringOf(ring()["stt"]["apiKey"]))
+    }
+
+    // Review #93: withdrawing consent stops what is speaking and pauses an active drive.
+    @Test
+    fun revokingHostedSpeechStopsSpeechAndPausesTheDrive() {
+        enable()
+        assertTrue(revokes.isEmpty())
+        join(vm.setConsent(text = false))
+        assertEquals(1, revokes.size)
     }
 
     private companion object {

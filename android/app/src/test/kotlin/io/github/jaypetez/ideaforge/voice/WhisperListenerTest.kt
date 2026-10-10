@@ -108,4 +108,20 @@ class WhisperListenerTest {
         assertNull("no audio-transfer consent", whisperFrom(withStt, Prefs(hostedSpeechAllowed = true), source = mic))
         assertNotNull(whisperFrom(withStt, consent, source = mic))
     }
+    // Review #93: consent withdrawn or Forget mid-answer: nothing more is uploaded.
+    @Test
+    fun aWithdrawnConsentStopsTheNextUpload() = runTest {
+        val mic = FakePcm(speech())
+        var allowed = false
+        val w = WhisperListener({ mic }, { a, _ -> uploads += a; "x over" }, io = StandardTestDispatcher(testScheduler), allowed = { allowed })
+        try {
+            w.listenForDrive("over", 8000)
+            fail("expected a stop")
+        } catch (e: ListenFailure) {
+            assertEquals("AbortError", e.name)
+        }
+        assertTrue(uploads.isEmpty())
+        assertEquals(1, mic.stops)
+    }
+
 }

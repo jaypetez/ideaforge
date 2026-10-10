@@ -13,6 +13,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -158,6 +159,31 @@ class KeyringStore(
     val state: StateFlow<KeyringState> = _state.asStateFlow()
 
     /**
+     * The credential generation: the web's credentialEpoch. [revoke] bumps it the moment a
+     * Forget begins, before anything is deleted, and [forget] bumps it again under the lock.
+     * Work that began under an older generation (a speech check, a transcription save, a
+     * hosted request) must not write or spend with what it read: [saveIf] refuses it.
+     */
+    private val _generation = MutableStateFlow(0L)
+    val generation: StateFlow<Long> = _generation.asStateFlow()
+
+    /** Forget is starting: invalidate every credential read before now, synchronously. */
+    fun revoke() { _generation.update { it + 1 } }
+
+    /**
+     * [save], only if no Forget began since [generation] was read. Checked under the same lock
+     * Forget takes, so a check cannot land between Forget's revoke and its delete. False when
+     * refused; nothing is written.
+     */
+    suspend fun saveIf(generation: Long, ring: JsonElement?): Boolean {
+        mutex.withLock {
+            if (_generation.value != generation) return false
+            saveLocked(ring)
+        }
+        return true
+    }
+
+    /**
      * Read and decrypt. Never throws: an unreadable blob reads as an empty keyring with
      * [KeyringState.Status.UNREADABLE], because an app that will not start over a credential
      * it could re-ask for is worse than one that asks.
@@ -201,9 +227,11 @@ class KeyringStore(
      * failure (a Keystore that is busy or briefly away, an unreadable file header) is reported
      * and touches no key at all.
      */
-    suspend fun save(ring: JsonElement?): Keyring = mutex.withLock {
+    suspend fun save(ring: JsonElement?): Keyring = mutex.withLock { saveLocked(ring) }
+
+    private suspend fun saveLocked(ring: JsonElement?): Keyring {
         val payload = if (ring is JsonObject && jsEq(ring["version"], CREDENTIALS_VERSION)) ring else migrateCredentials(ring)
-        withContext(NonCancellable + io) {
+        val result = withContext(NonCancellable + io) {
             val plain = Json.encodeToString(JsonElement.serializer(), payload).encodeToByteArray()
             val current = currentSlot()
             var slot = current
@@ -226,6 +254,7 @@ class KeyringStore(
             _state.value = KeyringState(saved, KeyringState.Status.STORED)
             saved
         }
+        return result
     }
 
     /**
@@ -245,6 +274,7 @@ class KeyringStore(
 
     /** Delete the blob AND every key alias. Both are attempted even if the first fails. */
     suspend fun forget(): Unit = mutex.withLock {
+        _generation.update { it + 1 }
         withContext(NonCancellable + io) {
             var failure: Throwable? = null
             try {

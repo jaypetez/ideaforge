@@ -97,4 +97,39 @@ class WhisperFallbackTest {
         rig.controller.start(rig.seeded, "typed")
         assertTrue("state=${rig.state}", rig.until { rig.state.detail == reason })
     }
+    // Review #93: the controller outlives a drive; one LanguageUnavailable must not send every
+    // later drive to Whisper.
+    @Test
+    fun aLaterDriveAsksTheRecogniserAgain() {
+        rig.scripts += listOf(At(300, Ev.Error(RecognizerError.LANGUAGE_UNAVAILABLE)))
+        heard += "a recorded answer over"
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.answered().isNotEmpty() })
+        rig.controller.exit()
+        val asked = rig.whisperAsked
+        rig.scripts.clear()
+        rig.scripts += spoken("answer number 2 over")
+        rig.controller.start(rig.saved()!!, "typed")
+        assertTrue("state=${rig.state}", rig.until { rig.answered().size == 2 })
+        assertEquals("answer number 2", stringOf(rig.answered()[1]["answer"]))
+        assertEquals("the second drive never fell back", asked, rig.whisperAsked)
+    }
+
+    // Review #93: Pause during a Whisper answer keeps the segments already transcribed.
+    @Test
+    fun pauseKeepsWhatWhisperAlreadyTranscribed() {
+        rig.recognitionAvailable = false
+        val second = kotlinx.coroutines.CompletableDeferred<String>()
+        var uploads = 0
+        rig.whisper = WhisperListener(
+            source = { FakePcm(listOf(600L to 40, 1500L to 8000, 4000L to 40, 1500L to 8000)).also { mics += it } },
+            transcribe = { _, _ -> if (++uploads == 1) "the first part" else second.await() },
+            io = rig.dispatcher,
+        )
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue("second upload in flight", rig.until { uploads == 2 })
+        rig.controller.pause()
+        assertTrue("draft=${rig.draft()}", rig.until { rig.draft() == "the first part" })
+    }
+
 }

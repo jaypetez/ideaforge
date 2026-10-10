@@ -100,7 +100,7 @@ class HostedSpeaker(
         val s = if (downgraded == null) synth() else null
         if (s == null) return native.speak(text)
         val p = prefs()
-        return run(text, s, p.speechRate, checking = false)
+        return run(text, s, p.speechRate, checking = false, regate = synth)
     }
 
     /**
@@ -111,7 +111,18 @@ class HostedSpeaker(
     suspend fun check(synth: SpeechSynth, rate: Double, text: String = SPEECH_CHECK_TEXT): SpeakResult =
         run(text, synth, rate, checking = true)
 
-    private suspend fun run(text: String, s: SpeechSynth, rate: Double, checking: Boolean): SpeakResult {
+    /**
+     * [regate] is asked again before every chunk after the first: Forget or a withdrawn
+     * consent mid-utterance stops the rest (CANCELLED, never a fallback, and never a request
+     * signed with a key that has just been deleted).
+     */
+    private suspend fun run(
+        text: String,
+        s: SpeechSynth,
+        rate: Double,
+        checking: Boolean,
+        regate: (suspend () -> SpeechSynth?)? = null,
+    ): SpeakResult {
         cancel() // a new utterance replaces the one in progress
         val op = Op()
         active.set(op)
@@ -126,10 +137,13 @@ class HostedSpeaker(
                 return result.copy(failure = SpeakFailure.FOCUS_DENIED, message = "Another app holds the audio; nothing was said.")
             }
             for ((i, chunk) in chunks.withIndex()) {
+                val current = if (i == 0 || regate == null) s else regate() ?: return result.copy(
+                    status = SpeakStatus.CANCELLED, message = "Hosted speech was turned off.",
+                )
                 val outcome: Throwable? = coroutineScope {
                     val work = async {
                         try {
-                            player.play(s.synthesize(chunk, rate))
+                            player.play(current.synthesize(chunk, rate))
                             null
                         } catch (e: CancellationException) {
                             throw e
@@ -280,11 +294,13 @@ fun whisperFrom(
     ring: JsonElement?,
     prefs: Prefs,
     clients: ClientFactory = ClientFactory.DEFAULT,
+    /** Re-read before every upload (see WhisperListener.allowed): the live consent and key. */
+    stillAllowed: suspend () -> Boolean = { true },
     source: () -> PcmSource,
 ): WhisperListener? {
     val stt = ring["stt"]
     if (!prefs.hostedTranscriptionAllowed) return null
     if (stringOf(stt["kind"]) !in STT_PRESETS || stringOf(stt["apiKey"]).isNullOrBlank()) return null
     val transcriber = transcriberFromKeyring(ring, clients = clients)
-    return WhisperListener(source, transcribe = { audio, mime -> transcriber.transcribe(audio, mime) })
+    return WhisperListener(source, transcribe = { audio, mime -> transcriber.transcribe(audio, mime) }, allowed = stillAllowed)
 }

@@ -179,7 +179,7 @@
     <string name="speech_enabled">OpenAI speech is enabled.</string>
     <string name="speech_not_enabled">OpenAI speech is not enabled; replies use the device voice.</string>
     <string name="stt_title">Transcription fallback</string>
-    <string name="stt_hint">Used only when this device has no working speech recogniser: hands-free answers are recorded and sent to the service you choose, with its own key.</string>
+    <string name="stt_hint">Used only when the speech recogniser on this device is missing or cannot recognise your language: hands-free answers are recorded and sent to the service you choose, with its own key.</string>
     <string name="stt_off">Off</string>
     <string name="stt_key">Transcription key (not your interview key)</string>
     <string name="stt_consent">I agree that recorded audio is sent to this service, and that it is metered.</string>

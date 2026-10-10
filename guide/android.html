@@ -114,17 +114,22 @@
                 (never your interview key), three consents (an AI-generated voice, the spoken
                 text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
                 OpenAI audio on the phone. Changing the key or the voice, unticking a consent
-                or Forget turns it off until the next passing check. If OpenAI fails during an
+                or Forget turns it off until the next passing check; unticking a consent or
+                Forget also stops anything being spoken and pauses a voice interview. If OpenAI fails during an
                 interview, the phone&rsquo;s voice takes over and the voice stage says so; Pause
                 never switches voices.</td>
             </tr>
             <tr>
               <th scope="row">Transcription fallback</th>
-              <td>Only for phones with no working speech recogniser. In Settings, choose Groq
+              <td>Only for phones whose speech recogniser is missing, or reports that it
+                cannot recognise your language; the next voice interview tries the recogniser
+                again. In Settings, choose Groq
                 Whisper or OpenAI, paste a key for that service alone and agree to send
                 recorded audio. Hands-free answers are then recorded (at most 45 seconds per
-                segment and 120 seconds per answer) and transcribed. On a phone whose
-                recogniser works, nothing is recorded or sent.</td>
+                segment and 120 seconds per answer) and transcribed. While the recogniser is
+                working, nothing is recorded or sent. Unticking the consent or Forget stops the
+                next upload and pauses the interview; Pause keeps what was already
+                transcribed as your draft.</td>
             </tr>
             <tr>
               <th scope="row">Signed release</th>

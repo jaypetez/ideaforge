@@ -104,8 +104,14 @@ class WhisperListener(
     private val maxAnswerMs: Long = 120_000,
     private val maxBytes: Int = MAX_AUDIO_BYTES,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /**
+     * Re-read before every upload: false once Forget ran or the audio consent was withdrawn.
+     * The capture then stops as a cancellation (AbortError), and nothing more is sent.
+     */
+    private val allowed: suspend () -> Boolean = { true },
 ) {
-    suspend fun listenForDrive(trigger: String, firstWordMs: Long): String {
+    /** [onText] receives the accumulated transcript after each segment: the live caption. */
+    suspend fun listenForDrive(trigger: String, firstWordMs: Long, onText: (String) -> Unit = {}): String {
         val mic = source()
         if (!mic.start()) throw ListenFailure("The microphone is unavailable.", name = "AudioCaptureError")
         val frame = ShortArray(mic.sampleRate / 50) // 20 ms
@@ -147,6 +153,7 @@ class WhisperListener(
                     if (answer.isEmpty()) return ""
                     continue
                 }
+                if (!allowed()) throw ListenFailure("Transcription was turned off.", name = "AbortError")
                 val text = try {
                     transcribe(pcmWav(pcm.toByteArray(), mic.sampleRate), "audio/wav").trim()
                 } catch (e: CancellationException) {
@@ -155,6 +162,7 @@ class WhisperListener(
                     throw ListenFailure(e.message ?: "Transcription failed.", name = "TranscriptionError")
                 }
                 if (text.isNotEmpty()) answer = if (answer.isEmpty()) text else "$answer $text"
+                onText(answer)
                 val parsed = parseSpeech(answer, trigger)
                 if (parsed.stopped || (answer.isNotEmpty() && parsed.kind != "answer")) return answer
             }

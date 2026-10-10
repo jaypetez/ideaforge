@@ -517,11 +517,16 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   Settings check, through `withTts`) and `hostedSpeechAllowed`. The check runs on the hosted
   backend alone, so a fallback can never pass it; a key or voice change clears `verified` at
   once. A live failure falls back to the native `Speaker` with `SpeakResult.fallback` set,
-  which the voice stage shows; cancellation and lost focus never fall back.
+  which the voice stage shows; cancellation and lost focus never fall back. The gate is
+  re-read before every chunk. Forget calls `KeyringStore.revoke()` before anything suspends,
+  and a Settings check or transcription save writes only through `saveIf` with the
+  generation it started under, so Forget mid-check cannot put a deleted key back.
 - **`WhisperMicrophone.kt` is the only file allowed an `AudioRecord`** (`RecognizerAudioTest`
   names it). The Whisper fallback runs only when `isRecognitionAvailable` is false or a
   capture fails `LanguageUnavailable`, after the recogniser is released, and only with
-  `hostedTranscriptionAllowed` and the keyring's own `stt` key. Forget clears both consents.
+  `hostedTranscriptionAllowed` and the keyring's own `stt` key, re-checked before every upload.
+  `recognizerUnavailable` resets on every drive, and Pause/Exit keep Whisper's transcribed
+  segments as the draft. Forget clears both consents.
 - **Windows test hosts have two known quirks; do not loosen a test around them.**
   Defender and the indexer briefly lock fresh files, so `writeAtomicallyWith` retries a
   transient rename failure on Windows only (six attempts, backed off; one attempt

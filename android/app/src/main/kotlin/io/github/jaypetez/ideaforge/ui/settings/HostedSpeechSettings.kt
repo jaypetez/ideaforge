@@ -126,6 +126,8 @@ class HostedSpeechViewModel(
     private val prefsStore: PrefsStore,
     private val keyring: KeyringStore,
     private val previewer: SpeechPreviewer,
+    /** Hosted speech was withdrawn: stop what is speaking and pause an active drive. */
+    private val onRevoke: (String) -> Unit = {},
 ) : ViewModel() {
     private val local = MutableStateFlow(SpeechLocal())
 
@@ -172,12 +174,17 @@ class HostedSpeechViewModel(
     )
 
     /** Keyring writes refuse an unreadable ring: saving would replace every other record. */
-    private suspend fun saveRing(next: JsonElement): Boolean {
+    private suspend fun saveRing(next: JsonElement, generation: Long = keyring.generation.value): Boolean {
         if (keyring.state.value.status == KeyringState.Status.UNREADABLE) {
             note("The saved keys could not be read, so nothing was changed. Fix the connection first.")
             return false
         }
-        keyring.save(next)
+        // Refused when a Forget began after [generation] was read: writing now would put a
+        // deleted key back on disk.
+        if (!keyring.saveIf(generation, next)) {
+            note("The keys were deleted meanwhile, so nothing was saved.")
+            return false
+        }
         return true
     }
 
@@ -222,9 +229,11 @@ class HostedSpeechViewModel(
 
     /** revokeHostedSpeech: permission first, then the record, so a half-done revoke is still off. */
     private suspend fun revoke(kind: String, message: String) {
+        val wasEnabled = state.value.enabled
         epoch++
         check?.cancel()
         val allowedSaved = prefsStore.update { it.copy(hostedSpeechAllowed = false) }
+        if (wasEnabled) runCatching { onRevoke("Hosted speech is disabled. Tap Resume to continue with the device voice.") }
         saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), state.value.voice, verified = false)))
         note(if (allowedSaved) message else "$message Its permission preference could not be updated.")
     }
@@ -244,6 +253,7 @@ class HostedSpeechViewModel(
             return null
         }
         val my = ++epoch
+        val generation = keyring.generation.value
         val voice = s.voice
         local.update { it.copy(checking = true, notice = "Checking one short, metered speech sample…") }
         return viewModelScope.launch {
@@ -260,11 +270,16 @@ class HostedSpeechViewModel(
                     )
                     return@launch
                 }
-                if (!saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = true)))) return@launch
-                if (my != epoch) return@launch
+                if (!saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = true)), generation)) return@launch
+                if (my != epoch || keyring.generation.value != generation) return@launch
                 if (!prefsStore.update { it.copy(hostedSpeechAllowed = true) }) {
                     saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = false)))
                     note("The preview played, but permission could not be saved. The device voice remains active.")
+                    return@launch
+                }
+                if (keyring.generation.value != generation) {
+                    // Forget began while the permission was being written: take it back.
+                    prefsStore.update { it.copy(hostedSpeechAllowed = false) }
                     return@launch
                 }
                 local.update { it.copy(keyDraft = "", consents = null) }
@@ -288,31 +303,41 @@ class HostedSpeechViewModel(
     fun setAudioConsent(on: Boolean): Job = viewModelScope.launch { prefsStore.update { it.copy(hostedTranscriptionAllowed = on) } }
 
     /** withStt: its own record and key. A changed vendor never inherits the old vendor's key. */
-    fun saveTranscription(): Job = viewModelScope.launch {
+    fun saveTranscription(): Job {
+        val generation = keyring.generation.value
+        return viewModelScope.launch { saveTranscription(generation) }
+    }
+
+    private suspend fun saveTranscription(generation: Long) {
         val s = state.value
         val stt = ring()["stt"]
         val sameKind = s.sttKind != null && s.sttKind == stringOf(stt["kind"])
         val key = s.sttKeyDraft.trim().ifEmpty { if (sameKind) stringOf(stt["apiKey"]).orEmpty() else "" }
         if (s.sttKind != null && key.isEmpty()) {
             note("Transcription needs its own key.")
-            return@launch
+            return
         }
         val rec = JsonObject(
             linkedMapOf("kind" to (s.sttKind?.let(::JsonPrimitive) ?: JsonNull), "apiKey" to JsonPrimitive(if (s.sttKind == null) "" else key)),
         )
-        if (!saveRing(withStt(ring(), rec))) return@launch
+        if (!saveRing(withStt(ring(), rec), generation)) return
         if (s.sttKind == null) prefsStore.update { it.copy(hostedTranscriptionAllowed = false) }
         local.update { it.copy(sttKeyDraft = "", sttKindSet = false) }
-        note(if (s.sttKind == null) "Transcription is off." else "Transcription saved. It is used only when this device has no speech recogniser.")
+        note(if (s.sttKind == null) "Transcription is off." else "Transcription saved. It is used only when the speech recogniser is missing or cannot recognise your language.")
     }
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
-                HostedSpeechViewModel(graph.prefsStore, graph.keyringStore) { key, voice, rate ->
-                    graph.hostedSpeaker.check(checkSynth(key, voice, rate), rate)
-                }
+                HostedSpeechViewModel(
+                    graph.prefsStore, graph.keyringStore,
+                    previewer = { key, voice, rate -> graph.hostedSpeaker.check(checkSynth(key, voice, rate), rate) },
+                    onRevoke = { detail ->
+                        graph.hostedSpeaker.cancel()
+                        graph.driveController.pauseFor(detail)
+                    },
+                )
             }
         }
     }
