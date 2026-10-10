@@ -56,6 +56,8 @@ import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.startGate
+import io.github.jaypetez.ideaforge.ui.result.ResultScreen
+import io.github.jaypetez.ideaforge.ui.result.ResultViewModel
 import io.github.jaypetez.ideaforge.ui.settings.BackupSection
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -174,7 +176,20 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 )
             }
             composable<ResultRoute> { backStack ->
-                ResultPlaceholder(backStack.toRoute<ResultRoute>())
+                val route = backStack.toRoute<ResultRoute>()
+                val vm: ResultViewModel = viewModel(key = route.sessionId, factory = ResultViewModel.factory(route.sessionId))
+                ResultScreen(
+                    vm,
+                    onBack = { nav.popBackStack() },
+                    // "Ask me more": the reopened idea's interview replaces the result.
+                    onAskMore = {
+                        nav.navigate(InterviewRoute(route.sessionId)) {
+                            popUpTo<ResultRoute> { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier.consumeWindowInsets(padding),
+                    synthesisFailed = route.synthesisFailed,
+                )
             }
             composable<SettingsRoute> {
                 SettingsScreen(viewModel(factory = SettingsViewModel.Factory))
@@ -212,31 +227,5 @@ private fun SettingsScreen(vm: SettingsViewModel) {
         )
         // Here until the full settings screen (#88) gives backups their permanent place.
         BackupSection()
-    }
-}
-
-/**
- * Stands in for the Result screen until #86 builds it: the idea's id, and the write-up failure
- * the interview carried over in [ResultRoute.synthesisFailed].
- */
-@Composable
-internal fun ResultPlaceholder(route: ResultRoute) {
-    Placeholder(stringResource(R.string.screen_result), route.sessionId) {
-        if (route.synthesisFailed) {
-            Text(
-                stringResource(R.string.result_synthesis_failed),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.testTag("synthesis-failed"),
-            )
-        }
-    }
-}
-
-@Composable
-private fun Placeholder(title: String, detail: String, actions: @Composable () -> Unit = {}) {
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-        Text(detail, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        actions()
     }
 }

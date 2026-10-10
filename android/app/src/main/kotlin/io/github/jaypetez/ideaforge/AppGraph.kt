@@ -14,6 +14,7 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
+import io.github.jaypetez.ideaforge.ui.result.ResultActions
 import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,5 +90,7 @@ class IdeaForgeApp : Application() {
         graph.appScope.launch { graph.sessionStore.load() }
         // Never throws: an unreadable keyring reads as none, and says so in its state.
         graph.appScope.launch { graph.keyringStore.load() }
+        // Shared exports older than a day are no longer anyone's to read (ResultActions).
+        graph.appScope.launch { ResultActions.pruneShares(this@IdeaForgeApp, graph.clock.now()) }
     }
 }

@@ -30,5 +30,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Share .md on the result screen: hands the chooser a content URI for the one
+             export file it wrote under cache/exports (res/xml/export_paths.xml), with a
+             read grant on the intent. Not exported; nothing else is reachable through it. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.exports"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/export_paths" />
+        </provider>
     </application>
 </manifest>

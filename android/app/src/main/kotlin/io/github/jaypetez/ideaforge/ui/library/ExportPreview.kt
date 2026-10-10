@@ -26,11 +26,12 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 
 /**
- * A read-only rendering of the export markdown, for the library's detail pane.
+ * A read-only rendering of the export markdown: the library's detail pane and the result
+ * screen's document (which wraps it in a SelectionContainer and a scroll).
  *
  * The blocks come from `core`'s [renderBlocks], the same parser the web's `#output` uses, so
- * the preview and the downloaded file are one document. This is deliberately plain: the
- * Result screen (#86) owns the full presentation, copy and share.
+ * what is shown and the file that is saved or shared are one document. Every span goes in as
+ * text: the blocks carry model output, and nothing here interprets it as markup.
  */
 @Composable
 fun ExportPreview(markdown: String, modifier: Modifier = Modifier) {

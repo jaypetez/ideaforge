@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the result screen's FileProvider may hand out: the one cache subdirectory Share
+     writes its .md into (ResultActions.SHARE_DIR). Not files/, so no session file and not
+     the keyring can ever be reached through a share URI. -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>
