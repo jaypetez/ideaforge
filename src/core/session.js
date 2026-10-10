@@ -11,7 +11,7 @@
 //      Prompt construction must be a pure function of session state so an
 //      interrupted call can be replayed from cache for free (see engine.promptHash).
 
-import { DIMENSIONS, DIMENSION_IDS, LEVEL_RANK, getDimension } from './dimensions.js';
+import { DIMENSIONS, DIMENSION_IDS, LEVELS, LEVEL_RANK, STATUSES, getDimension } from './dimensions.js';
 
 export const SCHEMA = 2;
 export const MAX_SESSION_NAME = 120;
@@ -333,7 +333,14 @@ export function migrate(stored) {
   merged.coverage = { ...base.coverage };
   for (const id of DIMENSION_IDS) {
     if (isRecord(stored.coverage) && isRecord(stored.coverage[id])) {
-      merged.coverage[id] = { ...base.coverage[id], ...stored.coverage[id] };
+      const entry = { ...base.coverage[id], ...stored.coverage[id] };
+      // A level or status outside the known sets disables the ratchet rather than failing:
+      // every rank comparison against `undefined` is false, so a single claim could take
+      // every dimension straight to `covered` in one turn without counting as a rise.
+      // Sessions arrive here from backups, so they are untrusted; reset rather than guess.
+      if (!LEVELS.includes(entry.level)) entry.level = 'thin';
+      if (!STATUSES.includes(entry.status)) entry.status = 'probing';
+      merged.coverage[id] = entry;
     }
   }
   const synthesis = isRecord(stored.synthesis) ? stored.synthesis : {};

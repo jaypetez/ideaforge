@@ -40,6 +40,13 @@ class VectorSuiteTest {
         assertEquals(case.expect["value"], port(case), case.name)
     }
 
+    /** A constant still listed as owed but already ported would skip a working case for ever. */
+    @Test
+    fun noPendingConstantIsAlreadyPorted() {
+        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in CONSTANTS_PORTED }
+        assertTrue(ported.isEmpty(), "ported but still listed as pending: $ported")
+    }
+
     /** Nothing is skipped silently: every recorded function is either ported or owed. */
     @Test
     fun everyRecordedFunctionIsPortedOrOwedToAnIssue() {

@@ -88,11 +88,8 @@ fun toNumber(e: JsonElement?): Double = when (e) {
     null -> Double.NaN
     JsonNull -> 0.0
     is JsonObject -> Double.NaN
-    is JsonArray -> when (e.size) {
-        0 -> 0.0
-        1 -> toNumber(e[0])
-        else -> Double.NaN
-    }
+    // ToPrimitive of an array is its join, so [5] is 5, [] is 0 and [true] is NaN.
+    is JsonArray -> stringToNumber(jsString(e))
     is JsonPrimitive -> when {
         e.isString -> stringToNumber(e.content)
         e.booleanOrNull != null -> if (e.booleanOrNull!!) 1.0 else 0.0
@@ -100,15 +97,23 @@ fun toNumber(e: JsonElement?): Double = when (e) {
     }
 }
 
+private val DECIMAL = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
+private val HEX = Regex("^0[xX][0-9a-fA-F]+$")
+private val BIN = Regex("^0[bB][01]+$")
+private val OCT = Regex("^0[oO][0-7]+$")
+
+/** JS StringToNumber: decimal (signed), Infinity, or unsigned 0x/0b/0o of any length. */
 private fun stringToNumber(s: String): Double {
     val t = jsTrim(s)
     if (t.isEmpty()) return 0.0
     return when {
-        t.startsWith("0x") || t.startsWith("0X") -> t.substring(2).toLongOrNull(16)?.toDouble() ?: Double.NaN
+        HEX.matches(t) -> java.math.BigInteger(t.substring(2), 16).toDouble()
+        BIN.matches(t) -> java.math.BigInteger(t.substring(2), 2).toDouble()
+        OCT.matches(t) -> java.math.BigInteger(t.substring(2), 8).toDouble()
         t == "Infinity" || t == "+Infinity" -> Double.POSITIVE_INFINITY
         t == "-Infinity" -> Double.NEGATIVE_INFINITY
         // Kotlin accepts forms JS does not (a trailing 'd' or 'f'), so filter first.
-        Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""").matches(t) -> t.toDouble()
+        DECIMAL.matches(t) -> t.toDouble()
         else -> Double.NaN
     }
 }
@@ -117,18 +122,53 @@ private fun stringToNumber(s: String): Double {
 fun jsGreater(a: JsonElement?, b: Double): Boolean = toNumber(a) > b
 
 /**
- * A JS number as JSON. JSON.stringify writes integral values without a fraction and turns
- * NaN and the infinities into null, so the port must too.
+ * JS `Number.prototype.toString()` for a finite double: the shortest digits that round-trip
+ * (what JDK 19+ Double.toString produces), laid out by the ECMAScript rules: plain decimal
+ * from 1e-6 up to (not including) 1e21, exponent form like `1e+21` and `1.5e-7` outside it.
  */
-fun jsNumber(d: Double): JsonElement = when {
-    d.isNaN() || d.isInfinite() -> JsonNull
-    d == Math.rint(d) && Math.abs(d) < 9.007199254740992E15 -> JsonPrimitive(d.toLong())
-    else -> JsonPrimitive(d)
+fun jsNumberString(d: Double): String {
+    if (d.isNaN()) return "NaN"
+    if (d.isInfinite()) return if (d > 0) "Infinity" else "-Infinity"
+    if (d == 0.0) return "0"                       // and -0, which JS also prints as "0"
+    val sign = if (d < 0) "-" else ""
+    var bd = java.math.BigDecimal(java.lang.Double.toString(Math.abs(d))).stripTrailingZeros()
+    // Java's scientific form always keeps a digit after the point, so it can print two
+    // significant digits where one already round-trips (4.9E-324 for JS's 5e-324).
+    if (bd.precision() == 2) {
+        val one = bd.round(java.math.MathContext(1, java.math.RoundingMode.HALF_EVEN))
+        if (one.toDouble() == Math.abs(d)) bd = one.stripTrailingZeros()
+    }
+    val digits = bd.unscaledValue().toString()
+    val k = digits.length
+    val n = k - bd.scale()                         // value = 0.digits × 10^n
+    val body = when {
+        n in k..21 -> digits + "0".repeat(n - k)
+        n in 1..21 -> digits.substring(0, n) + "." + digits.substring(n)
+        n in -5..0 -> "0." + "0".repeat(-n) + digits
+        else -> {
+            val e = n - 1
+            val exp = (if (e >= 0) "+" else "-") + Math.abs(e)
+            if (k == 1) digits + "e" + exp else digits[0] + "." + digits.substring(1) + "e" + exp
+        }
+    }
+    return sign + body
 }
 
-/** JS `a + 1` for the counters the core keeps (turnsSpent, rev): a string concatenates. */
-fun jsPlus(a: JsonElement?, n: Int): JsonElement =
-    if (isString(a)) JsonPrimitive((a as JsonPrimitive).content + n) else jsNumber(toNumber(a) + n)
+/**
+ * A JS number as JSON. JSON.stringify writes numbers with Number#toString and turns NaN and
+ * the infinities into null, so the port must too; Kotlin's own formatting (1.0E16) would
+ * differ from the JS (10000000000000000) in every export and backup.
+ */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+fun jsNumber(d: Double): JsonElement =
+    if (d.isNaN() || d.isInfinite()) JsonNull else kotlinx.serialization.json.JsonUnquotedLiteral(jsNumberString(d))
+
+/** JS `a + n` for the counters the core keeps (turnsSpent, rev). Strings, arrays and objects
+ *  become strings first and concatenate, as ToPrimitive makes them do. */
+fun jsPlus(a: JsonElement?, n: Int): JsonElement = when {
+    isString(a) || a is JsonArray || a is JsonObject -> JsonPrimitive(jsString(a) + n)
+    else -> jsNumber(toNumber(a) + n)
+}
 
 /** JS `String(v)`. */
 fun jsString(e: JsonElement?): String = when (e) {
@@ -139,15 +179,8 @@ fun jsString(e: JsonElement?): String = when (e) {
     is JsonPrimitive -> when {
         e.isString -> e.content
         e.booleanOrNull != null -> e.content
-        else -> numberToString(e.doubleOrNull ?: Double.NaN, e.content)
+        else -> jsNumberString(e.doubleOrNull ?: Double.NaN)
     }
-}
-
-private fun numberToString(d: Double, raw: String): String = when {
-    d.isNaN() -> "NaN"
-    d.isInfinite() -> if (d > 0) "Infinity" else "-Infinity"
-    d == Math.rint(d) && Math.abs(d) < 1e21 -> d.toLong().toString()
-    else -> raw
 }
 
 /** Strict equality against a string, as JS `v === 'x'`. */
@@ -195,7 +228,14 @@ fun num(n: Number): JsonElement = jsNumber(n.toDouble())
 fun bool(b: Boolean): JsonElement = JsonPrimitive(b)
 
 /** A destructured option with a JS default: the default applies only when the key is missing. */
+@JvmName("optOrUndefined")
 fun JsonElement?.opt(key: String, default: JsonElement?): JsonElement? {
     val o = this as? JsonObject ?: return default
     return if (key in o) o[key] else default
+}
+
+/** As [opt], for a non-null default: the result is never undefined. */
+fun JsonElement?.opt(key: String, default: JsonElement): JsonElement {
+    val o = this as? JsonObject ?: return default
+    return o[key] ?: default
 }
