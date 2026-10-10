@@ -372,6 +372,11 @@ async function main() {
             '--remote-debugging-port=0',
             '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
             '--autoplay-policy=no-user-gesture-required',
+            // Motion on, whatever the host says (#108). A Windows desk with animation
+            // effects off reported reduced motion, so its runs skipped every panel entry
+            // and View Transition that a Linux CI runner then drew. motion.browser.mjs
+            // emulates the reduced case itself; tools/screenshots.mjs emulates it too.
+            '--force-prefers-no-reduced-motion',
           ],
         });
 

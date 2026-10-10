@@ -174,6 +174,7 @@ const DESTINATIONS = { ideas: 'b-library', start: 'b-nav-new', settings: 'b-sett
 function show(panel, destination) {
   for (const p of ['panel-setup', 'panel-interview', 'panel-library', 'panel-done']) {
     els[p].hidden = p !== panel;
+    if (p !== panel) delete els[p].dataset.enter;
   }
   const name = panel.replace(/^panel-/, '');
   document.body.dataset.panel = name;
@@ -197,6 +198,7 @@ function show(panel, destination) {
     shownView = view;
     say('');
     fail(null);
+    enterPanel(els[panel]);
   }
   if (name === 'setup' || name === 'library') state.doneFailure = null;
   for (const [key, id] of Object.entries(DESTINATIONS)) {
@@ -219,6 +221,146 @@ function show(panel, destination) {
 
 /** The screen show() last drew, as `panel:destination`, so re-showing it clears nothing. */
 let shownView = null;
+
+/**
+ * The panel's entry animation, started by the attribute app.css keys `panel-in` off.
+ *
+ * Set synchronously inside show(), so it can never delay what show()'s caller does next:
+ * focus, a speech prime or navigator.share all happen in the same task, on a panel that is
+ * already displayed and focusable while its opacity eases in. Start and Settings share
+ * #panel-setup, which stays displayed between the two, so the attribute is cleared and the
+ * style flushed to restart it. Skipped while a View Transition is drawing the change: that
+ * crossfade is the motion, and a slide inside it would be a second one. Reduced motion is
+ * app.css's business — the rule only exists under `prefers-reduced-motion: no-preference`.
+ */
+function enterPanel(panel) {
+  if (transitioning) return;
+  if ('enter' in panel.dataset) {
+    delete panel.dataset.enter;
+    void panel.offsetWidth;
+  }
+  panel.dataset.enter = '';
+}
+
+/** True while a navigateTo() View Transition's update is running. */
+let transitioning = false;
+
+/**
+ * Whether a navigation may run as a same-document View Transition.
+ *
+ * Every condition is a reason the transition would do harm, not a nicety. Missing API:
+ * nothing to call. Reduced motion: the crossfade is exactly the motion asked away. Voice:
+ * the update callback runs a frame AFTER the click, with rendering paused until it settles,
+ * so the gesture that primes speech output or holds the microphone is gone by then — and a
+ * spoken interview has nothing to look at changing anyway. The nav buttons are hidden on
+ * the voice stage; this also covers a run still starting, a hands-free loop, a press-to-talk
+ * capture and a speech preview.
+ */
+function transitionAllowed() {
+  if (typeof document.startViewTransition !== 'function') return false;
+  const media = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (media && media.matches) return false;
+  const voiceRun = state.voiceMode !== 'manual' || !!state.drive || !!state.voiceSetup
+    || state.capturePending || !!state.previewSpeech || !els['voice-stage'].hidden;
+  return !voiceRun;
+}
+
+/**
+ * Run a navigation, as a View Transition when transitionAllowed() says it is safe.
+ *
+ * Only the three navigation buttons call this (Ideas, which is also the back arrow on a
+ * detail screen, New idea and Settings). Never wrap a handler that needs its gesture —
+ * Start voice, Resume and Preview prime speech synchronously, Share calls navigator.share
+ * before its first await — because startViewTransition defers its update past the click.
+ *
+ * `open` is called at once, inside the click, so it claims state.navigation before anything
+ * else can: a later tap — Continue, Start, another nav button — bumps the count and wins,
+ * exactly as without a transition. The guard is read here too, before open's own
+ * teardownVoice() would make a voice run look finished. What it is handed is `swap`, the
+ * one moment the screen changes; see transitionSwap.
+ */
+function navigateTo(open) {
+  return open(transitionAllowed() ? transitionSwap : directSwap);
+}
+
+/** A screen change with no transition: just make it. */
+function directSwap(change) {
+  return change();
+}
+
+/** `swap` if it is one of the two above; a click event or library callback argument is not. */
+function swapWith(swap, change) {
+  return (swap === transitionSwap ? transitionSwap : directSwap)(change);
+}
+
+/**
+ * Make one synchronous screen change inside a View Transition, and resolve with what
+ * `change` returned once it has run.
+ *
+ * Only the swap is inside: the IndexedDB write before it and the reads after it are not.
+ * While an update is pending the browser holds a frozen frame and every tap reaches nothing,
+ * so wrapping a whole navigation would hide the library's skeletons and swallow taps for as
+ * long as storage took. `change` returns false when its navigation was superseded in the
+ * frame before the update ran; the transition is skipped then, since an overlay with
+ * nothing to animate would still swallow taps for its length.
+ *
+ * `change` runs exactly once whatever happens to the transition: skipped, aborted or
+ * refused outright, the browser still calls the update, and a refusal falls back to a plain
+ * call. So app state never depends on the animation. The transition's ready/finished
+ * rejections are only about the animation and are swallowed.
+ */
+function transitionSwap(change) {
+  let ran = false;
+  let result;
+  let transition;
+  const update = () => {
+    ran = true;
+    transitioning = true;
+    try {
+      result = change();
+    } finally {
+      transitioning = false;
+    }
+    if (result === false && transition) transition.skipTransition();
+  };
+  try {
+    transition = document.startViewTransition(update);
+  } catch {
+    return ran ? result : change();
+  }
+  if (!transition) return ran ? result : change();
+  for (const done of [transition.ready, transition.finished]) {
+    if (done && typeof done.catch === 'function') done.catch(() => {});
+  }
+  return Promise.resolve(transition.updateCallbackDone).then(() => (ran ? result : change()));
+}
+
+/**
+ * After a navigation, put focus on the destination's heading, so a screen reader announces
+ * where the button went and the next Tab starts at the top of the new screen rather than
+ * back in the navigation bar. Unless focus is already somewhere inside the destination:
+ * someone who tapped into the library search while the list was loading keeps it.
+ * Interview and Done are reached by other routes and keep their own deliberate targets
+ * (#answer, the Done primary, the voice stage's Pause).
+ */
+function focusHeading(panel) {
+  const root = els[panel];
+  if (root.hidden) return;
+  // Start and Settings share #panel-setup, so the heading of the view just left is "inside"
+  // too — and is now display:none, which has already dropped focus to <body>.
+  const active = document.activeElement;
+  if (root.contains(active) && active.getClientRects().length > 0
+      && !active.matches('h2[tabindex="-1"]')) return;
+  const heading = panel === 'panel-setup'
+    ? root.querySelector(root.dataset.view === 'settings'
+      ? ':scope > h2.settings-only' : '.start-hero h2')
+    : root.querySelector('h2[tabindex="-1"]');
+  // preventScroll: this runs after the destination's data has loaded, by which time the
+  // person may already be scrolling or reaching for a control. Moving focus must not move
+  // the page out from under that tap.
+  if (heading) heading.focus({ preventScroll: true });
+}
 
 /**
  * Done has one primary action, and it is the one this browser can actually do best.
@@ -2149,17 +2291,26 @@ async function refreshLibrary() {
   }
 }
 
-async function openLibrary() {
+/**
+ * The Ideas destination. `swap` makes the screen change (navigateTo passes a View
+ * Transition's); anything else — a click event, nothing — means a plain change.
+ */
+async function openLibrary(swap) {
   const navigation = ++state.navigation;
   teardownVoice();
   say('');
   fail(null);
   if (!(await flushDraft())) return;
   if (navigation !== state.navigation) return;
-  show('panel-library');
-  state.library.loading();
+  const shown = await swapWith(swap, () => {
+    if (navigation !== state.navigation) return false;
+    show('panel-library');
+    state.library.loading();
+    return true;
+  });
+  if (!shown) return;
   await refreshLibrary();
-  if (navigation === state.navigation) state.library.focus();
+  if (navigation === state.navigation) focusHeading('panel-library');
 }
 
 async function editLibrarySession(session, { name, tags }) {
@@ -2279,20 +2430,45 @@ function setupLibrary() {
     onBackup: exportLibraryBackup,
     onImport: importLibraryBackup,
     onError: fail,
-    onNew: openStart,
+    onNew: () => openStart(),
   });
 }
 
 /** The New idea destination: the start screen, from anywhere. */
-async function openStart() {
+async function openStart(swap) {
   const navigation = ++state.navigation;
   teardownVoice();
   say('');
   fail(null);
   if (!(await flushDraft())) return;
   if (navigation !== state.navigation) return;
-  show('panel-setup', 'start');
+  const shown = await swapWith(swap, () => {
+    if (navigation !== state.navigation) return false;
+    show('panel-setup', 'start');
+    return true;
+  });
+  if (!shown) return;
   await renderResumeList();
+  if (navigation === state.navigation) focusHeading('panel-setup');
+}
+
+/** The Settings destination. */
+async function openSettings(swap) {
+  const navigation = ++state.navigation;
+  teardownVoice();
+  say('');
+  fail(null);
+  if (!(await flushDraft())) return;
+  if (navigation !== state.navigation) return;
+  const shown = await swapWith(swap, () => {
+    if (navigation !== state.navigation) return false;
+    show('panel-setup', 'settings');
+    renderSpeechSettings();
+    return true;
+  });
+  if (!shown) return;
+  await renderResumeList();
+  if (navigation === state.navigation) focusHeading('panel-setup');
 }
 
 function renderInstall(info = state.install && state.install.state()) {
@@ -2732,20 +2908,11 @@ function bind() {
     dismissWrapOffer();
     if (!els.answer.disabled) els.answer.focus();
   };
-  els['b-library'].onclick = openLibrary;
-  els['b-nav-new'].onclick = () => openStart().catch(fail);
-  els['b-view-all'].onclick = openLibrary;
-  els['b-settings'].onclick = async () => {
-    const navigation = ++state.navigation;
-    teardownVoice();
-    say('');
-    fail(null);
-    if (!(await flushDraft())) return;
-    if (navigation !== state.navigation) return;
-    show('panel-setup', 'settings');
-    renderSpeechSettings();
-    await renderResumeList();
-  };
+  // The navigation bar, and only it, may animate as a View Transition (see navigateTo).
+  els['b-library'].onclick = () => navigateTo(openLibrary);
+  els['b-nav-new'].onclick = () => Promise.resolve(navigateTo(openStart)).catch(fail);
+  els['b-settings'].onclick = () => navigateTo(openSettings);
+  els['b-view-all'].onclick = () => openLibrary();
   // Every Done action closes the overflow menu first, synchronously: focus goes back to the
   // trigger before the panel can change, and Share still reaches navigator.share inside the
   // click — closeDoneMenu() is hidePopover(), and shareSession() calls shareTextFile(), which

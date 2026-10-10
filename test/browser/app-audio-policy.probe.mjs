@@ -27,6 +27,17 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   // are put back exactly as the app left them before the real click goes in (#100).
   const intercepted = [];
   async function click(selector) {
+    // A navigation may still be crossfading (#108). While a View Transition is active the
+    // browser hit-tests the root, so a person's tap there reaches nothing; wait it out as
+    // they would, rather than reporting the overlay as the toast region.
+    await cdp.evaluate(`new Promise((resolve) => {
+      const end = performance.now() + 3000;
+      (function wait() {
+        if (!document.documentElement.matches(':active-view-transition')
+          || performance.now() > end) resolve();
+        else setTimeout(wait, 20);
+      })();
+    })`);
     await cdp.evaluate(`document.querySelector(${JSON.stringify(selector)})
       .scrollIntoView({ block: 'center', behavior: 'instant' })`);
     const hit = await cdp.evaluate(`(() => {
