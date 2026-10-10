@@ -20,14 +20,22 @@ class MainActivity : ComponentActivity() {
         DebugProviders.fromLaunch(this, intent?.getStringExtra("provider"))?.let {
             (application as IdeaForgeApp).graph.providerSource = it
         }
+        // Debug builds only: `--es probe recognizer` opens the SpeechRecognizer probe (#89)
+        // over the app. The release DebugProbes opens nothing.
+        if (savedInstanceState == null) DebugProbes.fromLaunch(this, intent)
         val prefs = (application as IdeaForgeApp).graph.prefsStore.prefs
         setContent {
             // The stored theme choice (Settings, Appearance). The system bars follow it too:
             // enableEdgeToEdge alone picks their icon colour from the system's mode, which
             // leaves dark icons on a dark app when the phone is light.
+            // Posted to the main thread: enableEdgeToEdge touches the window's views, and the
+            // LaunchedEffect that reports the theme is not guaranteed to run there (under
+            // Robolectric's compose clock it did not, and the view system threw).
             PrefsTheme(prefs, onDark = { dark ->
-                val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
-                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                runOnUiThread {
+                    val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
+                    enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                }
             }) { AppShell() }
         }
     }

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only additions, merged over src/main. The recognizer probe (issue #89) and every
+     permission it needs live here, so a release APK carries neither the probe nor a
+     microphone permission. Native capture (#91) and the drive service (#92) will move the
+     permissions they actually need into src/main when they land. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Package visibility (API 30+): without these the recognizer service and the
+         RecognizerIntent activities are invisible to queryIntentServices/Activities, and
+         isRecognitionAvailable can answer false on a phone that has one. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application>
+        <!-- Not exported: reached only through the "probe recognizer" launch extra on MainActivity. -->
+        <activity
+            android:name=".probe.RecognizerProbeActivity"
+            android:exported="false"
+            android:label="Recognizer probe" />
+
+        <service
+            android:name=".probe.ProbeMicService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+    </application>
+</manifest>
