@@ -89,10 +89,18 @@ class RecognizerProbeTest {
         val release = File(path).readText()
         assertTrue("not the app's manifest: $path", release.contains("io.github.jaypetez.ideaforge.MainActivity"))
         val debug = File(appDir(), "src/debug/AndroidManifest.xml").readText()
-        val added = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(debug).map { it.groupValues[1] }.toList()
-        assertTrue("the deny list came out empty", added.contains("android.permission.RECORD_AUDIO"))
+        val main = File(appDir(), "src/main/AndroidManifest.xml").readText()
+        // Only what the debug manifest adds beyond main is the probe's: RECORD_AUDIO and the
+        // RecognitionService query belong to the app itself since native capture (#91).
+        fun permissions(x: String) = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(x).map { it.groupValues[1] }.toSet()
+        fun queryActions(x: String) = Regex("""<queries>(.*?)</queries>""", RegexOption.DOT_MATCHES_ALL).findAll(x)
+            .flatMap { q -> Regex("""<action\s+android:name="([^"]+)"""").findAll(q.groupValues[1]).map { it.groupValues[1] } }.toSet()
+        val added = permissions(debug) - permissions(main)
+        assertTrue("the deny list came out empty", added.isNotEmpty())
         for (permission in added) assertFalse("release asks for $permission", release.contains("\"$permission\""))
-        assertFalse("release has <queries>", release.contains("<queries"))
+        val addedQueries = queryActions(debug) - queryActions(main)
+        assertTrue("the debug manifest adds no query", addedQueries.isNotEmpty())
+        for (action in addedQueries) assertFalse("release queries $action", release.contains("\"$action\""))
         for (component in listOf(".probe.", "RecognizerProbeActivity", "ProbeMicService")) {
             assertFalse("release names $component", release.contains(component))
         }
