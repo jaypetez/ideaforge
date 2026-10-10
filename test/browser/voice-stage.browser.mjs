@@ -575,15 +575,58 @@ async function listenWithRetainedDraft(app, check, origin) {
 }
 
 function reducedMotionRules(app) {
+  return activateMediaRules(app, /prefers-reduced-motion\s*:\s*reduce/);
+}
+
+function coarsePointerRules(app) {
+  return activateMediaRules(app, /\(\s*pointer\s*:\s*coarse\s*\)/);
+}
+
+/**
+ * The bars may move only because a measured sample arrived. With no level, a CSS keyframe
+ * animation or a JS timer writing --voice-sample would be a fabricated waveform, so both
+ * must be absent: no keyframe animation on any bar, and identical transforms across two
+ * animation frames and a further pause long enough to catch an interval.
+ */
+async function checkBarsStill(app, check, label) {
+  const bars = [...app.$('voice-signal').querySelectorAll('.voice-bars span')];
+  const read = () => bars.map((bar) => app.win.getComputedStyle(bar).transform).join(' | ');
+  const frame = () => new Promise((resolve) => app.win.requestAnimationFrame(() => resolve()));
+  // Headless Chrome here can inherit the OS's reduced-motion setting, whose rule flattens
+  // every bar to `transform: none` — and a timer writing --voice-sample would then change
+  // nothing visible. Switch that rule off in this frame so the bars show their real scale.
+  const full = activateMediaRules(app, /prefers-reduced-motion\s*:\s*reduce/, 'not all');
+  try {
+    // Let any transition into that scale (or a real sample's exit to zero) finish first.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const first = read();
+    await frame();
+    await frame();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const second = read();
+    const animated = bars.filter((bar) =>
+      app.win.getComputedStyle(bar).animationName !== 'none'
+        || bar.getAnimations().some((animation) => animation instanceof app.win.CSSAnimation));
+    check(`${label}: no keyframe animation or timer moves the bars without a measured level`,
+      app.$('voice-stage').dataset.hasLevel === 'false' && bars.length > 0 && /matrix/.test(first)
+        && first === second && animated.length === 0,
+      `hasLevel=${app.$('voice-stage').dataset.hasLevel} animated=${animated.length} `
+        + `before=${first} after=${second}`);
+  } finally {
+    full.restore();
+  }
+}
+
+function activateMediaRules(app, pattern, mediaText = 'all') {
   const sheet = [...app.doc.styleSheets].find((item) =>
     item.href && new URL(item.href).pathname.endsWith('/src/ui/app.css'));
   const rules = sheet ? [...sheet.cssRules].filter((rule) =>
-    rule.type === app.win.CSSRule.MEDIA_RULE
-      && /prefers-reduced-motion\s*:\s*reduce/.test(rule.conditionText)) : [];
+    rule.type === app.win.CSSRule.MEDIA_RULE && pattern.test(rule.conditionText)) : [];
   const previous = rules.map((rule) => rule.media.mediaText);
-  // Activate the shipped rule bodies in this frame only, without fabricating replacement
-  // declarations or claiming OS-level media emulation / browser-policy coverage.
-  rules.forEach((rule) => { rule.media.mediaText = 'all'; });
+  // Activate ('all') or suppress ('not all') the shipped rule bodies in this frame only,
+  // without fabricating replacement declarations or claiming OS-level media emulation /
+  // browser-policy coverage.
+  rules.forEach((rule) => { rule.media.mediaText = mediaText; });
   return {
     count: rules.length,
     restore() { rules.forEach((rule, index) => { rule.media.mediaText = previous[index]; }); },
@@ -656,6 +699,35 @@ async function checkMeterAndLayout(app, check) {
     check(`Pause and Exit do not overlap at ${width}px`,
       pause.right <= exit.left || exit.right <= pause.left
         || pause.bottom <= exit.top || exit.bottom <= pause.top);
+  }
+  // Pause and Exit are icon-over-label circles now; the label must still be the name, and
+  // the coarse-pointer rule (activated in this frame only, as reduced motion is above) must
+  // leave both at least 48px.
+  const coarse = coarsePointerRules(app);
+  try {
+    check('the app ships an activatable coarse-pointer rule', coarse.count > 0);
+    const controls = [['b-voice-pause', /^Pause$/], ['b-voice-exit', /^Exit$/]].map(([id, name]) => {
+      const button = app.$(id);
+      const rect = button.getBoundingClientRect();
+      const icon = app.win.getComputedStyle(button, '::before');
+      return {
+        id, rect,
+        named: name.test((button.getAttribute('aria-label') || button.textContent).trim())
+          && button.getAttribute('aria-hidden') !== 'true' && visible(button),
+        icon: /data:image\/svg\+xml/.test(icon.maskImage || icon.webkitMaskImage || ''),
+      };
+    });
+    check('Pause and Exit keep their visible labels as accessible names',
+      controls.every((control) => control.named),
+      controls.map((control) => `${control.id}=${app.$(control.id).textContent}`).join(', '));
+    check('Pause and Exit each draw an icon from the local mask set',
+      controls.every((control) => control.icon) && app.$('b-voice-pause').dataset.icon === 'pause'
+        && app.$('b-voice-exit').dataset.icon === 'close');
+    check('Pause and Exit are at least 48 by 48 CSS pixels on a coarse pointer',
+      controls.every(({ rect }) => rect.width >= 48 && rect.height >= 48),
+      controls.map(({ id, rect }) => `${id} ${rect.width}x${rect.height}`).join(', '));
+  } finally {
+    coarse.restore();
   }
   app.$('b-voice-pause').focus({ focusVisible: true });
   const focus = app.win.getComputedStyle(app.$('b-voice-pause'));
@@ -734,6 +806,9 @@ export default async function run(check) {
         && !saved.turns[0].answer && !saved.turns[0].skipped
         && app.$('answer').value === PARTIAL && app.$('voice-transcript').textContent === PARTIAL;
     }))) return;
+    check('a paused stage offers Resume with a play icon',
+      app.$('b-voice-pause').textContent === 'Resume' && app.$('b-voice-pause').dataset.icon === 'play-arrow');
+    await checkBarsStill(app, check, 'paused');
     late();
     lateEnd();
     check('late final and endpoint events cannot submit, speak or restart after Pause',
@@ -823,6 +898,7 @@ export default async function run(check) {
       app.model.calls.length === 1 && phase(app) === 'thinking'))) return;
     check('thinking shows no microphone waveform or active recognizer',
       level(app) === 0 && liveCaptures(app).length === 0, detail(app));
+    await checkBarsStill(app, check, 'thinking');
     const count = spoken(app).length;
     app.$('b-voice-pause').click();
     if (!(await expect(app, check, 'the model can remain in flight while voice is paused', () =>

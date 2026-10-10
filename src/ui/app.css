@@ -444,9 +444,16 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   width: var(--voice-size); height: var(--voice-size); max-width: 100%;
   margin-block: var(--s5) var(--s3); color: var(--ink-dim);
 }
+/* The tonal ring names the phase in colour as well as in the status text below it. It is a
+   static fill per phase: only a transition between two of them moves, and that transition
+   uses a duration token, so reduced motion removes it. Nothing here pulses on a timer. */
 .voice-orbit {
   position: absolute; inset: 0; display: grid; place-items: center;
-  border: 1px solid var(--line); border-radius: 50%; background: var(--surface);
+  border: var(--s2) solid var(--voice-ring, var(--surface-container));
+  border-radius: 50%; background: var(--surface-container-lowest);
+  box-shadow: 0 0 0 var(--s2) var(--voice-halo, transparent);
+  transition: border-color var(--dur-medium2) var(--ease-standard),
+              box-shadow var(--dur-medium2) var(--ease-standard);
 }
 .voice-orbit::before, .voice-orbit::after { content: ""; position: absolute; }
 .voice-orbit::before {
@@ -465,8 +472,25 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   transition: transform .08s linear;
 }
 .voice-bars span:last-child { transform: scaleY(calc(.08 + var(--voice-level) * .92)); }
+.voice-stage[data-phase="listening"] {
+  --voice-ring: color-mix(in srgb, var(--primary) 45%, var(--surface-container-lowest));
+  --voice-halo: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.voice-stage[data-phase="speaking"] {
+  --voice-ring: color-mix(in srgb, var(--primary) 28%, var(--surface-container-lowest));
+  --voice-halo: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.voice-stage:is([data-phase="transcribing"], [data-phase="thinking"]) {
+  --voice-ring: color-mix(in srgb, var(--primary) 16%, var(--surface-container));
+}
+.voice-stage[data-phase="paused"] { --voice-ring: var(--surface-container-high); }
+.voice-stage:is([data-phase="recovering"], [data-phase="blocked"]) {
+  --voice-ring: color-mix(in srgb, var(--warning) 40%, var(--surface-container-lowest));
+}
+.voice-stage[data-phase="complete"] {
+  --voice-ring: color-mix(in srgb, var(--success) 40%, var(--surface-container-lowest));
+}
 .voice-stage[data-phase="listening"] .voice-signal { color: var(--accent); }
-.voice-stage[data-phase="listening"] .voice-orbit { border-color: var(--line-strong); }
 .voice-stage[data-phase="listening"][data-has-level="true"] .voice-bars { opacity: 1; }
 .voice-stage[data-phase="listening"][data-has-level="true"] .voice-orbit::after { display: none; }
 /* Native speech has no measured output amplitude: these two rings stay still. */
@@ -507,14 +531,52 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .voice-detail { width: 46ch; color: var(--ink-dim); font-size: var(--t-sm); }
 .voice-actions {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s3);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s7);
   width: 20rem; max-width: 100%; margin-top: auto;
   position: sticky; bottom: 0; z-index: 2; background: var(--ground);
   padding-block: var(--s4) max(var(--s3), env(safe-area-inset-bottom));
 }
-.voice-actions button {
-  flex: 1 1 7rem; min-width: var(--control-height); min-height: var(--voice-control-height);
-  padding-inline: var(--s5); border-radius: var(--r-pill); font-size: var(--t-base);
+/* Tonal circular buttons with the label underneath. The whole column — circle and label —
+   is the button, so the target is far past 48px, and the visible label is its accessible
+   name. voice-stage.js sets data-icon (pause, play-arrow, close); the circle is ::after
+   and the icon mask is ::before above it, because one pseudo-element cannot be both a
+   filled disc and a mask. Two classes plus the element, to outrank button.ghost:hover. */
+.voice-stage .voice-actions button {
+  --voice-button: var(--voice-control-height);
+  --voice-fill: var(--surface-container-high);
+  --voice-ink: var(--on-surface);
+  position: relative; isolation: isolate; flex: none;
+  display: inline-flex; flex-direction: column; align-items: center;
+  min-width: calc(var(--voice-button) + var(--s5)); min-height: var(--control-height);
+  padding: calc(var(--voice-button) + var(--s2)) var(--s2) var(--s1);
+  border: 0; border-radius: var(--r-md); background: transparent; box-shadow: none;
+  color: var(--on-surface); font-size: var(--t-md); font-weight: 600; line-height: 1.35;
+}
+.voice-stage .voice-actions button::after {
+  content: ""; position: absolute; z-index: -1; top: 0; left: 50%;
+  width: var(--voice-button); height: var(--voice-button); margin-left: calc(var(--voice-button) / -2);
+  border-radius: 50%; background: var(--voice-fill);
+  transition: background-color var(--dur-short2) var(--ease-standard);
+}
+.voice-stage .voice-actions button::before {
+  --icon-size: 26px;
+  position: absolute; top: calc((var(--voice-button) - var(--icon-size)) / 2); left: 50%;
+  margin: 0 0 0 calc(var(--icon-size) / -2); color: var(--voice-ink);
+}
+.voice-stage .voice-actions #b-voice-pause {
+  --voice-fill: color-mix(in srgb, var(--primary) 24%, var(--surface-container-lowest));
+  --voice-ink: var(--primary);
+}
+.voice-stage .voice-actions button:hover { background: transparent; }
+.voice-stage .voice-actions button:hover::after {
+  background: color-mix(in srgb, var(--voice-ink) var(--state-hover), var(--voice-fill));
+}
+.voice-stage .voice-actions button:active::after {
+  background: color-mix(in srgb, var(--voice-ink) var(--state-pressed), var(--voice-fill));
+}
+.voice-stage .voice-actions button:disabled {
+  --voice-fill: var(--surface-container); --voice-ink: var(--on-surface-variant);
+  background: transparent; color: var(--on-surface-variant);
 }
 .voice-backend { color: var(--ink-dim); font-size: var(--t-xs); }
 .voice-stage > :is(.voice-question, .voice-transcript, .voice-detail, .voice-backend):empty {

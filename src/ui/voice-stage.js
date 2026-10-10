@@ -16,6 +16,11 @@ export function normalizeVoiceLevel(rms) {
   return Number.isFinite(rms) ? Math.min(1, Math.max(0, rms) / .25) : null;
 }
 
+/** The icon is a ::before mask (src/ui/icons.css); it adds no text, so the label stays the name. */
+function setIcon(element, name) {
+  if (element.dataset.icon !== name) element.dataset.icon = name;
+}
+
 function setText(element, value) {
   const text = String(value ?? '');
   if (element.textContent !== text) element.textContent = text;
@@ -46,6 +51,9 @@ export function createVoiceStage(root) {
   const exit = find('b-voice-exit');
   const bars = [...signal.querySelectorAll('.voice-bars span')];
   if (!bars.length) throw new Error('Voice stage markup is missing its input-level bars.');
+
+  setIcon(pause, 'pause');
+  setIcon(exit, 'close');
 
   const samples = Array(bars.length).fill(0);
   let phase = null;
@@ -83,6 +91,7 @@ export function createVoiceStage(root) {
 
     const resumable = phase === 'paused' || phase === 'blocked';
     setText(pause, resumable ? 'Resume' : 'Pause');
+    setIcon(pause, resumable ? 'play-arrow' : 'pause');
     pause.disabled = resumable && Boolean(pending);
     exit.disabled = false;
   }
