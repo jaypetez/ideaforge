@@ -1,6 +1,5 @@
 package io.github.jaypetez.ideaforge.data
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -8,6 +7,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -25,7 +25,7 @@ class PrefsStoreTest {
         val scope = CoroutineScope(job + Dispatchers.IO)
         return runBlocking {
             try {
-                block(PrefsStore(PreferenceDataStoreFactory.create(scope = scope) { file }))
+                block(PrefsStore.create(scope) { file })
             } finally {
                 job.cancelAndJoin()
             }
@@ -76,5 +76,21 @@ class PrefsStoreTest {
         val f = file()
         withStore(f) { s -> s.update { it.copy(speechVoice = "v".repeat(600)) } }
         assertEquals(512, withStore(f) { it.current() }.speechVoice.length)
+    }
+
+    // A corrupt file used to fail every read and every update for ever. The web falls back
+    // to defaults and its next save overwrites; so must this.
+    @Test
+    fun aCorruptFileFallsBackToDefaultsAndIsOverwritten() {
+        val f = file()
+        f.writeBytes(byteArrayOf(0x7f, 0x00, 0x13, 0x37, 0x42) + "not a proto".toByteArray())
+        assertEquals(Prefs(), withStore(f) { it.current() })
+        // Replacing the file is a rename over an existing one, which a Windows JVM refuses
+        // (Android does not); the write-back half runs on the Linux CI legs.
+        assumeFalse(System.getProperty("os.name").startsWith("Windows"))
+        assertTrue(withStore(File(f.path)) { s -> s.update { it.copy(handsFree = true, trigger = "done") } })
+        val p = withStore(f) { it.current() }
+        assertEquals(true, p.handsFree)
+        assertEquals("done", p.trigger)
     }
 }

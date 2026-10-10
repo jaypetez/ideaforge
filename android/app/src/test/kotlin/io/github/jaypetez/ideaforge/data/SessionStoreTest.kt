@@ -1,9 +1,11 @@
 package io.github.jaypetez.ideaforge.data
 
-import androidx.core.util.AtomicFile
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.js.num
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -42,35 +44,34 @@ class SessionStoreTest {
         assertEquals(s, fresh.get("s_abc_12345678"))
     }
 
-    // A crash between startWrite and finishWrite: the process dies with the half-written
-    // `.new` on disk. The next launch must read the old document, not the fragment.
+    // A crash between writing `<id>.json.new` and the rename: the process dies with the
+    // half-written temp on disk. The next launch must read the old document, not the fragment.
     @Test
     fun aCrashMidWriteLeavesTheOldFile() = runBlocking {
         val old = session("s_a_00000001", 1)
         store().save(old)
         val file = File(dir(), "s_a_00000001.json")
-        val atomic = AtomicFile(file)
-        val out = atomic.startWrite()
-        out.write("{\"id\":\"s_a_00000001\",\"turns\":[".toByteArray()) // truncated
-        out.flush()
-        // No finishWrite, no failWrite: the process is gone.
+        File(file.path + SessionStore.NEW).writeText("{\"id\":\"s_a_00000001\",\"turns\":[") // truncated
         val fresh = store()
         assertEquals(1, fresh.load())
         assertEquals(old, fresh.get("s_a_00000001"))
+        // And the next save still lands, replacing both the stale temp and the old file.
+        val next = session("s_a_00000001", 2)
+        fresh.save(next)
+        assertEquals(next, Json.parseToJsonElement(file.readText()))
+        assertTrue(!File(file.path + SessionStore.NEW).exists())
     }
 
+    // androidx AtomicFile swallowed a failed rename, so on a Windows host the second save
+    // of a session never reached disk while the index said it had.
     @Test
-    fun aFailedWriteLeavesTheOldFile() = runBlocking {
-        val old = session("s_a_00000002", 1)
-        store().save(old)
-        val file = File(dir(), "s_a_00000002.json")
-        val before = file.readText()
-        val atomic = AtomicFile(file)
-        val out = atomic.startWrite()
-        out.write("garbage".toByteArray())
-        atomic.failWrite(out)
-        assertEquals(before, file.readText())
-        assertEquals(old, store().also { it.load() }.get("s_a_00000002"))
+    fun aSecondSaveReplacesTheFileOnDisk() = runBlocking {
+        val s = store()
+        s.save(session("s_a_00000002", 1))
+        val v2 = session("s_a_00000002", 2)
+        s.save(v2)
+        assertEquals(v2, Json.parseToJsonElement(File(dir(), "s_a_00000002.json").readText()))
+        assertEquals(v2, store().also { it.load() }.get("s_a_00000002"))
     }
 
     // Fields this build has never heard of belong to a newer build; they must survive.
@@ -134,5 +135,44 @@ class SessionStoreTest {
             runBlocking { store().save(session("../escape", 1)) }
         }
         assertTrue(!File(tmp.root, "escape.json").exists())
+    }
+
+    // IdeaForgeApp starts load() asynchronously, so a save can arrive before it. A store
+    // that has never read the directory must still not replace a newer build's file.
+    @Test
+    fun aNeverLoadedStoreRefusesToOverwriteANewerSchemaFile() {
+        dir().mkdirs()
+        val file = File(dir(), "s_n_00000007.json")
+        val bytes = Json.encodeToString(
+            JsonObject.serializer(),
+            JsonObject(session("s_n_00000007", 5) + ("schema" to JsonPrimitive(99))),
+        ).toByteArray()
+        file.writeBytes(bytes)
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { store().save(session("s_n_00000007", 9)) }
+        }
+        assertTrue(bytes.contentEquals(file.readBytes()))
+    }
+
+    // A caller cancelled while its write is on disk must not leave the index behind it:
+    // the bytes are renamed into place, then the caller is cancelled before the index update.
+    @Test
+    fun aCancelledSaveLeavesDiskAndIndexInAgreement() = runBlocking {
+        var caller: Job? = null
+        val s = SessionStore(dir(), writer = { f, b ->
+            SessionStore.write(f, b)
+            caller?.cancel()
+        })
+        s.load()
+        s.save(session("s_c_00000008", 1))
+        val v2 = session("s_c_00000008", 2)
+        caller = launch(Dispatchers.Default, start = CoroutineStart.LAZY) { s.save(v2) }
+        caller.start()
+        caller.join()
+        assertTrue(caller.isCancelled)
+        val onDisk = Json.parseToJsonElement(File(dir(), "s_c_00000008.json").readText())
+        assertEquals(v2, onDisk)
+        assertEquals(onDisk, s.get("s_c_00000008"))
+        assertEquals(onDisk, s.sessions.value.single())
     }
 }

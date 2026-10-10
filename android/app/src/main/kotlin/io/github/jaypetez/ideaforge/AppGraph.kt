@@ -2,7 +2,6 @@ package io.github.jaypetez.ideaforge
 
 import android.app.Application
 import android.content.Context
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
@@ -38,12 +37,9 @@ class AppGraph(
 
     // One DataStore per file per process; DataStore throws if a second instance opens it.
     val prefsStore: PrefsStore by lazy {
-        PrefsStore(
-            PreferenceDataStoreFactory.create(
-                scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-                produceFile = { context.preferencesDataStoreFile("prefs") },
-            ),
-        )
+        PrefsStore.create(CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
+            context.preferencesDataStoreFile("prefs")
+        }
     }
 }
 

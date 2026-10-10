@@ -121,7 +121,16 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                     )
                     NavigationBarItem(
                         selected = destination?.hasRoute(InterviewRoute::class) == true,
-                        onClick = { nav.navigate(InterviewRoute(library.newSessionId())) { launchSingleTop = true } },
+                        // No launchSingleTop: a new idea must be a new back-stack entry. Reusing
+                        // the current Interview entry would hand the new sessionId the old
+                        // entry's ViewModelStore, and its in-flight work, so one idea's
+                        // results could land in another (a busy flag is not an identity guard).
+                        // Pop any open interview first so the stack does not grow per tap.
+                        onClick = {
+                            nav.navigate(InterviewRoute(library.newSessionId())) {
+                                popUpTo<InterviewRoute> { inclusive = true }
+                            }
+                        },
                         icon = { Icon(painterResource(R.drawable.ic_new_idea), contentDescription = null) },
                         label = { Text(stringResource(R.string.nav_new_idea)) },
                     )

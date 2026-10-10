@@ -1,12 +1,15 @@
 package io.github.jaypetez.ideaforge.data
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -43,6 +46,21 @@ data class Prefs(
 }
 
 class PrefsStore(private val store: DataStore<Preferences>) {
+    companion object {
+        /**
+         * The one way to open the prefs file. A corrupt file is replaced with defaults, as
+         * loadPrefs() falls back on the web and the next save overwrites; without the
+         * handler every read fails and every update fails for ever.
+         */
+        fun create(scope: CoroutineScope, produceFile: () -> java.io.File): PrefsStore = PrefsStore(
+            PreferenceDataStoreFactory.create(
+                corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+                scope = scope,
+                produceFile = produceFile,
+            ),
+        )
+    }
+
     private object Keys {
         val trigger = stringPreferencesKey("trigger")
         val handsFree = booleanPreferencesKey("handsFree")

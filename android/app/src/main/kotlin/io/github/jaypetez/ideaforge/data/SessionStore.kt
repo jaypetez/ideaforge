@@ -1,10 +1,10 @@
 package io.github.jaypetez.ideaforge.data
 
-import androidx.core.util.AtomicFile
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.migrate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,9 +16,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
- * Sessions on disk: one JSON file per session, `<dir>/<id>.json`, each written atomically.
+ * Sessions on disk: one JSON file per session, `<dir>/<id>.json`, each written atomically
+ * (see [write]).
  *
  * One session is one library idea, so the store is the library. Three rules:
  *
@@ -34,6 +38,9 @@ import java.io.File
 class SessionStore(
     private val dir: File,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    // A seam for tests that need something to happen between the bytes landing and the
+    // index catching up (a caller cancelled mid-save). Production always uses [write].
+    private val writer: (File, ByteArray) -> Unit = ::write,
 ) {
     private val mutex = Mutex()
     private val byId = LinkedHashMap<String, Session>()
@@ -49,15 +56,20 @@ class SessionStore(
     val skippedIds: Set<String> get() = skipped.toSet()
 
     /** Reads the directory once; later calls are no-ops. Returns the number loaded. */
-    suspend fun load(): Int = mutex.withLock {
-        if (loaded) return@withLock byId.size
+    suspend fun load(): Int = mutex.withLock { loadLocked() }
+
+    // Callers hold [mutex]. save() runs this too: until the directory has been read, the
+    // store cannot know which files belong to a newer build, and IdeaForgeApp starts load()
+    // asynchronously, so a save may well arrive first.
+    private suspend fun loadLocked(): Int {
+        if (loaded) return byId.size
         withContext(io) {
             val files = dir.listFiles { f -> f.isFile && f.name.endsWith(SUFFIX) }.orEmpty()
             for (file in files.sortedBy { it.name }) {
                 val name = file.name.removeSuffix(SUFFIX)
                 val session = runCatching {
-                    // readFully also discards a `.new` left by a write that never finished.
-                    val text = AtomicFile(file).readFully().decodeToString()
+                    // Only `<id>.json` is read; a `.json.new` is a write that never finished.
+                    val text = file.readBytes().decodeToString()
                     migrate(Json.parseToJsonElement(text))
                 }.getOrNull()
                 val id = (session?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -70,7 +82,7 @@ class SessionStore(
         }
         loaded = true
         publish()
-        byId.size
+        return byId.size
     }
 
     fun get(id: String): Session? = _sessions.value.firstOrNull { idOf(it) == id }
@@ -79,10 +91,20 @@ class SessionStore(
     suspend fun save(session: Session) = mutex.withLock {
         val id = requireNotNull(idOf(session)) { "a session needs a string id to be saved" }
         require(SAFE_ID.matches(id)) { "unsafe session id: $id" }
+        loadLocked()
         check(id !in skipped) { "refusing to overwrite $id$SUFFIX, which this build could not read" }
-        withContext(io) { write(File(dir, "$id$SUFFIX"), encode(session)) }
-        byId[id] = session
-        publish()
+        val file = File(dir, "$id$SUFFIX")
+        // Belt and braces: a file this store never indexed is not ours to replace, even if
+        // it appeared after load().
+        check(id in byId || !file.exists()) { "refusing to overwrite unindexed $id$SUFFIX" }
+        val bytes = encode(session)
+        // NonCancellable: once the write starts, the index must follow it. A cancelled caller
+        // otherwise leaves the file renamed into place and byId still holding the old object.
+        withContext(NonCancellable + io) {
+            writer(file, bytes)
+            byId[id] = session
+            publish()
+        }
     }
 
     private fun publish() {
@@ -101,19 +123,35 @@ class SessionStore(
         fun encode(session: Session): ByteArray =
             Json.encodeToString(JsonObject.serializer(), session).encodeToByteArray()
 
-        /** Write-then-rename: a crash before [AtomicFile.finishWrite] leaves the old file. */
+        /**
+         * Write-then-rename: the bytes go to `<file>.new`, are synced, then atomically
+         * replace `<file>`. A crash at any point leaves either the old file or the new one.
+         *
+         * Not androidx AtomicFile: its finishWrite logs a failed rename and returns normally,
+         * so the caller believes a save that never reached disk. That is not hypothetical:
+         * on a Windows JVM (Robolectric on a developer machine) File.renameTo refuses to
+         * replace an existing file, and every second save of a session silently vanished.
+         * Files.move with REPLACE_EXISTING throws instead, and replaces on every platform.
+         */
         internal fun write(file: File, bytes: ByteArray) {
             file.parentFile?.mkdirs()
-            val atomic = AtomicFile(file)
-            val out = atomic.startWrite()
+            val tmp = File(file.path + NEW)
             try {
-                out.write(bytes)
-                atomic.finishWrite(out)
+                FileOutputStream(tmp).use { out ->
+                    out.write(bytes)
+                    out.fd.sync()
+                }
+                Files.move(
+                    tmp.toPath(), file.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
+                )
             } catch (t: Throwable) {
-                atomic.failWrite(out)
+                tmp.delete()
                 throw t
             }
         }
+
+        internal const val NEW = ".new"
 
         private fun idOf(session: Session): String? =
             (session["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content
