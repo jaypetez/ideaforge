@@ -9,6 +9,7 @@
          cloud backup would carry the encrypted keyring to a device whose Keystore cannot
          decrypt it, and would copy transcripts somewhere the user never chose. -->
     <application
+        android:name=".IdeaForgeApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
