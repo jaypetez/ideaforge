@@ -73,11 +73,18 @@ sealed interface InterviewNotice {
     /** The saved provider could not be built; questions come from the checklist. */
     data class NoProvider(override val detail: String) : InterviewNotice
 
+    /**
+     * What went wrong underneath, when there is an exception to keep. Never shown; it is here
+     * so a test that sees an unexpected notice can name the exception class and its stack
+     * rather than only the message (a flake that ended an interview early, #138).
+     */
+    val cause: Throwable? get() = null
+
     /** The model call failed; this one question came from the checklist. */
-    data class Fallback(override val detail: String) : InterviewNotice
+    data class Fallback(override val detail: String, override val cause: Throwable? = null) : InterviewNotice
 
     /** Saving or running the turn threw. */
-    data class Failed(override val detail: String) : InterviewNotice
+    data class Failed(override val detail: String, override val cause: Throwable? = null) : InterviewNotice
 }
 
 data class InterviewState(
@@ -164,7 +171,7 @@ class InterviewViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _state.update { it.copy(notice = InterviewNotice.Failed(message(e))) }
+            _state.update { it.copy(notice = InterviewNotice.Failed(message(e), e)) }
             return
         }
         provider = try {
@@ -280,7 +287,7 @@ class InterviewViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e))) }
+            _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
             return
         }
         val (out, settled, advisory) = (outcome as? SessionWorker.Outcome.Committed)?.value ?: run {
@@ -292,7 +299,7 @@ class InterviewViewModel(
                 session = settled,
                 busy = null,
                 wrapOffer = advisory,
-                notice = out.error?.let { e -> InterviewNotice.Fallback(message(e)) } ?: it.notice,
+                notice = out.error?.let { e -> InterviewNotice.Fallback(message(e), e) } ?: it.notice,
             )
         }
         // Nothing left worth asking (coverage, the hard ceiling, an exhausted bank): write it up.
@@ -352,7 +359,7 @@ class InterviewViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e))) }
+                _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
                 return@launch
             }
             val (result, settled) = (outcome as? SessionWorker.Outcome.Committed)?.value ?: run {
@@ -407,7 +414,7 @@ class InterviewViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _state.update { it.copy(notice = InterviewNotice.Failed(message(e))) }
+            _state.update { it.copy(notice = InterviewNotice.Failed(message(e), e)) }
         }
     }
 
