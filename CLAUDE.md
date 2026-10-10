@@ -206,6 +206,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   same `scroll-padding-bottom` so keyboard focus never scrolls a control under the bar.
   `test/browser/shell.browser.mjs` proves nothing sits under the bar at 390px, focus is not
   obscured, and nothing scrolls sideways at 360px.
+- **`#answer` lives inside the docked `#composer`.** On phones the composer is sticky and
+  lifted by `--keyboard-inset` (`trackComposer` in `src/ui/app.js`, from `visualViewport`);
+  `--composer-block` feeds `scroll-padding-bottom`. Docking only `.interview-actions` again
+  lets the bar sit over the answer box once a thread makes the page scroll —
+  `test/browser/thread.browser.mjs` fails on exactly that. `renderThread` builds every
+  question and answer with `textContent`; both are someone else's words.
 - **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
   warns forever otherwise, and a run that warns about fonts is a run to throw away.
 

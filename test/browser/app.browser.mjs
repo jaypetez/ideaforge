@@ -300,9 +300,10 @@ export default async function run(check, { subpath }) {
     doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
     `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
 
-  // The action bar is sticky rather than fixed precisely so it cannot cover the answer box.
-  // Asserting it on the narrowest phone worth supporting, because that is where the buttons
-  // wrap onto their own rows and the bar is at its tallest.
+  // The composer docks (sticky, not fixed) with #answer inside it, so the dock cannot cover
+  // the answer box. Asserting it on the narrowest phone worth supporting, because that is
+  // where the buttons wrap and the composer is at its tallest. thread.browser.mjs repeats it
+  // with a real thread, at both ends of the scroll and over an on-screen keyboard.
   $('panel-setup').hidden = true;
   $('panel-interview').hidden = false;
   frame.width = 360;
@@ -313,10 +314,11 @@ export default async function run(check, { subpath }) {
   const answerBox = $('answer').getBoundingClientRect();
   const actionBar = doc.querySelector('.interview-actions').getBoundingClientRect();
   check('the sticky action bar does not cover the answer box',
-    actionBar.top >= answerBox.bottom - 1,
+    actionBar.top >= answerBox.bottom - 1 && $('composer').contains($('answer'))
+      && win.getComputedStyle($('composer')).position === 'sticky',
     `bar ${Math.round(actionBar.top)} vs answer ${Math.round(answerBox.bottom)}`);
   // Only the ones on screen: #b-mic and #b-wrap are hidden until voice works and until the
-  // wrap-up is offered, and a hidden element measures zero.
+  // fourth question, and a hidden element measures zero.
   const barButtons = [...doc.querySelectorAll('.interview-actions button')]
     .filter((b) => win.getComputedStyle(b).display !== 'none');
   check('every visible action in that bar clears the 24px WCAG target floor',
