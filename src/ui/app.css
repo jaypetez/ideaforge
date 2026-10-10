@@ -136,12 +136,16 @@ a { color: var(--accent); text-underline-offset: .18em; }
 }
 .skip-link {
   position: absolute; left: var(--s4); top: var(--s2); z-index: 10;
+  display: inline-flex; align-items: center; min-height: var(--control-height);
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   background: var(--accent); color: var(--accent-ink);
   font-size: var(--t-md); font-weight: 600; text-decoration: none;
   transform: translateY(-200%); transition: transform var(--dur-short3) var(--ease);
 }
-.skip-link:focus-visible { transform: translateY(0); }
+/* :focus, not :focus-visible. The link is off screen, so it is only ever focused from the
+   keyboard or by assistive technology, and a screen reader moving focus does not always
+   count as keyboard modality: :focus-visible left it focused and invisible (#111). */
+.skip-link:focus { transform: translateY(0); }
 
 /* ───────────────────────────────────────────────────────────────── bar */
 /* The app shell. One header, laid out by body[data-panel], which show() in app.js sets:
@@ -444,7 +448,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .chip {
   font-family: var(--sans); font-size: var(--t-md); font-weight: 400;
   color: var(--on-primary-container); background: var(--primary-container);
-  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  /* 70%, not the 30% it was: a chip is a control, so its edge holds 3:1 against the card in
+     both themes (WCAG 1.4.11; contrast.browser.mjs). At 30% it measured 1.6:1 in light. */
+  border: 1px solid color-mix(in srgb, var(--primary) 70%, transparent);
   border-radius: var(--r-pill);
   padding: var(--s2) var(--s3); min-height: 40px; cursor: pointer; text-align: left;
   box-shadow: none; transition: border-color var(--dur-short2) var(--ease), background-color var(--dur-short2) var(--ease);
@@ -739,9 +745,14 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 @media (min-width: 1024px) {
   /* Not in voice mode: the voice stage keeps the single column it was designed in. */
   body[data-panel="interview"]:not(.voice-active) .wrap { max-width: 1120px; }
+  /* reading-flow: the side panel comes after the column it sits beside. In the DOM it sits
+     between the question and the composer, which is the reading order of the single column
+     below 1024px; here Tab went from the suggestions into the panel's rows and back to the
+     switch (#111). Where reading-flow is unsupported the DOM order stands. */
   #manual-interview {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
     grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+    reading-flow: grid-columns;
   }
   #manual-interview > * { grid-column: 1; min-width: 0; }
   #manual-interview > :not(.cov, :last-child) { margin-block-end: var(--s4); }
@@ -815,7 +826,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .idea-menu {
   position: absolute; inset: auto; margin: 0;
   min-width: 12rem; max-width: calc(100vw - var(--s5));
-  padding: var(--s1); border: 1px solid var(--outline-variant); border-radius: var(--r-sm);
+  /* --outline, not --outline-variant: the menu floats over arbitrary content, and its edge is
+     the only thing separating it at 3:1 (it measured 1.3:1 in light on the page ground). */
+  padding: var(--s1); border: 1px solid var(--outline); border-radius: var(--r-sm);
   background: var(--surface-container-high); color: var(--on-surface);
   box-shadow: var(--elev-3);
 }
@@ -1093,7 +1106,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   width: min(100%, 560px); margin: 0;
   font-size: var(--t-md); line-height: 1.5; color: var(--on-surface);
   background: var(--surface-container-high);
-  border: 1px solid var(--outline-variant); border-radius: var(--r-md);
+  /* A 3:1 edge for the same reason as the overflow menu: it floats over whatever is there. */
+  border: 1px solid var(--outline); border-radius: var(--r-md);
   box-shadow: var(--elev-3);
   animation: toast-in var(--dur-medium2) var(--ease-emph-decel);
 }
@@ -1312,11 +1326,20 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .voice-backend { grid-column: 1; grid-row: 5; text-align: center; }
 }
 
+/* Touch: every control is at least 48 by 48 (WCAG 2.5.8 asks 24; 48 is Material's and the
+   Android app's minimum). The small buttons, the chips and the disclosure summaries were
+   44px or less here until #111; a11y-keyboard.probe.mjs measures every panel under a real
+   coarse pointer. A radio or checkbox inside a .toggle label is sized by its label. */
 @media (pointer: coarse) {
   button, input, select { min-height: var(--control-height); }
-  .row button, button.small, .chip { min-height: 44px; }
-  .question-skeleton .sk-chip { height: 44px; }
+  .row button, button.small, .chip { min-height: var(--control-height); }
+  .question-skeleton .sk-chip { height: var(--control-height); }
   .toggle input { min-height: 0; }
+  /* Padding rather than display:flex, which would drop the disclosure marker: one line of
+     the summary's own text, centred in a control-height box. */
+  :is(.cov, .idea-edit) > summary {
+    padding-block: calc((var(--control-height) - 1lh) / 2);
+  }
 }
 
 /* Panel motion (#108). show() sets data-enter on the panel it opens, synchronously, so the

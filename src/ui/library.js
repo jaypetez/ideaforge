@@ -332,6 +332,8 @@ export function createLibraryView({
     rows.removeAttribute('aria-busy');
     if (!loaded) {
       panel.dataset.libraryState = 'unavailable';
+      // renderLoading said "Loading ideas…"; a read that failed must not leave that behind.
+      count.textContent = 'Ideas unavailable';
       zero.hidden = true;
       empty.hidden = true;
       syncSelection();
@@ -355,6 +357,9 @@ export function createLibraryView({
     rows.innerHTML = '';
     rows.setAttribute('aria-busy', 'true');
     panel.dataset.libraryState = 'loading';
+    // The placeholder bars are decoration at low contrast, so the loading state is said in
+    // text as well (#111). The shipped "0 ideas" would otherwise claim an empty library.
+    count.textContent = 'Loading ideas…';
     zero.hidden = true;
     empty.hidden = true;
     for (let i = 0; i < placeholders; i++) {

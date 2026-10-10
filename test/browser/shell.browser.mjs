@@ -81,6 +81,21 @@ export default async function run(check) {
     const current = () => items.filter((item) => item.getAttribute('aria-current') === 'page')
       .map((item) => item.id).join(',');
 
+    /**
+     * Wait after a navigation or resize until what is measured is the settled page. A nav
+     * click may run as a View Transition (#108), and measuring during its update read a
+     * transient scrollbar as horizontal overflow: let the time pass, then wait for the
+     * transition to end, then one frame for layout to land.
+     */
+    const settled = async (ms = 300) => {
+      await settle(ms);
+      const deadline = performance.now() + 3000;
+      while (doc.documentElement.matches(':active-view-transition') && performance.now() < deadline) {
+        await settle(20);
+      }
+      await new Promise((resolve) => win.requestAnimationFrame(() => resolve()));
+    };
+
     check('the shell frame is phone width', win.innerWidth === 390, `${win.innerWidth}px`);
 
     /** Scroll to the very bottom, then prove no visible box in #main reaches under the bar. */
@@ -126,7 +141,7 @@ export default async function run(check) {
       doc.body.dataset.panel === 'library' && current() === 'b-library',
       `${doc.body.dataset.panel} / ${current()}`);
     $('b-nav-new').click();
-    await settle();
+    await settled();
     check('the shell names the panel on body', doc.body.dataset.panel === 'setup',
       doc.body.dataset.panel);
     bottomNav('Start', 'b-nav-new');
@@ -149,7 +164,7 @@ export default async function run(check) {
     focusClear('Start', $('b-start'));
 
     $('b-library').click();
-    await settle();
+    await settled();
     check('Ideas sets body[data-panel="library"]', doc.body.dataset.panel === 'library',
       doc.body.dataset.panel);
     bottomNav('Ideas', 'b-library');
@@ -158,20 +173,20 @@ export default async function run(check) {
       .filter((b) => !b.closest('details:not([open]), [popover]:not(:popover-open)')).at(-1));
 
     $('b-settings').click();
-    await settle();
+    await settled();
     bottomNav('Settings', 'b-settings');
 
     $('b-nav-new').click();
-    await settle();
+    await settled();
     check('New idea returns to the start screen', !$('panel-setup').hidden
       && current() === 'b-nav-new', current());
 
     // Open the active idea: a detail screen, so a top app bar and no bottom navigation.
     $('b-library').click();
-    await settle();
+    await settled();
     const card = $('library-rows').querySelector('[data-session-id="s_shell_active"]');
     [...card.querySelectorAll('button')].find((b) => b.textContent === 'Continue').click();
-    await settle(800);
+    await settled(800);
     check('Continue opens the interview', !$('panel-interview').hidden
       && doc.body.dataset.panel === 'interview', doc.body.dataset.panel);
     const bar = doc.querySelector('.bar').getBoundingClientRect();
@@ -198,12 +213,12 @@ export default async function run(check) {
 
     // The finished idea opens on Done, also a detail screen.
     $('b-library').click();
-    await settle();
+    await settled();
     check('the back arrow returns to Ideas and drops its detail name',
       doc.body.dataset.panel === 'library' && !$('b-library').hasAttribute('aria-label'));
     const doneCard = $('library-rows').querySelector('[data-session-id="s_shell_done"]');
     [...doneCard.querySelectorAll('button')].find((b) => b.textContent === 'View result').click();
-    await settle(500);
+    await settled(500);
     check('Done: a top app bar, not a bottom navigation bar',
       doc.body.dataset.panel === 'done' && win.getComputedStyle(nav).position !== 'fixed'
         && shown($('b-library')) && !shown($('b-nav-new')) && current() === ''
@@ -213,7 +228,7 @@ export default async function run(check) {
 
     // 360px: the narrowest common Android width. Nothing may scroll sideways on any panel.
     frame.width = 360;
-    await settle();
+    await settled();
     check('the shell frame narrows to 360px', win.innerWidth === 360, `${win.innerWidth}px`);
     const overflow = (label) => {
       check(`${label} has no horizontal overflow at 360px`, root.scrollWidth <= root.clientWidth,
@@ -221,16 +236,16 @@ export default async function run(check) {
     };
     overflow('Done');
     $('b-library').click();
-    await settle();
+    await settled();
     overflow('Ideas');
     $('b-settings').click();
-    await settle();
+    await settled();
     overflow('Settings');
     $('b-library').click();
-    await settle();
+    await settled();
     const again = $('library-rows').querySelector('[data-session-id="s_shell_active"]');
     [...again.querySelectorAll('button')].find((b) => b.textContent === 'Continue').click();
-    await settle(800);
+    await settled(800);
     overflow('Interview');
   } finally {
     for (const frame of frames) frame.remove();

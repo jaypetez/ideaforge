@@ -393,8 +393,53 @@ async function failurePaths(report) {
   }
 }
 
+/**
+ * A first library read that fails (#111). renderLoading writes "Loading ideas…" into the
+ * count, and the failed read leaves through settle() with nothing loaded; the count must
+ * stop claiming to load. The failure is real: this page holds the database open at a newer
+ * version, so the app's own indexedDB.open(…, 1) rejects with a VersionError, at boot and
+ * when Ideas reads.
+ */
+async function failedFirstRead(report) {
+  const check = (label, ok, detail = '') => report(label, ok, ok ? '' : detail);
+  await cleanStorage();
+  const newer = await new Promise((resolve, reject) => {
+    const req = indexedDB.open('ideaforge', 2);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const frame = await loadFrame(390, 760);
+  const win = frame.contentWindow;
+  win.addEventListener('unhandledrejection', (event) => event.preventDefault());
+  const $ = (id) => frame.contentDocument.getElementById(id);
+  try {
+    await until(() => /^IdeaForge v/.test($('version').textContent));
+    const counts = [];
+    const observer = new win.MutationObserver(() => counts.push($('library-count').textContent));
+    observer.observe($('library-count'), { childList: true, characterData: true, subtree: true });
+    $('b-library').click();
+    const settled = await until(() => $('panel-library').dataset.libraryState === 'unavailable'
+      && !$('library-rows').hasAttribute('aria-busy'));
+    observer.disconnect();
+    check('a failed first library read leaves the loading state', !!settled,
+      `${$('panel-library').dataset.libraryState} / ${$('library-rows').getAttribute('aria-busy')}`);
+    check('…having said it was loading while it tried', counts.includes('Loading ideas…'),
+      counts.join(' | '));
+    check('…and the count no longer says it is loading',
+      !/loading/i.test($('library-count').textContent), $('library-count').textContent);
+  } finally {
+    frame.remove();
+    newer.close();
+    await new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase('ideaforge');
+      req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    });
+  }
+}
+
 export default async function run(report) {
   await layoutShift(760, 900, report);
   await layoutShift(360, 640, report);
   await failurePaths(report);
+  await failedFirstRead(report);
 }

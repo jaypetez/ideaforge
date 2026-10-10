@@ -401,7 +401,7 @@ export default async function run(check) {
     const skeletons = [...list.querySelectorAll('.idea-skeleton')];
     busyStates.push(`${list.getAttribute('aria-busy')}:${skeletons.length}`
       + `:${skeletons.every((el) => el.getAttribute('aria-hidden') === 'true') ? 'hidden' : 'exposed'}`
-      + `:${list.querySelectorAll('.idea-card').length}`);
+      + `:${list.querySelectorAll('.idea-card').length}:${$('library-count').textContent}`);
   });
   observer.observe($('library-rows'), { attributes: true, childList: true });
   $('b-settings').click();
@@ -416,7 +416,11 @@ export default async function run(check) {
     busyStates.join(' '));
   check('placeholder cards are hidden from assistive technology and are not idea cards',
     busyStates.filter((entry) => /^true:[1-9]/.test(entry))
-      .every((entry) => entry.endsWith(':hidden:0')), busyStates.join(' '));
+      .every((entry) => /:hidden:0:/.test(entry)), busyStates.join(' '));
+  // The bars are decoration below 3:1, so the loading state has to be said in text (#111).
+  check('while it loads, the list says so in text, not only with low-contrast bars',
+    busyStates.filter((entry) => /^true:[1-9]/.test(entry))
+      .every((entry) => entry.endsWith(':Loading ideas…')), busyStates.join(' '));
   check('with no ideas at all the library shows its first-run state, not the filter message',
     rendered('library-zero') && !rendered('library-empty'));
   check('…without search and filters that have nothing to search',

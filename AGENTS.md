@@ -155,7 +155,10 @@ harness exits non-zero if any check fails.
 Current coverage: the encrypted key store (ciphertext at rest, non-extractable wrapping key,
 deletion), session persistence through IndexedDB, the recorder and silence gate against real
 audio, every Web Speech failure mode, and the app booting cleanly at both the origin root and
-a Pages-style subpath with no CSP violations.
+a Pages-style subpath with no CSP violations. Accessibility is split by input. Contrast for
+every colour pair in both themes is the in-page `contrast.browser.mjs`. Keyboard order and
+coarse-pointer target sizes need real input, so `a11y-keyboard.probe.mjs` runs in the policy
+runner (`node tools/browser-policy-check.mjs --a11y-only` runs it alone).
 
 **6 · Against a real model, locally — `npm run validate:local`**
 The rung that costs nothing, needs no key, and needs nobody watching. It drives the real UI

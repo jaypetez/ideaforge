@@ -264,7 +264,8 @@ async function main() {
   if (options.help) {
     console.log('Usage: node tools\\browser-check.mjs [--required] [--probe <name.browser.mjs>]\n'
       + 'Omit --probe to run every browser probe. Names must match exactly; unknown names fail.\n'
-      + 'Every run with Chrome includes the independent audio-policy checks, including focused runs.\n'
+      + 'Every run with Chrome includes the independent audio-policy and accessibility\n'
+      + 'checks, including focused runs.\n'
       + 'Results use CDP rather than the page fetch/service-worker path.\n'
       + 'BROWSER_CHECK_TIMEOUT sets the per-probe no-progress budget (default 180000ms).\n'
       + 'BROWSER_CHECK_TRACE writes pre-document CDP and server diagnostics to a new JSONL file.\n'
@@ -351,7 +352,8 @@ async function main() {
     const policyResults = await runBrowserPolicyChecks({ chrome, siteRoot: siteDir });
     record(policyResults);
     const policyFailures = policyResults.filter((result) => !result.ok).length;
-    console.log(`audio policy phase: ${policyResults.length} checks, ${policyFailures} failed (separate fresh profiles)`);
+    console.log(`audio policy and accessibility phase: ${policyResults.length} checks, `
+      + `${policyFailures} failed (separate fresh profiles)`);
 
     for (const probe of probes) {
       let browser = null;

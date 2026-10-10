@@ -6,9 +6,9 @@ and one visual language, and this page is where the two meet. Every web token be
 the Material 3 role the Android theme uses for the same job. When you change a value on one
 side, change its twin, or the apps drift apart a shade at a time.
 
-`src/ui/app.css` owns the web values, and `test/browser/app.browser.mjs` checks them. It
-asserts that both themes resolve, and that every text role meets WCAG AA (4.5:1) and every
-outline 3:1 against every surface, in light and in dark.
+`src/ui/app.css` owns the web values. `test/browser/app.browser.mjs` checks that both themes
+resolve, and `test/browser/contrast.browser.mjs` checks every colour pair in light and in
+dark (see [Contrast and targets](#contrast-and-targets)).
 
 ## Colour roles
 
@@ -46,6 +46,44 @@ these roles while the redesign migrates rule by rule. New rules use the role nam
 | `--state-pressed` | state layer, pressed | 10% |
 | `--focus-ring` / `--focus-offset` | focus indication | 2px `--primary`, 3px offset |
 | `--elev-0` … `--elev-3` | `tonalElevation` / shadow levels 0–3 | none, card, raised, dialog |
+
+## Contrast and targets
+
+`test/browser/contrast.browser.mjs` measures from computed styles in both themes. It checks
+the tokens, and it checks the components as drawn: a component mixes tokens, so a pair can
+pass in the table above and still fail on screen. A tonal chip, for example, is `--primary`
+at 10% over a card. Colours are composited over the real stack of backgrounds behind each
+part.
+
+- **Text**: 4.5:1. Large text (24px, or 18.66px at weight 700) needs 3:1. This covers every
+  text role on every surface, and the text of buttons, chips, badges, tags, coverage labels,
+  thread bubbles, menus, toasts, placeholders, the skip link and every voice-stage line in
+  every phase.
+- **Non-text**: 3:1. This covers `--outline` on every surface, and the focus ring
+  (`--primary`) on what sits behind each control. It also covers field, ghost-button and chip
+  edges, the switch's track and thumb in both states, the overflow menu's and toasts' edges,
+  the current navigation item, the selected library card, icons on their buttons, and the
+  voice stage's phase glyph and button icons on their circles. The coverage meter's segments
+  are measured by `coverage.browser.mjs`.
+- **Exempt**: disabled controls (WCAG exempts inactive components), and container edges that
+  identify nothing, such as cards, the question card and dividers. The voice stage's tonal
+  ring and the loading skeleton bars only repeat state that text already shows: the status
+  line under the ring, the caption or title beside a skeleton, and "Loading ideas…" in the
+  library count. The text is measured instead.
+
+Three edges were raised to meet 3:1. Chip borders are `--primary` at 70%; they were 30%,
+which measured 1.6:1 in light. The overflow menu and toast borders are `--outline`; they
+were `--outline-variant`, which measured 1.3:1. They float over arbitrary content, and the
+edge is what separates them.
+
+**Targets.** Under `pointer: coarse`, every control is at least 48 by 48 CSS pixels. That
+is Material's minimum and the Android app's. WCAG 2.5.8 asks for 24. Two exemptions apply.
+A link inside a sentence is sized by its line, which is WCAG 2.5.8's inline exception: the
+key link in the API key hint, and the Guide link in the version line. The desktop coverage
+panel's summary is a heading there (`aria-disabled`), not a control.
+`test/browser/a11y-keyboard.probe.mjs` measures every panel under real touch emulation, at
+phone and desktop widths, with menus open. The same probe walks each panel with real Tab
+presses and checks the reading order.
 
 ## Type
 
