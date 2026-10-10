@@ -5403,6 +5403,144 @@
       }
     },
     {
+      "name": "renderBlocks 6",
+      "fn": "renderBlocks",
+      "args": [
+        "# Head more\n\n- item more\n- next\n\n1. one two"
+      ],
+      "expect": {
+        "value": [
+          {
+            "type": "h1",
+            "spans": [
+              {
+                "text": "Head more"
+              }
+            ]
+          },
+          {
+            "type": "list",
+            "ordered": false,
+            "items": [
+              [
+                {
+                  "text": "item more"
+                }
+              ],
+              [
+                {
+                  "text": "next"
+                }
+              ]
+            ]
+          },
+          {
+            "type": "list",
+            "ordered": true,
+            "items": [
+              [
+                {
+                  "text": "one two"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "forSpeech 6",
+      "fn": "forSpeech",
+      "args": [
+        "# Head more\n\n- item more\n- next\n\n1. one two"
+      ],
+      "expect": {
+        "value": "Head. more. item more. next. one two."
+      }
+    },
+    {
+      "name": "forSpeech 6 short",
+      "fn": "forSpeech",
+      "args": [
+        "# Head more\n\n- item more\n- next\n\n1. one two",
+        {
+          "maxChars": 120
+        }
+      ],
+      "expect": {
+        "value": "Head. more. item more. next. one two."
+      }
+    },
+    {
+      "name": "renderBlocks 7",
+      "fn": "renderBlocks",
+      "args": [
+        "Para line\n\n> quote more\n\n##\n  Spoken heading\n\nend"
+      ],
+      "expect": {
+        "value": [
+          {
+            "type": "p",
+            "meta": false,
+            "spans": [
+              {
+                "text": "Para line"
+              }
+            ]
+          },
+          {
+            "type": "quote",
+            "spans": [
+              {
+                "text": "quote more"
+              }
+            ]
+          },
+          {
+            "type": "p",
+            "meta": false,
+            "spans": [
+              {
+                "text": "## Spoken heading"
+              }
+            ]
+          },
+          {
+            "type": "p",
+            "meta": false,
+            "spans": [
+              {
+                "text": "end"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "forSpeech 7",
+      "fn": "forSpeech",
+      "args": [
+        "Para line\n\n> quote more\n\n##\n  Spoken heading\n\nend"
+      ],
+      "expect": {
+        "value": "Para line. quote more. Spoken heading. end."
+      }
+    },
+    {
+      "name": "forSpeech 7 short",
+      "fn": "forSpeech",
+      "args": [
+        "Para line\n\n> quote more\n\n##\n  Spoken heading\n\nend",
+        {
+          "maxChars": 120
+        }
+      ],
+      "expect": {
+        "value": "Para line. quote more. Spoken heading. end."
+      }
+    },
+    {
       "name": "speechChunks 0",
       "fn": "speechChunks",
       "args": [
