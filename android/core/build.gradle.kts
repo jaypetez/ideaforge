@@ -32,7 +32,14 @@ tasks.test {
     inputs.file(rootProject.layout.projectDirectory.file("../src/core/session.js"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
     // The golden vectors (npm run vectors) are the contract this module is tested against.
-    val vectors = rootProject.layout.projectDirectory.dir("../test/vectors")
-    inputs.dir(vectors).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("goldenVectors")
-    systemProperty("ideaforge.vectors", vectors.asFile.absolutePath)
+    // Passed through an argument provider rather than systemProperty: the provider declares
+    // the directory as a relative-path input, so its absolute location stays out of the cache
+    // key and a worktree or CI runner can reuse the result.
+    jvmArgumentProviders.add(GoldenVectors(rootProject.layout.projectDirectory.dir("../test/vectors").asFile))
+}
+
+class GoldenVectors(
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) val dir: File,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.vectors=${dir.absolutePath}")
 }

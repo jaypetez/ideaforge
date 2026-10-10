@@ -1,6 +1,6 @@
 package io.github.jaypetez.ideaforge.core.vectors
 
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest
@@ -30,9 +30,11 @@ class VectorSuiteTest {
     private fun replay(port: Port, case: Case) {
         val throws = case.expect["throws"]
         if (throws != null) {
+            // Synchronous calls record the message; provider scenarios record {code, message}.
+            val message = (throws as? JsonObject)?.get("message")?.let(::str) ?: str(throws)
             val err = runCatching { port(case) }.exceptionOrNull()
-                ?: fail("${case.name}: expected the JS error \"${(throws as JsonPrimitive).content}\", got a value")
-            assertEquals((throws as JsonPrimitive).content, err.message, case.name)
+                ?: fail("${case.name}: expected the JS error \"$message\", got a value")
+            assertEquals(message, err.message, case.name)
             return
         }
         assertEquals(case.expect["value"], port(case), case.name)

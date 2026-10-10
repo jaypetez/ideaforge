@@ -9173,6 +9173,66 @@
       "expect": {
         "value": 1000
       }
+    },
+    {
+      "name": "promptHash \"lone \\ud83c high\"",
+      "fn": "promptHash",
+      "args": [
+        "lone \ud83c high"
+      ],
+      "expect": {
+        "value": "1ok31jn"
+      }
+    },
+    {
+      "name": "utf8Length \"lone \\ud83c high\"",
+      "fn": "utf8Length",
+      "args": [
+        "lone \ud83c high"
+      ],
+      "expect": {
+        "value": 13
+      }
+    },
+    {
+      "name": "promptHash \"lone \\udf0c low\"",
+      "fn": "promptHash",
+      "args": [
+        "lone \udf0c low"
+      ],
+      "expect": {
+        "value": "csix7z"
+      }
+    },
+    {
+      "name": "utf8Length \"lone \\udf0c low\"",
+      "fn": "utf8Length",
+      "args": [
+        "lone \udf0c low"
+      ],
+      "expect": {
+        "value": 12
+      }
+    },
+    {
+      "name": "promptHash \"\\udf0c\\ud83c reversed\"",
+      "fn": "promptHash",
+      "args": [
+        "\udf0c\ud83c reversed"
+      ],
+      "expect": {
+        "value": "gqcgx9"
+      }
+    },
+    {
+      "name": "utf8Length \"\\udf0c\\ud83c reversed\"",
+      "fn": "utf8Length",
+      "args": [
+        "\udf0c\ud83c reversed"
+      ],
+      "expect": {
+        "value": 15
+      }
     }
   ]
 }

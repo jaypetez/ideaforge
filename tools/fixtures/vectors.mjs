@@ -292,7 +292,9 @@ async function turnPromptFamily() {
     }
     cases.push(rec(`serializeFacts ${label}`, serializeFacts, s.facts));
   }
-  for (const str of ['', 'a', 'é', '€', '🌌', 'mixed 🌌 é € text', '\u0000￿', 'x'.repeat(1000)]) {
+  // Lone surrogates: JS charCodeAt/codePointAt return them as they are, and a port that
+  // decoded to code points or UTF-8 first would disagree.
+  for (const str of ['', 'a', 'é', '€', '🌌', 'mixed 🌌 é € text', '\u0000￿', 'x'.repeat(1000), 'lone \ud83c high', 'lone \udf0c low', '\udf0c\ud83c reversed']) {
     cases.push(rec(`promptHash ${JSON.stringify(str).slice(0, 24)}`, promptHash, str));
     cases.push(rec(`utf8Length ${JSON.stringify(str).slice(0, 24)}`, utf8Length, str));
   }

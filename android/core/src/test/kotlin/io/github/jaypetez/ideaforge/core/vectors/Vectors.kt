@@ -88,6 +88,11 @@ fun json(value: Any?): JsonElement = when (value) {
     null -> JsonNull
     is JsonElement -> value
     is String -> JsonPrimitive(value)
+    // JS has one number type and prints integral values without a fraction; Kotlin's Double
+    // would print 50.0 where the JS wrote 50, and JsonPrimitive compares the text.
+    is Double -> if (value.isFinite() && value == Math.rint(value) && Math.abs(value) < 9.007199254740992E15)
+        JsonPrimitive(value.toLong()) else JsonPrimitive(value)
+    is Float -> json(value.toDouble())
     is Number -> JsonPrimitive(value)
     is Boolean -> JsonPrimitive(value)
     else -> error("cannot encode ${value::class}")
