@@ -44,6 +44,12 @@
     <string name="onboarding_model_label">Model</string>
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_back">Back</string>
+    <string name="keyring_unreadable_title">Your saved keys could not be read</string>
+    <string name="keyring_unreadable_body">They are still on this device. This is sometimes a passing problem with Android’s secure key storage, so try again first. Setting up a provider replaces them only if you confirm.</string>
+    <string name="keyring_retry">Try again</string>
+    <string name="keyring_set_up_again">Set up a provider instead</string>
+    <string name="keyring_unreadable_replace_body">Saving now replaces them, including every other provider’s key and any speech keys, with this one.</string>
+    <string name="keyring_unreadable_replace">Replace them and save</string>
 
     <!-- Library. Wording follows index.html and src/ui/library.js where the web has it. -->
     <string name="library_title">Your ideas</string>

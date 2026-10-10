@@ -167,6 +167,7 @@ private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewM
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Failure(s.failure)
+    s.unreadable?.let { UnreadableKeyring(it, vm::replaceUnreadable) }
     Actions(vm::back) {
         Button(onClick = vm::checkKey, enabled = !s.checking, modifier = Modifier.testTag("check-key")) {
             Text(stringResource(if (s.checking) R.string.onboarding_checking else R.string.onboarding_check_key))
@@ -233,6 +234,7 @@ private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingVie
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
     )
     Failure(s.failure)
+    s.unreadable?.let { UnreadableKeyring(it, vm::replaceUnreadable) }
     Actions(vm::back) {
         Button(onClick = vm::finishLocal, enabled = s.canFinishLocal, modifier = Modifier.testTag("finish-local")) {
             Text(stringResource(R.string.onboarding_continue))
@@ -262,6 +264,26 @@ private fun Failure(f: CheckFailure?) {
             Text(f.lead, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
             if (f.detail.isNotEmpty()) {
                 Text(f.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+        }
+    }
+}
+
+/** Shown instead of saving over a keyring that could not be read even on a second try. */
+@Composable
+private fun UnreadableKeyring(problem: String, replace: () -> Unit) {
+    OutlinedCard(
+        Modifier.fillMaxWidth().testTag("unreadable-keyring"),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.keyring_unreadable_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(stringResource(R.string.keyring_unreadable_replace_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+            if (problem.isNotEmpty()) {
+                Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+            OutlinedButton(onClick = replace, modifier = Modifier.testTag("replace-unreadable")) {
+                Text(stringResource(R.string.keyring_unreadable_replace))
             }
         }
     }

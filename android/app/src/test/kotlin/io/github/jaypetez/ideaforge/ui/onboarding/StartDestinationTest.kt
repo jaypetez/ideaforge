@@ -21,19 +21,28 @@ class StartDestinationTest {
 
     @Test
     fun nothingIsDecidedUntilTheKeyringHasBeenRead() {
-        assertNull(startDestinationFor(KeyringState(withCreds(emptyKeyring(), "groq", rec("apiKey" to "k")), KeyringState.Status.NOT_LOADED)))
+        assertEquals(StartDecision.Loading, startDecisionFor(KeyringState(withCreds(emptyKeyring(), "groq", rec("apiKey" to "k")), KeyringState.Status.NOT_LOADED)))
     }
 
     @Test
-    fun anEmptyOrUnreadableKeyringOpensOnboarding() {
-        assertEquals(OnboardingRoute, startDestinationFor(KeyringState(emptyKeyring(), KeyringState.Status.NONE)))
-        assertEquals(OnboardingRoute, startDestinationFor(KeyringState(emptyKeyring(), KeyringState.Status.UNREADABLE, "lost key")))
+    fun anEmptyKeyringOpensOnboarding() {
+        assertEquals(StartDecision.Go(OnboardingRoute), startDecisionFor(KeyringState(emptyKeyring(), KeyringState.Status.NONE)))
+    }
+
+    // Unreadable is not "no keys": the blob is kept for a Keystore that may answer next time,
+    // and latching onboarding here is how a save then overwrote it.
+    @Test
+    fun anUnreadableKeyringIsReportedNotTakenAsEmpty() {
+        assertEquals(
+            StartDecision.Unreadable("lost key"),
+            startDecisionFor(KeyringState(emptyKeyring(), KeyringState.Status.UNREADABLE, "lost key")),
+        )
     }
 
     @Test
     fun aHostedProviderWithAKeyOpensTheLibrary() {
         val ring = withCreds(emptyKeyring(), "anthropic", rec("apiKey" to "sk-ant-x"))
-        assertEquals(LibraryRoute, startDestinationFor(KeyringState(ring, KeyringState.Status.STORED)))
+        assertEquals(StartDecision.Go(LibraryRoute), startDecisionFor(KeyringState(ring, KeyringState.Status.STORED)))
     }
 
     @Test

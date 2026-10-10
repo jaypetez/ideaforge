@@ -51,7 +51,7 @@ import io.github.jaypetez.ideaforge.ui.library.LibraryScreen
 import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
-import io.github.jaypetez.ideaforge.ui.onboarding.rememberStartDestination
+import io.github.jaypetez.ideaforge.ui.onboarding.startGate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -88,7 +88,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     val library: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory)
     val graph = (LocalContext.current.applicationContext as IdeaForgeApp).graph
     // Null while the keyring is read: nothing renders rather than a frame of the wrong screen.
-    val start = rememberStartDestination(graph.keyringStore) ?: return
+    val start = startGate(graph.keyringStore) ?: return
     val uri = LocalUriHandler.current
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination

@@ -10,7 +10,9 @@ import io.github.jaypetez.ideaforge.core.credsFor
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.withCreds
+import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
+import io.github.jaypetez.ideaforge.providers.createProvider
 import io.github.jaypetez.ideaforge.providers.PROVIDER_CHOICES
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
@@ -41,6 +43,12 @@ data class OnboardingState(
     val failure: CheckFailure? = null,
     /** Saved: the screen navigates to the library exactly once on this. */
     val done: Boolean = false,
+    /**
+     * Set when a save found the stored keyring unreadable even after reading it again: why,
+     * as KeyringStore reported it. Saving now would replace every record in it, so nothing is
+     * written until the user confirms with [OnboardingViewModel.replaceUnreadable].
+     */
+    val unreadable: String? = null,
 ) {
     val step: Int get() = if (choice == null) 1 else 2
     val canFinishLocal: Boolean get() = choice?.local == true && !checking && model.isNotBlank() && baseUrl.isNotBlank()
@@ -56,6 +64,10 @@ class OnboardingViewModel(
     private val keyring: KeyringStore,
     private val checker: ProviderCheck,
     val choices: List<ProviderChoice> = PROVIDER_CHOICES,
+    // What the web's buildProvider does before accepting settings: build the adapter, which
+    // refuses an address that is not an http(s) URL or not on a private network (a CONFIG
+    // ProviderException) without touching the network.
+    private val buildLocal: (ProviderConfig) -> Unit = { createProvider(it) },
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardingState())
     val state: StateFlow<OnboardingState> = _state.asStateFlow()
@@ -64,6 +76,10 @@ class OnboardingViewModel(
     // A busy flag is not an identity guard: a cancelled check's `finally` still runs, and
     // must not clear `checking` on (or report into) the check that replaced it.
     private var generation = 0
+
+    /** The save waiting on [replaceUnreadable]; null when none is. */
+    private var pendingSave: (suspend () -> Unit)? = null
+    private var replaceConfirmed = false
 
     fun pick(id: String) {
         val choice = choices.firstOrNull { it.id == id } ?: return
@@ -81,6 +97,7 @@ class OnboardingViewModel(
     fun back() {
         generation++
         work?.cancel()
+        pendingSave = null
         _state.value = OnboardingState()
     }
 
@@ -124,21 +141,49 @@ class OnboardingViewModel(
         }
     }
 
-    /** Local: save the address and model and finish. No network call; findModels was the check. */
+    /**
+     * Local: save the address and model and finish. The adapter is built first, as the web's
+     * buildProvider does, so an address the app would refuse on every call (a public host, a
+     * typo that is not a URL) is refused here instead of being saved, after which the keyring
+     * would count as usable and every interview would fail with the same CONFIG error.
+     */
     fun finishLocal() {
         val s = _state.value
         val choice = s.choice?.takeIf { it.local } ?: return
         if (!s.canFinishLocal) return
+        val base = s.baseUrl.trim()
+        val model = s.model.trim()
         launchCheck {
+            buildLocal(ProviderConfig(kind = choice.id, baseUrl = base, model = model))
             save(choice) {
-                put("baseUrl", JsonPrimitive(s.baseUrl.trim()))
-                put("model", JsonPrimitive(s.model.trim()))
+                put("baseUrl", JsonPrimitive(base))
+                put("model", JsonPrimitive(model))
             }
         }
     }
 
+    /** The user confirmed: replace the unreadable keyring with one holding only this provider. */
+    fun replaceUnreadable() {
+        val pending = pendingSave ?: return
+        replaceConfirmed = true
+        _state.update { it.copy(unreadable = null) }
+        launchCheck { pending() }
+    }
+
     private suspend fun save(choice: ProviderChoice, edit: MutableMap<String, JsonElement>.() -> Unit) {
-        val ring = keyring.state.value.ring
+        // An unreadable keyring is kept on disk on purpose: a Keystore that failed once may
+        // answer now. Read it again first, and if it is still unreadable, saving would build
+        // on the empty ring and overwrite every other provider's record and the speech keys,
+        // so that happens only after the user has said so.
+        if (keyring.state.value.status == KeyringState.Status.UNREADABLE) keyring.load()
+        val current = keyring.state.value
+        if (current.status == KeyringState.Status.UNREADABLE && !replaceConfirmed) {
+            pendingSave = { save(choice, edit) }
+            _state.update { it.copy(unreadable = current.problem.orEmpty()) }
+            return
+        }
+        pendingSave = null
+        val ring = current.ring
         // Keep whatever else this provider's record held (a wrap-up model chosen in Settings).
         val rec = LinkedHashMap<String, JsonElement>(credsFor(ring, choice.id)).apply(edit)
         try {

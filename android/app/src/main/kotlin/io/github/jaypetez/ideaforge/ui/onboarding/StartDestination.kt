@@ -1,48 +1,123 @@
 package io.github.jaypetez.ideaforge.ui.onboarding
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.ui.LibraryRoute
 import io.github.jaypetez.ideaforge.ui.OnboardingRoute
+import kotlinx.coroutines.launch
 
-/**
- * Where the app opens: onboarding when the keyring cannot start an interview, else the
- * library. Null until the keyring has been read, so a returning user never sees one frame of
- * onboarding while the Keystore decrypts. An unreadable keyring reads as empty, so it opens
- * onboarding: asking again beats an app that cannot start.
- */
-fun startDestinationFor(state: KeyringState): Any? = when {
-    state.status == KeyringState.Status.NOT_LOADED -> null
-    hasUsableProvider(state.ring) -> LibraryRoute
-    else -> OnboardingRoute
+/** What the keyring says about where the app should open. */
+sealed interface StartDecision {
+    /** Not read yet: render nothing rather than one frame of the wrong screen. */
+    data object Loading : StartDecision
+
+    /**
+     * A blob exists that could not be decrypted. KeyringStore keeps it on purpose, because a
+     * Keystore that failed once may answer on the next read, so this is never silently taken
+     * as "no keys": the user is told, and chooses between retrying and setting up again.
+     */
+    data class Unreadable(val problem: String) : StartDecision
+
+    data class Go(val route: Any) : StartDecision
+}
+
+/** Onboarding when the keyring cannot start an interview, else the library. */
+fun startDecisionFor(state: KeyringState): StartDecision = when {
+    state.status == KeyringState.Status.NOT_LOADED -> StartDecision.Loading
+    state.status == KeyringState.Status.UNREADABLE -> StartDecision.Unreadable(state.problem.orEmpty())
+    hasUsableProvider(state.ring) -> StartDecision.Go(LibraryRoute)
+    else -> StartDecision.Go(OnboardingRoute)
 }
 
 /**
- * [startDestinationFor], decided once and kept. A NavHost's start destination must not move
- * under it: saving a key at the end of onboarding makes the keyring usable, and re-deciding
- * then would swap the graph's start while onboarding is navigating away from it.
+ * The start route, decided once and kept: null until then. A NavHost's start destination
+ * must not move under it, and saving a key at the end of onboarding makes the keyring usable,
+ * so re-deciding then would swap the graph's start while onboarding navigates away from it.
+ *
+ * While the keyring is unreadable nothing is decided; this emits the problem with a Retry
+ * (another read) and a way to set up a provider anyway. Onboarding then still refuses to
+ * overwrite the unreadable blob without an explicit confirmation.
  */
 @Composable
-fun rememberStartDestination(keyring: KeyringStore): Any? {
+fun startGate(keyring: KeyringStore): Any? {
     val state by keyring.state.collectAsStateWithLifecycle()
     // The application starts the load at launch; this covers a graph built without it.
     LaunchedEffect(keyring) {
         if (keyring.state.value.status == KeyringState.Status.NOT_LOADED) keyring.load()
     }
     var onboarding by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    val decided = onboarding ?: startDestinationFor(state)?.let { it == OnboardingRoute }
-    if (onboarding == null && decided != null) SideEffect { onboarding = decided }
-    return when (decided) {
-        null -> null
-        true -> OnboardingRoute
-        false -> LibraryRoute
+    var retrying by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    onboarding?.let { return if (it) OnboardingRoute else LibraryRoute }
+    return when (val d = startDecisionFor(state)) {
+        StartDecision.Loading -> null
+        is StartDecision.Go -> {
+            SideEffect { onboarding = d.route == OnboardingRoute }
+            d.route
+        }
+        is StartDecision.Unreadable -> {
+            KeyringProblem(
+                d.problem,
+                retrying = retrying,
+                retry = {
+                    scope.launch {
+                        retrying = true
+                        try { keyring.load() } finally { retrying = false }
+                    }
+                },
+                setUp = { onboarding = true },
+            )
+            null
+        }
+    }
+}
+
+@Composable
+private fun KeyringProblem(problem: String, retrying: Boolean, retry: () -> Unit, setUp: () -> Unit) {
+    Surface(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp).testTag("keyring-problem"),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.keyring_unreadable_title), style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.keyring_unreadable_body), style = MaterialTheme.typography.bodyLarge)
+            if (problem.isNotEmpty()) {
+                Text(problem, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(onClick = retry, enabled = !retrying, modifier = Modifier.testTag("keyring-retry")) {
+                Text(stringResource(R.string.keyring_retry))
+            }
+            TextButton(onClick = setUp, enabled = !retrying, modifier = Modifier.testTag("keyring-setup")) {
+                Text(stringResource(R.string.keyring_set_up_again))
+            }
+        }
     }
 }

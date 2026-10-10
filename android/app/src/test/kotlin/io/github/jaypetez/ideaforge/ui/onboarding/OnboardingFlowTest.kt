@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.FakeCheck
@@ -15,6 +16,7 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.credsFor
 import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.installTestGraph
+import io.github.jaypetez.ideaforge.installUnreadableGraph
 import io.github.jaypetez.ideaforge.providers.httpError
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.serialization.json.JsonPrimitive
@@ -23,6 +25,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -147,6 +150,91 @@ class OnboardingFlowTest {
         waitFor(library)
         compose.onNodeWithTag("provider-groq").assertDoesNotExist()
         compose.onNodeWithText("Step 1 of 2").assertDoesNotExist()
+    }
+
+    @Test
+    fun aLocalAddressTheAppWouldRefuseIsNeverSaved() {
+        // The real check: createProvider refuses a public host before any request is made.
+        val graph = installTestGraph(ProviderCheck.Default)
+        launch()
+
+        waitFor(hasTestTag("provider-ollama"))
+        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+        compose.onNodeWithTag("base-url").performTextClearance()
+        compose.onNodeWithTag("base-url").performTextInput("https://api.example.com/v1")
+        compose.onNodeWithTag("find-models").performClick()
+        waitFor(hasTestTag("check-failure"))
+
+        // Typing a model after the refusal and pressing Continue must not save the address:
+        // the keyring would then count as usable and every interview would fail.
+        compose.onNodeWithTag("model").performTextInput("qwen2.5:7b-instruct")
+        compose.onNodeWithTag("finish-local").performScrollTo().performClick()
+        waitFor(hasTestTag("check-failure"))
+        compose.onNodeWithText("api.example.com is not on a private network", substring = true).assertExists()
+        compose.onNode(library).assertDoesNotExist()
+        assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
+    }
+
+    @Test
+    fun anUnreadableKeyringIsExplainedAndARetryThatWorksOpensTheLibrary() {
+        val (graph, flaky, lost) = installUnreadableGraph(usableRing())
+        launch()
+
+        waitFor(hasTestTag("keyring-problem"))
+        compose.onNodeWithText("Your saved keys could not be read").assertExists()
+        compose.onNodeWithText("is missing", substring = true).assertExists()
+        compose.onNodeWithTag("provider-groq").assertDoesNotExist()
+
+        flaky.keys[0] = lost // the Keystore answers this time
+        compose.onNodeWithTag("keyring-retry").performClick()
+        waitFor(library)
+        assertEquals(KeyringState.Status.STORED, graph.keyringStore.state.value.status)
+    }
+
+    @Test
+    fun settingUpOverAnUnreadableKeyringReplacesItOnlyWhenConfirmed() {
+        val (graph, _, _) = installUnreadableGraph(usableRing())
+        val before = graph.keyringStore.file.readBytes()
+        launch()
+
+        waitFor(hasTestTag("keyring-setup"))
+        compose.onNodeWithTag("keyring-setup").performClick()
+        waitFor(hasTestTag("provider-anthropic"))
+        compose.onNodeWithTag("provider-anthropic").performScrollTo().performClick()
+        compose.onNodeWithTag("api-key").performTextInput("sk-ant-new-key")
+        compose.onNodeWithTag("check-key").performClick()
+
+        // The reload before the save still failed: nothing is written until the user says so.
+        waitFor(hasTestTag("unreadable-keyring"))
+        compose.onNode(library).assertDoesNotExist()
+        assertArrayEquals("the unreadable keyring was overwritten", before, graph.keyringStore.file.readBytes())
+
+        compose.onNodeWithTag("replace-unreadable").performScrollTo().performClick()
+        waitFor(library)
+        val ring = graph.keyringStore.state.value.ring
+        assertEquals(JsonPrimitive("anthropic"), ring["active"])
+        assertEquals(JsonPrimitive("sk-ant-new-key"), credsFor(ring, "anthropic")["apiKey"])
+    }
+
+    // The Keystore recovers while the user is in onboarding: the save re-reads the keyring and
+    // builds on it, so the other provider's key survives and no confirmation is needed.
+    @Test
+    fun aKeyringThatRecoversBeforeTheSaveKeepsItsOtherRecords() {
+        val (graph, flaky, lost) = installUnreadableGraph(usableRing())
+        launch()
+
+        waitFor(hasTestTag("keyring-setup"))
+        compose.onNodeWithTag("keyring-setup").performClick()
+        waitFor(hasTestTag("provider-anthropic"))
+        compose.onNodeWithTag("provider-anthropic").performScrollTo().performClick()
+        compose.onNodeWithTag("api-key").performTextInput("sk-ant-new-key")
+        flaky.keys[0] = lost
+        compose.onNodeWithTag("check-key").performClick()
+
+        waitFor(library)
+        val ring = graph.keyringStore.state.value.ring
+        assertEquals(JsonPrimitive("anthropic"), ring["active"])
+        assertEquals(JsonPrimitive("gsk_returning_user_key_0001"), credsFor(ring, "groq")["apiKey"])
     }
 
     private fun unauthorized(): Response = Response.Builder()
