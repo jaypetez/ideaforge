@@ -64,6 +64,9 @@ async function waitFor(cdp, field, timeout) {
   throw new Error(`audio policy timed out waiting for ${field}: ${JSON.stringify(last)}`);
 }
 
+/** How long a fresh profile gets to write DevToolsActivePort, per launch. */
+const PORT_WAIT_MS = 30000;
+
 async function closeBrowser(browser, cdp) {
   const exited = () => !browser.child.pid
     || browser.child.exitCode !== null || browser.child.signalCode !== null;
@@ -128,10 +131,25 @@ export async function runBrowserPolicyChecks({
       const check = (name, ok, detail = '') =>
         results.push({ probe: testCase.name, name, ok: !!ok, detail: String(detail) });
       try {
-        browser = launchChrome(chrome, {
+        const launch = () => launchChrome(chrome, {
           url: 'about:blank', extraArgs: ['--remote-debugging-port=0', ...testCase.flags],
         });
-        cdp = await connectChrome(browser);
+        browser = launch();
+        try {
+          cdp = await connectChrome(browser, PORT_WAIT_MS);
+        } catch (error) {
+          // A cold profile on a loaded CI runner has missed the port window twice (#145)
+          // while every probe after it passed. Only that one failure earns a single fresh
+          // relaunch; a Chrome that exits or errors stays a hard failure.
+          if (!/never opened a debugging port/.test(error.message)) throw error;
+          // No relaunch over a first browser that will not die or leave its profile: let
+          // that propagate, so the outer catch records it and the finally retries the cleanup
+          // on this same browser, instead of a green retry hiding a leaked Chrome.
+          await closeBrowser(browser, null);
+          browser = launch();
+          cdp = await connectChrome(browser, PORT_WAIT_MS);
+          check('Chrome opened its debugging port on a fresh relaunch', true, error.message);
+        }
         const version = await cdp.send('Browser.getVersion');
         const args = browser.child.spawnargs.slice(1);
         const autoplayFlags = args.filter((arg) => arg.startsWith('--autoplay-policy='));
