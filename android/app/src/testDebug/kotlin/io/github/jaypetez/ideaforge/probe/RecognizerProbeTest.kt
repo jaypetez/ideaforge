@@ -91,8 +91,15 @@ class RecognizerProbeTest {
         val debug = File(appDir(), "src/debug/AndroidManifest.xml").readText()
         // An explicit allowlist, not "whatever main declares": subtracting main would let a
         // probe permission copied into main pass. RECORD_AUDIO and the RecognitionService
-        // query belong to the app itself since native capture (#91); nothing else may leak.
-        val sharedPermissions = setOf("android.permission.RECORD_AUDIO")
+        // query belong to the app itself since native capture (#91), and the microphone
+        // foreground service and its notification since the drive service (#92). WAKE_LOCK
+        // stays the probe's: the drive holds none. Nothing else may leak.
+        val sharedPermissions = setOf(
+            "android.permission.RECORD_AUDIO",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+            "android.permission.POST_NOTIFICATIONS",
+        )
         val sharedQueries = setOf("android.speech.RecognitionService")
         fun permissions(x: String) = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(x).map { it.groupValues[1] }.toSet()
         fun queryActions(x: String) = Regex("""<queries>(.*?)</queries>""", RegexOption.DOT_MATCHES_ALL).findAll(x)

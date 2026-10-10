@@ -332,9 +332,11 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   the built-in checklist fallback, the result screen (Share .md, Copy markdown, Save .md, Ask
   me more), the Ideas library and Settings. Backups move both ways between Android and the web
   app.
-- **Not yet:** voice. The app does not ask for the microphone; press-to-talk and hands-free
-  driving are in progress, and hosted speech is not offered. Use the installed web app above
-  if you want voice on a phone today.
+- **New, emulator-checked only:** hands-free voice. *Answer by voice* reads each question
+  aloud and listens for the finish word, kept hearing with the screen off by a microphone
+  foreground service whose notification offers Pause and Exit. It has not been tried on a
+  physical phone; the installed web app above is the tested voice path.
+- **Not yet:** press-to-talk, and hosted speech or transcription.
 - **Not yet:** a signed release or a Play Store listing.
   <!-- TODO(#95): link the signed APK on GitHub releases once the release job attaches it. -->
   The signed APK on GitHub releases arrives with

@@ -55,9 +55,9 @@
       </p>
 
       <div class="callout warning">
-        <strong>Typed interviews only, for now.</strong>
-        Voice input and hands-free driving are still being built. If you want voice on a
-        phone today, install the web app instead; see
+        <strong>Hands-free voice is new, and has not been tried on a phone.</strong>
+        It has been checked only on an emulator with a scripted recogniser. If you rely on
+        voice on a phone today, the web app is the tested one; see
         <a href="./mobile-and-voice.html#android">Mobile and voice</a>.
       </div>
 
@@ -98,14 +98,19 @@
             </tr>
             <tr>
               <th scope="row">Voice input</th>
-              <td>Not yet. The app does not ask for the microphone. Press-to-talk and the
-                hands-free voice stage are in progress. The Listening settings (hands-free,
-                finish word, speaking pace) are saved, but nothing listens yet.</td>
+              <td>Hands-free only. <em>Answer by voice</em> on the interview screen asks for the
+                microphone (and, on Android 13 and later, notifications), then reads each
+                question aloud and listens until you say your finish word from Listening. A
+                notification with Pause and Exit keeps the interview hearing with the screen
+                off. Pause keeps the words captured so far as your draft; Exit returns to typing
+                without writing anything up. If the microphone is refused, voice stands down and
+                you keep typing. Press-to-talk is not there yet.</td>
             </tr>
             <tr>
               <th scope="row">Spoken replies</th>
-              <td>Not yet. Native speech output is built but no screen uses it, and hosted
-                speech and transcription are not offered in the app.</td>
+              <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
+                its suggestions, at the speaking pace from Listening. Hosted speech and
+                transcription are not offered in the app.</td>
             </tr>
             <tr>
               <th scope="row">Signed release</th>

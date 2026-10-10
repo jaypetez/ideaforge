@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Debug-only additions, merged over src/main. The recognizer probe (issue #89) and every
      permission it needs live here, so a release APK carries neither the probe nor a
-     microphone permission. Native capture (#91) and the drive service (#92) will move the
-     permissions they actually need into src/main when they land. -->
+     probe-only permission. Native capture (#91) and the drive service (#92) moved the
+     permissions they need into src/main; WAKE_LOCK is still the probe's alone. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

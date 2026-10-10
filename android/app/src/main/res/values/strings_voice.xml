@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The voice stage (ui/voice/VoiceStage.kt) and the drive's notification (voice/DriveService.kt),
+     worded after the web voice stage in src/ui/app.js. -->
+<resources>
+    <string name="voice_start">Answer by voice</string>
+    <string name="voice_pause">Pause</string>
+    <string name="voice_resume">Resume</string>
+    <string name="voice_exit">Exit</string>
+    <string name="voice_phase_starting">Getting ready…</string>
+    <string name="voice_phase_speaking">Speaking</string>
+    <string name="voice_phase_listening">Listening</string>
+    <string name="voice_phase_thinking">Thinking</string>
+    <string name="voice_phase_recovering">Trying again</string>
+    <string name="voice_phase_paused">Paused</string>
+    <string name="voice_phase_blocked">Voice stopped</string>
+    <string name="voice_phase_writing">Writing it up</string>
+    <string name="voice_listening_hint">Say “%1$s” when you’re done.</string>
+    <string name="voice_confirm_hint">Listening — yes, or keep going.</string>
+    <!-- Never animated around: the bars move only from the recogniser's level readings. -->
+    <string name="voice_no_level">No microphone level reported yet.</string>
+    <string name="voice_levels">Microphone level, %1$d readings</string>
+    <string name="voice_deaf">No sound is reaching the recogniser. Keep IdeaForge open, or check the microphone.</string>
+    <string name="voice_mic_title">Microphone access</string>
+    <string name="voice_mic_rationale">IdeaForge listens for your answers through the phone’s speech recogniser, and reads each question aloud. While a voice interview runs, a notification keeps it going with the screen off and gives you Pause and Exit.</string>
+    <string name="voice_mic_continue">Continue</string>
+    <string name="voice_mic_cancel">Not now</string>
+    <string name="voice_mic_denied">Microphone access was denied, so voice stood down. You can keep typing, or allow the microphone in Settings and tap Resume.</string>
+    <string name="voice_notifications_denied">Notifications are off, so the Pause and Exit controls stay on this screen only.</string>
+    <string name="drive_channel">Voice interview</string>
+    <string name="drive_channel_description">Shown while a hands-free interview is using the microphone, with Pause and Exit.</string>
+    <string name="drive_notification_title">Voice interview</string>
+    <string name="drive_status_starting">Getting ready…</string>
+    <string name="drive_status_speaking">Reading the question aloud</string>
+    <string name="drive_status_listening">Listening for your answer</string>
+    <string name="drive_status_thinking">Thinking of the next question</string>
+    <string name="drive_status_writing">Writing it up</string>
+    <string name="drive_status_paused">Paused. Microphone off.</string>
+</resources>

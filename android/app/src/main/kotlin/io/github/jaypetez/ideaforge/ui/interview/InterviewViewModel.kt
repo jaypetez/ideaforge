@@ -13,7 +13,6 @@ import io.github.jaypetez.ideaforge.core.archiveSession
 import io.github.jaypetez.ideaforge.core.buildTurnPrompt
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.js.get
-import io.github.jaypetez.ideaforge.core.js.num
 import io.github.jaypetez.ideaforge.core.js.obj
 import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -25,21 +24,13 @@ import io.github.jaypetez.ideaforge.core.promptHash
 import io.github.jaypetez.ideaforge.core.renameSession
 import io.github.jaypetez.ideaforge.core.restoreSession
 import io.github.jaypetez.ideaforge.core.runtime.Provider
-import io.github.jaypetez.ideaforge.core.runtime.TurnResult
-import io.github.jaypetez.ideaforge.core.runtime.resumeSynthesis
-import io.github.jaypetez.ideaforge.core.runtime.resumeTurn
-import io.github.jaypetez.ideaforge.core.runtime.runSynthesis
-import io.github.jaypetez.ideaforge.core.runtime.runTurn
 import io.github.jaypetez.ideaforge.core.runtime.seedTurn
 import io.github.jaypetez.ideaforge.core.runtime.submitAnswer
 import io.github.jaypetez.ideaforge.core.selectNextDimension
 import io.github.jaypetez.ideaforge.core.setDraftAnswer
 import io.github.jaypetez.ideaforge.core.setPending
 import io.github.jaypetez.ideaforge.core.setSessionTags
-import io.github.jaypetez.ideaforge.core.setStatusField
-import io.github.jaypetez.ideaforge.core.setWrapOffered
 import io.github.jaypetez.ideaforge.core.skipQuestion
-import io.github.jaypetez.ideaforge.core.wrapAdvisory
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
@@ -48,7 +39,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -128,7 +118,7 @@ data class InterviewState(
  * `runTurn` bumps `rev` five or six times; the session it returns is saved once.
  */
 class InterviewViewModel(
-    private val sessionId: String,
+    val sessionId: String,
     private val store: SessionStore,
     private val worker: SessionWorker,
     private val clock: Clock,
@@ -141,6 +131,7 @@ class InterviewViewModel(
     val state: StateFlow<InterviewState> = _state.asStateFlow()
 
     private var provider: Provider? = null
+    private val work = InterviewWork(sessionId, store, worker, clock, writes)
     private var draftJob: Job? = null
 
     /**
@@ -151,7 +142,7 @@ class InterviewViewModel(
     @Volatile
     private var pendingDraft: String? = null
 
-    private fun now(): JsonElement = num(clock.now())
+    private fun now(): JsonElement = work.now()
 
     init {
         viewModelScope.launch { open() }
@@ -258,27 +249,7 @@ class InterviewViewModel(
     /** Starts the turn's work in the app scope, where it outlives this screen. */
     private fun startTurn(session: Session, resume: Boolean): Deferred<SessionWorker.Outcome<SettledTurn>> {
         _state.update { it.copy(busy = if (resume) Busy.Resuming else Busy.Thinking) }
-        val provider = provider
-        val tag = worker.tag(sessionId)
-        return writes.async {
-            worker.run(
-                tag,
-                work = {
-                    val base = withLibraryMetadata(session, store.get(sessionId), now())
-                    val out = if (resume) {
-                        resumeTurn(base, provider, now())
-                    } else {
-                        // The answer, with a marker saying a turn is in flight and which
-                        // prompt it sent. If the process dies before the reply, reopening
-                        // finds the marker and re-issues the byte-identical prompt.
-                        store.save(if (provider != null) withPendingTurn(base, now()) else base)
-                        runTurn(base, provider, now())
-                    }
-                    settle(out)
-                },
-                commit = { (_, settled, _) -> store.save(settled) },
-            )
-        }
+        return work.turn(session, provider, resume)
     }
 
     private suspend fun finishTurn(turn: Deferred<SessionWorker.Outcome<SettledTurn>>) {
@@ -306,16 +277,6 @@ class InterviewViewModel(
         if (out.turn == null && !out.aborted) writeUp()
     }
 
-    /**
-     * What a turn's result becomes on disk, and the advisory to show: the offer is recorded
-     * (setWrapOffered) so it is made once, as the web's nextQuestion does.
-     */
-    private fun settle(out: TurnResult): SettledTurn {
-        val advisory = if (out.aborted) null else wrapAdvisory(out.session, out.wrap)
-        val settled = if (advisory != null) setWrapOffered(out.session, true, now()) else out.session
-        return Triple(out, settled, advisory)
-    }
-
     // ─────────────────────────────────────────────────────────── wrapping up
 
     /** Not now: the offer goes away and is not made again (wrapOffered is already saved). */
@@ -337,22 +298,7 @@ class InterviewViewModel(
         val session = _state.value.session ?: return
         cancelDraft()
         _state.update { it.copy(busy = Busy.Writing, wrapOffer = null) }
-        val provider = provider
-        val tag = worker.tag(sessionId)
-        val job = writes.async {
-            worker.run(
-                tag,
-                work = {
-                    val base = withLibraryMetadata(session, store.get(sessionId), now())
-                    val result = if (resume) resumeSynthesis(base, provider, now()) else runSynthesis(base, provider, now())
-                    // A failed write-up still finishes the interview: the export renders the
-                    // transcript, the open questions and the coverage table without it.
-                    val settled = if (result.ok || result.aborted) result.session else setStatusField(result.session, "done", now())
-                    result to settled
-                },
-                commit = { (_, settled) -> store.save(settled) },
-            )
-        }
+        val job = work.writeUp(session, provider, resume)
         viewModelScope.launch {
             val outcome = try {
                 job.await()
@@ -430,6 +376,35 @@ class InterviewViewModel(
         writes.launch { withContext(NonCancellable) { runCatching { writeDraft(text) } } }
     }
 
+    // ─────────────────────────────────────────────────────────── voice
+
+    /**
+     * Hand the open question to the hands-free drive: the session with the answer box as its
+     * draft, and that draft's source, or null when there is nothing to answer. The queued
+     * draft write is cancelled, because the drive now owns the draft; while it runs this
+     * screen shows the voice stage and writes nothing.
+     */
+    fun handOffToVoice(): Pair<Session, String>? {
+        val st = _state.value
+        val s = st.session ?: return null
+        if (!st.canAnswer) return null
+        cancelDraft()
+        val drafted = if (stringOf(s["draftAnswer"]).orEmpty() == st.answer) s else setDraftAnswer(s, str(st.answer), now())
+        _state.update { it.copy(session = drafted) }
+        return drafted to st.answerSource
+    }
+
+    /**
+     * The drive ended (Exit, done, or it stood down): read the idea again, as reopening it
+     * would. The session lock waits out a turn or write-up the drive left in flight, and a
+     * finished interview goes on to the result exactly as it does on open.
+     */
+    fun reload() {
+        cancelDraft()
+        _state.update { it.copy(wrapOffer = null) }
+        viewModelScope.launch { open() }
+    }
+
     fun noticeShown() = _state.update { it.copy(notice = null) }
 
     fun finishedShown() = _state.update { it.copy(finished = false) }
@@ -455,9 +430,6 @@ class InterviewViewModel(
         }
     }
 }
-
-/** A turn's outcome, the session to save for it, and the wrap advisory to show (or null). */
-private typealias SettledTurn = Triple<TurnResult, Session, String?>
 
 private fun message(e: Throwable): String = e.message?.takeIf { it.isNotEmpty() } ?: e.toString()
 

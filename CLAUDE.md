@@ -498,6 +498,19 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   into the *debug* assets. The release source set's `DebugProviders` returns null and
   packages neither the script nor the provider. It replaces only the interview model; it
   does not skip onboarding.
+- **The hands-free drive lives in the app graph, not the screen, and the service only keeps
+  it hearing.** `DriveController` (`voice/`) runs `DriveLoop` on the main thread and writes
+  turns through `InterviewWork`, the same path as a typed answer. `DriveService` is a
+  `microphone` foreground service: with the screen off and no such service, recognition goes
+  deaf with no error (#89). It is started only by `start`/`resume`, which are taps on the
+  visible app, is `START_NOT_STICKY`, and stops when the controller has no run. Its
+  notification actions call the same `pause`/`resume`/`exit` as the stage. The `epoch` is the
+  identity guard: Pause cancels the run's job (and with it the capture and speech) but never
+  the turn work in the app scope, and Resume reads the idea back under its lock. The pause
+  draft is the recogniser's caption read *before* the cancel, because on-device recognition
+  discards the utterance on stop, and it is written only while its question is still open.
+  The stage's bars come from `Recognizer.samples` (numbered, so repeated -2.0 readings are
+  still samples); no reading means "no level", never an animation.
 - **Windows test hosts have two known quirks; do not loosen a test around them.**
   Defender and the indexer briefly lock fresh files, so `writeAtomicallyWith` retries a
   transient rename failure on Windows only (six attempts, backed off; one attempt
