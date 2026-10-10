@@ -52,3 +52,27 @@ updates:
     cooldown:
       default-days: 3
       semver-major-days: 7
+
+  # The third ecosystem: the native Android app in android/ is a Gradle project with real
+  # dependencies (Compose, OkHttp, kotlinx). None of it reaches the web app or its CSP, but
+  # it ships to phones, so it gets the same weekly bumps and cooldown as everything else.
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "android"]
+    commit-message:
+      prefix: "android"
+      include: "scope"
+    groups:
+      android-minor-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
