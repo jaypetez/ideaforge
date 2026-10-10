@@ -4,26 +4,78 @@
 :root {
   color-scheme: dark light;
 
-  --ground:      light-dark(#f5f6f2, #15191a);
-  --surface:     light-dark(#fdfefb, #1d2324);
-  --surface-2:   light-dark(#e9eeea, #293132);
-  --ink:         light-dark(#202c2b, #eef0e9);
-  --ink-dim:     light-dark(#566562, #abbab5);
-  --line:        light-dark(#d4ded8, #364140);
-  --line-strong: light-dark(#85968f, #6a7e79);
+  /* ── Colour roles (v2). Named for what they do, after Material 3's roles, so docs/DESIGN.md
+     can map each one to the Android app's MaterialTheme colour of the same name. */
+  --surface-container-lowest:  light-dark(#fdfefb, #1d2324);
+  --surface-container-low:     light-dark(#f5f6f2, #15191a);
+  --surface-container:         light-dark(#e9eeea, #293132);
+  --surface-container-high:    light-dark(#dfe6e1, #313a3b);
+  --on-surface:                light-dark(#202c2b, #eef0e9);
+  --on-surface-variant:        light-dark(#566562, #abbab5);
+  --outline-variant:           light-dark(#d4ded8, #364140);
+  /* 3:1 against all four surfaces in both themes (WCAG non-text contrast). It was
+     #85968f / #6a7e79, which measured 2.86:1 on the light page ground and under 3:1 on
+     the raised surface in both themes. */
+  --outline:                   light-dark(#73847d, #72867f);
 
-  --accent:      light-dark(#24665e, #9ecdc3);
-  --accent-ink:  light-dark(#ffffff, #142e29);
-  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --primary:            light-dark(#24665e, #9ecdc3);
+  --on-primary:         light-dark(#ffffff, #142e29);
+  --primary-container:  color-mix(in srgb, var(--primary) 10%, transparent);
+  --on-primary-container: var(--on-surface);
 
-  --ok:   light-dark(#306445, #a0c9a9);
-  --fail: light-dark(#9e3e37, #e8a396);
-  --pend: light-dark(#786120, #cfbd8a);
+  --success: light-dark(#306445, #a0c9a9);
+  --error:   light-dark(#9e3e37, #e8a396);
+  --error-container: color-mix(in srgb, var(--error) 12%, transparent);
+  --warning: light-dark(#786120, #cfbd8a);
 
-  /* Mixed from a fixed near-black rather than from --ink, so the dark theme gets a real
-     shadow instead of a pale glow. */
-  --shadow-1: 0 1px 2px light-dark(rgb(28 37 35 / .04), rgb(0 0 0 / .16));
-  --shadow-2: 0 8px 24px -14px light-dark(rgb(28 37 35 / .18), rgb(0 0 0 / .4));
+  /* State layers: how much of the content colour a hovered, focused or pressed control mixes
+     into its own. One set of numbers, so every control responds alike. */
+  --state-hover: 8%;
+  --state-focus: 10%;
+  --state-pressed: 10%;
+  --focus-ring: 2px solid var(--primary);
+  --focus-offset: 3px;
+
+  /* The v1 names, kept as aliases while the redesign migrates rule by rule. New rules use
+     the role names above. */
+  --ground:      var(--surface-container-low);
+  --surface:     var(--surface-container-lowest);
+  --surface-2:   var(--surface-container);
+  --ink:         var(--on-surface);
+  --ink-dim:     var(--on-surface-variant);
+  --line:        var(--outline-variant);
+  --line-strong: var(--outline);
+  --accent:      var(--primary);
+  --accent-ink:  var(--on-primary);
+  --accent-soft: var(--primary-container);
+  --ok:   var(--success);
+  --fail: var(--error);
+  --pend: var(--warning);
+
+  /* Elevation. Mixed from a fixed near-black rather than from --ink, so the dark theme gets
+     a real shadow instead of a pale glow. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px light-dark(rgb(28 37 35 / .04), rgb(0 0 0 / .16));
+  --elev-2: 0 8px 24px -14px light-dark(rgb(28 37 35 / .18), rgb(0 0 0 / .4));
+  --elev-3: 0 16px 40px -18px light-dark(rgb(28 37 35 / .24), rgb(0 0 0 / .5));
+  --shadow-1: var(--elev-1);
+  --shadow-2: var(--elev-2);
+
+  /* Type scale (v2), by role. IBM Plex Sans 600 carries headline and title. */
+  --type-display-size: 2.125rem;  --type-display-line: 1.2;
+  --type-headline-size: 1.75rem;  --type-headline-line: 1.25;
+  --type-title-size: 1.125rem;    --type-title-line: 1.35;
+  --type-body-size: 1rem;         --type-body-line: 1.6;
+  --type-label-size: .875rem;     --type-label-line: 1.35;
+
+  /* Motion, in Material 3's duration steps. prefers-reduced-motion sets them all to 0s, so
+     a rule that uses a token is reduced for free. */
+  --dur-short1: 50ms;  --dur-short2: 100ms; --dur-short3: 150ms; --dur-short4: 200ms;
+  --dur-medium1: 250ms; --dur-medium2: 300ms; --dur-medium3: 350ms; --dur-medium4: 400ms;
+  --dur-long2: 500ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --ease-emph-decel: cubic-bezier(.05, .7, .1, 1);
+  --ease-emph-accel: cubic-bezier(.3, 0, .8, .15);
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
   --s6: 32px; --s7: 48px; --s8: 64px;
@@ -86,7 +138,7 @@ a { color: var(--accent); text-underline-offset: .18em; }
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   background: var(--accent); color: var(--accent-ink);
   font-size: var(--t-md); font-weight: 600; text-decoration: none;
-  transform: translateY(-200%); transition: transform .15s var(--ease);
+  transform: translateY(-200%); transition: transform var(--dur-short3) var(--ease);
 }
 .skip-link:focus-visible { transform: translateY(0); }
 
@@ -110,7 +162,7 @@ a { color: var(--accent); text-underline-offset: .18em; }
 }
 .meter-fill {
   display: block; height: 100%; width: 0%; border-radius: inherit;
-  background: var(--accent); transition: width .35s var(--ease);
+  background: var(--accent); transition: width var(--dur-medium3) var(--ease);
 }
 .meter-label {
   font-family: var(--mono); font-size: var(--t-xs); font-weight: 600;
@@ -155,7 +207,7 @@ input, select, textarea {
   background: var(--surface); border: 1px solid var(--line-strong);
   border-radius: var(--r-sm); padding: var(--s3); width: 100%;
   min-width: 0; max-width: 100%; min-height: var(--control-height);
-  transition: border-color .12s var(--ease), box-shadow .12s var(--ease);
+  transition: border-color var(--dur-short2) var(--ease), box-shadow var(--dur-short2) var(--ease);
 }
 .group input, .group select, .group textarea { background: var(--surface); }
 input:hover, select:hover, textarea:hover { border-color: var(--accent); }
@@ -166,7 +218,7 @@ select { text-overflow: ellipsis; }
 textarea { resize: vertical; min-height: 112px; line-height: 1.6; }
 input:focus-visible, select:focus-visible, textarea:focus-visible,
 button:focus-visible, summary:focus-visible, a:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 3px;
+  outline: var(--focus-ring); outline-offset: var(--focus-offset);
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 .hint { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); line-height: 1.6; }
@@ -192,8 +244,8 @@ button {
   border: 1px solid transparent; border-radius: var(--r-sm);
   padding: var(--s3) var(--s4); min-height: var(--control-height); max-width: 100%;
   line-height: 1.35; overflow-wrap: anywhere; cursor: pointer;
-  transition: background-color .12s var(--ease), border-color .12s var(--ease),
-              transform .06s var(--ease), box-shadow .12s var(--ease);
+  transition: background-color var(--dur-short2) var(--ease), border-color var(--dur-short2) var(--ease),
+              transform var(--dur-short1) var(--ease), box-shadow var(--dur-short2) var(--ease);
   box-shadow: var(--shadow-1);
 }
 button:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
@@ -240,7 +292,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   color: var(--ink); background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: var(--r-pill);
   padding: var(--s2) var(--s3); min-height: 40px; cursor: pointer; text-align: left;
-  box-shadow: none; transition: border-color .12s var(--ease), background-color .12s var(--ease);
+  box-shadow: none; transition: border-color var(--dur-short2) var(--ease), background-color var(--dur-short2) var(--ease);
 }
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .turnline { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
@@ -400,7 +452,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); min-width: 0;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
-  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  transition: border-color var(--dur-short3) var(--ease), box-shadow var(--dur-short3) var(--ease);
 }
 .idea-card:hover, .idea-card:focus-within { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
 .idea-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
@@ -553,6 +605,11 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-short1: 0s; --dur-short2: 0s; --dur-short3: 0s; --dur-short4: 0s;
+    --dur-medium1: 0s; --dur-medium2: 0s; --dur-medium3: 0s; --dur-medium4: 0s;
+    --dur-long2: 0s;
+  }
   * { transition: none !important; animation: none !important; }
   .voice-bars span, .voice-bars span:last-child { height: var(--s2); transform: none; }
   .pulse, button:active { transform: none; }

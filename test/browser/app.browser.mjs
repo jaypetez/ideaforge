@@ -153,6 +153,93 @@ export default async function run(check, { subpath }) {
     /dark/.test(win.getComputedStyle(doc.documentElement).colorScheme || ''),
     win.getComputedStyle(doc.documentElement).colorScheme);
 
+  // ── contrast of the colour roles, in both themes ─────────────────────────
+  //
+  // Read off the live page rather than the stylesheet text, so it measures what light-dark()
+  // actually resolved to under each theme. Text needs 4.5:1 and UI parts 3:1 (WCAG 2.2 AA).
+  // The light --outline failed this on the page ground (2.86:1) until the v2 tokens.
+  const rgbOf = (value) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+  const luminance = ([r, g, b]) => {
+    const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  };
+  const ratio = (a, b) => {
+    const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const probe = doc.createElement('div');
+  doc.body.append(probe);
+  const resolve = (token) => {
+    probe.style.color = `var(${token})`;
+    return rgbOf(win.getComputedStyle(probe).color);
+  };
+  const surfaces = ['--surface-container-lowest', '--surface-container-low', '--surface-container',
+    '--surface-container-high'];
+  const pairs = [
+    ...['--on-surface', '--on-surface-variant', '--primary', '--error', '--success', '--warning']
+      .flatMap((fg) => surfaces.map((bg) => [fg, bg, 4.5])),
+    ['--on-primary', '--primary', 4.5],
+    ...surfaces.map((bg) => ['--outline', bg, 3]),
+  ];
+  for (const theme of ['light', 'dark']) {
+    doc.documentElement.dataset.theme = theme;
+    const failures = pairs
+      .map(([fg, bg, min]) => [fg, bg, min, ratio(resolve(fg), resolve(bg))])
+      .filter(([, , min, r]) => !(r >= min))
+      .map(([fg, bg, min, r]) => `${fg} on ${bg} ${r.toFixed(2)} < ${min}`);
+    check(`every colour role meets WCAG AA contrast in the ${theme} theme`, failures.length === 0,
+      failures.join('; ') || `${pairs.length} pairs`);
+  }
+  delete doc.documentElement.dataset.theme;
+
+  // ── icons: a mask on ::before, never a text node ─────────────────────────
+  //
+  // Tests find buttons by their exact label, and app.js rewrites textContent on several of
+  // them; an icon has to survive both. A real icon draws: the mask resolves to a data: URI.
+  const iconButton = doc.createElement('button');
+  iconButton.dataset.icon = 'mic';
+  iconButton.textContent = 'Answer out loud';
+  probe.append(iconButton);
+  const before = win.getComputedStyle(iconButton, '::before');
+  const mask = before.maskImage || before.webkitMaskImage || '';
+  check('a [data-icon] button draws its icon from a data: URI mask', /url\("?data:image\/svg\+xml/.test(mask),
+    mask.slice(0, 60));
+  check('...without adding text: its textContent is still exactly its label',
+    iconButton.textContent === 'Answer out loud', JSON.stringify(iconButton.textContent));
+  iconButton.textContent = 'Listening…';
+  check('...and the icon survives app.js rewriting the label',
+    /url\(/.test(win.getComputedStyle(iconButton, '::before').maskImage || win.getComputedStyle(iconButton, '::before').webkitMaskImage || ''));
+  // A misspelt name draws nothing and raises nothing, so check that the lookup can fail:
+  // an unknown name must resolve to no icon, and every name used in the app to a real one.
+  const unknown = doc.createElement('span');
+  unknown.dataset.icon = 'no-such-icon';
+  probe.append(unknown);
+  check('an unknown icon name resolves to no icon at all',
+    !win.getComputedStyle(unknown).getPropertyValue('--icon').includes('data:'));
+  const icons = [...doc.querySelectorAll('[data-icon]')].filter((el) => !probe.contains(el));
+  const missing = icons.filter((el) => !win.getComputedStyle(el).getPropertyValue('--icon').includes('data:'));
+  check('every [data-icon] the app uses names an icon that exists', missing.length === 0,
+    missing.map((el) => el.dataset.icon).join(',') || `${icons.length} in use`);
+  probe.remove();
+
+  // ── motion tokens collapse under reduced motion ──────────────────────────
+  //
+  // The harness cannot switch the OS preference, so read the rule itself: every duration
+  // token must be 0s inside @media (prefers-reduced-motion: reduce).
+  const reducedRoot = [...doc.styleSheets]
+    .flatMap((sheet) => { try { return [...sheet.cssRules]; } catch { return []; } })
+    .filter((rule) => rule.media && /prefers-reduced-motion:\s*reduce/.test(rule.conditionText || rule.media.mediaText))
+    .flatMap((rule) => [...rule.cssRules])
+    .find((rule) => rule.selectorText === ':root');
+  const topRoot = [...doc.styleSheets]
+    .flatMap((sheet) => { try { return [...sheet.cssRules]; } catch { return []; } })
+    .find((rule) => rule.selectorText === ':root' && rule.style.getPropertyValue('--dur-medium2'));
+  const durationTokens = topRoot ? [...topRoot.style].filter((name) => name.startsWith('--dur-')) : [];
+  check('the stylesheet defines motion duration tokens', durationTokens.length >= 5, durationTokens.join(','));
+  check('...and reduced motion sets every one of them to 0s', Boolean(reducedRoot)
+    && durationTokens.every((name) => reducedRoot.style.getPropertyValue(name).trim() === '0s'),
+    reducedRoot ? durationTokens.map((n) => `${n}=${reducedRoot.style.getPropertyValue(n).trim()}`).join(' ') : 'no :root rule');
+
   const typeBase = (value) => {
     $('baseurl').value = value;
     $('baseurl').dispatchEvent(new win.Event('input'));
