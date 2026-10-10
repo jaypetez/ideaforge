@@ -362,6 +362,14 @@ npm run serve</code></pre>
         android-verify skill</a>; installing the app is covered in
         <a href="./android.html">Android app</a>.
       </p>
+      <p>
+        An instrumented walkthrough in <code>android/app/src/androidTest/</code> drives the
+        debug build's scripted interview through the screen to the Result screen. The
+        separate <code>android-device.yml</code> workflow runs it on the Gradle managed
+        emulator <code>pixel6Api34</code> on every push to <code>main</code>, nightly and on
+        demand. It is not part of the required <code>ci</code> check, so a slow or flaky
+        emulator run never blocks a pull request.
+      </p>
 
       <h2 id="pages">GitHub Pages publishes the tested tree</h2>
       <ol class="steps">

@@ -494,6 +494,30 @@ test('the documented debug application id and APK artifact match the build and C
   assert.ok(page.includes(`expire after ${retention} days`), `guide omits the ${retention}-day retention`);
 });
 
+test('the device workflow runs the declared managed device, on demand, outside the ci gate', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const app = androidFile('app', 'build.gradle.kts');
+  const device = workflow.match(/:app:(\w+)DebugAndroidTest/)?.[1];
+  assert.ok(device, 'android-device.yml no longer runs a managed-device task');
+  assert.ok(app.includes(`create<com.android.build.api.dsl.ManagedVirtualDevice>("${device}")`),
+    `app/build.gradle.kts declares no managed device ${device}`);
+  // The maintainer starts the first run by hand, so workflow_dispatch must stay.
+  for (const trigger of ['workflow_dispatch:', 'schedule:', 'branches: [main]']) {
+    assert.ok(workflow.includes(trigger), `android-device.yml lost its ${trigger} trigger`);
+  }
+  // Not required: the ci gate must never wait on an emulator.
+  assert.ok(!/android-device|walkthrough/.test(ci), 'ci.yml must not depend on the device workflow');
+  for (const [name, text] of [
+    ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
+    ['guide/development-and-delivery.html', guide('development-and-delivery.html')],
+    ['android-verify', readFileSync(join(ROOT, '.claude', 'skills', 'android-verify', 'SKILL.md'), 'utf8')],
+  ]) {
+    assert.ok(text.includes('android-device.yml'), `${name} omits android-device.yml`);
+    assert.ok(text.includes(device), `${name} omits the managed device ${device}`);
+  }
+});
+
 test('the worked example quoted in the README is the one on disk', () => {
   const example = join(ROOT, 'docs', 'examples', 'remember-names.md');
   assert.ok(existsSync(example), 'docs/examples/remember-names.md is missing; run npm run screenshots');

@@ -129,8 +129,34 @@ A launch that returned 0 is not evidence; a screenshot showing the expected scre
 - In Windows PowerShell 5.1, never redirect `adb exec-out screencap -p > file.png`: the
   pipeline re-encodes the bytes and the PNG is corrupt. Capture on the device and `adb pull`.
 
-No emulator runs in CI yet (issue #94), and no physical-device result is recorded. Report an
-emulator smoke as emulator evidence, not as phone support.
+No physical-device result is recorded. Report an emulator smoke, or the instrumented run
+below, as emulator evidence, not as phone support.
+
+## 5a. The instrumented walkthrough
+
+`app/src/androidTest/.../WalkthroughDeviceTest.kt` does the smoke above as a test: it launches
+`MainActivity` with `provider=scripted`, answers the vector's "a chip answer" case through the
+screen, presses Write it up and asserts the Result screen's title and the export's `## `
+sections. Every question must be the scripted one for its turn, and the checklist marker must
+never appear: a degraded interview still reaches a result. It passes onboarding by seeding the
+keyring through the app's own `KeyringStore` (only when no usable provider is stored), then
+puts the keyring back and deletes the idea it created, so a shared emulator is left as found.
+
+```sh
+ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
+./gradlew pixel6Api34DebugAndroidTest   -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
+```
+
+- By default `connectedDebugAndroidTest` uninstalls the app after the run, which wipes its
+  data. On an emulator someone else is using, pass `leaveApksInstalledAfterRun=true` as above.
+- `pixel6Api34` is the Gradle managed device in `app/build.gradle.kts` (an `aosp-atd` image,
+  API 34, x86_64). Gradle downloads the image and boots its own emulator.
+- Results land in `app/build/outputs/androidTest-results/` and `app/build/reports/androidTests/`.
+- `ScriptedProviderIsDebugOnlyTest` (a debug unit test, so part of `check`) fails if the
+  scripted provider or its walkthrough script reaches `src/main`, `src/release` or the release
+  variant's merged assets.
+- To prove it bites, make the scripted provider throw for one turn: the run fails with
+  "turn N is the scripted question, not the checklist".
 
 ## 6. Windows test-host quirks
 
@@ -156,6 +182,12 @@ PRs). It then runs `./gradlew --no-daemon check :app:assembleDebug`. It uploads 
 as the `ideaforge-debug-apk` artifact for 14 days, and the reports and test results on
 failure. The job feeds the single required `ci` check, so a red Android build blocks every
 PR.
+
+`.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
+nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
+`./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest` with software rendering
+(`swiftshader_indirect`), uploading the reports on failure. Start a run with
+`gh workflow run android-device.yml`.
 
 ## 8. Report
 
