@@ -113,7 +113,7 @@ val CONSTANTS_PORTED: Map<String, JsonElement> = mapOf(
 
 val CONSTANT_PORT: Port = { c ->
     val name = stringOf(c.arg(0))!!
-    (CONSTANTS_PORTED + ENGINE_CONSTANTS)[name] ?: error("constant $name is not ported")
+    (CONSTANTS_PORTED + ENGINE_CONSTANTS + RUNTIME_CONSTANTS)[name] ?: error("constant $name is not ported")
 }
 
 /** Constants still owed, by the case name tools/vectors.mjs gives them. */

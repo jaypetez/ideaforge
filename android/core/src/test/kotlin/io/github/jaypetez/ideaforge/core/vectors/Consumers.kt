@@ -26,12 +26,8 @@ val CONSUMERS: List<Consumer> = listOf(
         ),
         pending = emptyMap(),
     ),
-    Consumer("run-turn", ported = emptyMap(), pending = pending(
-        "#74", "runTurn", "resumeTurn", "seedTurn", "submitAnswer", "levelSnapshot", "isZeroGain",
-    )),
-    Consumer("synthesis", ported = emptyMap(),
-        pending = pending("#74", "buildSynthesisPromptParts", "parseSynthesisResult", "runSynthesis") +
-            pending("#75", "buildExport")),
+    Consumer("run-turn", ported = RUNTIME_PORTS, pending = emptyMap()),
+    Consumer("synthesis", ported = SYNTHESIS_PORTS, pending = pending("#75", "buildExport")),
     Consumer("markdown", ported = emptyMap(), pending = pending(
         "#75", "coveragePercent", "exportFilename", "buildExport", "libraryCard", "sessionLibraryStatus",
         "sessionSearchText", "slug", "renderBlocks", "forSpeech", "speechChunks", "availableTags",
