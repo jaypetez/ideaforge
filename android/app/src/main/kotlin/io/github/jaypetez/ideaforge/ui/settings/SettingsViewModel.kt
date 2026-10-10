@@ -139,7 +139,14 @@ class SettingsViewModel(
 
     private var work: Job? = null
     private var generation = 0
-    private var replaceConfirmed = false
+
+    /**
+     * Forget all, while it runs. Save, Check and Replace refuse to start meanwhile: a save
+     * begun after Forget would write the key Forget is deleting straight back. Enforced here,
+     * not only by the screen's disabled buttons.
+     */
+    private var forgetJob: Job? = null
+    private val forgetting: Boolean get() = forgetJob?.isActive == true
 
     init {
         // The application starts this at launch; a graph built without it still works.
@@ -182,6 +189,8 @@ class SettingsViewModel(
 
     fun pickProvider(id: String) {
         if (choices.none { it.id == id }) return
+        // Any pending "replace the unreadable keyring?" belonged to the provider being left;
+        // the confirmation itself is never stored (see persist's `replace`).
         generation++
         work?.cancel()
         local.update { it.copy(editor = editorFor(keyring.state.value.ring, id), checking = false, failure = null, notice = null, unreadable = null) }
@@ -211,6 +220,7 @@ class SettingsViewModel(
      * list fills the model suggestions); one without (Anthropic) by validateKey.
      */
     fun check(): Job? {
+        if (forgetting) return null
         val e = editor() ?: return null
         missing(e)?.let { f -> local.update { it.copy(failure = f) }; return null }
         return launchWork {
@@ -248,6 +258,7 @@ class SettingsViewModel(
      * keeps a question-model override away from the wrap-up's strong tier.
      */
     fun save(): Job? {
+        if (forgetting) return null
         val e = editor() ?: return null
         missing(e)?.let { f -> local.update { it.copy(failure = f) }; return null }
         if (e.choice.local && e.model.isBlank()) {
@@ -257,7 +268,13 @@ class SettingsViewModel(
         return launchWork { persist(e) }
     }
 
-    private suspend fun persist(e: ConnectionEditor) {
+    /**
+     * [replace] is the user's confirmation to overwrite an unreadable keyring, for THIS save
+     * only. It used to be a field cleared only by a successful save, so a confirmed save whose
+     * check then failed left it armed, and the next Save, for any provider, replaced the
+     * unreadable keyring without asking.
+     */
+    private suspend fun persist(e: ConnectionEditor, replace: Boolean = false) {
         val key = keyOf(e)
         if (e.choice.local) {
             buildLocal(ProviderConfig(kind = e.choice.id, baseUrl = e.baseUrl.trim(), model = e.model.trim()))
@@ -269,7 +286,7 @@ class SettingsViewModel(
         // every other provider's record, so that waits for the user's say-so.
         if (keyring.state.value.status == KeyringState.Status.UNREADABLE) keyring.load()
         val current = keyring.state.value
-        if (current.status == KeyringState.Status.UNREADABLE && !replaceConfirmed) {
+        if (current.status == KeyringState.Status.UNREADABLE && !replace) {
             local.update { it.copy(unreadable = current.problem.orEmpty()) }
             return
         }
@@ -288,16 +305,15 @@ class SettingsViewModel(
             local.update { it.copy(failure = CheckFailure("That worked, but it could not be saved on this device.", ex.message.orEmpty())) }
             return
         }
-        replaceConfirmed = false
         // Back to the saved record: the typed key is now the masked placeholder.
         local.update { it.copy(editor = null, unreadable = null, notice = "Saved. ${e.choice.label} answers the next interview.") }
     }
 
     fun replaceUnreadable(): Job? {
+        if (forgetting) return null
         val e = editor() ?: return null
-        replaceConfirmed = true
         local.update { it.copy(unreadable = null) }
-        return launchWork { persist(e) }
+        return launchWork { persist(e, replace = true) }
     }
 
     fun dismissUnreadable() = local.update { it.copy(unreadable = null) }
@@ -358,15 +374,23 @@ class SettingsViewModel(
      * Delete the keyring file and both Keystore aliases. As on the web, it also withdraws the
      * consent to hosted speech, which belonged to a key that no longer exists. Preferences
      * otherwise survive: "Forget my key" must not reset the trigger word.
+     *
+     * The consent goes first, whatever happens to the keyring after it (the web's forgetKey
+     * order): a Forget that fails halfway must not leave hosted speech permitted. Work already
+     * in flight is cancelled and waited for, so a save that was running cannot land after the
+     * keys are gone (KeyringStore's mutex then orders anything that got that far before us).
      */
     fun forget(): Job {
+        forgetJob?.takeIf { it.isActive }?.let { return it }
         generation++
-        work?.cancel()
-        local.update { it.copy(confirmingForget = false, checking = true, failure = null, notice = null) }
+        val previous = work
+        previous?.cancel()
+        local.update { it.copy(confirmingForget = false, checking = true, failure = null, notice = null, unreadable = null) }
         return viewModelScope.launch {
             try {
-                keyring.forget()
                 if (prefsStore.current().hostedSpeechAllowed) prefsStore.update { it.copy(hostedSpeechAllowed = false) }
+                previous?.join()
+                keyring.forget()
                 local.update { it.copy(editor = null, forgotten = true, notice = "Keys deleted from this device.") }
             } catch (ce: CancellationException) {
                 throw ce
@@ -375,7 +399,7 @@ class SettingsViewModel(
             } finally {
                 local.update { it.copy(checking = false) }
             }
-        }
+        }.also { forgetJob = it }
     }
 
     companion object {

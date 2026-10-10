@@ -7,7 +7,22 @@ import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.core.withTts
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
+import io.github.jaypetez.ideaforge.data.KeyringKey
 import io.github.jaypetez.ideaforge.data.KeyringState
+import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
@@ -47,6 +62,31 @@ import java.io.File
  * One preference write per prefs file: DataStore replaces its file by rename, which a Windows
  * JVM refuses over an existing file (see PrefsStoreTest). Android does not.
  */
+/**
+ * Preferences in memory, for tests that need more than one write: a Windows JVM refuses the
+ * second write to a real DataStore file (see the class comment below).
+ */
+class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
+    private val state = MutableStateFlow(initial)
+    private val lock = Mutex()
+    override val data: Flow<Preferences> = state
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+        lock.withLock { transform(state.value).also { state.value = it } }
+}
+
+/** A software key whose deletions can fail, or wait, on demand. */
+class FlakyKey(val inner: SoftwareKey = SoftwareKey()) : KeyringKey by inner {
+    var failDelete: Exception? = null
+    var holdDelete: CountDownLatch? = null
+
+    override fun delete(slot: Int) {
+        holdDelete?.await(10, TimeUnit.SECONDS)
+        failDelete?.let { throw it }
+        inner.delete(slot)
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     @get:Rule
@@ -63,15 +103,19 @@ class SettingsViewModelTest {
     /** One "process": a prefs DataStore, a keyring, and the ViewModel over them. */
     private inner class Process(
         val prefsFile: File,
-        val key: SoftwareKey = SoftwareKey(),
+        val key: KeyringKey = SoftwareKey(),
         val check: FakeCheck = FakeCheck(),
         val built: MutableList<ProviderConfig> = mutableListOf(),
+        checker: ProviderCheck = check,
+        /** Null: a real DataStore on [prefsFile]. */
+        memoryPrefs: Preferences? = null,
     ) {
         private val job = SupervisorJob()
-        val prefs = PrefsStore.create(CoroutineScope(job + Dispatchers.IO)) { prefsFile }
+        val prefs = if (memoryPrefs != null) PrefsStore(MemoryDataStore(memoryPrefs))
+            else PrefsStore.create(CoroutineScope(job + Dispatchers.IO)) { prefsFile }
         val keyring = KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, key)
         private val store = ViewModelStore()
-        val vm = SettingsViewModel(prefs, keyring, check, buildLocal = { built += it }).also { store.put("settings", it) }
+        val vm = SettingsViewModel(prefs, keyring, checker, buildLocal = { built += it }).also { store.put("settings", it) }
 
         fun loaded(): SettingsState = runBlocking {
             withTimeout(10_000) { vm.state.first { it.prefs != null && it.editor != null } }
@@ -92,12 +136,16 @@ class SettingsViewModelTest {
 
     private fun prefsFile(name: String) = File(tmp.root, "$name.preferences_pb")
 
-    private fun seed(ring: JsonObject, key: SoftwareKey = SoftwareKey()): SoftwareKey {
-        val p = Process(prefsFile("seed"), key)
+    private fun <K : KeyringKey> seed(ring: JsonObject, key: K): K {
+        val p = Process(prefsFile("seed"), key, memoryPrefs = emptyPreferences())
         runBlocking { p.keyring.save(ring) }
         p.kill()
         return key
     }
+
+    private fun seed(ring: JsonObject): SoftwareKey = seed(ring, SoftwareKey())
+
+    private fun consenting() = mutablePreferencesOf(booleanPreferencesKey("hostedSpeechAllowed") to true)
 
     // Acceptance: every preference persists across process death. Each is set through the
     // ViewModel, the process dies, and a new one reads it back from the same file.
@@ -168,8 +216,9 @@ class SettingsViewModelTest {
         val key = seed(ring)
         // A key left in the second slot by an earlier replacement must go too.
         key.keys[1] = SoftwareKey.fresh()
-        val p = Process(prefsFile("forget"), key)
+        val p = Process(prefsFile("forget"), key, memoryPrefs = consenting())
         val before = p.loaded()
+        assertTrue(before.prefs!!.hostedSpeechAllowed)
         assertTrue(before.canForget)
         assertFalse(before.needsOnboarding)
         assertTrue(p.keyring.file.exists())
@@ -184,6 +233,100 @@ class SettingsViewModelTest {
         val after = p.settle { it.forgotten && it.keyring.status == KeyringState.Status.NONE && !it.checking }
         assertTrue("no usable provider remains, so the screen routes to onboarding", after.needsOnboarding)
         assertFalse(after.canForget)
+        assertFalse("the hosted speech consent went with the keys", runBlocking { p.prefs.current() }.hostedSpeechAllowed)
+        p.kill()
+    }
+
+    // The web's forgetKey withdraws the consent first, whatever happens next: a Forget that
+    // fails halfway (here the Keystore refuses to delete an alias) must not leave hosted
+    // speech permitted. Nor may it claim the keys are gone and send the user to onboarding.
+    @Test
+    fun aFailedForgetStillWithdrawsTheSpeechConsent() {
+        val key = seed(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_forget_me_00000001")), FlakyKey())
+        key.failDelete = java.security.KeyStoreException("keystore busy")
+        val p = Process(prefsFile("forget-fails"), key, memoryPrefs = consenting())
+        p.loaded()
+        p.join(p.vm.forget())
+        val after = p.settle()
+        assertNotNull("the failure is reported", after.failure)
+        assertFalse("not reported as forgotten", after.forgotten)
+        assertFalse(after.needsOnboarding)
+        assertFalse("the consent was withdrawn before the keyring was touched", runBlocking { p.prefs.current() }.hostedSpeechAllowed)
+        p.kill()
+    }
+
+    // Forget/save ordering is the ViewModel's, not only the screen's: while Forget runs, Save,
+    // Check and Replace refuse to start, so the key being deleted cannot be written back.
+    @Test
+    fun aSaveStartedDuringForgetWritesNothing() {
+        val key = seed(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_pre_forget_000000001")), FlakyKey())
+        val hold = CountDownLatch(1)
+        key.holdDelete = hold
+        val p = Process(prefsFile("forget-race"), key, memoryPrefs = emptyPreferences())
+        p.loaded()
+        val forgetting = p.vm.forget()
+        assertNull("save refused while Forget runs", p.vm.save())
+        assertNull("check refused while Forget runs", p.vm.check())
+        assertNull("replace refused while Forget runs", p.vm.replaceUnreadable())
+        hold.countDown()
+        p.join(forgetting)
+        assertFalse("nothing wrote the keyring back", p.keyring.file.exists())
+        assertTrue(p.check.calls.isEmpty())
+        assertTrue(p.settle { it.forgotten }.needsOnboarding)
+        p.kill()
+    }
+
+    // A save already in flight when Forget is confirmed is cancelled and waited for, so it
+    // cannot land after the keys are gone.
+    @Test
+    fun aSaveInFlightWhenForgetStartsDoesNotLandAfterIt() {
+        seed(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_pre_forget_000000001")))
+        val gate = CompletableDeferred<Unit>()
+        val slow = ProviderCheck { _, _ -> gate.await(); emptyList() }
+        val p = Process(prefsFile("forget-inflight"), SoftwareKey(), checker = slow, memoryPrefs = emptyPreferences())
+        // The seed's key is not this process's, so give it the seed's ring under its own key.
+        runBlocking { p.keyring.save(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_pre_forget_000000001"))) }
+        p.loaded()
+        p.vm.setApiKey("gsk_typed_before_forget_01")
+        val saving = p.vm.save()!!
+        p.join(p.vm.forget())
+        gate.complete(Unit)
+        p.join(saving)
+        assertFalse("the in-flight save never wrote", p.keyring.file.exists())
+        assertEquals(KeyringState.Status.NONE, p.keyring.state.value.status)
+        p.kill()
+    }
+
+    // replaceUnreadable's confirmation is for that one save. A confirmed save whose check then
+    // fails must not leave it armed: the next Save, for any provider, has to ask again rather
+    // than overwrite the unreadable keyring.
+    @Test
+    fun aFailedReplaceDoesNotArmTheNextSave() {
+        // A real unreadable keyring: sealed under one key, opened under another.
+        seed(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_unreadable_00000001")))
+        var refuse = false
+        val check = FakeCheck { _, _ -> if (refuse) throw ProviderException("network", "offline") else emptyList() }
+        val p = Process(prefsFile("unreadable"), SoftwareKey(), check, memoryPrefs = emptyPreferences())
+        val start = p.loaded()
+        assertEquals(KeyringState.Status.UNREADABLE, start.keyring.status)
+        val blob = p.keyring.file.readBytes()
+
+        p.vm.pickProvider("groq")
+        p.vm.setApiKey("gsk_new_key_0000000001")
+        p.join(p.vm.save())
+        assertNotNull("saving asks first", p.settle { it.unreadable != null }.unreadable)
+
+        refuse = true
+        p.join(p.vm.replaceUnreadable())
+        assertNotNull("the confirmed save failed its check", p.settle().failure)
+
+        refuse = false
+        p.vm.pickProvider("openai")
+        p.vm.setApiKey("sk-proj-other-provider-001")
+        p.join(p.vm.save())
+        assertNotNull("the next save asks again", p.settle { !it.checking }.unreadable)
+        assertTrue("nothing was written", blob.contentEquals(p.keyring.file.readBytes()))
+        assertEquals(KeyringState.Status.UNREADABLE, p.keyring.state.value.status)
         p.kill()
     }
 
