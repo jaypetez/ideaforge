@@ -131,9 +131,18 @@ class HostedSpeechViewModel(
 ) : ViewModel() {
     private val local = MutableStateFlow(SpeechLocal())
 
+    /** The prefs [state] last saw; DataStore offers no synchronous read. */
+    @Volatile private var seenPrefs = Prefs()
+
+    // For the screen only. `combine` delivers asynchronously, so [state] can lag a `local`
+    // update just made: actions read [now] instead. Reading [state] let three quick consent
+    // taps each start from stale ticks and overwrite one another, so the check never ran.
     val state: StateFlow<HostedSpeechState> =
-        combine(prefsStore.prefs, keyring.state, local) { prefs, ks, l -> derive(prefs, ks, l) }
+        combine(prefsStore.prefs, keyring.state, local) { prefs, ks, l -> seenPrefs = prefs; derive(prefs, ks, l) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, HostedSpeechState())
+
+    /** The form as it is now: local edits and the keyring are synchronous, prefs as last seen. */
+    private fun now(l: SpeechLocal = local.value) = derive(seenPrefs, keyring.state.value, l)
 
     /** Bumped by every change that would make a check in flight vouch for the wrong thing. */
     private var epoch = 0
@@ -191,7 +200,7 @@ class HostedSpeechViewModel(
     private fun note(text: String?) = local.update { it.copy(notice = text) }
 
     /** Drop the check's vouching: `verified` false for the saved record, kind as given. */
-    private suspend fun invalidate(kind: String, voice: String = state.value.voice) {
+    private suspend fun invalidate(kind: String, voice: String = now().voice) {
         epoch++
         check?.cancel()
         saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), voice, verified = false)))
@@ -212,29 +221,31 @@ class HostedSpeechViewModel(
 
     fun setVoice(v: String): Job? {
         val voice = if (v == "cedar") "cedar" else "marin"
-        if (voice == state.value.voice) return null
+        if (voice == now().voice) return null
         return viewModelScope.launch {
-            invalidate(if (state.value.hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice)
+            invalidate(if (now().hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice)
             note("The voice changed. Check and preview again to enable OpenAI speech.")
         }
     }
 
     fun setConsent(synthetic: Boolean? = null, text: Boolean? = null, metered: Boolean? = null): Job? {
-        val s = state.value
-        val next = Triple(synthetic ?: s.consentSynthetic, text ?: s.consentText, metered ?: s.consentMetered)
-        local.update { it.copy(consents = next) }
+        // Read and written in one step, so a tap never overwrites the tick before it.
+        local.update { l ->
+            val s = now(l)
+            l.copy(consents = Triple(synthetic ?: s.consentSynthetic, text ?: s.consentText, metered ?: s.consentMetered))
+        }
         val withdrawn = synthetic == false || text == false || metered == false
         return if (withdrawn) viewModelScope.launch { revoke("openai", "Hosted speech is disabled. A new check and preview is needed to enable it.") } else null
     }
 
     /** revokeHostedSpeech: permission first, then the record, so a half-done revoke is still off. */
     private suspend fun revoke(kind: String, message: String) {
-        val wasEnabled = state.value.enabled
+        val wasEnabled = hostedSpeechReady(ring(), prefsStore.current())
         epoch++
         check?.cancel()
         val allowedSaved = prefsStore.update { it.copy(hostedSpeechAllowed = false) }
         if (wasEnabled) runCatching { onRevoke("Hosted speech is disabled. Tap Resume to continue with the device voice.") }
-        saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), state.value.voice, verified = false)))
+        saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), now().voice, verified = false)))
         note(if (allowedSaved) message else "$message Its permission preference could not be updated.")
     }
 
@@ -246,7 +257,7 @@ class HostedSpeechViewModel(
             local.update { it.copy(checking = false, notice = "Preview cancelled.") }
             return null
         }
-        val s = state.value
+        val s = now()
         val key = s.keyDraft.trim().ifEmpty { savedTtsKey() }
         if (!s.hosted || key.isEmpty() || !s.consented) {
             note("Enter a separate speech key and confirm all three statements first.")
@@ -309,7 +320,7 @@ class HostedSpeechViewModel(
     }
 
     private suspend fun saveTranscription(generation: Long) {
-        val s = state.value
+        val s = now()
         val stt = ring()["stt"]
         val sameKind = s.sttKind != null && s.sttKind == stringOf(stt["kind"])
         val key = s.sttKeyDraft.trim().ifEmpty { if (sameKind) stringOf(stt["apiKey"]).orEmpty() else "" }

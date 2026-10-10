@@ -20,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -54,8 +55,13 @@ class HostedSpeechViewModelTest {
     @Before
     fun main() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
+    // Cleared first: a view model left alive keeps its coroutines running into the next test
+    // class, where an exception surfaces as UncaughtExceptionsBeforeTest against innocent code.
     @After
-    fun reset() = Dispatchers.resetMain()
+    fun reset() {
+        store.clear()
+        Dispatchers.resetMain()
+    }
 
     private val previews = mutableListOf<Triple<String, String, Double>>()
     private var answer: (String) -> SpeakResult = { SpeakResult(SpeakStatus.SPOKEN, backend = SpeechBackend.HOSTED) }
@@ -244,6 +250,22 @@ class HostedSpeechViewModelTest {
         assertTrue(revokes.isEmpty())
         join(vm.setConsent(text = false))
         assertEquals(1, revokes.size)
+    }
+
+    // Main went red on this (#93): `state` is combined asynchronously, so it can lag the
+    // taps. Actions that read it let quick consent taps overwrite each other, and the check
+    // never ran. Main is paused here so the screen state cannot catch up at all.
+    @Test
+    fun quickTapsAreNeverLostWhileTheScreenStateLags() {
+        val paused = StandardTestDispatcher()
+        Dispatchers.setMain(paused)
+        vm.chooseHosted(true)
+        paused.scheduler.runCurrent()
+        vm.setKey(SPEECH)
+        consentAll()
+        assertTrue("the check started from the taps, not the stale screen", vm.checkAndPreview() != null)
+        paused.scheduler.runCurrent()
+        assertEquals(listOf(SPEECH), previews.map { it.first })
     }
 
     private companion object {
