@@ -54,6 +54,11 @@
      installed phone. The colours match --ground in src/ui/app.css. -->
 <meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15191a" media="(prefers-color-scheme: dark)">
+<!-- A stored Light or Dark choice, applied before first paint. Classic and synchronous on
+     purpose (a module would paint first, then flash), and a file rather than inline because
+     the CSP allows no inline script. After the metas, which it retints; before the
+     stylesheets. See the file for why it never clears data-theme. -->
+<script src="./src/ui/theme-boot.js"></script>
 <!-- 500 and 700 join 400/600 so hierarchy can come from weight rather than size alone.
      Both origins are already in the CSP; a different family or CDN would not be. -->
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,13 +131,14 @@
     </div>
     <h2 class="settings-only" tabindex="-1">Settings</h2>
     <!--
-      Desktop only (≥1024px, app.css): an index of the four groups beside them. Buttons, not
+      Desktop only (≥1024px, app.css): an index of the five groups beside them. Buttons, not
       fragment links: a hash change re-prompts for the microphone in an installed iOS app.
       setupSettingsIndex() in app.js scrolls each group into view and focuses its heading.
     -->
     <nav class="settings-index settings-only" id="settings-index" aria-label="Settings sections">
       <button type="button" class="quiet" data-target="connect">Connection</button>
       <button type="button" class="quiet" data-target="settings-listen">Listen and speak</button>
+      <button type="button" class="quiet" data-target="settings-appearance">Appearance</button>
       <button type="button" class="quiet" data-target="settings-data">Data</button>
       <button type="button" class="quiet" data-target="settings-about">About</button>
     </nav>
@@ -331,6 +337,21 @@
       </div>
     </details>
     </div><!-- /.group listen -->
+
+    <!-- Applied at once and stored in prefs ('system' | 'light' | 'dark', the Android app's
+         key and values). theme-boot.js applies it before first paint on the next load. -->
+    <div class="group settings-only" id="settings-appearance">
+      <h2>Appearance</h2>
+      <fieldset class="choice" id="theme-choice">
+        <legend>Theme</legend>
+        <div class="choice-row">
+          <label class="toggle"><input type="radio" name="theme" value="system" checked><span>System</span></label>
+          <label class="toggle"><input type="radio" name="theme" value="light"><span>Light</span></label>
+          <label class="toggle"><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+        </div>
+        <p class="hint">System follows this device&#8217;s light or dark setting.</p>
+      </fieldset>
+    </div>
 
     <!-- Backup and import moved here from the Library: they are about the device's data,
          not about any one idea. library.js still wires them, by element, not by place. -->

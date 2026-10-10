@@ -195,7 +195,7 @@ restored or permanently deleted.
 In a window 1024px or wider the library is a list beside a detail pane. Click a card, or
 its **Details** button, and the pane shows that idea's status and counts, its main action
 and the same More actions menu, above a rendered preview of its markdown. **Settings** gets
-the width too: an index of its four groups sits beside them.
+the width too: an index of its five groups sits beside them.
 
 <p align="center">
   <picture>
@@ -384,11 +384,11 @@ connection card to one line with a **Change** action. Everything else lives in *
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/10-settings.dark.png">
     <img src="docs/screenshots/10-settings.light.png" width="760"
-         alt="The Settings screen in four groups: Connection with the provider, API key,
+         alt="The Settings screen in five groups: Connection with the provider, API key,
               Model options and Check the key; Listen and speak with Dictation, the
               hands-free finish word, Spoken replies and a collapsed Voice and speaking
-              pace section; Data with Back up ideas and Import backup; and About with the
-              version and a Guide link.">
+              pace section; Appearance with a System, Light or Dark theme choice; Data with
+              Back up ideas and Import backup; and About with the version and a Guide link.">
   </picture>
 </p>
 

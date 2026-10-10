@@ -283,6 +283,16 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
   outline: var(--focus-ring); outline-offset: var(--focus-offset);
 }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+/* A labelled set of radios (the theme choice): the legend reads as a field label and the
+   options sit in one row, each whole label a control-height target. */
+.choice {
+  display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
+  margin: 0; padding: 0; border: 0;
+}
+.choice > legend { padding: 0; margin-bottom: var(--s2); font-size: var(--t-md); font-weight: 600; }
+.choice-row { display: flex; flex-wrap: wrap; gap: 0 var(--s5); }
+.choice-row .toggle { align-items: center; min-height: var(--control-height); }
+.choice-row .toggle input { margin: 0; }
 .hint { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); line-height: 1.6; }
 .hint a { color: var(--accent); }
 .version { padding-block: var(--s2); font-size: var(--t-xs); }

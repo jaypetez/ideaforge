@@ -33,6 +33,7 @@ import {
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
 import { loadPrefs, savePrefs, speechPreferences } from '../store/prefs.js';
+import { applyTheme } from './theme.js';
 import { createVoice, STT_PRESETS, forgetVerdict, ttsSupported } from '../voice/index.js';
 import { createSpeechOutput } from '../voice/output.js';
 import { createVoiceStage } from './voice-stage.js';
@@ -71,7 +72,7 @@ for (const id of [
   'panel-library', 'library-search', 'library-status', 'library-tag',
   'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
   'b-library-new', 'b-backup', 'b-import', 'backup-file', 'library-detail',
-  'settings-index',
+  'settings-index', 'theme-choice',
   'panel-done', 'done-title', 'done-meta', 'output',
   'done-actions', 'b-done-more', 'done-menu',
   'b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new', 'note', 'err',
@@ -2474,6 +2475,28 @@ function setupSettingsIndex() {
   }
 }
 
+/**
+ * The Appearance group's System / Light / Dark radios (#112). Applied the moment one is
+ * chosen, and stored for theme-boot.js to apply before first paint next time.
+ *
+ * Deliberately no applyTheme() here at boot: theme-boot.js already applied any explicit
+ * choice, and applying the default 'system' would REMOVE the data-theme that
+ * tools/screenshots.mjs set in its fresh profile, so both README runs would shoot one theme.
+ */
+function setupTheme() {
+  const group = els['theme-choice'];
+  if (!group) return;
+  const stored = loadPrefs().theme;
+  for (const radio of group.querySelectorAll('input[name="theme"]')) {
+    radio.checked = radio.value === stored;
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      // Applied even if the write fails (a private window): the page still honours it.
+      savePrefs({ theme: applyTheme(document, radio.value) });
+    });
+  }
+}
+
 /** The New idea destination: the start screen, from anywhere. */
 async function openStart(swap) {
   const navigation = ++state.navigation;
@@ -3058,6 +3081,7 @@ async function boot() {
   bind();
   setupLibrary();
   setupSettingsIndex();
+  setupTheme();
   state.install = createInstallController({
     onChange: renderInstall,
   });
