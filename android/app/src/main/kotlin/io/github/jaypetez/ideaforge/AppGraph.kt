@@ -16,6 +16,10 @@ import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultActions
 import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
+import io.github.jaypetez.ideaforge.voice.AndroidAudioFocus
+import io.github.jaypetez.ideaforge.voice.AndroidTtsEngine
+import io.github.jaypetez.ideaforge.voice.Speaker
+import io.github.jaypetez.ideaforge.voice.TextToSpeechSpeaker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +78,14 @@ class AppGraph(
         PrefsStore.create(CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
             context.preferencesDataStoreFile("prefs")
         }
+    }
+
+    /**
+     * Native speech output, with the voice and pace read from prefs at each speak. Lazy, and
+     * the engine inside it is lazy too: nothing binds TextToSpeech until something talks.
+     */
+    val speaker: Speaker by lazy {
+        TextToSpeechSpeaker(AndroidTtsEngine(context), AndroidAudioFocus(context), prefs = { prefsStore.current() })
     }
 }
 
