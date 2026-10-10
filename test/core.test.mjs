@@ -800,3 +800,14 @@ test('answeredTurns ignores the open question', () => {
   s = askQuestion(s, { question: 'q2', dimension: 'audience', source: 'model', now: 3 });
   assert.equal(answeredTurns(s).length, 1);
 });
+
+// This hung the tab the first time: a JS `.` stops at U+2028/U+2029, so a heading or list
+// line containing one matched no branch, `breaks` refused it as a paragraph, and the loop
+// never advanced. The model writes synthesis.text, so it only takes one odd character.
+// A regression here hangs rather than fails; the synchronous loop cannot be timed out.
+test('renderBlocks keeps a heading or list line containing a line separator, and returns', () => {
+  const blocks = renderBlocks('# Head more\n\n- item more\n- next');
+  assert.deepEqual(blocks.map((b) => b.type), ['h1', 'list']);
+  assert.equal(blocks[0].spans[0].text, 'Head more');
+  assert.deepEqual(blocks[1].items.map((s) => s[0].text), ['item more', 'next']);
+});

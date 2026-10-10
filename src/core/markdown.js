@@ -172,7 +172,10 @@ export function renderBlocks(markdown) {
 
     if (/^\s*(?:---|\*\*\*|___)\s*$/.test(line)) { blocks.push({ type: 'hr' }); i++; continue; }
 
-    const head = line.match(/^(#{1,6})\s+(.*)$/);
+    // [\s\S], not `.`: a JS `.` stops at U+2028/U+2029, so a heading or item line containing
+    // one used to match none of these branches while `breaks` still refused it as a paragraph,
+    // and the loop never advanced — a model reply with a line separator hung the tab.
+    const head = line.match(/^(#{1,6})\s+([\s\S]*)$/);
     if (head) {
       blocks.push({ type: `h${Math.min(head[1].length, 3)}`, spans: inline(head[2]) });
       i++;
@@ -211,7 +214,7 @@ export function renderBlocks(markdown) {
       const ordered = /\d/.test(bullet[1]);
       const items = [];
       while (i < lines.length) {
-        const m = lines[i].match(/^\s*(?:[-*+]|\d+[.)])\s+(.*)$/);
+        const m = lines[i].match(/^\s*(?:[-*+]|\d+[.)])\s+([\s\S]*)$/);
         if (m) { items.push(m[1]); i++; continue; }
         // An indented continuation belongs to the item above it. openQuestionsSection
         // writes its "Why it matters" line exactly that way.
@@ -222,12 +225,19 @@ export function renderBlocks(markdown) {
         }
         break;
       }
-      blocks.push({ type: 'list', ordered, items: items.map(inline) });
-      continue;
+      // A bullet that yielded no item has consumed nothing; let it fall through to the
+      // paragraph guard below instead of pushing an empty list and retrying the same line.
+      if (items.length) {
+        blocks.push({ type: 'list', ordered, items: items.map(inline) });
+        continue;
+      }
     }
 
     const para = [];
     while (i < lines.length && lines[i].trim() && !breaks(lines[i])) para.push(lines[i++].trim());
+    // Belt and braces: every pass of the outer loop must consume a line. A line no branch above
+    // took becomes a paragraph of its own rather than being retried for ever.
+    if (!para.length) para.push(lines[i++].trim());
     const text = para.join(' ');
     // A paragraph that is one whole emphasis run is the meta line under the title, or a
     // "_Nothing outstanding._" placeholder. Both read better as quiet text than as italics.

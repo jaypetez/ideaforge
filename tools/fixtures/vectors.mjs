@@ -635,6 +635,10 @@ async function markdownFamily() {
     exported,
     '# Title\n\nPara one\nstill para one.\n\n- a\n- b\n\n1. one\n2. two\n\n> quote\n\n```\ncode **not bold**\n```\n\n**bold** and `code` and [link](https://x.y)\n\n---\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',
     '', '   \n\n  ', '## Only a heading', '_emphasis_ *star* ***both***',
+    // Line separators: these hung renderBlocks once, and JS `.`, `^` and `$` differ from
+    // Java's around them. The last document's heading `\s+` crosses a newline in forSpeech.
+    '# Head more\n\n- item more\n- next\n\n1. one two',
+    'Para line\n\n> quote more\n\n##\n  Spoken heading\n\nend',
   ];
   for (const [i, md] of docs.entries()) {
     cases.push(rec(`renderBlocks ${i}`, renderBlocks, md));
