@@ -74,7 +74,10 @@ import kotlin.coroutines.CoroutineContext
  *
  * Threading: the platform recogniser must be driven from the main thread. [Recognizer] runs
  * its timers on [scope], whose dispatcher must be the thread the engine's callbacks arrive
- * on (Dispatchers.Main in the app, the test dispatcher in tests).
+ * on (Dispatchers.Main in the app, the test dispatcher in tests). [Recognizer.start],
+ * [Recognizer.Capture.stop], [Recognizer.Capture.cancel] and [Recognizer.release] call the
+ * platform recogniser directly, so #92 must call them on Main too; only [Recognizer.listen]
+ * and [Recognizer.listenForDrive] switch threads themselves.
  */
 interface RecognizerEngine {
     /** The callbacks of android.speech.RecognitionListener, already unpacked. */
@@ -124,6 +127,12 @@ object RecognizerError {
 /** The rmsdB a silenced capture reports, exactly, for a whole session. */
 const val RMS_FLOOR_DB = -2.0f
 private const val RMS_EPSILON = 0.05f
+/**
+ * Most level readings a session may send and still be judged deaf. -2.0 is also a healthy
+ * recogniser's floor in a quiet room; what differs is the rate. On the emulator a healthy
+ * session sent about 250 readings in 5 s, a silenced one about 2.
+ */
+const val DEAF_MAX_LEVELS = 10
 
 enum class CaptureMode {
     /** Ends on the trigger word; bounded by firstWordMs before the first word. */
@@ -239,7 +248,9 @@ class Recognizer(
 
     /** Capture to the end. Coroutine cancellation cancels the capture, immediately. */
     suspend fun listen(options: ListenOptions): CaptureResult {
-        val capture = withContext(dispatcher) { start(options) }
+        // NonCancellable: withContext drops its result when cancelled on the way out, and a
+        // capture started but never returned would keep the microphone with nobody to stop it.
+        val capture = withContext(NonCancellable + dispatcher) { start(options) }
         try {
             return capture.await()
         } catch (e: CancellationException) {
@@ -288,6 +299,7 @@ class Recognizer(
         private var heardWord = false
         private var retries = 0
         private var deafSessions = 0
+        private var sessionsEnded = 0
 
         // This recogniser session's level, for the deafness verdict.
         private var sessionLevels = 0
@@ -312,7 +324,8 @@ class Recognizer(
             if (handsFree && options.firstWordMs > 0) {
                 firstWordJob = later(options.firstWordMs) {
                     if (!heardWord) {
-                        resolve(if (deafSessions > 0) CaptureEnd.DEAF else CaptureEnd.MISSED, keepText = false)
+                        val allDeaf = deafSessions > 0 && deafSessions == sessionsEnded
+                        resolve(if (allDeaf) CaptureEnd.DEAF else CaptureEnd.MISSED, keepText = false)
                     }
                 }
             }
@@ -413,7 +426,8 @@ class Recognizer(
 
         /** A session ended: deaf or not, then restart on the same recogniser, here and now. */
         internal fun sessionEnded() {
-            if (!stopping && sessionLevels > 0 && !sessionLoud && !sessionWords) {
+            if (!stopping) sessionsEnded++
+            if (!stopping && sessionLevels in 1..DEAF_MAX_LEVELS && !sessionLoud && !sessionWords) {
                 deafSessions++
                 _state.value = CaptureState.DEAF
             }

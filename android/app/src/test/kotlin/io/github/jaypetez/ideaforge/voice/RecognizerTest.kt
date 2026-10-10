@@ -380,6 +380,41 @@ class RecognizerTest {
         capture.cancel()
     }
 
+    // -2.0 is also a healthy recogniser's floor in a quiet room. What differs is the rate:
+    // ~250 readings in 5 s healthy, ~2 silenced. Judged by value alone, every quiet pause
+    // would be reported as the screen-off failure.
+    private fun quietAtTheFloor(): List<At> =
+        listOf(At(670, Ev.Ready)) + (1..250).map { At(700L + it * 17, Ev.Rms(RMS_FLOOR_DB)) } +
+            At(5045, Ev.Error(RecognizerError.NO_MATCH))
+
+    @Test
+    fun aHealthyQuietSessionAtTheFloorIsNotDeaf() = runTest {
+        val factory = FakeFactory { FakeRecognizerEngine(backgroundScope, ArrayDeque(), after = { quietAtTheFloor() }) }
+        val recognizer = Recognizer(factory, backgroundScope)
+        val result = async { recognizer.start(handsFree.copy(firstWordMs = 7000)).await() }
+        advanceTimeBy(5100)
+        runCurrent()
+        assertEquals(CaptureState.LISTENING, recognizer.state.value)
+        advanceTimeBy(3000)
+        val got = result.await()
+        assertEquals(CaptureEnd.MISSED, got.end)
+        assertEquals(0, got.deafSessions)
+    }
+
+    // DEAF means every session was; one healthy session makes it an ordinary miss.
+    @Test
+    fun aMixedHealthyAndDeafCaptureIsMissed() = runTest {
+        val factory = FakeFactory {
+            FakeRecognizerEngine(backgroundScope, ArrayDeque(listOf(quietAtTheFloor())), after = { deafSession() })
+        }
+        val recognizer = Recognizer(factory, backgroundScope)
+        val result = async { recognizer.start(handsFree.copy(firstWordMs = 12_000)).await() }
+        advanceTimeBy(13_000)
+        val got = result.await()
+        assertEquals(1, got.deafSessions)
+        assertEquals(CaptureEnd.MISSED, got.end)
+    }
+
     // ---- watchdog and cancellation -----------------------------------------------------
 
     @Test
@@ -413,6 +448,25 @@ class RecognizerTest {
         runCurrent()
         assertTrue(r.engine.cancels >= 1)
         assertEquals(CaptureState.IDLE, r.recognizer.state.value)
+    }
+
+    // withContext drops its result when cancelled on the way out: a capture started there and
+    // never returned keeps the microphone with nobody left to stop it.
+    @Test
+    fun cancellationDuringStartCancelsTheCapture() = runTest {
+        var job: kotlinx.coroutines.Job? = null
+        val factory = FakeFactory {
+            job?.cancel()                    // cancelled while start() is running
+            FakeRecognizerEngine(backgroundScope, ArrayDeque())
+        }
+        val recognizer = Recognizer(factory, backgroundScope)
+        job = launch { recognizer.listen(pushToTalk) }
+        runCurrent()
+        assertTrue(job.isCancelled)
+        val engine = factory.engines.single()
+        assertEquals(1, engine.starts)
+        assertTrue("the started capture was cancelled", engine.cancels >= 1)
+        assertEquals(CaptureState.IDLE, recognizer.state.value)
     }
 
     @Test

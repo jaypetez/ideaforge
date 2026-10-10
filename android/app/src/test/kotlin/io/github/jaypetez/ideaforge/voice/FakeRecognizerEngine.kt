@@ -61,6 +61,7 @@ class FakeRecognizerEngine(
         check(!destroyed) { "startListening on a destroyed recogniser" }
         starts++
         if (inCallback) startsInsideCallback++
+        lastPartial = null              // a new session has heard nothing yet
         play(scripts.removeFirstOrNull() ?: after())
     }
 

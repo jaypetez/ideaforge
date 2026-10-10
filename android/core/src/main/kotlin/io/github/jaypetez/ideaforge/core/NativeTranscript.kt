@@ -25,7 +25,9 @@ import java.text.Normalizer
 //    results in full ABSORBS them (the web's absorb), and one that opens with the last two
 //    or more words of an earlier session has those words dropped.
 //  - Nothing is dropped for being shorter: "over" said alone after "…went over" is the word
-//    that ends the answer. A single repeated word is never treated as a replay.
+//    that ends the answer. The partial-overlap trim never treats a single word as a replay,
+//    but absorb can: an earlier result that WAS one word ("over") is absorbed by a later
+//    result that opens with it ("over budget"), as the web's absorb does.
 
 /**
  * How much longer a trigger that only the UNSTABLE part of a partial carries must stand.
