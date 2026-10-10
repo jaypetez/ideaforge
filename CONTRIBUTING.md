@@ -254,7 +254,22 @@ pass. Backups are a second contract: `test/fixtures/backup-from-web.json` and
 **CI.** The `android` job in `.github/workflows/ci.yml` runs on Ubuntu with Temurin JDK 21,
 validates the Gradle wrapper, runs `./gradlew --no-daemon check :app:assembleDebug`, and
 uploads the debug APK as the `ideaforge-debug-apk` artifact. It feeds the single required `ci`
-check. No emulator runs in CI yet.
+check.
+
+**On a device.** `android/app/src/androidTest/` holds an instrumented walkthrough: it launches
+the debug build with its scripted provider, answers the interview through the screen (typed
+answers and a chip), presses Write it up and checks the Result screen shows the export. The
+scripted provider exists only in the debug source set, which `ScriptedProviderIsDebugOnlyTest`
+asserts. `.github/workflows/android-device.yml` runs it on the Gradle managed device
+`pixel6Api34` (an ATD image) on every push to `main`, nightly and on demand
+(`workflow_dispatch`). It is not part of the required `ci` check. Locally, against an emulator
+that is already running (without the `leaveApksInstalledAfterRun` property the task uninstalls
+the app afterwards, wiping its keyring and ideas):
+
+```sh
+ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
+./gradlew pixel6Api34DebugAndroidTest   # downloads and boots its own emulator
+```
 
 The shared [`android-verify`](.claude/skills/android-verify/SKILL.md) skill is the full build,
 vector and emulator procedure, including planting a fault to prove a test bites. The Android
