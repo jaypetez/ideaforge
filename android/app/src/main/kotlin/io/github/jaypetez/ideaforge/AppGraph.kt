@@ -3,8 +3,11 @@ package io.github.jaypetez.ideaforge
 import android.app.Application
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStoreFile
+import io.github.jaypetez.ideaforge.data.AndroidKeystoreKey
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
+import io.github.jaypetez.ideaforge.data.KeyringKey
+import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
@@ -25,6 +28,9 @@ import java.io.File
 class AppGraph(
     private val context: Context,
     val clock: Clock = Clock.System,
+    // Tests replace this: Robolectric has no AndroidKeyStore. Constructing the default
+    // touches nothing; the Keystore is first reached when a keyring is read or written.
+    private val keyringKey: KeyringKey = AndroidKeystoreKey(),
 ) {
     /** Outlives every screen; work that must finish (a save) runs here, not in a ViewModel. */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -34,6 +40,15 @@ class AppGraph(
     val sessionStore: SessionStore by lazy { SessionStore(File(context.filesDir, "sessions")) }
 
     val sessionWorker: SessionWorker by lazy { SessionWorker() }
+
+    /**
+     * The encrypted keyring, in noBackupFilesDir and deliberately outside the sessions
+     * directory: backups contain sessions and nothing else, and anything that ever walks the
+     * sessions directory to build one cannot sweep the keyring up with them.
+     */
+    val keyringStore: KeyringStore by lazy {
+        KeyringStore(File(context.noBackupFilesDir, KeyringStore.FILE_NAME), keyringKey)
+    }
 
     // One DataStore per file per process; DataStore throws if a second instance opens it.
     val prefsStore: PrefsStore by lazy {
@@ -53,5 +68,7 @@ class IdeaForgeApp : Application() {
         graph = AppGraph(this)
         // The library index fills in the background; the shell renders an empty list first.
         graph.appScope.launch { graph.sessionStore.load() }
+        // Never throws: an unreadable keyring reads as none, and says so in its state.
+        graph.appScope.launch { graph.keyringStore.load() }
     }
 }
