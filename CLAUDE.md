@@ -163,6 +163,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   and `.wrap`'s 72px bottom padding**, plus about sixteen element ids, and
   `library.browser.mjs` finds card buttons by their visible text. Restyle them freely; renaming
   any of them breaks the harness, sometimes by hanging rather than failing.
+- **The wrap-up offer is the `#wrap-offer` card, not `#note`.** `nextQuestion` sets
+  `state.wrapOffer` only in manual mode, on the turn `wrapAdvisory` returns text, and the
+  card is cleared by answering, skipping, Keep going or a write-up; `session.wrapOffered`
+  is what stops the engine offering again (#12). `screenshots.mjs` waits for the card to
+  capture 05 and `test/browser/wrap-offer.browser.mjs` pins the once-only rule, including
+  that hands-free still speaks the offer and never shows the card.
 - **Setup disclosures are real UI, not screenshot overrides.** `Model options` opens for
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
   speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,

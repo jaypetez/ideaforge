@@ -354,15 +354,17 @@ async function run(theme, chrome, port) {
         await app.eval(`document.querySelector('details.cov').open = false`);
       }
 
-      const offered = await app.eval(`!document.getElementById('note').hidden`);
+      // The inline card, not #note: the offer moved out of the shared banner (#99).
+      const offered = await app.eval(`!document.getElementById('wrap-offer').hidden`);
       if (offered) break;
     }
 
-    const note = await app.eval(`document.getElementById('note').textContent`);
-    if (!note) throw new Error('the interview never offered to wrap up — the fixture ran out');
+    const offer = await app.eval(`document.getElementById('wrap-offer').hidden
+      ? '' : document.getElementById('wrap-offer-text').textContent`);
+    if (!offer) throw new Error('the interview never offered to wrap up — the fixture ran out');
     await app.shot('05-ready-to-wrap');
 
-    await app.eval(`document.getElementById('b-wrap').click()`);
+    await app.eval(`document.getElementById('b-wrap-offer').click()`);
     await app.waitFor(`!document.getElementById('panel-done').hidden`, 'the done panel');
     await app.waitFor(
       `document.getElementById('output').textContent.includes('Forged with IdeaForge')`,
@@ -411,7 +413,7 @@ async function run(theme, chrome, port) {
     );
     if (err) throw new Error('the app reported an error during capture: ' + err);
 
-    return { app, markdown, trace, note, plex };
+    return { app, markdown, trace, note: offer, plex };
   } finally {
     cdp.close();
     browser.kill();
