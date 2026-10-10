@@ -67,11 +67,14 @@ traffic.
   respect the required `ci` check, and do not merge unless explicitly asked.
 
 Use the shared [project skills](../.claude/skills/) for provider, voice, local-model,
-documentation, README artifacts, implementation review, documentation review, and release
-workflows. The
+documentation, README artifacts, implementation review, documentation review, release,
+and backlog workflows. The
 [release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
 publish, or verify a release; do not select publication automatically or act in place
-of a designated maintainer. Keep one definition of each skill in `.claude/skills`;
+of a designated maintainer. The
+[work-issues skill](../.claude/skills/work-issues/SKILL.md) is likewise explicitly
+invoked; invoking it is the only standing permission to merge, and only for green PRs
+that close `agent-ready` issues. Keep one definition of each skill in `.claude/skills`;
 Claude Code, Copilot CLI, and VS Code all discover that location. Use the current
 client's normal tools and permissions, not duplicate skill copies or blanket tool
 pre-approvals.

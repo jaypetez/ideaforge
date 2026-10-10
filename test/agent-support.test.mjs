@@ -24,6 +24,7 @@ const EXPECTED_SKILLS = new Set([
   'update-documentation',
   'update-readme',
   'validate-local-model',
+  'work-issues',
 ]);
 const skillPath = (name) => join(ROOT, '.claude', 'skills', name, 'SKILL.md');
 
@@ -408,7 +409,8 @@ test('shared skills use valid metadata, unique names, and existing resources', (
   for (const skill of definitions) {
     const label = relative(ROOT, skill.file);
     assert.ok(lstatSync(skill.file).isFile(), `${skill.file} must be a regular file`);
-    const keys = skill.name === 'release'
+    // Skills with side effects (tagging, merging) must be explicitly invoked.
+    const keys = ['release', 'work-issues'].includes(skill.name)
       ? ['description', 'disable-model-invocation', 'name']
       : ['description', 'name'];
     assert.deepEqual(new Set(Object.keys(skill.config)), new Set(keys));

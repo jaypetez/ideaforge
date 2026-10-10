@@ -46,7 +46,9 @@ The shared skills are:
 - `update-readme` for generated screenshots, the worked example, and source-derived claims;
 - `review-ideaforge-documentation` for a high-confidence read-only documentation review;
 - `review-ideaforge-change` for a high-confidence read-only review.
-- `release` for explicitly requested preparation, publication, or verification.
+- `release` for explicitly requested preparation, publication, or verification;
+- `work-issues` for explicitly invoked backlog work, one issue at a time, merging only on
+  a green `ci` check.
 
 The review agents are thin client adapters around the two shared review skills. They
 deliberately have no shell or edit tool, so supply an attached/pasted diff or readable
@@ -57,6 +59,12 @@ The [release skill](.claude/skills/release/SKILL.md) is explicitly invoked, not 
 automatically. It separates release preparation from publication and verification; see
 [cutting a release](#cutting-a-release). Preparing a PR is not permission to merge it
 or push a production tag.
+
+The [work-issues skill](.claude/skills/work-issues/SKILL.md) is explicitly invoked too. It
+takes the next unblocked `agent-ready` issue, proves each acceptance criterion, has the
+read-only review agent check the exact diff, and squash-merges only when `ci` is green on
+the tested head. It never tags, releases, or touches settings, and it labels anything that
+needs a device, a secret, paid usage or a decision `needs-human`.
 
 **Check what was discovered before relying on it.** In a terminal at the repository root:
 
