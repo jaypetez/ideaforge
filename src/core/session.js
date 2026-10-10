@@ -340,6 +340,9 @@ export function migrate(stored) {
       // Sessions arrive here from backups, so they are untrusted; reset rather than guess.
       if (!LEVELS.includes(entry.level)) entry.level = 'thin';
       if (!STATUSES.includes(entry.status)) entry.status = 'probing';
+      // Compared and incremented as a number; a string here sorts as text in the tie-break
+      // and concatenates on `+ 1`.
+      if (!Number.isFinite(entry.turnsSpent)) entry.turnsSpent = 0;
       merged.coverage[id] = entry;
     }
   }

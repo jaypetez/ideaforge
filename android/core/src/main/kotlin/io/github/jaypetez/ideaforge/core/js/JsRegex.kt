@@ -12,6 +12,11 @@ package io.github.jaypetez.ideaforge.core.js
 /** The JS `\s` class, as a Java character class body. */
 const val JS_S: String = "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF"
 
+/** JS `.` without the s flag: one UTF-16 unit, anything but \n \r U+2028 U+2029. Java's `.` takes a
+ *  whole code point and also refuses U+0085. Astral code points are left out because a JS `.`
+ *  can never match a whole surrogate pair in one step. */
+const val JS_DOT: String = "[^\\n\\r\\u2028\\u2029\\x{10000}-\\x{10FFFF}]"
+
 /** JS `\s+`. */
 val JS_SPACES: Regex = Regex("[$JS_S]+")
 

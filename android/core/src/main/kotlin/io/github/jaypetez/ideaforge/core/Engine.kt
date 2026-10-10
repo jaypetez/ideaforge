@@ -1,6 +1,8 @@
 package io.github.jaypetez.ideaforge.core
 
 import io.github.jaypetez.ideaforge.core.js.JS_B
+import io.github.jaypetez.ideaforge.core.js.JS_DOT
+import io.github.jaypetez.ideaforge.core.js.jsTypeof
 import io.github.jaypetez.ideaforge.core.js.JS_S
 import io.github.jaypetez.ideaforge.core.js.arr
 import io.github.jaypetez.ideaforge.core.js.bool
@@ -285,7 +287,7 @@ fun pickBankQuestion(session: JsonObject, targetId: String?): Pair<String, Strin
 // ─────────────────────────────────────────────── result validation
 // The model's JSON validates NOTHING. Never trust the shape.
 
-private val RE_GENERIC = jsRegexI("target audience|go.to.market|value prop|at scale|monetiz|user persona|pain point|north star")
+private val RE_GENERIC = jsRegexI("target audience|go${JS_DOT}to${JS_DOT}market|value prop|at scale|monetiz|user persona|pain point|north star")
 private val BANNED_BRIDGE = jsRegexI(
     "${JS_B}(great|interesting|love|smart|excellent|awesome|perfect|helpful|insightful|good point|makes sense|absolutely|totally)$JS_B",
 )
@@ -319,7 +321,7 @@ fun parseTurnResult(raw: JsonElement?, moves: List<String> = MOVE_IDS, target: S
     val oMove = o["move"]
     val moveOk = stringOf(oMove)?.let { it in moves } ?: false
     val move = if (moveOk) stringOf(oMove) else moves.firstOrNull()
-    if (truthy(oMove) && !moveOk) warnings += "illegal move ${jsString(oMove)}"
+    if (truthy(oMove) && !moveOk) warnings += "illegal move ${stringOf(oMove) ?: jsTypeof(oMove)}"
 
     val dimension = stringOf(o["dimension"])?.takeIf { it in DIMENSION_IDS } ?: target
 
