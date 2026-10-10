@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadPrefs, savePrefs, speechPreferences } from '../src/store/prefs.js';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import {
+  loadPrefs, PREFS_KEY, savePrefs, speechPreferences, themePreference,
+} from '../src/store/prefs.js';
+import { applyTheme, THEME_COLOURS } from '../src/ui/theme.js';
 
 test('speech preferences migrate without a voice or rate override', () => {
   assert.deepEqual(speechPreferences({ trigger: 'finished', handsFree: true }), {
@@ -56,4 +61,125 @@ test('preference writes report failure so consent changes cannot claim a saved c
     getItem: () => null,
     setItem: () => { throw new Error('storage full'); },
   }, () => assert.equal(savePrefs({ hostedSpeechAllowed: false }), false));
+});
+
+// ── theme (#112) ─────────────────────────────────────────────────────────────
+
+test('the theme reads as system unless it is literally light or dark', () => {
+  assert.equal(themePreference('light'), 'light');
+  assert.equal(themePreference('dark'), 'dark');
+  for (const value of ['system', 'garbage', 'Dark', ' dark', '', null, undefined, 1, {}, ['dark']]) {
+    assert.equal(themePreference(value), 'system', JSON.stringify(value));
+  }
+});
+
+test('a stored theme survives a round trip and garbage loads and saves as system', () => {
+  let stored = null;
+  withStorage({
+    getItem: () => stored,
+    setItem: (_key, value) => { stored = value; },
+  }, () => {
+    assert.equal(loadPrefs().theme, 'system', 'nothing stored');
+    assert.equal(savePrefs({ theme: 'dark' }), true);
+    assert.equal(JSON.parse(stored).theme, 'dark');
+    assert.equal(loadPrefs().theme, 'dark');
+    // Saving something else keeps the theme.
+    savePrefs({ handsFree: true });
+    assert.equal(loadPrefs().theme, 'dark');
+    stored = JSON.stringify({ theme: 'garbage' });
+    assert.equal(loadPrefs().theme, 'system');
+    // A bad value handed to savePrefs never reaches storage, where theme-boot.js reads it raw.
+    savePrefs({ theme: 'sepia' });
+    assert.equal(JSON.parse(stored).theme, 'system');
+  });
+});
+
+// theme-boot.js is a classic script, so it cannot import themePreference or PREFS_KEY. Run
+// the real file against a fake page and hold it to the same rule.
+const BOOT = readFileSync(new URL('../src/ui/theme-boot.js', import.meta.url), 'utf8');
+
+function boot({ stored, storageThrows = false, preset } = {}) {
+  const dataset = preset === undefined ? {} : { theme: preset };
+  const metas = [
+    { media: '(prefers-color-scheme: light)', content: '#f5f6f2' },
+    { media: '(prefers-color-scheme: dark)', content: '#15191a' },
+  ].map((m) => ({ ...m, setAttribute(name, value) { this[name] = value; } }));
+  const reads = [];
+  const localStorage = {
+    getItem(key) {
+      reads.push(key);
+      if (storageThrows) throw new Error('SecurityError');
+      return stored === undefined ? null : stored;
+    },
+  };
+  const document = {
+    documentElement: { dataset },
+    querySelectorAll: (selector) => (selector === 'meta[name="theme-color"]' ? metas : []),
+  };
+  runInNewContext(BOOT, { localStorage, document });
+  return { theme: dataset.theme, metas: metas.map((m) => m.content), reads };
+}
+
+test('theme-boot reads the same key prefs.js writes', () => {
+  assert.deepEqual(boot().reads, [PREFS_KEY]);
+});
+
+test('theme-boot applies an explicit choice and retints the browser chrome to match', () => {
+  assert.equal(boot({ stored: JSON.stringify({ theme: 'dark' }) }).theme, 'dark');
+  assert.deepEqual(boot({ stored: JSON.stringify({ theme: 'dark' }) }).metas,
+    [THEME_COLOURS.dark, THEME_COLOURS.dark]);
+  assert.equal(boot({ stored: JSON.stringify({ theme: 'light' }) }).theme, 'light');
+  assert.deepEqual(boot({ stored: JSON.stringify({ theme: 'light' }) }).metas,
+    [THEME_COLOURS.light, THEME_COLOURS.light]);
+});
+
+test('theme-boot leaves data-theme unset for system, garbage, nothing stored or a storage error', () => {
+  for (const stored of [undefined, '', 'not json', 'null', '{}', JSON.stringify({ theme: 'system' }),
+    JSON.stringify({ theme: 'garbage' }), JSON.stringify({ theme: 'Dark' })]) {
+    const out = boot({ stored });
+    assert.equal(out.theme, undefined, String(stored));
+    assert.deepEqual(out.metas, [THEME_COLOURS.light, THEME_COLOURS.dark], String(stored));
+  }
+  assert.equal(boot({ storageThrows: true }).theme, undefined);
+});
+
+test('theme-boot never overrides the theme the screenshot harness set, when nothing is stored', () => {
+  // tools/screenshots.mjs sets dataset.theme before any page script, in a fresh profile.
+  for (const preset of ['light', 'dark']) {
+    for (const stored of [undefined, JSON.stringify({ theme: 'system' }), JSON.stringify({ theme: 'x' })]) {
+      assert.equal(boot({ preset, stored }).theme, preset, `${preset} / ${stored}`);
+    }
+  }
+});
+
+test('the theme-color metas in index.html match the colours the theme code writes', () => {
+  const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(index.includes(`<meta name="theme-color" content="${THEME_COLOURS.light}" media="(prefers-color-scheme: light)">`));
+  assert.ok(index.includes(`<meta name="theme-color" content="${THEME_COLOURS.dark}" media="(prefers-color-scheme: dark)">`));
+});
+
+test('index.html loads theme-boot as a blocking classic script in the head, before the styles', () => {
+  const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const head = index.slice(0, index.indexOf('</head>'));
+  const tag = head.match(/<script\b[^>]*src="\.\/src\/ui\/theme-boot\.js"[^>]*><\/script>/);
+  assert.ok(tag, 'theme-boot.js is not loaded in <head>');
+  // A module, defer or async script runs after first paint: the flash this exists to prevent.
+  assert.doesNotMatch(tag[0], /\b(type|defer|async)\b/);
+  assert.ok(head.indexOf(tag[0]) > head.lastIndexOf('name="theme-color"'), 'it retints the metas, so it follows them');
+  assert.ok(head.indexOf(tag[0]) < head.indexOf('rel="stylesheet"'), 'it should precede the stylesheets');
+});
+
+test('applyTheme sets or clears data-theme and returns what it applied', () => {
+  const dataset = {};
+  const metas = ['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)']
+    .map((media) => ({ attrs: { media }, getAttribute(n) { return this.attrs[n]; }, setAttribute(n, v) { this.attrs[n] = v; } }));
+  const doc = { documentElement: { dataset }, querySelectorAll: () => metas };
+  assert.equal(applyTheme(doc, 'dark'), 'dark');
+  assert.equal(dataset.theme, 'dark');
+  assert.deepEqual(metas.map((m) => m.attrs.content), [THEME_COLOURS.dark, THEME_COLOURS.dark]);
+  assert.equal(applyTheme(doc, 'system'), 'system');
+  assert.equal('theme' in dataset, false);
+  assert.deepEqual(metas.map((m) => m.attrs.content), [THEME_COLOURS.light, THEME_COLOURS.dark]);
+  assert.equal(applyTheme(doc, 'garbage'), 'system');
+  assert.equal('theme' in dataset, false);
 });

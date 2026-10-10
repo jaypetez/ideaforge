@@ -149,6 +149,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   `:root[data-theme="dark"] { color-scheme: dark }` and both runs render identically, shipping
   light/dark PNG pairs that are the same image twice with a green suite. `test/browser/app.browser.mjs`
   now asserts the two themes compute different backgrounds; that is the only thing catching it.
+- **Nothing at boot may clear `data-theme`.** The Appearance choice (`theme` in
+  `src/store/prefs.js`: `system` | `light` | `dark`, the Android app's key and values) is
+  applied before first paint by the classic script `src/ui/theme-boot.js`, which only ever
+  *sets* an explicit light or dark. `app.js` applies the choice only when the user changes
+  it. Applying the default `system` at boot would delete the attribute `screenshots.mjs`
+  set in its fresh profile; `test/browser/theme.browser.mjs` catches that.
 - **`color-scheme` is not decoration.** Without it the native select, the scrollbars and the
   file picker stay light inside a dark page.
 - **`[hidden] { display: none !important }` stays.** Five probe checks and the screenshot

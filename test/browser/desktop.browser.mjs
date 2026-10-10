@@ -273,7 +273,7 @@ export default async function run(check) {
     await settle(100);
     const index = $('settings-index');
     const indexBox = box(index);
-    const groups = ['connect', 'settings-listen', 'settings-data', 'settings-about'];
+    const groups = ['connect', 'settings-listen', 'settings-appearance', 'settings-data', 'settings-about'];
     check('Settings shows its index beside the groups',
       rendered(index) && groups.every((id) => box($(id)).left >= indexBox.right)
         && indexBox.top < box($('connect')).bottom,
@@ -281,7 +281,7 @@ export default async function run(check) {
     check('…with one entry per group, in order',
       [...index.querySelectorAll('button')].map((b) => b.dataset.target).join() === groups.join()
         && [...index.querySelectorAll('button')].map((b) => b.textContent).join('|')
-          === 'Connection|Listen and speak|Data|About');
+          === 'Connection|Listen and speak|Appearance|Data|About');
     check('…and nothing scrolling sideways', noSideways(),
       `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
 

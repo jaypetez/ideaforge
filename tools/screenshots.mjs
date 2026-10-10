@@ -49,7 +49,7 @@ const MAX_SHOT_HEIGHT = 1700;
  */
 const MAX_SETUP_HEIGHT = 1100;
 /**
- * Settings is the one screen meant to be long: four groups, every field. It measured about
+ * Settings is the one screen meant to be long: five groups, every field. It measured about
  * 1676px on the general clamp, 24px from being silently cropped by the next longer hint, so
  * it gets a cap of its own with real headroom. The clip check in shot() still guards it.
  */

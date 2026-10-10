@@ -15,7 +15,10 @@
 // Every access is wrapped: a private window throws on the first touch of localStorage, and
 // a preference failing to load must never be the reason an interview cannot start.
 
-const KEY = 'ideaforge.prefs';
+// src/ui/theme-boot.js reads this key synchronously before first paint; rename both or neither
+// (test/prefs.test.mjs checks they agree).
+export const PREFS_KEY = 'ideaforge.prefs';
+const KEY = PREFS_KEY;
 
 const DEFAULTS = {
   /** The word that ends a spoken answer. Empty means "use the built-in default". */
@@ -25,7 +28,18 @@ const DEFAULTS = {
   speechVoice: '',
   speechRate: 1,
   hostedSpeechAllowed: false,
+  /** 'system' | 'light' | 'dark' — the same key and values the Android app stores. */
+  theme: 'system',
 };
+
+/**
+ * Anything but an explicit 'light' or 'dark' reads as 'system', so a hand-edited or future
+ * value can never leave the page without a theme. src/ui/theme-boot.js applies the stored
+ * choice before first paint and repeats this rule, because a classic script cannot import.
+ */
+export function themePreference(value) {
+  return value === 'light' || value === 'dark' ? value : 'system';
+}
 
 export function speechPreferences(value = {}) {
   return {
@@ -36,7 +50,7 @@ export function speechPreferences(value = {}) {
 }
 
 /** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number,
- *             hostedSpeechAllowed: boolean}} */
+ *             hostedSpeechAllowed: boolean, theme: 'system'|'light'|'dark'}} */
 export function loadPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -46,6 +60,7 @@ export function loadPrefs() {
     return {
       ...DEFAULTS, ...stored, ...speechPreferences(stored),
       hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
+      theme: themePreference(stored.theme),
     };
   } catch {
     return { ...DEFAULTS };
@@ -56,7 +71,9 @@ export function loadPrefs() {
 export function savePrefs(patch) {
   try {
     const next = { ...loadPrefs(), ...patch };
-    localStorage.setItem(KEY, JSON.stringify({ ...next, ...speechPreferences(next) }));
+    localStorage.setItem(KEY, JSON.stringify({
+      ...next, ...speechPreferences(next), theme: themePreference(next.theme),
+    }));
     return true;
   } catch {
     return false;
