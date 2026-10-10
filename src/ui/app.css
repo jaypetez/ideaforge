@@ -635,6 +635,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   #manual-interview > .cov {
     grid-column: 2; grid-row: 1 / -1; align-self: start;
     position: sticky; top: var(--s4);
+    /* Stuck, it must fit the viewport, or a 768px laptop never sees its last rows. */
+    max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
     padding: var(--s4); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
     background: var(--surface-container-lowest);
   }
@@ -942,7 +944,12 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
     grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: var(--s2);
     margin-inline-start: calc(-1 * var(--s2));
   }
-  body:is([data-panel="interview"], [data-panel="done"]) .bar h1 { grid-column: 2; grid-row: 1; }
+  /* One line, always: at 360px the title shares the row with back, the meter and Settings,
+     and a long word wrapping mid-word reads as a broken header. It truncates instead. */
+  body:is([data-panel="interview"], [data-panel="done"]) .bar h1 {
+    grid-column: 2; grid-row: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   body:is([data-panel="interview"], [data-panel="done"]) .bar-right { display: contents; }
   body:is([data-panel="interview"], [data-panel="done"]) #b-nav-new { display: none; }
   body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item {
@@ -966,11 +973,11 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   }
   body:is([data-panel="interview"], [data-panel="done"]) #b-settings { grid-column: 4; }
   body:is([data-panel="interview"], [data-panel="done"]) .meter {
-    grid-column: 3; grid-row: 1; gap: var(--s2);
+    grid-column: 3; grid-row: 1; gap: var(--s1);
   }
-  /* Seven segments of about 10px: still one per dimension, and the row fits a 360px phone. */
+  /* Seven segments of about 8px: still one per dimension, and the row fits a 360px phone. */
   body:is([data-panel="interview"], [data-panel="done"]) .meter-track {
-    flex: none; width: calc(var(--s8) + var(--s5)); gap: 2px;
+    flex: none; width: calc(var(--s8) + var(--s2)); gap: 2px;
   }
   body:is([data-panel="interview"], [data-panel="done"]) .meter-seg { height: 6px; }
 

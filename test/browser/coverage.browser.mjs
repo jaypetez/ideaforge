@@ -223,6 +223,9 @@ export default async function run(report) {
     for (const theme of ['light', 'dark']) {
       doc.documentElement.dataset.theme = theme;
       await settle(30);
+      // Segments transition their colour over .35s; finish that, or the colour read below
+      // is wherever the easing got to and the contrast check passes or fails on timing.
+      for (const seg of segments()) seg.getAnimations().forEach((a) => a.finish());
       const page = win.getComputedStyle(doc.body).backgroundColor;
       const levels = ['thin', 'partial', 'covered'].map(byLevel);
       check(`${theme}: thin, partial and covered segments are each painted differently`,
@@ -270,6 +273,39 @@ export default async function run(report) {
       doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
       `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
 
+    // ── a short laptop: the stuck panel fits the viewport and scrolls ────────
+    frame.width = 1366;
+    frame.height = 700;
+    await settle(150);
+    win.scrollTo(0, doc.documentElement.scrollHeight);
+    await settle(50);
+    const shortPanel = cov.getBoundingClientRect();
+    check('at 1366×700 the side panel fits inside the viewport',
+      shortPanel.top >= 0 && shortPanel.bottom <= win.innerHeight + 0.5,
+      `panel ${Math.round(shortPanel.top)}–${Math.round(shortPanel.bottom)} of ${win.innerHeight}`);
+    check('…because it is capped at the viewport and scrolls inside itself',
+      win.getComputedStyle(cov).overflowY === 'auto'
+        && Math.abs(parseFloat(win.getComputedStyle(cov).maxHeight) - (win.innerHeight - 32)) < 1,
+      `${win.getComputedStyle(cov).maxHeight} / ${win.getComputedStyle(cov).overflowY}`);
+    // Seven rows do not overflow 700px on their own, so shorten the window until they must.
+    // Scrolled just past the panel's own top, so it is stuck. (At the very end of the page a
+    // sticky box rides up with the end of its grid area, as sticky boxes do.)
+    frame.height = 420;
+    await settle(150);
+    win.scrollTo(0, 0);
+    win.scrollTo(0, cov.getBoundingClientRect().top - 16 + 24);
+    await settle(50);
+    const squeezed = cov.getBoundingClientRect();
+    const before = cov.scrollTop;
+    cov.scrollTop = cov.scrollHeight;
+    check('at 1366×420, stuck, the panel still fits, and scrolls to reach its last rows',
+      squeezed.top >= 0 && squeezed.bottom <= win.innerHeight + 0.5
+        && cov.scrollHeight > cov.clientHeight && cov.scrollTop > before,
+      `panel ${Math.round(squeezed.top)}–${Math.round(squeezed.bottom)} of ${win.innerHeight}; scrollHeight ${cov.scrollHeight}, clientHeight ${cov.clientHeight}, scrollTop ${cov.scrollTop}`);
+    cov.scrollTop = 0;
+    win.scrollTo(0, 0);
+    frame.height = 900;
+
     // ── a disclosure again at 800px ──────────────────────────────────────────
     frame.width = 800;
     await settle(150);
@@ -305,6 +341,16 @@ export default async function run(report) {
     check('…and nothing scrolls sideways',
       doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
       `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
+    const title = doc.querySelector('.bar h1');
+    const titleLine = parseFloat(win.getComputedStyle(title).lineHeight);
+    const titleBox = title.getBoundingClientRect();
+    check('…and the title stays on one line beside it, never wrapping mid-word',
+      title.getClientRects().length === 1 && titleBox.height <= titleLine * 1.2
+        && titleBox.width > 0 && titleBox.right <= meter.left + 0.5
+        // …and whole: the one-line rule truncates with an ellipsis as a last resort, and a
+        // header reading "IdeaF…" at the commonest Android width is its own bug.
+        && title.scrollWidth <= title.clientWidth,
+      `h1 ${Math.round(titleBox.width)}x${Math.round(titleBox.height)} (needs ${title.scrollWidth}), line ${titleLine}, meter left ${Math.round(meter.left)}`);
 
     // ── Done hides it ────────────────────────────────────────────────────────
     frame.width = 1280;
