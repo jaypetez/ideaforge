@@ -163,7 +163,9 @@ async function views(check) {
     check('Settings has no horizontal overflow at 360px', root.scrollWidth <= root.clientWidth,
       `${root.scrollWidth}/${root.clientWidth}`);
     $('b-nav-new').click();
-    await until(() => view() === 'start');
+    // Measured once the navigation's View Transition (#108) has finished: while one is
+    // active the root is a full-viewport snapshot, scrollbar gutter included.
+    await until(() => view() === 'start' && !root.matches(':active-view-transition'));
     check('Start (folded) has no horizontal overflow at 360px', root.scrollWidth <= root.clientWidth,
       `${root.scrollWidth}/${root.clientWidth}`);
     $('b-connect-change').click();

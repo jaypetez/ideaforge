@@ -75,6 +75,22 @@ Android app follows the system's animator duration scale.
 | `--ease-emph-decel` | `EasingEmphasizedDecelerate` | `cubic-bezier(.05, .7, .1, 1)` |
 | `--ease-emph-accel` | `EasingEmphasizedAccelerate` | `cubic-bezier(.3, 0, .8, .15)` |
 
+Panels enter with one keyframe, `panel-in` (opacity and a `--s2` rise over `--dur-medium2`
+on `--ease-emph-decel`), keyed off the `data-enter` attribute that `show()` sets in the same
+task. The panel is displayed and focusable from the first frame, so focus, speech priming
+and `navigator.share` never wait for it. The rule exists only under `no-preference`.
+
+The three navigation buttons (Ideas, which is also the back arrow, New idea and Settings)
+go through `navigateTo()`, which runs the change as a same-document View Transition: the
+default root crossfade, over `--dur-short4`. It is skipped when the API is missing, under
+reduced motion, and while voice is in use. No other control is wrapped. The browser calls
+the update a frame after the click, and Start voice, Resume, Preview and Share need their
+gesture inside the click. While a transition runs, a tap reaches nothing, which is why the
+crossfade is short. Only the synchronous screen change runs inside it, never the storage
+reads around it. A navigation that a later tap superseded is skipped. After navigating,
+focus moves to the destination's heading (`tabindex="-1"`, no ring) without scrolling.
+Interview, Done and the voice stage keep their own focus targets.
+
 Loading placeholders (library cards, the skeleton question card, the write-up in `#output`)
 share one `skeleton-pulse` on `--surface-container`, timed from `--dur-long2`, under
 `aria-busy` on the region they stand in for; reduced motion stills them. The skeleton

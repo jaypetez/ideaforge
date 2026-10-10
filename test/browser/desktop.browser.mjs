@@ -101,6 +101,8 @@ export default async function run(check) {
     && el.getClientRects().length > 0;
   const box = (el) => el.getBoundingClientRect();
   const noSideways = () => doc.documentElement.scrollWidth <= doc.documentElement.clientWidth;
+  /** True while a View Transition is still drawing (see the Settings step below). */
+  const transitioning = () => doc.documentElement.matches(':active-view-transition');
   const card = (id) => $('library-rows').querySelector(`[data-session-id="${id}"]`);
   const button = (root, label) =>
     [...root.querySelectorAll('button')].find((item) => item.textContent === label);
@@ -269,7 +271,11 @@ export default async function run(check) {
 
     // ── Settings: index | groups ─────────────────────────────────────────────
     $('b-settings').click();
-    await until(() => $('panel-setup').dataset.view === 'settings' && !$('panel-setup').hidden);
+    // Layout is measured after the navigation's View Transition (#108) has finished: while
+    // one is active the root reports a full-viewport snapshot, scrollbar gutter included, as
+    // scrollWidth (1280/1265 here) although no scrollbar appears and nothing can scroll.
+    await until(() => $('panel-setup').dataset.view === 'settings' && !$('panel-setup').hidden
+      && !transitioning());
     await settle(100);
     const index = $('settings-index');
     const indexBox = box(index);
@@ -315,7 +321,7 @@ export default async function run(check) {
       !rendered(index) && box(doc.querySelector('.wrap')).width <= 720 && noSideways(),
       `${Math.round(box(doc.querySelector('.wrap')).width)}px`);
     $('b-library').click();
-    await until(() => !$('panel-library').hidden && card('d_done'));
+    await until(() => !$('panel-library').hidden && card('d_done') && !transitioning());
     await settle(100);
     check('at 800px Ideas has no detail pane and no selection mark',
       !rendered(detail()) && detail().childNodes.length === 0

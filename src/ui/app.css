@@ -1319,7 +1319,34 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .toggle input { min-height: 0; }
 }
 
+/* Panel motion (#108). show() sets data-enter on the panel it opens, synchronously, so the
+   panel is displayed and focusable from the first frame and only its paint eases in: focus,
+   speech priming and navigator.share are never waiting on it. Opacity and a short rise, no
+   more — a transform outlasting the animation would make the panel the containing block of
+   anything fixed inside it. The rule exists only under no-preference, so reduced motion
+   (which the screenshot harness emulates) draws every panel straight in. */
+@media (prefers-reduced-motion: no-preference) {
+  #main > section[data-enter] { animation: panel-in var(--dur-medium2) var(--ease-emph-decel); }
+}
+@keyframes panel-in { from { opacity: 0; transform: translateY(var(--s2)); } }
+
+/* The navigation bar's same-document View Transition (navigateTo in app.js): the default
+   root crossfade, on the motion tokens. Short on purpose: while a transition is active the
+   browser hit-tests the root element, so a tap in the crossfade reaches nothing, and
+   pointer-events cannot change that. app.js never starts one under reduced motion; the
+   reduced-motion block stills any that a browser starts anyway. */
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: var(--dur-short4); animation-timing-function: var(--ease-standard);
+}
+
+/* A heading is focused after navigation so the screen reader announces it (focusHeading in
+   app.js). It is not a control, so it draws no ring — the same choice as #main. */
+#main h2[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
   :root {
     --dur-short1: 0s; --dur-short2: 0s; --dur-short3: 0s; --dur-short4: 0s;
     --dur-medium1: 0s; --dur-medium2: 0s; --dur-medium3: 0s; --dur-medium4: 0s;
