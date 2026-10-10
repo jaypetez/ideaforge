@@ -1,0 +1,104 @@
+      53.5 --  ==== report 2026-10-10 12:03:22.071 -0700 ====
+      61.5 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      65.4 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      67.8 --  app: io.github.jaypetez.ideaforge.debug
+      69.2 --  RECORD_AUDIO granted: true
+      71.1 --  isRecognitionAvailable: true
+      73.3 --  isOnDeviceRecognitionAvailable: true
+      75.3 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      78.0 --  RecognitionService resolvers: 2
+      81.1 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      82.9 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      85.2 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      86.8 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      89.6 --  default TTS engine: null
+       1.1 --  ==== trial 1 2026-10-10 12:03:22.125 -0700 ====
+       3.7 --  config: TrialConfig(onDevice=false, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=-1, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=null)
+      59.2 --  activity onStart
+     105.0 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+     113.2 --  created createSpeechRecognizer
+     134.8 s1  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    1278.7 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1287.7 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1300.5 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1313.2 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1418.6 s1  onReadyForSpeech {}
+    1548.6 s1  first onRmsChanged rmsdB=-2.0
+    2549.9 s1  onRmsChanged x2 min=-2.00 max=-1.76 last=-1.76
+    2839.1 s1  onRmsChanged x11 min=-2.00 max=-0.68 last=-2.00
+    3126.9 s1  onRmsChanged x15 min=-2.00 max=0.16 last=-0.80
+    3414.8 s1  onRmsChanged x13 min=-2.00 max=0.40 last=0.40
+    3718.1 s1  onRmsChanged x15 min=-2.00 max=0.76 last=-0.20
+    4007.8 s1  onRmsChanged x14 min=-2.00 max=0.76 last=-2.00
+    4310.8 s1  onRmsChanged x12 min=-1.16 max=1.00 last=1.00
+    4599.3 s1  onRmsChanged x13 min=-2.00 max=1.24 last=0.88
+    4890.3 s1  onRmsChanged x15 min=-2.00 max=1.24 last=1.24
+    5192.8 s1  onRmsChanged x15 min=-0.80 max=1.60 last=-0.08
+    5495.1 s1  onRmsChanged x14 min=-2.00 max=1.00 last=-2.00
+    5800.4 s1  onRmsChanged x13 min=-2.00 max=1.96 last=1.60
+    6089.7 s1  onRmsChanged x15 min=-2.00 max=1.24 last=0.64
+    6385.1 s1  onRmsChanged x14 min=-0.08 max=2.08 last=1.00
+    6451.0 s1  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+    6452.9 s1  onError ERROR_NO_MATCH
+    6455.6 s1  restart #1: startListening again, immediately, inside the onError callback
+    6458.9 s2  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    6652.5 s2  onReadyForSpeech {}
+    6751.6 s2  first onRmsChanged rmsdB=-2.0
+    7305.6 --  activity onStop
+    7457.1 --  broadcast SCREEN_OFF
+    7888.1 s2  onRmsChanged x2 min=-2.00 max=-1.04 last=-1.04
+    8159.6 s2  onRmsChanged x12 min=-2.00 max=-0.32 last=-1.28
+    8449.1 s2  onRmsChanged x14 min=-2.00 max=0.16 last=-0.08
+    8721.1 s2  onRmsChanged x13 min=-2.00 max=0.64 last=0.28
+    9009.9 s2  onRmsChanged x13 min=-2.00 max=0.88 last=-1.04
+    9281.8 s2  onRmsChanged x14 min=-2.00 max=1.24 last=0.04
+    9570.2 s2  onRmsChanged x14 min=-2.00 max=1.48 last=0.28
+    9842.2 s2  onRmsChanged x13 min=-0.32 max=1.72 last=1.72
+   10145.9 s2  onRmsChanged x14 min=-0.92 max=1.48 last=1.48
+   10432.6 s2  onRmsChanged x14 min=-1.88 max=1.60 last=0.40
+   10705.8 s2  onRmsChanged x12 min=-2.00 max=1.36 last=0.52
+   10991.8 s2  onRmsChanged x13 min=-0.68 max=1.60 last=0.64
+   11265.5 s2  onRmsChanged x12 min=-1.16 max=1.60 last=0.16
+   11553.6 s2  onRmsChanged x13 min=-0.92 max=1.84 last=0.64
+   11703.9 s2  onRmsChanged x7 min=-2.00 max=2.20 last=-2.00
+   11708.2 s2  onError ERROR_NO_MATCH
+   11709.8 s2  restart #2: startListening again, immediately, inside the onError callback
+   11712.4 s3  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   11745.3 s3  onReadyForSpeech {}
+   11785.6 s3  first onRmsChanged rmsdB=-2.0
+   16799.4 s3  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   16801.6 s3  onError ERROR_NO_MATCH
+   16802.8 s3  restart #3: startListening again, immediately, inside the onError callback
+   16805.8 s4  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   16888.5 s4  onReadyForSpeech {}
+   16919.1 s4  first onRmsChanged rmsdB=-2.0
+   21946.7 s4  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   21956.6 s4  onError ERROR_NO_MATCH
+   21966.0 s4  restart #4: startListening again, immediately, inside the onError callback
+   21976.8 s5  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   22069.7 s5  onReadyForSpeech {}
+   22110.8 s5  first onRmsChanged rmsdB=-2.0
+   27121.1 s5  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   27124.3 s5  onError ERROR_NO_MATCH
+   27127.0 s5  restart #5: startListening again, immediately, inside the onError callback
+   27127.9 s6  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   27183.0 s6  onReadyForSpeech {}
+   27223.2 s6  first onRmsChanged rmsdB=-2.0
+   31782.1 --  activity onStart
+   31861.2 --  broadcast SCREEN_ON
+   31882.7 s6  onRmsChanged x2 min=-2.00 max=10.00 last=10.00
+   32302.4 s6  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   32305.9 s6  onError ERROR_NO_MATCH
+   32311.9 s6  restart #6: startListening again, immediately, inside the onError callback
+   32312.6 s7  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   32406.9 s7  onReadyForSpeech {}
+   32460.5 s7  first onRmsChanged rmsdB=-2.0
+   33606.7 s7  onRmsChanged x2 min=-2.00 max=-1.64 last=-1.64
+   33895.4 s7  onRmsChanged x10 min=-2.00 max=-0.68 last=-1.40
+   34171.3 s7  onRmsChanged x14 min=-2.00 max=0.16 last=-0.32
+   34454.7 s7  onRmsChanged x14 min=-1.28 max=0.28 last=-0.92
+   34726.5 s7  onRmsChanged x14 min=-2.00 max=1.12 last=0.88
+   35014.6 s7  onRmsChanged x13 min=-0.68 max=0.76 last=0.28
+   35303.8 s7  onRmsChanged x14 min=-1.04 max=1.00 last=0.88
+   35608.4 s7  onRmsChanged x14 min=-2.00 max=1.24 last=-2.00
+   35897.8 s7  onRmsChanged x14 min=-1.16 max=1.12 last=1.12

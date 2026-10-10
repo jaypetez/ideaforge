@@ -1,0 +1,223 @@
+       5.0 --  ==== report 2026-10-10 12:06:32.793 -0700 ====
+      10.7 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      13.3 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      15.0 --  app: io.github.jaypetez.ideaforge.debug
+      16.7 --  RECORD_AUDIO granted: true
+      21.5 --  isRecognitionAvailable: true
+      30.9 --  isOnDeviceRecognitionAvailable: true
+      35.1 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      38.4 --  RecognitionService resolvers: 2
+      40.7 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      45.1 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      48.7 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      51.8 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      58.0 --  default TTS engine: null
+       0.8 --  ==== trial 1 2026-10-10 12:06:32.856 -0700 ====
+       4.2 --  config: TrialConfig(onDevice=false, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=3, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=null)
+     133.6 --  activity onStart
+     163.6 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+     168.7 --  created createSpeechRecognizer
+     183.0 s1  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    1285.5 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1289.0 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1292.3 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1296.4 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1390.2 s1  onReadyForSpeech {}
+    1523.6 s1  first onRmsChanged rmsdB=-2.0
+    2570.8 s1  onRmsChanged x2 min=-2.00 max=-1.88 last=-1.88
+    2858.3 s1  onRmsChanged x12 min=-2.00 max=-0.68 last=-0.80
+    3148.7 s1  onRmsChanged x15 min=-1.64 max=-0.20 last=-0.32
+    3438.5 s1  onRmsChanged x13 min=-1.04 max=0.40 last=0.40
+    3742.1 s1  onRmsChanged x14 min=-0.80 max=0.88 last=-0.80
+    4031.2 s1  onRmsChanged x15 min=-1.16 max=0.76 last=0.28
+    4314.5 s1  onRmsChanged x13 min=-1.40 max=0.76 last=0.64
+    4621.0 s1  onRmsChanged x15 min=-2.00 max=1.24 last=0.04
+    4907.9 s1  onRmsChanged x14 min=-2.00 max=1.24 last=0.52
+    5195.3 s1  onRmsChanged x14 min=-2.00 max=1.48 last=1.12
+    5469.8 s1  onRmsChanged x14 min=-1.28 max=1.84 last=1.12
+    5774.2 s1  onRmsChanged x14 min=-0.32 max=1.84 last=0.88
+    6059.5 s1  onRmsChanged x14 min=-2.00 max=1.36 last=0.76
+    6331.8 s1  onRmsChanged x13 min=-1.64 max=1.72 last=0.04
+    6389.9 s1  onRmsChanged x2 min=-2.00 max=1.36 last=-2.00
+    6398.3 s1  onError ERROR_NO_MATCH
+    6404.7 s1  restart #1: startListening again, immediately, inside the onError callback
+    6409.0 s2  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    6495.4 s2  onReadyForSpeech {}
+    6546.0 s2  first onRmsChanged rmsdB=-2.0
+    7759.4 s2  onRmsChanged x2 min=-2.00 max=-1.52 last=-1.52
+    8066.4 s2  onRmsChanged x15 min=-2.00 max=-0.20 last=-1.52
+    8384.5 s2  onRmsChanged x14 min=-2.00 max=0.52 last=-0.56
+    8672.0 s2  onRmsChanged x14 min=-2.00 max=0.52 last=0.52
+    8977.7 s2  onRmsChanged x14 min=-1.16 max=0.88 last=-1.16
+    9279.4 s2  onRmsChanged x12 min=-2.00 max=1.00 last=0.28
+    9583.7 s2  onRmsChanged x13 min=-1.28 max=1.00 last=-1.28
+    9871.2 s2  onRmsChanged x14 min=-1.28 max=1.24 last=0.76
+   10161.8 s2  onRmsChanged x14 min=-1.16 max=1.48 last=0.28
+   10432.8 s2  onRmsChanged x14 min=-1.16 max=1.72 last=-0.08
+   10721.6 s2  onRmsChanged x14 min=-2.00 max=1.84 last=1.12
+   11025.4 s2  onRmsChanged x15 min=-2.00 max=1.48 last=0.88
+   11297.3 s2  onRmsChanged x14 min=-2.00 max=1.72 last=0.52
+   11539.3 s2  onRmsChanged x11 min=-2.00 max=2.08 last=-2.00
+   11542.5 s2  onError ERROR_NO_MATCH
+   11545.5 s2  restart #2: startListening again, immediately, inside the onError callback
+   11547.8 s3  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   11648.3 s3  onReadyForSpeech {}
+   11699.4 s3  first onRmsChanged rmsdB=-2.0
+   12909.4 s3  onRmsChanged x2 min=-2.00 max=-1.40 last=-1.40
+   13213.7 s3  onRmsChanged x14 min=-2.00 max=-0.32 last=-2.00
+   13501.1 s3  onRmsChanged x12 min=-2.00 max=-0.20 last=-2.00
+   13804.3 s3  onRmsChanged x15 min=-1.40 max=0.88 last=-0.44
+   14093.1 s3  onRmsChanged x14 min=-2.00 max=0.64 last=-0.32
+   14380.3 s3  onRmsChanged x15 min=-0.68 max=1.12 last=1.12
+   14670.1 s3  onRmsChanged x11 min=-0.80 max=1.12 last=0.88
+   14976.8 s3  onRmsChanged x15 min=-1.76 max=1.12 last=0.88
+   15246.2 s3  onRmsChanged x14 min=-2.00 max=1.12 last=0.04
+   15532.0 s3  onRmsChanged x12 min=-1.04 max=1.00 last=0.64
+   15808.5 s3  onRmsChanged x11 min=-0.08 max=1.48 last=0.28
+   16108.7 s3  onRmsChanged x13 min=-2.00 max=1.48 last=0.16
+   16382.4 s3  onRmsChanged x14 min=0.16 max=1.72 last=1.24
+   16678.5 s3  onRmsChanged x14 min=-1.28 max=1.60 last=-0.56
+   16712.8 s3  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   16716.4 s3  onError ERROR_NO_MATCH
+   16719.9 s3  restart #3: startListening again, immediately, inside the onError callback
+   16723.0 s4  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+   16800.6 s4  onReadyForSpeech {}
+   16864.5 s4  first onRmsChanged rmsdB=-2.0
+   18001.1 s4  onRmsChanged x2 min=-2.00 max=-1.88 last=-1.88
+   18306.7 s4  onRmsChanged x13 min=-2.00 max=-1.04 last=-1.88
+   18592.6 s4  onRmsChanged x15 min=-2.00 max=-0.20 last=-0.20
+   18881.8 s4  onRmsChanged x12 min=-2.00 max=0.76 last=0.76
+   19155.0 s4  onRmsChanged x13 min=-2.00 max=0.40 last=-0.20
+   19441.5 s4  onRmsChanged x12 min=-0.44 max=1.00 last=0.64
+   19745.6 s4  onRmsChanged x15 min=-1.88 max=1.24 last=1.24
+   20032.7 s4  onRmsChanged x15 min=-1.28 max=1.24 last=1.24
+   20322.2 s4  onRmsChanged x13 min=-0.44 max=1.72 last=0.40
+   20626.8 s4  onRmsChanged x14 min=-1.76 max=1.36 last=-1.76
+   20911.3 s4  onRmsChanged x15 min=-2.00 max=1.36 last=1.00
+   21200.4 s4  onRmsChanged x13 min=-0.08 max=1.60 last=0.52
+   21505.8 s4  onRmsChanged x15 min=-2.00 max=1.60 last=0.88
+   21778.8 s4  onRmsChanged x13 min=0.28 max=1.72 last=0.28
+   21862.3 s4  onRmsChanged x3 min=-2.00 max=1.36 last=-2.00
+   21864.1 s4  onError ERROR_NO_MATCH
+   21867.9 s4  recognizer destroyed
+   21871.4 --  ==== trial 1 finished: ended by onError; sessions=4 restarts=3 ====
+   21875.4 --  log file: /storage/emulated/0/Android/data/io.github.jaypetez.ideaforge.debug/files/recognizer-probe.log
+       5.0 --  ==== report 2026-10-10 12:06:59.252 -0700 ====
+       9.3 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      11.3 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      14.1 --  app: io.github.jaypetez.ideaforge.debug
+      15.8 --  RECORD_AUDIO granted: true
+      18.8 --  isRecognitionAvailable: true
+      20.4 --  isOnDeviceRecognitionAvailable: true
+      23.3 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      26.3 --  RecognitionService resolvers: 2
+      28.4 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      31.2 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      33.1 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      35.5 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      37.9 --  default TTS engine: null
+       0.9 --  ==== trial 1 2026-10-10 12:06:59.292 -0700 ====
+       3.9 --  config: TrialConfig(onDevice=true, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=1, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=null)
+      43.3 --  activity onStart
+      63.6 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+      73.2 --  created createOnDeviceSpeechRecognizer
+      93.2 s1  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    1161.8 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1165.2 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1174.3 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1179.5 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1296.0 s1  onReadyForSpeech {}
+    1931.6 s1  first onRmsChanged rmsdB=-2.0
+    6337.5 s1  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+    6341.0 s1  onError ERROR_NO_MATCH
+    6343.5 s1  restart #1: startListening again, immediately, inside the onError callback
+    6345.6 s2  startListening(LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    6456.4 s2  onReadyForSpeech {}
+    7095.4 s2  first onRmsChanged rmsdB=-2.0
+   11471.5 s2  onRmsChanged x1 min=-2.00 max=-2.00 last=-2.00
+   11473.4 s2  onError ERROR_NO_MATCH
+   11476.5 s2  recognizer destroyed
+   11478.6 --  ==== trial 1 finished: ended by onError; sessions=2 restarts=1 ====
+   11484.1 --  log file: /storage/emulated/0/Android/data/io.github.jaypetez.ideaforge.debug/files/recognizer-probe.log
+       3.2 --  ==== report 2026-10-10 12:07:19.612 -0700 ====
+       8.9 --  device: Google sdk_gphone64_x86_64 (emu64xa), Android 16, API 36
+      10.4 --  build: google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys
+      12.6 --  app: io.github.jaypetez.ideaforge.debug
+      14.2 --  RECORD_AUDIO granted: true
+      18.2 --  isRecognitionAvailable: true
+      20.5 --  isOnDeviceRecognitionAvailable: true
+      24.0 --  Settings.Secure voice_recognition_service: com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService
+      26.2 --  RecognitionService resolvers: 2
+      27.9 --    service com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService vB.0.playstore.pixel6.738427685
+      31.5 --    service com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSRecognitionService vgoogletts.google-speech-apk_20260817.01_p0.966249458
+      34.3 --  ACTION_RECOGNIZE_SPEECH activities: 1
+      37.4 --    activity com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTTSActivity
+      41.8 --  default TTS engine: null
+       0.9 --  ==== trial 1 2026-10-10 12:07:19.658 -0700 ====
+       2.5 --  config: TrialConfig(onDevice=false, partials=true, preferOffline=false, silenceExtras=false, segmented=false, restarts=0, recreateOnRestart=false, delayMs=0, foregroundService=false, wakeLock=false, ttsPhrase=we went over budget last year)
+      57.8 --  synthesising "we went over budget last year" with the device TTS
+     157.0 --  activity onStart
+     182.6 --  permissions: {android.permission.RECORD_AUDIO=true, android.permission.POST_NOTIFICATIONS=true}
+    1597.7 --  checkRecognitionSupport(default): onError ERROR_CANNOT_CHECK_SUPPORT
+    1600.0 --  checkRecognitionSupport(on-device): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1606.4 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    1607.9 --  checkRecognitionSupport(default): installed=[en-US] pending=[] supported(on-device)=30 online=0
+    2066.6 --  tts: synthesised via com.google.android.tts (24000 Hz, 1 ch, 1995 ms)
+    2079.6 --  created createSpeechRecognizer
+    2084.4 s1  startListening(AUDIO_SOURCE=<pipe>, AUDIO_SOURCE_CHANNEL_COUNT=1, AUDIO_SOURCE_ENCODING=2, AUDIO_SOURCE_SAMPLING_RATE=24000, LANGUAGE=en-US, LANGUAGE_MODEL=free_form, MAX_RESULTS=3, PARTIAL_RESULTS=true, PREFER_OFFLINE=false, calling_package=io.github.jaypetez.ideaforge.debug)
+    2155.0 s1  onReadyForSpeech {}
+    2161.4 s1  first onRmsChanged rmsdB=-2.0
+    2498.0 s1  onRmsChanged x2 min=-2.00 max=0.64 last=0.64
+    2784.4 s1  onRmsChanged x29 min=-2.00 max=0.64 last=-2.00
+    3040.8 s1  onRmsChanged x24 min=-2.00 max=10.00 last=10.00
+    3172.1 s1  onRmsChanged x13 min=9.52 max=10.00 last=9.52
+    3178.2 s1  onBeginningOfSpeech
+    3472.6 s1  onRmsChanged x27 min=9.40 max=10.00 last=10.00
+    3559.9 s1  onRmsChanged x9 min=8.20 max=10.00 last=9.64
+    3562.4 s1  onPartialResults [""@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[we], current_locale=}
+    3831.4 s1  onRmsChanged x24 min=4.96 max=10.00 last=9.88
+    3833.9 s1  onPartialResults [""@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[we went], current_locale=}
+    3924.2 s1  onRmsChanged x10 min=3.76 max=10.00 last=9.64
+    3928.6 s1  onPartialResults [""@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[we went over], current_locale=}
+    4204.4 s1  onRmsChanged x25 min=1.00 max=10.00 last=10.00
+    4212.2 s1  onRmsChanged x1 min=9.76 max=9.76 last=9.76
+    4213.9 s1  onPartialResults ["we"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ went over bud], current_locale=}
+    4363.4 s1  onRmsChanged x14 min=-2.00 max=9.76 last=9.76
+    4365.3 s1  onPartialResults ["we"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ went over budget], current_locale=}
+    4465.1 s1  onRmsChanged x10 min=9.64 max=10.00 last=9.64
+    4470.3 s1  onPartialResults ["we went"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ over budget], current_locale=}
+    4578.7 s1  onRmsChanged x10 min=9.64 max=10.00 last=9.64
+    4583.8 s1  onPartialResults ["we went over"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ budget last], current_locale=}
+    4745.3 s1  onRmsChanged x16 min=-2.00 max=10.00 last=9.76
+    4748.9 s1  onPartialResults ["we went over"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ budget last year], current_locale=}
+    4959.0 s1  onRmsChanged x20 min=-2.00 max=9.64 last=-0.80
+    4965.2 s1  onPartialResults ["we went over budget"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ last year], current_locale=}
+    5240.6 s1  onRmsChanged x25 min=-2.00 max=-0.56 last=-0.80
+    5244.8 s1  onPartialResults ["we went over budget last"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[ year], current_locale=}
+    5514.3 s1  onRmsChanged x23 min=-2.00 max=-0.08 last=-2.00
+    5542.3 s1  onRmsChanged x1 min=-1.52 max=-1.52 last=-1.52
+    5546.3 s1  onPartialResults ["we went over budget last year"@n/a] extra{android.speech.extra.UNSTABLE_TEXT=[], current_locale=}
+    5826.4 s1  onRmsChanged x27 min=-2.00 max=-1.40 last=-2.00
+    5853.0 s1  onRmsChanged x2 min=-2.00 max=-1.76 last=-2.00
+    5858.4 s1  onEndOfSpeech
+    5875.0 s1  onRmsChanged x2 min=-2.00 max=-1.76 last=-2.00
+    5880.2 s1  onPartialResults ["we went over budget last year"@0.972 | "we went over budgeted last year"@0.874] extra{current_locale=, final_result=true}
+    6147.3 s1  onRmsChanged x26 min=-2.00 max=-1.40 last=-2.00
+    6407.6 s1  onRmsChanged x24 min=-2.00 max=-1.76 last=-2.00
+    6663.5 s1  onRmsChanged x24 min=-2.00 max=-1.64 last=-2.00
+    6920.3 s1  onRmsChanged x24 min=-2.00 max=-1.76 last=-2.00
+    7175.9 s1  onRmsChanged x25 min=-2.00 max=-1.76 last=-1.76
+    7453.9 s1  onRmsChanged x25 min=-2.00 max=-1.64 last=-2.00
+    7710.0 s1  onRmsChanged x24 min=-2.00 max=-1.64 last=-2.00
+    7969.0 s1  onRmsChanged x24 min=-2.00 max=-1.64 last=-2.00
+    8225.7 s1  onRmsChanged x24 min=-2.00 max=-1.52 last=-2.00
+    8501.7 s1  onRmsChanged x26 min=-2.00 max=-1.52 last=-2.00
+    8758.9 s1  onRmsChanged x24 min=-2.00 max=-1.40 last=-2.00
+    9036.0 s1  onRmsChanged x26 min=-2.00 max=-1.40 last=-2.00
+    9294.3 s1  onRmsChanged x24 min=-2.00 max=-1.40 last=-2.00
+    9402.3 s1  audio source: fed after 6795 ms of audio
+    9442.8 s1  onRmsChanged x11 min=-2.00 max=-1.40 last=-1.40
+    9447.3 s1  onResults texts=<none>
+    9452.8 s1  recognizer destroyed
+    9455.3 --  ==== trial 1 finished: ended by onResults; sessions=1 restarts=0 ====
+    9460.4 --  log file: /storage/emulated/0/Android/data/io.github.jaypetez.ideaforge.debug/files/recognizer-probe.log
