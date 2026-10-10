@@ -112,6 +112,10 @@ one idea; `name`, `tags` and `archivedAt` are ordinary versioned session fields.
 `src/core/backup.js` is the portability boundary. It serializes sessions only, never the
 encrypted keyring or device preferences, and validates every imported row through `migrate`.
 An id collision is kept as a visibly named copy rather than overwriting local work.
+The Android app reads and writes the same file. Two checked-in fixtures pin both
+directions: `test/fixtures/backup-from-web.json` (written by `tools/backup-fixtures.mjs`)
+is imported by the Android tests, and `test/fixtures/backup-from-android.json` (written by
+the Android export) is imported by `test/backup.test.mjs`.
 
 `sessionWork` owns model work by session id rather than whichever idea happens to be open
 when a promise resolves. `currentView` also checks the navigation generation before a

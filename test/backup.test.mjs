@@ -6,6 +6,8 @@ import {
   MAX_BACKUP_BYTES, MAX_BACKUP_SESSIONS, mergeImported,
 } from '../src/core/backup.js';
 import { createSession, renameSession, setTitle, MAX_SESSION_NAME } from '../src/core/session.js';
+import { readFileSync } from 'node:fs';
+import { ANDROID_FIXTURE, WEB_FIXTURE, buildWebBackupFixture } from '../tools/backup-fixtures.mjs';
 
 test('a backup round-trips migrated sessions without adding credentials', () => {
   const session = renameSession(createSession({ id: 's_backup', now: 10 }), 'Portable idea', 11);
@@ -154,4 +156,66 @@ test('a collision with a stored row this build cannot read becomes a copy, never
   });
   assert.deepEqual(summary, { imported: 0, copied: 1, duplicates: 1 });
   assert.deepEqual(writes.map((s) => [s.id, s.name]), [['s_new', 'Imported (imported)']]);
+});
+
+// ── Interop with the Android app (issue #87) ────────────────────────────────────────────
+// Each direction is pinned by a checked-in file the other platform reads; see
+// tools/backup-fixtures.mjs. Neither file is edited by hand.
+
+test('the web backup fixture is exactly what the real buildBackup writes today', async () => {
+  // android/app's BackupViewModelTest imports this file. If the JS changes what it writes,
+  // regenerate it (node tools/backup-fixtures.mjs) so the phone is tested against the
+  // backup a browser would really hand it, not last month's.
+  assert.equal(readFileSync(WEB_FIXTURE, 'utf8'), await buildWebBackupFixture(),
+    'test/fixtures/backup-from-web.json is stale; run: node tools/backup-fixtures.mjs');
+});
+
+test('the web backup fixture imports with the summary the Android test asserts', () => {
+  // The same library the Kotlin test builds: an exact copy of the archived idea, and a
+  // different idea under the draft's id. Both platforms must reach the same counts.
+  const parsed = parseBackup(readFileSync(WEB_FIXTURE, 'utf8'));
+  const byId = Object.fromEntries(parsed.sessions.map((s) => [s.id, s]));
+  const mine = renameSession(byId.s_web_draft, 'My own draft', 1);
+  const { writes, summary } = mergeImported([byId.s_web_archived, mine], parsed.sessions, {
+    newId: idsFrom('s_copy'), now: 2, reservedIds: ['s_web_archived', 's_web_draft'],
+  });
+  assert.equal(parsed.skipped, 1);
+  assert.deepEqual(summary, { imported: 1, copied: 1, duplicates: 1 });
+  assert.deepEqual(writes.map((s) => [s.id, s.name]),
+    [['s_web_remember_names', ''], ['s_copy', 'Names at meetups — draft (imported)']]);
+});
+
+test('a backup the Android app exported imports through the web path', () => {
+  const text = readFileSync(ANDROID_FIXTURE, 'utf8');
+  const parsed = parseBackup(text);
+
+  assert.equal(parsed.skipped, 0);
+  // Newest first, as listSessions orders an export.
+  assert.deepEqual(parsed.sessions.map((s) => s.id),
+    ['s_android_reading', 's_android_bike_log', 's_android_cafe_rota']);
+  // Byte for byte the file the web would have written for the same library.
+  assert.equal(buildBackup(parsed.sessions, { now: JSON.parse(text).exportedAt }), text);
+  assert.doesNotMatch(text, /apiKey|keyring|wrapping-key|ideaforge\.prefs/);
+
+  const [reading, bike, cafe] = parsed.sessions;
+  assert.equal(cafe.name, 'Café shift swaps ☕');
+  assert.deepEqual(cafe.tags, ['work', 'rota']);
+  assert.ok(bike.archivedAt > 0);
+  assert.match(reading.turns[0].answer, /"what did I learn" note\.$/);
+  assert.equal(reading.turns[0].classification, 'substantive');
+
+  // Into an empty browser library: everything imports as it is, no id minted.
+  const fresh = mergeImported([], parsed.sessions, { newId: idsFrom() });
+  assert.deepEqual(fresh.summary, { imported: 3, copied: 0, duplicates: 0 });
+
+  // Into a library that already holds one idea as is and an edited version of another.
+  const edited = renameSession(bike, 'Edited in the browser', 5);
+  const again = mergeImported([cafe, edited], parsed.sessions, {
+    newId: idsFrom('s_copy'), now: 6, reservedIds: [cafe.id, bike.id],
+  });
+  assert.deepEqual(again.summary, { imported: 1, copied: 1, duplicates: 1 });
+  assert.ok(again.writes.every((s) => s.id !== bike.id && s.id !== cafe.id));
+  assert.deepEqual(again.writes.map((s) => s.id), [reading.id, 's_copy']);
+  assert.ok(again.writes[1].name.startsWith('A log of every repair'));
+  assert.ok(again.writes[1].name.endsWith(' (imported)'));
 });

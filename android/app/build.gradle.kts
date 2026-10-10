@@ -147,3 +147,19 @@ dependencies {
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// The backup interop fixtures (test/fixtures, issue #87): the web's backup that the import
+// test reads, and the Android export the web's test/backup.test.mjs reads. Declared as an
+// input so a regenerated web fixture reruns the tests, with a relative path sensitivity so
+// a worktree or CI runner can reuse the result.
+tasks.withType<Test>().configureEach {
+    jvmArgumentProviders.add(SharedFixtures(rootProject.layout.projectDirectory.dir("../test/fixtures").asFile))
+    // IDEAFORGE_UPDATE_FIXTURES=1 lets BackupInteropTest rewrite backup-from-android.json.
+    environment("IDEAFORGE_UPDATE_FIXTURES", System.getenv("IDEAFORGE_UPDATE_FIXTURES") ?: "")
+}
+
+class SharedFixtures(
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) val dir: File,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.fixtures=${dir.absolutePath}")
+}
