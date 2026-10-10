@@ -175,4 +175,30 @@ class SessionStoreTest {
         assertEquals(onDisk, s.get("s_c_00000008"))
         assertEquals(onDisk, s.sessions.value.single())
     }
+
+    @Test
+    fun deleteRemovesTheFileAndTheIndexEntry() = runBlocking {
+        val s = store()
+        s.save(session("s_d_00000001", 1))
+        s.save(session("s_d_00000002", 2))
+        assertTrue(s.delete("s_d_00000001"))
+        assertEquals(listOf("s_d_00000002"), s.sessions.value.map { it["id"]!!.jsonPrimitive.content })
+        assertTrue(!File(dir(), "s_d_00000001.json").exists())
+        val fresh = store()
+        assertEquals(1, fresh.load())
+        assertNull(fresh.get("s_d_00000001"))
+    }
+
+    // A file a newer build wrote is never indexed, so the library cannot show it; delete must
+    // not reach it by id either.
+    @Test
+    fun deleteLeavesASkippedFileAlone() = runBlocking {
+        dir().mkdirs()
+        val file = File(dir(), "s_n_00000009.json")
+        val newer = JsonObject(session("s_n_00000009", 5) + ("schema" to JsonPrimitive(99)))
+        file.writeText(Json.encodeToString(JsonObject.serializer(), newer))
+        val s = store()
+        assertEquals(false, s.delete("s_n_00000009"))
+        assertTrue(file.exists())
+    }
 }

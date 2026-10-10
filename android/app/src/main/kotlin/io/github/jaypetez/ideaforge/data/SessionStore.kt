@@ -107,6 +107,24 @@ class SessionStore(
         }
     }
 
+    /**
+     * Removes [id]'s file and its index entry. Returns false, touching nothing, when the id
+     * is not indexed: a file this build skipped belongs to a newer build (see the class
+     * comment), so the library cannot reach it, and deleting it here would be data loss.
+     * The web's `deleteSession` is the twin.
+     */
+    suspend fun delete(id: String): Boolean = mutex.withLock {
+        loadLocked()
+        if (id !in byId) return@withLock false
+        withContext(NonCancellable + io) {
+            val file = File(dir, "$id$SUFFIX")
+            if (file.exists() && !file.delete()) error("could not delete $id$SUFFIX")
+            byId.remove(id)
+            publish()
+        }
+        true
+    }
+
     private fun publish() {
         _sessions.value = byId.values.sortedWith(
             compareByDescending<Session> { updatedAt(it) }.thenBy { idOf(it) },
