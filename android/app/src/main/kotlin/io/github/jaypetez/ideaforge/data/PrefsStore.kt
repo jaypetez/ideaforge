@@ -28,9 +28,9 @@ data class Prefs(
     val speechRate: Double = 1.0,
     val hostedSpeechAllowed: Boolean = false,
     /**
-     * Android only: "system", "light" or "dark". The web follows prefers-color-scheme and has
-     * no stored choice yet (a later issue); when it gains one it should use this key and these
-     * values. Anything else reads as "system", so a value from a newer build cannot leave the
+     * "system", "light" or "dark": the same key and values the web stores in src/store/prefs.js
+     * (`theme`, validated by themePreference). Anything else reads as "system", so a value from
+     * a newer build cannot leave the
      * app in a theme it does not know.
      */
     val theme: String = THEME_SYSTEM,
