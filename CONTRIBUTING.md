@@ -263,10 +263,11 @@ scripted provider exists only in the debug source set, which `ScriptedProviderIs
 asserts. `.github/workflows/android-device.yml` runs it on the Gradle managed device
 `pixel6Api34` (an ATD image) on every push to `main`, nightly and on demand
 (`workflow_dispatch`). It is not part of the required `ci` check. Locally, against an emulator
-that is already running:
+that is already running (without the `leaveApksInstalledAfterRun` property the task uninstalls
+the app afterwards, wiping its keyring and ideas):
 
 ```sh
-ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
+ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
 ./gradlew pixel6Api34DebugAndroidTest   # downloads and boots its own emulator
 ```
 

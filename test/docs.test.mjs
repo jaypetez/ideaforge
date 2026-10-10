@@ -510,6 +510,7 @@ test('the device workflow runs the declared managed device, on demand, outside t
   assert.ok(!/android-device|walkthrough/.test(ci), 'ci.yml must not depend on the device workflow');
   for (const [name, text] of [
     ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
+    ['docs/ARCHITECTURE.md', readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8')],
     ['guide/development-and-delivery.html', guide('development-and-delivery.html')],
     ['android-verify', readFileSync(join(ROOT, '.claude', 'skills', 'android-verify', 'SKILL.md'), 'utf8')],
   ]) {

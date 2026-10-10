@@ -53,7 +53,10 @@ import org.junit.runner.RunWith
  * Onboarding is passed by seeding the keyring before launch, through the app's own
  * KeyringStore, rather than by any hook in the app. On a device that already has a usable
  * provider nothing is written; otherwise the original keyring is put back afterwards, and the
- * idea this run created is deleted, so a shared emulator is left as it was found.
+ * idea this run created is deleted, so a shared emulator is left as it was found. That
+ * cleanup is @After, so it needs the instrumentation alive: an app crash kills the
+ * instrumentation process with it, and then neither runs. A device that had no usable
+ * provider is left holding the dummy Groq key, and the interrupted idea stays in the library.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -66,7 +69,8 @@ class WalkthroughDeviceTest {
 
     private var scenario: ActivityScenario<MainActivity>? = null
     private var restore: (suspend () -> Unit)? = null
-    private lateinit var knownBefore: Set<String>
+    // Null until @Before has read the store: a throw before then leaves nothing to delete.
+    private var knownBefore: Set<String>? = null
 
     @Before
     fun seedAUsableProvider() = runBlocking {
@@ -85,11 +89,20 @@ class WalkthroughDeviceTest {
         knownBefore = graph.sessionStore.knownIds()
     }
 
+    // The keyring restore runs whatever else throws: closing the activity and deleting the
+    // idea are tidiness, but a dummy key left behind changes how the device's app opens.
     @After
     fun leaveTheDeviceAsFound() = runBlocking {
-        scenario?.close()
-        for (id in graph.sessionStore.knownIds() - knownBefore) graph.sessionStore.delete(id)
-        restore?.invoke()
+        try {
+            runCatching { scenario?.close() }
+            knownBefore?.let { before ->
+                runCatching {
+                    for (id in graph.sessionStore.knownIds() - before) runCatching { graph.sessionStore.delete(id) }
+                }
+            }
+        } finally {
+            restore?.invoke()
+        }
         Unit
     }
 

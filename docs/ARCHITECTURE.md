@@ -255,10 +255,16 @@ allows private networks instead, and enforces it at DNS resolution rather than b
 the URL. Android cloud backup is off, so the only backup is the user's own export, which is
 the same file the web app reads and writes.
 
-**Not built yet.** Native speech capture, the hands-free voice stage as a foreground
-service, hosted speech in the app, an emulator test in CI and a signed release. The drive
-loop (`DriveLoop.kt`), native speech output (`Speaker.kt`) and the hosted transcription and
-speech clients exist, with tests, ahead of the screens that will use them.
+**On a device.** Native speech capture and press-to-talk, and the hands-free voice stage
+with its drive loop running as a foreground service, live under
+`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/`. An instrumented
+walkthrough in `android/app/src/androidTest/` drives the debug build's scripted interview to
+the Result screen; the separate, non-required
+[`android-device.yml`](../.github/workflows/android-device.yml) workflow runs it on the Gradle
+managed emulator `pixel6Api34` on every push to `main`, nightly and on demand.
+
+**Not built yet.** Hosted speech in the app and a signed release. The hosted transcription
+and speech clients in `:providers` exist, with tests, ahead of the screens that will use them.
 
 ## Extension seams
 
