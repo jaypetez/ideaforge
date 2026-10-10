@@ -216,6 +216,43 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   check('Exit restores manual mode without orphaned tracks, playback, or late speech requests',
     state.stageHidden && state.manualVisible && state.level === 0 && quiet(state)
       && state.requests.length === exitRequests);
+  // The library's overflow menu (#102), here because this is the one harness that sends
+  // trusted keyboard input. Esc closing a popover is browser behaviour that a synthetic
+  // KeyboardEvent never triggers, so the in-page probe cannot see it either way.
+  await click('#b-library');
+  const libraryReady = await (async () => {
+    for (const end = Date.now() + 5000; Date.now() < end;) {
+      if (await cdp.evaluate(`!!document.querySelector('#library-rows .idea-card .idea-more')`)) return true;
+      await sleep(40);
+    }
+    return false;
+  })();
+  check('the interview just held is a card in the library', libraryReady);
+  if (libraryReady) {
+    await click('#library-rows .idea-card .idea-more');
+    await sleep(150);
+    const opened = await cdp.evaluate(`(() => {
+      const card = document.querySelector('#library-rows .idea-card');
+      const menu = card.querySelector('[popover]');
+      return menu.matches(':popover-open') && menu.contains(document.activeElement);
+    })()`);
+    check('a trusted click on the overflow trigger opens the menu with focus inside it', opened);
+    const key = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 };
+    await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+    await sleep(150);
+    const closed = await cdp.evaluate(`(() => {
+      const card = document.querySelector('#library-rows .idea-card');
+      return {
+        open: card.querySelector('[popover]').matches(':popover-open'),
+        focus: document.activeElement === card.querySelector('.idea-more'),
+        active: document.activeElement && (document.activeElement.className || document.activeElement.tagName),
+      };
+    })()`);
+    check('Esc closes the library overflow menu', !closed.open, JSON.stringify(closed));
+    check('…and returns focus to its trigger', closed.focus, JSON.stringify(closed));
+  }
+
   check('every hosted response is a real non-silent WAV decoded by playback.js',
     state.decodes.length === 5 && state.decodes.every((decode) => decode.nonSilent
       && decode.duration > 0 && decode.stack.includes('/src/voice/playback.js')));
