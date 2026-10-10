@@ -61,6 +61,21 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // The instrumented walkthrough (src/androidTest) on a Gradle managed emulator, which
+        // .github/workflows/android-device.yml runs headless:
+        //     ./gradlew pixel6Api34DebugAndroidTest
+        // An ATD ("automated test device") image: no Play services or launcher apps, so it
+        // boots and runs faster, and API 34 is a level ATD images exist for.
+        managedDevices {
+            allDevices {
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixel6Api34") {
+                    device = "Pixel 6"
+                    apiLevel = 34
+                    systemImageSource = "aosp-atd"
+                    testedAbi = "x86_64"
+                }
+            }
+        }
     }
 
     lint {
@@ -111,7 +126,17 @@ androidComponents {
     onVariants(selector().withBuildType("release")) { variant ->
         val manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
         tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseManifest(manifest)) }
+        // And the release variant's merged assets, which must not carry the walkthrough script
+        // the debug-only scripted provider replays (#94).
+        val assets = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.ASSETS)
+        tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseAssets(assets)) }
     }
+}
+
+class ReleaseAssets(
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) val dir: Provider<Directory>,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.releaseAssets=${dir.get().asFile.absolutePath}")
 }
 
 class ReleaseManifest(
@@ -159,6 +184,13 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // The instrumented walkthrough (src/androidTest), run on an emulator.
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
 }
 
 // The backup interop fixtures (test/fixtures, issue #87): the web's backup that the import

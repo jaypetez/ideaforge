@@ -1,0 +1,78 @@
+name: Android device
+
+# The instrumented walkthrough (android/app/src/androidTest) on a Gradle managed emulator:
+# the debug build's scripted provider, the interview answered through the screen, Write it
+# up, and the Result screen showing the export.
+#
+# Deliberately NOT part of the required `ci` check. An emulator run takes many minutes and can
+# be flaky in ways a unit test is not, so it runs after merge, nightly and on demand rather
+# than gating every PR. `ci` stays the one required status check (see CLAUDE.md); never add
+# this workflow's job to branch protection or to the `ci` gate's `needs`.
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly, so a drifting emulator image or AndroidX release is noticed without a push.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-device-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  walkthrough:
+    name: walkthrough
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Validates gradle-wrapper.jar and caches dependencies, as the `android` job in ci.yml.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Hardware acceleration for the emulator. Ubuntu runners have /dev/kvm, but only root
+      # may open it until this udev rule widens the permission.
+      - name: Enable KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Versions
+        run: java -version && ./gradlew --version
+
+      # The managed device (pixel6Api34, an ATD image) is declared in app/build.gradle.kts.
+      # Gradle downloads the system image, boots it headless, runs the tests and shuts it
+      # down. swiftshader_indirect is software rendering: a runner has no GPU.
+      - name: Instrumented walkthrough on a managed emulator
+        run: >-
+          ./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest
+          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-device-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/outputs/androidTest-results/
+          retention-days: 14

@@ -176,7 +176,10 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AndroidManifest.xml`](../../../../android/app/src/main/AndroidManifest.xml) (permissions,
   backup off), the onboarding and settings strings in
   [`strings.xml`](../../../../android/app/src/main/res/values/strings.xml), the `android` job in
-  [`ci.yml`](../../../../.github/workflows/ci.yml), and the open Android issues for what is
+  [`ci.yml`](../../../../.github/workflows/ci.yml), the separate, non-required
+  [`android-device.yml`](../../../../.github/workflows/android-device.yml) (the instrumented
+  walkthrough on the managed device declared in `app/build.gradle.kts`), and the open Android
+  issues for what is
   not built yet. Re-check `guide/android.html`, the README's Android section,
   `CONTRIBUTING.md#the-android-app`, `docs/ARCHITECTURE.md`, CLAUDE.md's Android invariants
   and [`android-verify`](../../android-verify/SKILL.md). `test/docs.test.mjs` fails when a
