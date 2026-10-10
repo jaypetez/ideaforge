@@ -9,7 +9,9 @@
 // value"). So this types a key in Settings, starts from Start with the connection card
 // folded, and reads back what was actually stored.
 
-import { clearCredentials, credsFor, loadCredentials } from '../../src/store/secrets.js';
+import {
+  clearCredentials, credsFor, emptyKeyring, loadCredentials, saveCredentials, withCreds,
+} from '../../src/store/secrets.js';
 import { deleteSession, listSessions } from '../../src/store/sessions.js';
 
 const BOOT_MS = 4000;
@@ -39,6 +41,11 @@ async function until(predicate, ms = 4000) {
 }
 
 export default async function run(check) {
+  await views(check);
+  await formBeatsKeyring(check);
+}
+
+async function views(check) {
   await clearCredentials();
   const before = new Set((await listSessions()).map((s) => s.id));
   const frame = await loadFrame('/index.html', 900);
@@ -164,6 +171,119 @@ export default async function run(check) {
     check('Start (open) has no horizontal overflow at 360px', root.scrollWidth <= root.clientWidth,
       `${root.scrollWidth}/${root.clientWidth}`);
   } finally {
+    frame.remove();
+    await clearCredentials();
+    for (const s of await listSessions()) if (!before.has(s.id)) await deleteSession(s.id);
+    for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+  }
+}
+
+// The fold must follow the form, not only the keyring (#101 review). A saved record is what
+// worked last time; folding over a refused address, an unsaved new key, or a start that just
+// failed hid the one thing that needed attention behind "ready" or "key saved".
+async function formBeatsKeyring(check) {
+  const OLD_KEY = 'sk-ant-probe-old-key-000000';
+  let ring = withCreds(emptyKeyring(), 'anthropic', { apiKey: OLD_KEY });
+  ring = withCreds(ring, 'custom', { baseUrl: 'http://127.0.0.1:11999/v1' });
+  await saveCredentials(ring);
+  const before = new Set((await listSessions()).map((s) => s.id));
+  const frame = await loadFrame('/index.html', 900);
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  const realFetch = win.fetch;
+  try {
+    await settle(BOOT_MS);
+    win.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+    const $ = (id) => doc.getElementById(id);
+    const shown = (id) => $(id).getClientRects().length > 0;
+    const view = () => $('panel-setup').dataset.view;
+    const folded = () => shown('connect-summary') && !shown('provider');
+    const toStart = async () => {
+      $('b-library').click();
+      await settle();
+      $('b-nav-new').click();
+      await until(() => view() === 'start' && !$('panel-setup').hidden);
+    };
+    const toSettings = async () => {
+      $('b-settings').click();
+      await until(() => view() === 'settings');
+    };
+
+    check('a saved local server folds Start to its summary',
+      $('provider').value === 'custom' && folded(), $('connect-summary-text').textContent);
+
+    // A refused address typed in Settings.
+    await toSettings();
+    $('baseurl').value = 'http://example.com/v1';
+    $('baseurl').dispatchEvent(new win.Event('input'));
+    await toStart();
+    check('a refused server address keeps Start unfolded, with its reason showing',
+      !folded() && shown('base-note') && /not on this machine/.test($('base-note').textContent),
+      `folded ${folded()}; ${$('base-note').textContent}`);
+    check('…and Start says why its buttons are disabled',
+      $('b-start').disabled && shown('start-note') && /server address/.test($('start-note').textContent),
+      $('start-note').textContent);
+    $('baseurl').value = 'http://127.0.0.1:11999/v1';
+    $('baseurl').dispatchEvent(new win.Event('input'));
+    await toStart();
+    check('a good address folds it again', folded());
+
+    // A start that fails: a local server with no model cannot build a provider.
+    $('b-start').click();
+    await until(() => !$('err').hidden && $('err').textContent.trim());
+    check('a failed start reports its error and stays on Start',
+      !$('panel-setup').hidden && $('err').textContent.trim().length > 0, $('err').textContent);
+    check('…and unfolds the card, so what failed is on screen', !folded() && shown('field-model'),
+      `folded ${folded()}`);
+
+    // An unsaved new key typed in Settings.
+    await toSettings();
+    $('provider').value = 'anthropic';
+    $('provider').dispatchEvent(new win.Event('change'));
+    $('apikey').value = 'sk-ant-probe-new-key-111111';
+    $('apikey').dispatchEvent(new win.Event('input'));
+    await toStart();
+    check('a newly typed, unsaved key keeps Start unfolded', !folded() && shown('apikey'),
+      $('connect-summary-text').textContent);
+    $('apikey').value = '';
+    $('apikey').dispatchEvent(new win.Event('input'));
+    await toStart();
+    check('with the field empty again, the saved key folds Start',
+      folded() && /key saved/.test($('connect-summary-text').textContent),
+      $('connect-summary-text').textContent);
+
+    // Dictation off disables Start with voice; Start must say why.
+    await toSettings();
+    $('stt').value = 'off';
+    $('stt').dispatchEvent(new win.Event('change'));
+    await toStart();
+    check('with Dictation off, Start explains its disabled Start with voice',
+      $('b-start-voice').disabled && shown('start-note')
+        && /Dictation is off/.test($('start-note').textContent)
+        && /Settings/.test($('start-note').textContent), $('start-note').textContent);
+    await toSettings();
+    check('the Start note is not shown in Settings', !shown('start-note'));
+    $('stt').value = 'browser';
+    $('stt').dispatchEvent(new win.Event('change'));
+    await toStart();
+    check('with Dictation back on, the note goes', !shown('start-note') && !$('b-start-voice').disabled,
+      $('start-note').textContent);
+
+    // A Check that folds the card must not drop focus to <body>.
+    win.claude = { use: async () => async () => ({ text: '{}' }) };
+    $('b-connect-change').click();
+    await settle(50);
+    $('provider').value = 'artifact';
+    $('provider').dispatchEvent(new win.Event('change'));
+    $('b-check').focus();
+    $('b-check').click();
+    await until(() => folded());
+    check('a successful Check on Start folds the card', folded());
+    check('…and moves focus to Change rather than losing it',
+      doc.activeElement === $('b-connect-change'),
+      doc.activeElement && (doc.activeElement.id || doc.activeElement.tagName));
+  } finally {
+    win.fetch = realFetch;
     frame.remove();
     await clearCredentials();
     for (const s of await listSessions()) if (!before.has(s.id)) await deleteSession(s.id);

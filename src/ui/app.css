@@ -242,6 +242,7 @@ section > h2 {
 .connect-summary-text::before { color: var(--success); flex: none; }
 .connect-summary button { flex: none; }
 .start-actions button { min-width: 10rem; }
+.start-note:empty { display: none; }
 /* On Start the About group is just the quiet footer line it always was. */
 #panel-setup[data-view="start"] .about {
   padding: 0; border: 0; background: none; box-shadow: none;

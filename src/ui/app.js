@@ -52,7 +52,7 @@ for (const id of [
   'panel-setup', 'provider', 'provider-note', 'field-key', 'apikey', 'keylink',
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
   'field-wrapmodel', 'wrapmodel', 'model-settings',
-  'connect', 'connect-summary', 'connect-summary-text', 'b-connect-change', 'connect-body',
+  'start-note', 'connect', 'connect-summary', 'connect-summary-text', 'b-connect-change', 'connect-body',
   'install-card', 'install-title', 'install-note', 'b-install',
   'b-start', 'b-start-voice', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
@@ -530,9 +530,17 @@ function onProviderChange() {
  * Whether Start may fold the connection card: the chosen provider's Check passed on this
  * visit, or it has what it needs saved — a key, or for a keyless provider, being the one
  * last saved. Presentation only; nothing here is read back by readRingFromForm.
+ *
+ * The form beats the keyring. The saved record is what worked last time, not what Start is
+ * about to use: a new key typed in Settings, a refused server address (Start disabled, the
+ * reason in #base-note) — folding over either hid the very thing that needed attention
+ * behind "key saved" or "ready".
  */
 function connectionReady() {
   const c = currentChoice();
+  const typedKey = els.apikey.value.trim();
+  if (c.needsKey && typedKey && typedKey !== credsFor(state.creds, c.id).apiKey) return false;
+  if (els['b-start'].disabled || els['base-note'].textContent.trim()) return false;
   if (state.connectChecked === c.id) return true;
   if (c.needsKey) return !!credsFor(state.creds, c.id).apiKey;
   return !!state.creds && state.creds.active === c.id;
@@ -568,6 +576,7 @@ function onBaseChange() {
     els['b-start'].disabled = false;
     els['b-start-voice'].disabled = els.stt.value === 'off';
     els['b-check'].disabled = false;
+    renderStartNote();
     return;
   }
 
@@ -586,6 +595,19 @@ function onBaseChange() {
   els['b-start'].disabled = bad || ipv6;
   els['b-start-voice'].disabled = bad || ipv6 || els.stt.value === 'off';
   els['b-check'].disabled = bad || ipv6;
+  renderStartNote();
+}
+
+/**
+ * Why a start button is disabled, said beside it. Dictation and the finish word live in
+ * Settings now, so on Start a greyed-out Start with voice had no visible reason at all.
+ */
+function renderStartNote() {
+  els['start-note'].textContent = els['base-note'].textContent.trim()
+    ? 'Fix the server address above before starting.'
+    : els.stt.value === 'off'
+      ? 'Dictation is off — turn it on in Settings to start with voice.'
+      : '';
 }
 
 /**
@@ -2091,7 +2113,7 @@ function renderInstall(info = state.install && state.install.state()) {
     els['install-title'].textContent = 'Install on this iPhone';
     els['install-note'].textContent =
       'In Safari, tap Share, Add to Home Screen, leave Open as Web App on if shown, then tap Add. '
-      + 'For dictation in the installed app, choose Groq or OpenAI Whisper below.';
+      + 'For dictation in the installed app, choose Groq or OpenAI Whisper in Settings, under Dictation.';
   } else {
     els['install-title'].textContent = 'Install on this Android phone';
     els['install-note'].textContent = info.canPrompt
@@ -2121,6 +2143,11 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   } catch (e) {
     if (navigation === state.navigation) {
       teardownVoice();
+      // Unfold: whatever refused to start lives in the card, and a folded summary with a
+      // check mark would go on vouching for a connection that just failed.
+      state.connectChecked = null;
+      state.connectCollapsed = false;
+      renderConnect();
       fail(e);
     }
     state.starting = false;
@@ -2394,10 +2421,14 @@ function bind() {
       state.connectChecked = c.id;
       // A key check leaves nothing more to do in the card, so Start folds it. A check that
       // just read the model list stays open: that list is what the person is about to use.
-      if (!c.discoverModels && els['panel-setup'].dataset.view === 'start') {
-        state.connectCollapsed = true;
-      }
+      const folding = !c.discoverModels && els['panel-setup'].dataset.view === 'start';
+      if (folding) state.connectCollapsed = true;
       renderConnect();
+      // Folding hides #b-check, which is where focus is; without this it drops to <body>.
+      if (folding && (document.activeElement === els['b-check']
+          || document.activeElement === document.body)) {
+        els['b-connect-change'].focus();
+      }
     } catch (e) { say(''); fail(e); }
   };
   els['b-connect-change'].onclick = () => {

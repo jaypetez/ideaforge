@@ -191,7 +191,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the
   destination passed to `show()`; app.css hides `.start-only` / `.settings-only` from that
   attribute alone. Every id stays in the one section. Start's connection card folds to
-  `#connect-summary` once `connectionReady()`; Settings never folds. A field hidden by the
+  `#connect-summary` once `connectionReady()`, which defers to the form over the keyring
+  (an unsaved typed key, a disabled Start or a `#base-note` keeps it open, and a failed
+  start unfolds it); Settings never folds. A field hidden by the
   view still holds its value, and `readRingFromForm` must keep deciding from what the
   provider declares — `test/browser/start-settings.browser.mjs` pins it. The 01-setup capture
   must stay within 1100px.

@@ -44,6 +44,12 @@ const MAX_SHOT_HEIGHT = 1700;
  * that grows past this has started collecting settings again.
  */
 const MAX_SETUP_HEIGHT = 1100;
+/**
+ * Settings is the one screen meant to be long: four groups, every field. It measured about
+ * 1676px on the general clamp, 24px from being silently cropped by the next longer hint, so
+ * it gets a cap of its own with real headroom. The clip check in shot() still guards it.
+ */
+const SHOT_HEIGHT_CAPS = { '10-settings': 2400 };
 /** 2026-09-13T09:00:00Z. Any fixed instant will do; it only has to stop moving. */
 const FIXED_NOW = Date.parse('2026-09-13T09:00:00Z');
 const STEP_TIMEOUT = 20000;
@@ -199,7 +205,7 @@ class App {
    * shot runs away to the height clamp. Measuring, resizing and re-measuring converges
    * instead.
    */
-  async fit() {
+  async fit(maxHeight = MAX_SHOT_HEIGHT) {
     let height = 0;
     for (let pass = 0; pass < 4; pass++) {
       // `.wrap` carries 72px of bottom padding for thumbs on a phone, which in a screenshot
@@ -207,7 +213,7 @@ class App {
       const measured = await this.eval(
         `Math.ceil(document.querySelector('.wrap').getBoundingClientRect().bottom) - 48`,
       );
-      const next = Math.min(Math.max(measured, 260), MAX_SHOT_HEIGHT);
+      const next = Math.min(Math.max(measured, 260), maxHeight);
       if (next === height) break;
       height = next;
       await this.cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -223,7 +229,11 @@ class App {
         width, height: fixedHeight, deviceScaleFactor: SCALE, mobile: false,
       });
     }
-    const height = fixedHeight == null ? await this.fit() : fixedHeight;
+    const cap = SHOT_HEIGHT_CAPS[name] || MAX_SHOT_HEIGHT;
+    const height = fixedHeight == null ? await this.fit(cap) : fixedHeight;
+    if (fixedHeight == null && height >= cap) {
+      throw new Error(`${name} reached its ${cap}px height cap and would be cropped`);
+    }
     if (name === '01-setup') {
       const bottom = await this.eval(`Math.max(...['b-start-voice', 'b-start', 'version']
         .map((id) => document.getElementById(id).getBoundingClientRect().bottom))`);
