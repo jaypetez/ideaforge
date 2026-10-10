@@ -252,6 +252,8 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     check('Esc closes the library overflow menu', !closed.open, JSON.stringify(closed));
     check('…and returns focus to its trigger', closed.focus, JSON.stringify(closed));
   }
+  // The error and CSP check below must see the library steps too, not a snapshot from before.
+  state = await snapshot();
 
   check('every hosted response is a real non-silent WAV decoded by playback.js',
     state.decodes.length === 5 && state.decodes.every((decode) => decode.nonSilent

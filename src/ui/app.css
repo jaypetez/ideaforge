@@ -576,6 +576,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 #panel-library[data-library-state="zero"] :is(.library-tools, .library-summary, #b-library-new) {
   display: none;
 }
+/* A failed first read knows no count to show. */
+#panel-library[data-library-state="unavailable"] .library-summary { display: none; }
 .library-zero {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
   padding: var(--s6) var(--s5); border: 1px dashed var(--outline); border-radius: var(--r-lg);

@@ -40,6 +40,9 @@ export function createLibraryView({
   confirmDelete = (title) => confirm(`Permanently delete “${title}”?`),
 } = {}) {
   let sessions = [];
+  // Whether a read has ever succeeded. Until one has, an empty list means "not known", not
+  // "none": a failed first read must not tell someone with saved ideas they have none.
+  let loaded = false;
   const {
     search, status, tag, rows, empty, zero, zeroNew, count,
     backup, importButton, importFile, newButton,
@@ -157,8 +160,15 @@ export function createLibraryView({
       menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
       menu.style.right = `${Math.max(8, root.clientWidth - rect.right)}px`;
     });
+    // The position is measured once, so a resize or rotation would leave the menu pointing
+    // at nothing. Close it instead; it reopens in the right place from its trigger.
+    const closeOnResize = () => close();
     menu.addEventListener('toggle', (event) => {
-      if (event.newState !== 'open') return;
+      if (event.newState !== 'open') {
+        window.removeEventListener('resize', closeOnResize);
+        return;
+      }
+      window.addEventListener('resize', closeOnResize);
       // Flip above the trigger when the menu would run off the bottom of the viewport.
       const rect = more.getBoundingClientRect();
       const height = menu.getBoundingClientRect().height;
@@ -214,6 +224,12 @@ export function createLibraryView({
     });
     rows.innerHTML = '';
     rows.removeAttribute('aria-busy');
+    if (!loaded) {
+      panel.dataset.libraryState = 'unavailable';
+      zero.hidden = true;
+      empty.hidden = true;
+      return;
+    }
     for (const session of shown) rows.append(renderCard(session));
     count.textContent = `${shown.length} of ${sessions.length} idea${sessions.length === 1 ? '' : 's'}`;
     // Two different empties. No ideas at all is a first run and wants a way to start one;
@@ -268,12 +284,14 @@ export function createLibraryView({
     loading() {
       renderLoading();
     },
-    /** Leave the loading state without new rows, after a failed read. */
+    /** Leave the loading state without new rows, after a failed read. Before any read has
+        succeeded this shows neither empty state; the error toast says what happened. */
     settle() {
       if (rows.hasAttribute('aria-busy')) renderRows();
     },
     render(nextSessions) {
       sessions = Array.isArray(nextSessions) ? nextSessions : [];
+      loaded = true;
       renderFilters();
       renderRows();
     },

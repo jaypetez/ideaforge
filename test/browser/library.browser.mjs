@@ -89,6 +89,10 @@ export default async function run(check) {
     activeSession('s_six', now + 50, 'A sixth idea'),
     pendingSynthesis('s_synthesis', now + 55),
     archiveSession(activeSession('s_archived', now + 60, 'An archived idea'), now + 61),
+    // Archiving does not change status: a finished idea that was archived is still 'done',
+    // so its card still offers View result. The guide said otherwise once.
+    archiveSession(completedSession('s_done_archived', now + 62, 'an archived result',
+      'Archived result'), now + 69),
   ];
   for (const session of sessions) await saveSession(session);
 
@@ -134,10 +138,11 @@ export default async function run(check) {
     cards.every((card) => card.querySelectorAll('.idea-actions > button').length === 2
       && card.querySelectorAll('.idea-more').length === 1),
     cards.map((card) => card.querySelectorAll('.idea-actions > button').length).join(','));
-  const doneCardPrimary = primary($('library-rows').querySelector('[data-session-id="s_done"]'));
+  const finished = ['s_done', 's_done_archived'];
+  const finishedPrimary = (id) => primary($('library-rows').querySelector(`[data-session-id="${id}"]`));
   check('a finished idea’s primary action is View result, every other idea’s is Continue',
-    doneCardPrimary.textContent === 'View result'
-      && cards.filter((card) => card.dataset.sessionId !== 's_done')
+    finished.every((id) => finishedPrimary(id).textContent === 'View result')
+      && cards.filter((card) => !finished.includes(card.dataset.sessionId))
         .every((card) => primary(card).textContent === 'Continue'),
     cards.map((card) => primary(card).textContent).join(','));
   check('the secondary actions are hidden until the overflow menu opens',
@@ -146,6 +151,12 @@ export default async function run(check) {
   check('an archived idea’s menu offers Restore rather than Archive',
     Boolean(menuButton(archivedCard, 'Restore')) && !findButton(archivedCard, 'Archive'));
   archivedCard.querySelector('[popover]').hidePopover();
+  const archivedDone = $('library-rows').querySelector('[data-session-id="s_done_archived"]');
+  check('a completed idea that was archived still offers View result, and Restore',
+    finishedPrimary('s_done_archived').textContent === 'View result'
+      && Boolean(menuButton(archivedDone, 'Restore')),
+    finishedPrimary('s_done_archived').textContent);
+  archivedDone.querySelector('[popover]').hidePopover();
 
   // Focus goes into the menu when it opens, and back to the trigger when it closes. Native
   // popover behaviour, but only if focus was inside the menu, which library.js does on toggle.
@@ -166,6 +177,18 @@ export default async function run(check) {
   await settle(50);
   check('closing the menu returns focus to its trigger', doc.activeElement === escTrigger,
     doc.activeElement && (doc.activeElement.className || doc.activeElement.tagName));
+
+  // The menu is positioned once, against its trigger. A resize would leave it pointing at
+  // nothing, so it closes instead, and a later resize finds no stale listener to run.
+  escTrigger.click();
+  await settle(100);
+  const opened = escMenu.matches(':popover-open');
+  frame.width = 880;
+  await settle(150);
+  check('resizing the window closes an open overflow menu',
+    opened && !escMenu.matches(':popover-open'), `opened ${opened}`);
+  frame.width = 900;
+  await settle(100);
 
   let draftCard = $('library-rows').querySelector('[data-session-id="s_draft"]');
   const edit = draftCard.querySelector('details');
@@ -377,4 +400,43 @@ export default async function run(check) {
     $('panel-setup').dataset.view);
 
   frame.remove();
+
+  // A failed first read is not an empty library. Someone with saved ideas whose first open
+  // of the library fails must see the error, not "No ideas yet" with the filters gone.
+  const kept = activeSession('s_kept', now + 80, 'An idea that is still stored', {
+    name: 'Still stored',
+  });
+  await saveSession(kept);
+  const second = await loadFrame('/index.html');
+  const win2 = second.contentWindow;
+  const $2 = (id) => second.contentDocument.getElementById(id);
+  const shown2 = (id) => win2.getComputedStyle($2(id)).display !== 'none';
+  await settle(BOOT_MS);
+  const getAll = win2.IDBObjectStore.prototype.getAll;
+  let planted = 0;
+  win2.IDBObjectStore.prototype.getAll = function patched(...args) {
+    if (this.name === 'sessions') {
+      planted++;
+      throw new win2.DOMException('planted read failure', 'UnknownError');
+    }
+    return getAll.apply(this, args);
+  };
+  $2('b-library').click();
+  await settle(400);
+  check('a failed first library read is not reported as having no ideas',
+    planted > 0 && !shown2('library-zero') && !shown2('library-empty'),
+    `reads failed: ${planted}; zero shown: ${shown2('library-zero')}`);
+  check('…it clears the placeholders and the busy state',
+    !$2('library-rows').hasAttribute('aria-busy') && $2('library-rows').children.length === 0);
+  check('…and says what went wrong', !$2('err-toast').hidden && $2('err').textContent.length > 0,
+    $2('err').textContent);
+  win2.IDBObjectStore.prototype.getAll = getAll;
+  $2('b-settings').click();
+  await settle(200);
+  $2('b-library').click();
+  await settle(400);
+  check('the next successful read shows the stored ideas',
+    Boolean($2('library-rows').querySelector('[data-session-id="s_kept"]')) && !shown2('library-zero'));
+  await deleteSession('s_kept');
+  second.remove();
 }
