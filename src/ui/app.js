@@ -2277,9 +2277,12 @@ async function resumeInterview(id) {
   if (state.voiceMode === 'manual') els.answer.focus();
 }
 
-async function renderResumeList() {
-  let rows;
-  try { rows = await listSessions(); } catch { return; }
+/** `stored` is a list boot already read, so a cold start reads the sessions once. */
+async function renderResumeList(stored) {
+  let rows = stored;
+  if (!rows) {
+    try { rows = await listSessions(); } catch { return; }
+  }
   const open = rows.filter((s) => !s.archivedAt && s.turns.length > 0).slice(0, 3);
   els.resume.hidden = open.length === 0;
   els['resume-rows'].innerHTML = '';
@@ -2576,6 +2579,14 @@ async function boot() {
   // build its matcher, and the keyring below is loaded asynchronously.
   applyTrigger(prefs.trigger, { persist: false });
   state.wantHandsFree = prefs.handsFree;
+  // Where to open (#103): on Ideas when this device holds any idea, on Start when it holds
+  // none. "Any" is what the library itself counts, archived ideas included — its default
+  // filter shows them, so an archived-only device opens on a populated list, never on
+  // "No ideas yet". The read starts here, beside the keyring's, so it overlaps that read
+  // rather than queueing behind it (the switch still waits for the keyring to decrypt);
+  // index.html already paints Start, which a fresh profile keeps.
+  const navigation = state.navigation;
+  const stored = listSessions().then((rows) => ({ rows }), (error) => ({ error }));
   try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
   if (state.creds && state.creds.stt && state.creds.stt.kind) {
     els.stt.value = state.creds.stt.kind;
@@ -2586,8 +2597,24 @@ async function boot() {
   if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
     window.speechSynthesis.addEventListener('voiceschanged', renderSpeechVoices);
   }
-  show('panel-setup');
-  await renderResumeList();
+  const { rows, error } = await stored;
+  // Someone who tapped a destination while storage answered has already chosen a screen.
+  if (navigation === state.navigation) {
+    if (rows && rows.length > 0) {
+      show('panel-library');
+      state.library.render(rows);
+    } else {
+      show('panel-setup');
+      // A failed read is not an empty device: open where a new idea can still start, and
+      // say why the ideas are not showing. After show(), which clears toasts.
+      if (error) {
+        const reason = error && error.message ? ` (${error.message.replace(/\.+$/, '')})` : '';
+        fail(new Error(`Saved ideas could not be read on this device${reason}. `
+          + 'You can still start a new one.', { cause: error }));
+      }
+    }
+  }
+  await renderResumeList(rows);
   els.version.textContent = `IdeaForge v${VERSION}`;
 
   // Installability and an offline cold start. Needs a secure context, so it simply does

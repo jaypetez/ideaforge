@@ -121,6 +121,12 @@ export default async function run(check) {
       coversNothing(label);
     };
 
+    // This profile holds the two ideas saved above, so boot opens on Ideas (#103), not Start.
+    check('with saved ideas the shell boots to Ideas and names it on body',
+      doc.body.dataset.panel === 'library' && current() === 'b-library',
+      `${doc.body.dataset.panel} / ${current()}`);
+    $('b-nav-new').click();
+    await settle();
     check('the shell names the panel on body', doc.body.dataset.panel === 'setup',
       doc.body.dataset.panel);
     bottomNav('Start', 'b-nav-new');
