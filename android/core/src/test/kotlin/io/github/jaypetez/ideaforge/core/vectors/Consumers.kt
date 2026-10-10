@@ -35,9 +35,9 @@ val CONSUMERS: List<Consumer> = listOf(
     Consumer("markdown", ported = MARKDOWN_PORTS, pending = emptyMap()),
     Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
     Consumer("keyring", ported = KEYRING_PORTS, pending = emptyMap()),
-    Consumer("speech", ported = emptyMap(), pending = pending(
-        "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "normalizeTrigger",
-        "triggerWarning", "spokenExamples",
+    // The trigger-word pair is the settings screen's (#88); the rest is the hands-free port's.
+    Consumer("speech", ported = SPEECH_PORTS, pending = pending(
+        "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "spokenExamples",
     )),
     Consumer("drive-loop", ported = emptyMap(), pending = pending("#77", "driveLoop")),
     Consumer("providers", ported = emptyMap(), pending = ProvidersFamily.PENDING,

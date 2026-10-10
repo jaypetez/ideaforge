@@ -10,6 +10,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.jaypetez.ideaforge.data.Prefs
+import kotlinx.coroutines.flow.Flow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
@@ -117,4 +122,30 @@ fun IdeaForgeTheme(
         else -> LightTokens.scheme(dark = false)
     }
     MaterialTheme(colorScheme = scheme, typography = IdeaForgeTypography, content = content)
+}
+
+/** Whether [theme] (a [Prefs.theme] value) renders dark, given what the system asks for. */
+fun isDarkTheme(theme: String, systemDark: Boolean): Boolean = when (theme) {
+    Prefs.THEME_DARK -> true
+    Prefs.THEME_LIGHT -> false
+    else -> systemDark
+}
+
+/**
+ * [IdeaForgeTheme] driven by the stored theme choice. Nothing renders until the preferences
+ * have been read once (a local file, so a frame or two): rendering the system theme first
+ * would flash light before a dark choice lands. A failed read yields the defaults (see
+ * PrefsStore.prefs), so this never waits for ever.
+ */
+@Composable
+fun PrefsTheme(
+    prefs: Flow<Prefs>,
+    onDark: (Boolean) -> Unit = {},
+    content: @Composable () -> Unit,
+) {
+    val current by prefs.collectAsStateWithLifecycle(initialValue = null)
+    val theme = current?.theme ?: return
+    val dark = isDarkTheme(theme, isSystemInDarkTheme())
+    LaunchedEffect(dark) { onDark(dark) }
+    IdeaForgeTheme(dark = dark, content = content)
 }

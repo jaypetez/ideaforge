@@ -27,6 +27,13 @@ data class Prefs(
     val speechVoice: String = "",
     val speechRate: Double = 1.0,
     val hostedSpeechAllowed: Boolean = false,
+    /**
+     * Android only: "system", "light" or "dark". The web follows prefers-color-scheme and has
+     * no stored choice yet (a later issue); when it gains one it should use this key and these
+     * values. Anything else reads as "system", so a value from a newer build cannot leave the
+     * app in a theme it does not know.
+     */
+    val theme: String = THEME_SYSTEM,
 ) {
     /** The trigger the driving loop listens for (src/core/driving.js DEFAULTS.trigger). */
     val effectiveTrigger: String get() = trigger.ifBlank { DEFAULT_TRIGGER }
@@ -35,13 +42,18 @@ data class Prefs(
     fun validated(): Prefs = copy(
         speechVoice = speechVoice.take(MAX_VOICE),
         speechRate = if (speechRate.isFinite() && speechRate in MIN_RATE..MAX_RATE) speechRate else 1.0,
+        theme = theme.takeIf { it in THEMES } ?: THEME_SYSTEM,
     )
 
     companion object {
-        const val DEFAULT_TRIGGER = "over"
+        const val DEFAULT_TRIGGER = io.github.jaypetez.ideaforge.core.DEFAULT_TRIGGER
         const val MAX_VOICE = 512
         const val MIN_RATE = 0.75
         const val MAX_RATE = 1.25
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
+        val THEMES = listOf(THEME_SYSTEM, THEME_LIGHT, THEME_DARK)
     }
 }
 
@@ -67,6 +79,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         val speechVoice = stringPreferencesKey("speechVoice")
         val speechRate = doublePreferencesKey("speechRate")
         val hostedSpeechAllowed = booleanPreferencesKey("hostedSpeechAllowed")
+        val theme = stringPreferencesKey("theme")
     }
 
     /**
@@ -83,6 +96,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         speechVoice = p[Keys.speechVoice] ?: "",
         speechRate = p[Keys.speechRate] ?: 1.0,
         hostedSpeechAllowed = p[Keys.hostedSpeechAllowed] == true,
+        theme = p[Keys.theme] ?: Prefs.THEME_SYSTEM,
     ).validated()
 
     suspend fun current(): Prefs = prefs.first()
@@ -99,6 +113,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
             p[Keys.speechVoice] = next.speechVoice
             p[Keys.speechRate] = next.speechRate
             p[Keys.hostedSpeechAllowed] = next.hostedSpeechAllowed
+            p[Keys.theme] = next.theme
         }
         true
     } catch (e: java.io.IOException) {
