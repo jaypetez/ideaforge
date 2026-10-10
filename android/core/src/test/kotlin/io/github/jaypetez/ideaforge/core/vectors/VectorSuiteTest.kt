@@ -1,14 +1,11 @@
 package io.github.jaypetez.ideaforge.core.vectors
 
-import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 /**
  * Replays every golden vector whose function has been ported, one JUnit test per case, so a
@@ -27,23 +24,11 @@ class VectorSuiteTest {
         )
     }
 
-    private fun replay(port: Port, case: Case) {
-        val throws = case.expect["throws"]
-        if (throws != null) {
-            // Synchronous calls record the message; provider scenarios record {code, message}.
-            val message = (throws as? JsonObject)?.get("message")?.let(::str) ?: str(throws)
-            val err = runCatching { port(case) }.exceptionOrNull()
-                ?: fail("${case.name}: expected the JS error \"$message\", got a value")
-            assertEquals(message, err.message, case.name)
-            return
-        }
-        assertEquals(case.expect["value"], port(case), case.name)
-    }
-
     /** A constant still listed as owed but already ported would skip a working case for ever. */
     @Test
     fun noPendingConstantIsAlreadyPorted() {
-        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in CONSTANTS_PORTED }
+        val all = allPortedConstants()
+        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in all }
         assertTrue(ported.isEmpty(), "ported but still listed as pending: $ported")
     }
 
@@ -52,12 +37,16 @@ class VectorSuiteTest {
     fun everyRecordedFunctionIsPortedOrOwedToAnIssue() {
         for (consumer in CONSUMERS) {
             val fns = Vectors.load(consumer.family).cases.map { it.fn }.toSet()
-            val unaccounted = fns - consumer.ported.keys - consumer.pending.keys
+            val listed = listOf(consumer.ported.keys, consumer.pending.keys, consumer.portedElsewhere.keys)
+            val unaccounted = fns - listed.flatten().toSet()
             assertTrue(unaccounted.isEmpty(), "${consumer.family}: no port and no owning issue for $unaccounted")
-            val stale = (consumer.ported.keys + consumer.pending.keys) - fns
+            val stale = listed.flatten().toSet() - fns
             assertTrue(stale.isEmpty(), "${consumer.family}: lists functions no vector records: $stale")
-            val both = consumer.ported.keys intersect consumer.pending.keys
-            assertTrue(both.isEmpty(), "${consumer.family}: $both is both ported and pending")
+            val both = listed.flatten().groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+            assertTrue(both.isEmpty(), "${consumer.family}: $both is listed twice (ported, pending, elsewhere)")
+            for ((fn, module) in consumer.portedElsewhere) {
+                assertTrue(MODULE.matches(module), "${consumer.family}.$fn: ported elsewhere needs a module, got '$module'")
+            }
             val names = Vectors.load(consumer.family).cases.map { it.name }.toSet()
             val unknownCases = consumer.pendingCases.keys - names
             assertTrue(unknownCases.isEmpty(), "${consumer.family}: pendingCases names no recorded case: $unknownCases")
@@ -70,6 +59,9 @@ class VectorSuiteTest {
         }
     }
 }
+
+/** A Gradle module path, written ":providers". */
+private val MODULE = Regex("^:[a-z]+$")
 
 /** An owning GitHub issue, written "#123". */
 private val ISSUE = Regex("^#[0-9]+$")

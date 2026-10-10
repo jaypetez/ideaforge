@@ -1,6 +1,8 @@
 // Portable, key-free backups for the local ideas library.
 
-import { migrate } from './session.js';
+import {
+  copySession, MAX_SESSION_NAME, migrate, sessionDisplayTitle,
+} from './session.js';
 
 export const BACKUP_FORMAT = 'ideaforge-backup';
 export const BACKUP_VERSION = 1;
@@ -90,4 +92,55 @@ export function parseBackup(source, {
     sessions.push(session);
   }
   return { sessions, skipped };
+}
+
+const IMPORTED_SUFFIX = ' (imported)';
+
+/**
+ * Decide how imported sessions join the local library, without touching storage.
+ *
+ * `existing` is the readable local library; `reservedIds` is every id the store holds,
+ * including rows this build cannot read (written by a newer schema, which migrate rejects).
+ * An id in neither is imported as is. An exact duplicate of a readable row (canonical,
+ * key-order-blind comparison) is skipped. Any other id collision, with a readable row or an
+ * unreadable one, is kept as a copy under a fresh id named "<title> (imported)", so both
+ * survive and the user decides.
+ *
+ * `newId` is injected because the core holds no randomness and no clock; it is called once
+ * per copy and nowhere else. This function cannot check that what it returns is unused:
+ * the guarantee that no write replaces a different local row holds only if `reservedIds`
+ * lists every stored id and `newId` mints ids the store does not hold.
+ *
+ * @returns {{ writes: object[], summary: { imported: number, copied: number, duplicates: number } }}
+ *   `writes` is every session to save, in order.
+ */
+export function mergeImported(existing, incoming, { newId, now = 0, reservedIds = [] } = {}) {
+  const local = new Map((existing || []).map((session) => [session.id, session]));
+  const reserved = new Set(reservedIds || []);
+  const writes = [];
+  const summary = { imported: 0, copied: 0, duplicates: 0 };
+
+  for (const session of incoming || []) {
+    const current = local.get(session.id);
+    if (!current && !reserved.has(session.id)) {
+      writes.push(session);
+      local.set(session.id, session);
+      summary.imported++;
+      continue;
+    }
+    // An unreadable row cannot be compared, so a collision with one is always a copy.
+    if (current && sessionsEqual(current, session)) {
+      summary.duplicates++;
+      continue;
+    }
+
+    const id = newId();
+    const baseName = sessionDisplayTitle(session).slice(0, MAX_SESSION_NAME - IMPORTED_SUFFIX.length);
+    const copied = copySession(session, { id, name: `${baseName}${IMPORTED_SUFFIX}`, now });
+    writes.push(copied);
+    local.set(id, copied);
+    summary.copied++;
+  }
+
+  return { writes, summary };
 }

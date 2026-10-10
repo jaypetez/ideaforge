@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext is permitted because a local model server (Ollama, LM Studio, another server on
+  the LAN, the emulator's 10.0.2.2, or `adb reverse` to the phone's own loopback) speaks plain
+  http, and its address is whatever the user's network handed it, so no domain list here
+  could name it in advance.
+
+  This file is therefore NOT the security gate, and widening it is not a hole: the code
+  policy is. In :providers, hosted presets are fixed https origins on a TLS-only client
+  (NetworkPolicy.Hosted, ConnectionSpec.MODERN_TLS), and local providers go through
+  LocalNetworkPolicy plus LocalNetworkDns, which refuses any public name or resolved address
+  and never attaches a key. See LocalNetworkPolicy.kt.
+
+  User-installed CAs are not trusted (the platform default since API 24, stated here so a
+  later edit does not quietly add them).
+
+  Lint's InsecureBaseConfiguration is suppressed for the reason above, deliberately.
+-->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -25,7 +25,7 @@ import {
   triggerWarning, spokenExamples,
 } from '../../src/core/driving.js';
 import {
-  sessionsEqual, backupFilename, buildBackup, parseBackup,
+  sessionsEqual, backupFilename, buildBackup, parseBackup, mergeImported as mergeImportedCore,
 } from '../../src/core/backup.js';
 import {
   sessionLibraryStatus, sessionSearchText, libraryCard, availableTags, filterSessions,
@@ -584,12 +584,37 @@ async function driveLoopFamily() {
   return { source: 'src/runtime/drive.js', cases };
 }
 
+/**
+ * mergeImported with its id source made JSON: `ids` is handed out in order, one per copy.
+ * Running out throws, so a port that mints an id for a duplicate fails rather than passes.
+ */
+function mergeImported(existing, incoming, { ids = [], now, reservedIds } = {}) {
+  const queue = [...ids];
+  const newId = () => {
+    if (!queue.length) throw new Error('newId: no ids left');
+    return queue.shift();
+  };
+  const opts = { newId };
+  if (now !== undefined) opts.now = now;
+  if (reservedIds !== undefined) opts.reservedIds = reservedIds;
+  return mergeImportedCore(existing, incoming, opts);
+}
+
+/** What a phone writes after importing a file: parseBackup, then buildBackup of its sessions. */
+function roundTripBackup(source, { now = 0 } = {}) {
+  return buildBackup(parseBackup(source).sessions, { now });
+}
+
 async function backupFamily() {
   const { final, snapshots } = await walkthrough();
   const mid = snapshots.find(([l]) => l === 'answered-3')[1];
   const reordered = JSON.parse(JSON.stringify(final));
   const keysReversed = Object.fromEntries(Object.entries(reordered).reverse());
   const backup = buildBackup([final, mid], { now: tick(5) });
+  const fresh = createSession({ id: 's_fresh_import', now: tick(2) });
+  const collideTitle = createSession({ id: 's_titled', now: tick(2) });
+  const collideTitleChanged = { ...collideTitle, title: 'A title from the model', updatedAt: tick(3) };
+  const longNamed = { ...collideTitle, name: 'n'.repeat(130), updatedAt: tick(4) };
   const cases = [
     rec('sessionsEqual same', sessionsEqual, final, final),
     rec('sessionsEqual key order ignored', sessionsEqual, final, keysReversed),
@@ -608,6 +633,31 @@ async function backupFamily() {
     rec('parseBackup too large', parseBackup, backup, { maxBytes: 100 }),
     rec('parseBackup junk sessions', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, exportedAt: 1, sessions: [null, 'x', { schema: 99, id: 'future' }, { schema: 2, id: 's_ok' }] })),
     rec('parseBackup non-string', parseBackup, 42),
+    rec('parseBackup duplicate keys keep the last', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_dup","name":"first","name":"last"}],"sessions":[{"id":"s_dup2","schema":2}]}'),
+    rec('parseBackup normalises numbers', parseBackup, '{"format":"ideaforge-backup","version":1.0,"sessions":[{"id":"s_n","createdAt":1.50e3,"updatedAt":-0,"archivedAt":2E0}]}'),
+    rec('parseBackup escapes and whitespace', parseBackup, ' \r\n\t' + String.raw`{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_😀","name":"tab\there \"q\" \/ é \ud800"}]}` + '\n'),
+    rec('parseBackup non-JSON whitespace', parseBackup, String.fromCharCode(0xa0) + '{"format":"ideaforge-backup","version":1,"sessions":[]}'),
+    rec('parseBackup trailing garbage', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[]} x'),
+    rec('parseBackup trailing comma', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[],}'),
+    rec('parseBackup leading zero', parseBackup, '{"format":"ideaforge-backup","version":01,"sessions":[]}'),
+    rec('parseBackup multibyte limit', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, sessions: [], pad: String.fromCharCode(0x20ac).repeat(400) }), { maxBytes: 1000 }),
+    rec('parseBackup ids that are not usable', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, sessions: [{ id: '' }, { id: ` ${String.fromCharCode(0xa0)} ` }, { id: 7 }, 3, true, { id: 's_fine' }] })),
+    rec('buildBackup non-array', buildBackup, { id: 'x' }, { now: tick(1) }),
+    rec('buildBackup awkward values', buildBackup, [{ id: 's_odd', big: 1e21, small: 1.5e-7, neg: -2.5, empty: {}, none: [], nested: [[], {}, [1, [2]]], text: ['line', 'break', String.fromCharCode(0x2028), '"q"', String.fromCharCode(92), String.fromCharCode(1), String.fromCharCode(0xdfff)].join(String.fromCharCode(10)), ok: true, nil: null }], { now: 0 }),
+    rec('backupFilename far date', backupFilename, Date.UTC(2099, 11, 31, 23, 59, 59)),
+    rec('mergeImported into empty', mergeImported, [], [final, fresh], { ids: [], now: tick(7) }),
+    rec('mergeImported identical skipped', mergeImported, [final, fresh], [keysReversed, fresh], { ids: [], now: tick(7) }),
+    rec('mergeImported collision becomes a named copy', mergeImported, [mid], [final], { ids: ['s_copy_1'], now: tick(7) }),
+    rec('mergeImported mixed', mergeImported, [mid, collideTitle], [final, mid, fresh, collideTitleChanged, longNamed], { ids: ['s_copy_1', 's_copy_2', 's_copy_3'], now: tick(8) }),
+    rec('mergeImported copy of a copy', mergeImported, [mid], [final, { ...final, name: 'Other' }], { ids: ['s_copy_1', 's_copy_2'], now: tick(8) }),
+    rec('mergeImported nulls', mergeImported, null, null, { ids: [] }),
+    rec('mergeImported default clock', mergeImported, [mid], [final], { ids: ['s_copy_1'] }),
+    rec('mergeImported collision with an unreadable row', mergeImported, [mid], [fresh, collideTitle, mid], { ids: ['s_copy_1'], now: tick(9), reservedIds: ['s_walkthrough', 's_fresh_import', 's_not_imported'] }),
+    rec('mergeImported reserved null', mergeImported, [], [fresh], { ids: [], reservedIds: null }),
+    rec('parseBackup infinite schema is rejected', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","schema":1e400},{"id":"s_neg","schema":-1e400}]}'),
+    rec('parseBackup infinite values', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","createdAt":1e400,"archivedAt":1e400,"meta":{"big":-1e999}}]}'),
+    rec('roundTripBackup infinite values print null', roundTripBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","createdAt":1e400,"meta":{"big":-1e999}}]}', { now: 1e400 }),
+    rec('roundTripBackup index keys first', roundTripBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_idx","b":1,"10":"ten","5":"five","01":"not an index","4294967295":"not an index","4294967294":"index","meta":{"z":1,"2":"two"}}]}', { now: tick(3) }),
   ];
   return { source: 'src/core/backup.js', cases };
 }
@@ -710,6 +760,14 @@ async function providersFamily() {
   for (const [i, t] of [
     '{"a":1}', '```json\n{"a":1}\n```', 'Sure! Here you go: {"a": {"b": [1,2]}} hope that helps', '', 'no json here',
     '{"a":1} {"b":2}', '[1,2,3]', '{"unterminated": ', '{"s":"a } brace"}', null, '  {"x":"\\u00e9"}  ',
+    // JSON.parse is strict where a lenient reader is not: each of these must fall through to
+    // bad_response (and so the bank), never be accepted as an object.
+    '{"a": hello}', '{"a":"x\ny"}', '{"a": True}', '{"a": NaN}', '{"a": undefined}', '{"a": Infinity}',
+    "{'a': 1}", '{a: 1}', '{"a": 01}', '{"a": .5}', '{"a": 1.}', '{"a": +1}', '{"a":"tab\there"}',
+    '{"a":"\\x41"}', '{"a":"\\u12"}',
+    // ...and these are valid JSON that must keep JS's values.
+    '{"a": 1e5, "b": -0, "c": 1.50, "d": "\\ud83c\\udf0c", "a": 2}', '{"a":[true,false,null,{}]}',
+    '{"a":1,}',
   ].entries()) cases.push(rec(`extractJson ${i}`, extractJson, t));
 
   // Exact requests, via a stubbed fetch.

@@ -13,7 +13,8 @@ import java.io.File
 
 /**
  * The golden vectors written by `npm run vectors` (tools/vectors.mjs), read straight off
- * disk. Gradle passes the directory in and declares it as a test input, so editing a vector
+ * disk. This file is a test fixture of :core so :providers can replay its own family with the
+ * same loader and the same replay rule, instead of a copy that could drift. Gradle passes the directory in and declares it as a test input, so editing a vector
  * re-runs these tests instead of serving them from the build cache.
  */
 object Vectors {
@@ -83,7 +84,43 @@ data class Consumer(
     /** Individual cases of a ported function still owed to an issue, by case name. Used where
      *  one recorded function covers many things, as `constant` covers every constant. */
     val pendingCases: Map<String, String> = emptyMap(),
+    /** Functions replayed by another module's harness, mapped to that module (":providers").
+     *  Counts as accounted for here only because that module asserts the same set. */
+    val portedElsewhere: Map<String, String> = emptyMap(),
 )
+
+/**
+ * How the `providers` family is split. :core registers the family (so VectorCoverageTest sees
+ * every family on disk) but cannot replay HTTP code; :providers replays [IN_PROVIDERS_MODULE]
+ * and asserts its port map is exactly this set, so neither side can drift from the other.
+ */
+object ProvidersFamily {
+    const val MODULE = ":providers"
+    val IN_PROVIDERS_MODULE: Set<String> = setOf(
+        "isLoopback", "applyAuth", "codeForStatus", "isRetryableProviderError", "isRetryable",
+        "retryAfterMs", "extractJson",
+    )
+    /** Owned by the adapters issue; still pending in both harnesses. */
+    val PENDING: Map<String, String> =
+        listOf("resolveTiers", "presetModels", "parseModelList", "request").associateWith { "#79" }
+}
+
+/**
+ * Replay one recorded case against its port: a recorded throw must throw the same message,
+ * anything else must return the recorded value exactly.
+ */
+fun replay(port: Port, case: Case) {
+    val throws = case.expect["throws"]
+    if (throws != null) {
+        // Synchronous calls record the message; provider scenarios record {code, message}.
+        val message = (throws as? JsonObject)?.get("message")?.let(::str) ?: str(throws)
+        val err = runCatching { port(case) }.exceptionOrNull()
+            ?: kotlin.test.fail("${case.name}: expected the JS error \"$message\", got a value")
+        kotlin.test.assertEquals(message, err.message, case.name)
+        return
+    }
+    kotlin.test.assertEquals(case.expect["value"], port(case), case.name)
+}
 
 fun str(e: JsonElement?): String = (e as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content ?: ""
 
