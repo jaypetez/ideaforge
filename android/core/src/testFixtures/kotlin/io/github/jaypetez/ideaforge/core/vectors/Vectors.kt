@@ -107,6 +107,17 @@ object ProvidersFamily {
 }
 
 /**
+ * The hosted speech families (#80): `transcribe` (src/voice/transcribe.js) and `tts`
+ * (src/providers/tts.js). Like `providers`, :core registers them and :providers replays them
+ * (SpeechVectorTest), which asserts its port maps are exactly these sets.
+ */
+object SpeechProvidersFamilies {
+    const val MODULE = ":providers"
+    val TRANSCRIBE: Set<String> = setOf("constant", "transcribe")
+    val TTS: Set<String> = setOf("constant", "synthesize", "validateSpeechAudio")
+}
+
+/**
  * Replay one recorded case against its port: a recorded throw must throw the same message,
  * anything else must return the recorded value exactly.
  */

@@ -44,4 +44,9 @@ val CONSUMERS: List<Consumer> = listOf(
     Consumer("walkthrough", ported = WALKTHROUGH_PORTS, pending = emptyMap()),
     // Native speech output's chunking and per-chunk wait (src/voice/speak.js), for the Speaker (#90).
     Consumer("speak", ported = SPEAK_PORTS, pending = emptyMap()),
+    // Hosted transcription and speech requests (#80), replayed by :providers' SpeechVectorTest.
+    Consumer("transcribe", ported = emptyMap(), pending = emptyMap(),
+        portedElsewhere = SpeechProvidersFamilies.TRANSCRIBE.associateWith { SpeechProvidersFamilies.MODULE }),
+    Consumer("tts", ported = emptyMap(), pending = emptyMap(),
+        portedElsewhere = SpeechProvidersFamilies.TTS.associateWith { SpeechProvidersFamilies.MODULE }),
 )

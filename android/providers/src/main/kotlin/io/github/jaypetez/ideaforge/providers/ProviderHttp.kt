@@ -141,9 +141,29 @@ class ProviderHttp(
      * on whatever thread resumed the caller.
      */
     suspend fun executeText(request: Request, label: String, keyHint: String = DEFAULT_KEY_HINT): String =
-        run(request, label, keyHint) { res -> res.use { it.body.string() } }
+        run(request, label, keyHint, read = { res -> res.use { it.body.string() } })
 
-    private suspend fun <T> run(request: Request, label: String, keyHint: String, read: (Response) -> T): T {
+    /**
+     * Run one request and hand its 2xx response to [read], on OkHttp's thread and inside the
+     * call, as [executeText] does; [read] must close it. A ProviderException thrown by [read]
+     * (a bound it enforces while reading) becomes the call's failure. [onError] replaces
+     * [httpError] for a non-2xx response, for a client that must not echo the error body.
+     */
+    suspend fun <T> executeReading(
+        request: Request,
+        label: String,
+        keyHint: String = DEFAULT_KEY_HINT,
+        onError: ((Response) -> ProviderException)? = null,
+        read: (Response) -> T,
+    ): T = run(request, label, keyHint, onError, read)
+
+    private suspend fun <T> run(
+        request: Request,
+        label: String,
+        keyHint: String,
+        onError: ((Response) -> ProviderException)? = null,
+        read: (Response) -> T,
+    ): T {
         policy.check(request.url)
         if (!policy.carriesCredentials) {
             // Key-less by construction, not by convention: a hand-built request that carries a
@@ -170,10 +190,23 @@ class ProviderHttp(
                             response.close()
                             cont.resumeWithException(callFailure(e, label, cancelled.get() || cont.isCancelled, deadlineMs))
                             return
+                        } catch (e: ProviderException) {
+                            response.close()
+                            cont.resumeWithException(e)
+                            return
+                        } catch (e: Exception) {
+                            // Anything else must not escape: rethrown here it lands on OkHttp's
+                            // dispatcher thread (an uncaught exception kills an Android app) and
+                            // the caller's continuation never resumes.
+                            response.close()
+                            cont.resumeWithException(
+                                ProviderException(ProviderErrorCode.BAD_RESPONSE, "$label returned a reply that could not be read", e),
+                            )
+                            return
                         }
                         cont.resume(value) { _, v, _ -> (v as? Response)?.close() }
                     } else {
-                        val err = response.use { httpError(it, label, keyHint, now()) }
+                        val err = response.use { onError?.invoke(it) ?: httpError(it, label, keyHint, now()) }
                         cont.resumeWithException(err)
                     }
                 }

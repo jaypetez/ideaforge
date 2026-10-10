@@ -50,6 +50,7 @@ import {
 } from '../../src/store/secrets.js';
 import { ANSWERS, TURNS, SYNTHESIS } from './walkthrough.mjs';
 import { splitSpeechText, speechChunksForRate, speechTimeoutMs } from '../../src/voice/speak.js';
+import { transcribeFamily, ttsFamily } from './speech-vectors.mjs';
 import * as dimensionsModule from '../../src/core/dimensions.js';
 import * as sessionModule from '../../src/core/session.js';
 import * as engineModule from '../../src/core/engine.js';
@@ -1165,4 +1166,7 @@ export const FAMILIES = {
   keyring: keyringFamily,
   walkthrough: walkthroughFamily,
   speak: speakFamily,
+  // Hosted speech clients (#80), replayed by android/providers.
+  transcribe: transcribeFamily,
+  tts: ttsFamily,
 };
