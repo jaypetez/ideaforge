@@ -13,9 +13,9 @@
 // stage's Pause and Exit must still land on the control. A toast over Send looks fine in a
 // screenshot and makes the interview unanswerable on the phone it was drawn for.
 
-import { createSession } from '../../src/core/session.js';
+import { createSession, setSynthesis, setTitle } from '../../src/core/session.js';
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
-import { seedTurn } from '../../src/runtime/turn.js';
+import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
 
@@ -123,6 +123,18 @@ function raiseBoth(app) {
   $('err-toast').hidden = false;
 }
 
+/**
+ * Done's actions are the last row of the page, 72px above the bottom at full scroll, and the
+ * toasts sit at the bottom there: hit-test them scrolled to the end, under a long error.
+ */
+function doneHitTest(app, check, label) {
+  raiseBoth(app);
+  app.win.scrollTo(0, app.doc.documentElement.scrollHeight);
+  hitTest(app, check, `${label}, scrolled to the end`,
+    ['b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new']);
+  app.win.scrollTo(0, 0);
+}
+
 /** Every point of a control a thumb might hit lands on it, not on a toast. */
 function hitTest(app, check, label, ids) {
   const { $, doc, shown } = app;
@@ -216,8 +228,7 @@ async function lifecycle(check) {
       $('err').textContent);
 
     // Wider than a phone the toasts sit at the bottom, where Done's actions can be too.
-    raiseBoth(app);
-    hitTest(app, check, 'desktop Done', ['b-share', 'b-copy', 'b-download', 'b-reopen', 'b-new']);
+    doneHitTest(app, check, 'desktop Done');
     $('b-err-dismiss').click();
     $('note').hidden = true;
 
@@ -297,6 +308,68 @@ async function voiceLayout(check, width) {
   }
 }
 
+/** Done at phone width, opened from the start screen's recent ideas. */
+async function phoneDone(check) {
+  const now = Date.now();
+  let session = submitAnswer(seedTurn(createSession({ id: 's_toast_done', now }), { now }),
+    { text: 'A phone Done probe idea', now: now + 1 });
+  session = setSynthesis(session, {
+    text: '## Task\nBuild the phone Done probe idea.', assumptions: [], openQuestions: [], now: now + 2,
+  });
+  await saveSession(setTitle(session, 'Phone Done probe', now + 3));
+  const app = await openApp(check, 'phone Done', { width: 390, height: 760, claude: scriptedModel().claude });
+  try {
+    const row = await until(() => [...app.$('resume-rows').querySelectorAll('button')]
+      .find((b) => b.textContent === 'view'));
+    check('phone Done: the finished idea is offered', !!row);
+    row.click();
+    check('phone Done: the document opens', !!(await until(() => app.shown(app.$('panel-done'))
+      && app.$('output').dataset.source)));
+    doneHitTest(app, check, 'phone Done');
+  } finally {
+    app.frame.remove();
+  }
+}
+
+/** Make every IndexedDB write to the sessions store fail, as a full disk would. */
+function breakSaves(win) {
+  const put = win.IDBObjectStore.prototype.put;
+  win.IDBObjectStore.prototype.put = function (...args) {
+    if (this.name === 'sessions') throw new win.DOMException('scripted full disk', 'QuotaExceededError');
+    return put.apply(this, args);
+  };
+}
+
+/** A failed save is an error that persists, not a note that hides itself (manual wrap-up). */
+async function saveFailure(check) {
+  const model = scriptedModel();
+  const app = await openApp(check, 'save failure', { claude: model.claude });
+  const { $, win, shown } = app;
+  try {
+    $('b-start').click();
+    await until(() => shown($('panel-interview')) && !$('answer').disabled);
+    // Write it up appears from the fourth question on.
+    for (const text of ['A notebook for names at conferences.', 'Mostly for the evening receptions.',
+      'Me and two teammates on the same circuit.']) {
+      $('answer').value = text;
+      $('answer').dispatchEvent(new win.Event('input', { bubbles: true }));
+      $('b-send').click();
+      await until(() => !$('answer').disabled && $('asking').hidden);
+    }
+    check('save failure: Write it up is offered', !!(await until(() => shown($('b-wrap')))));
+    breakSaves(win);
+    $('b-wrap').click();
+    check('save failure: the wrap-up reaches Done', !!(await until(() => shown($('panel-done'))
+      && $('output').dataset.source)));
+    await sleep(NOTE_MS * 3);
+    check('a failed save is still on Done after several note intervals',
+      shown($('err')) && /could not be saved/.test($('err').textContent),
+      `${$('err').hidden ? 'hidden' : 'shown'}: ${$('err').textContent} | note: ${$('note').textContent}`);
+  } finally {
+    app.frame.remove();
+  }
+}
+
 export default async function run(check) {
   await cleanStorage();
   try {
@@ -305,6 +378,10 @@ export default async function run(check) {
     await resumeNote(check);
     await cleanStorage();
     await phoneLayout(check);
+    await cleanStorage();
+    await phoneDone(check);
+    await cleanStorage();
+    await saveFailure(check);
     await cleanStorage();
     await voiceLayout(check, 390);
     await cleanStorage();

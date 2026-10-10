@@ -175,8 +175,12 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   `showDone()` carries a voice-stage wrap-up failure onto Done. Notes auto-hide after
   `#toasts`' `data-note-ms` (probes shorten it there) and take no pointer events; the error
   toast does, so `.toasts` is placed clear of Send (top on a phone's Interview), Pause/Exit
-  (top on the voice stage) and the bottom navigation. `test/browser/toasts.browser.mjs`
-  hit-tests those controls, and the real-app policy probe refuses any trusted click a
+  (top on the voice stage) and the bottom navigation, and Done's body grows by the
+  error's maximum height while one shows (never `.wrap`'s 72px). A failed save is an
+  error, not a note, held in `state.saveFailure`: `fail(null)` shows it again on that
+  idea's Interview and Done until it saves or is dismissed, so neither a turn nor the
+  move to Done can drop it. `test/browser/toasts.browser.mjs` hit-tests those controls
+  (Done scrolled to the end), and the real-app policy probe refuses any trusted click a
   raised toast would take.
 - **Setup disclosures are real UI, not screenshot overrides.** `Model options` opens for
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI

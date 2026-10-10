@@ -85,6 +85,7 @@
   --t-lg: 1.125rem; --t-xl: 1.375rem; --t-2xl: 1.75rem; --t-3xl: 2.125rem;
   --control-height: 48px;
   --voice-control-height: 52px;
+  --toast-err-max: min(7.5rem, 22dvh);
 
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -562,7 +563,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
      --nav-bar-height the body's padding uses, so the two cannot drift);
    - on a phone's Interview, where Send is pinned to the bottom, at the top instead, and
      inset past the app bar's back and Settings buttons;
-   - whenever the voice stage is up, at the top, clear of Pause and Exit pinned below.
+   - whenever the voice stage is up, at the top, clear of Pause and Exit pinned below;
+   - on Done, at the bottom, but while an error is up the page grows by the tallest the
+     error toast can be, so scrolled to the end the last button row clears it.
 
    Toasts are opaque: they float over content, and a translucent one is unreadable over
    text. test/browser/toasts.browser.mjs hit-tests every one of these controls with both
@@ -570,7 +573,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .toasts {
   position: fixed; z-index: 6; pointer-events: none;
   inset-inline: 0; bottom: max(var(--s4), calc(env(safe-area-inset-bottom) + var(--s2)));
-  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  /* Reversed at the bottom so the error, not the note (which takes no taps), sits nearest
+     the edge, at a height the room reserved below does not have to guess about. */
+  display: flex; flex-direction: column-reverse; align-items: center; gap: var(--s2);
   padding-inline: max(var(--s4), env(safe-area-inset-left)) max(var(--s4), env(safe-area-inset-right));
 }
 .toast {
@@ -594,7 +599,14 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    pushed further down, not the error. */
 .toast-err .err {
   flex: 1; min-width: 0; margin: 0; padding-block: var(--s2);
-  max-height: min(7.5rem, 22dvh); overflow-y: auto;
+  max-height: var(--toast-err-max); overflow-y: auto;
+}
+/* Done's actions are the last thing on the page, 72px above the bottom at full scroll, and
+   a multi-line error is taller than that. Room for the whole toast — its capped text, the
+   padding and border round it, and its offset — goes on body, not .wrap, whose 72px
+   tools/screenshots.mjs measures. Only while an error shows, so captures never see it. */
+body[data-panel="done"]:has(#err-toast:not([hidden])) {
+  padding-bottom: calc(var(--toast-err-max) + var(--s7) + env(safe-area-inset-bottom));
 }
 /* Two classes, to outrank button.quiet's padding. */
 .toast-err .toast-dismiss {
@@ -611,7 +623,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 
 /* The voice stage pins Pause and Exit to the bottom at every width. */
 body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
-  top: max(var(--s4), env(safe-area-inset-top)); bottom: auto;
+  top: max(var(--s4), env(safe-area-inset-top)); bottom: auto; flex-direction: column;
 }
 
 /* ─────────────────────────────────────────────────────── phone shell */
@@ -708,7 +720,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   /* Send is pinned to the bottom here, so the toasts go to the top, between the app bar's
      back arrow and Settings (each a 48px target inside the .wrap gutter). */
   body[data-panel="interview"] .toasts {
-    top: max(var(--s4), env(safe-area-inset-top)); bottom: auto;
+    top: max(var(--s4), env(safe-area-inset-top)); bottom: auto; flex-direction: column;
     padding-inline:
       calc(max(20px, env(safe-area-inset-left)) + var(--control-height) + var(--s2))
       calc(max(20px, env(safe-area-inset-right)) + var(--control-height) + var(--s2));

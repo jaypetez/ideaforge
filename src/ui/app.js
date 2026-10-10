@@ -120,6 +120,8 @@ const state = {
    * the app leaves for Start, Settings or Ideas, where it would be stale.
    */
   doneFailure: null,
+  /** The last failed save, `{ id, message, dismissed }`, until that idea saves again. */
+  saveFailure: null,
   credentialEpoch: 0,
   wakeLock: null,
   wakeLockRequest: null,
@@ -250,16 +252,21 @@ function warn(out) {
 }
 
 function fail(err) {
-  const msg = err && err.message ? err.message : String(err || '');
-  els.err.textContent = msg;
+  const raised = err && err.message ? err.message : String(err || '');
+  const msg = raised || saveWarning();
+  // Unchanged text is left alone, so a standing warning is not re-announced on every turn.
+  if (els.err.textContent !== msg || els.err.hidden !== !msg) els.err.textContent = msg;
   els.err.hidden = !msg;
   els['err-toast'].hidden = !msg;
-  if (msg) console.error(err);
+  if (raised) console.error(err);
 }
 
 /** Errors persist until read: the only ways out are this button, a retry, or a new screen. */
 function dismissError() {
   const hadFocus = els['err-toast'].contains(document.activeElement);
+  if (state.saveFailure && els.err.textContent === state.saveFailure.message) {
+    state.saveFailure.dismissed = true;
+  }
   fail(null);
   // The button just vanished under the keyboard; land somewhere that still exists.
   if (hadFocus) els.main.focus({ preventScroll: true });
@@ -294,22 +301,35 @@ async function persist(session = state.session) {
   if (!session || deletedSessions.has(session.id)) return false;
   try {
     await saveSession(session);
+    if (state.saveFailure && state.saveFailure.id === session.id) {
+      const cleared = state.saveFailure.message;
+      state.saveFailure = null;
+      if (els.err.textContent === cleared) fail(null);
+    }
     return true;
   } catch (e) {
-    lastSaveError = e.message;
-    say(notSavedNote());
+    // An error, not a note: a note hides itself after six seconds, and a driver looking at
+    // the road would never see that their answers exist only in this tab.
+    state.saveFailure = {
+      id: session.id, dismissed: false,
+      message: `This session could not be saved to this device (${e.message}). Export before you close the tab.`,
+    };
+    if (state.session && state.session.id === session.id) fail(state.saveFailure.message);
     return false;
   }
 }
 
 /**
- * Why the last save failed. Kept because the two persists that run just before a new
- * screen opens (Start, Ask me more) have their note cleared by that show(), and say it
- * again after it.
+ * The unsaved-session warning, while it still stands: shown by fail(null) in place of an
+ * empty #err on that idea's Interview and Done, so a turn clearing its own error, the panel
+ * change into Done, or dismissing some other error cannot make it vanish. Only a later
+ * successful save of that idea or the user's own dismissal ends it.
  */
-let lastSaveError = '';
-function notSavedNote() {
-  return `This session could not be saved to this device (${lastSaveError}). Export before you close the tab.`;
+function saveWarning() {
+  const f = state.saveFailure;
+  const panel = document.body.dataset.panel;
+  return f && !f.dismissed && state.session && f.id === state.session.id
+    && (panel === 'interview' || panel === 'done') ? f.message : '';
 }
 
 function withoutModelNote(error) {
@@ -2072,11 +2092,10 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   els.answer.value = '';
   state.answerSource = 'typed';
   state.capturePrefix = '';
-  const saved = await persist();
+  await persist();
   state.starting = false;
   if (navigation !== state.navigation) return;
   show('panel-interview');
-  if (!saved) say(notSavedNote());
   render();
   await setupVoice({ defer: !handsFree, automatic: handsFree });
   if (state.voiceMode === 'manual') els.answer.focus();
@@ -2389,7 +2408,8 @@ function bind() {
     teardownVoice();
     state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
     prepareSpeechOutput();
-    // Both notes are said after show('panel-interview'), which would otherwise clear them.
+    // Said after show('panel-interview'), which would otherwise clear it. A failed save
+    // needs no such care: show()'s fail(null) puts saveWarning() back.
     let providerNote = '';
     try {
       await buildProvider();
@@ -2401,11 +2421,11 @@ function bind() {
     const reopenedAt = now();
     state.session = reopen(state.session, reopenedAt);
     if (state.session.archivedAt) state.session = restoreSession(state.session, reopenedAt);
-    const saved = await persist();
+    await persist();
     if (!currentView(session.id, navigation)) return;
     state.voiceMode = state.wantHandsFree ? 'active' : 'manual';
     show('panel-interview');
-    say([providerNote, saved ? '' : notSavedNote()].filter(Boolean).join(' '));
+    say(providerNote);
     await nextQuestion();
     if (currentView(session.id, navigation) && !els['panel-interview'].hidden) {
       await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });
