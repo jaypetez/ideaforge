@@ -234,8 +234,10 @@ should land around 10–20 cents; wildly more means something is re-sending cont
 not be.
 
 **7 · CI** — six Node legs (Linux/Windows/macOS × Node 22/24), each running `npm test`
-and `npm run test:graph`, plus the browser job. Windows is not decoration: two of this
-repo's toolchain bugs were Windows-only path handling.
+and `npm run test:graph`, plus the browser job and the `android` job
+(`./gradlew check :app:assembleDebug` in `android/`, which uploads the debug APK as an
+artifact). All of them feed the single required `ci` check. Windows is not decoration: two
+of this repo's toolchain bugs were Windows-only path handling.
 
 **Use `npm run test:browser:required` or `npm run test:all` as an agent.** The plain
 `test:browser` script deliberately allows a missing Chrome to skip with exit 0 for humans
