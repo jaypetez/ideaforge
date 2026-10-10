@@ -3,7 +3,8 @@
 //   npm run vectors            rewrite test/vectors/*.json
 //   node tools/vectors.mjs --check   exit 1 if any file on disk is stale
 //
-// The Android app is a Kotlin rewrite of src/core, src/runtime and src/providers. Reading
+// The Android app is a Kotlin rewrite of src/core, src/runtime, src/providers and the pure
+// keyring helpers of src/store/secrets.js. Reading
 // both side by side is not how parity is kept: a prompt that differs by one byte silently
 // never hits the provider cache, and a ratchet that is one comparison looser stops the
 // interview early. So every family below records real calls into the JS — inputs taken

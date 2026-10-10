@@ -16,9 +16,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import java.io.File
-import java.io.FileOutputStream
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Sessions on disk: one JSON file per session, `<dir>/<id>.json`, each written atomically
@@ -123,35 +120,10 @@ class SessionStore(
         fun encode(session: Session): ByteArray =
             Json.encodeToString(JsonObject.serializer(), session).encodeToByteArray()
 
-        /**
-         * Write-then-rename: the bytes go to `<file>.new`, are synced, then atomically
-         * replace `<file>`. A crash at any point leaves either the old file or the new one.
-         *
-         * Not androidx AtomicFile: its finishWrite logs a failed rename and returns normally,
-         * so the caller believes a save that never reached disk. That is not hypothetical:
-         * on a Windows JVM (Robolectric on a developer machine) File.renameTo refuses to
-         * replace an existing file, and every second save of a session silently vanished.
-         * Files.move with REPLACE_EXISTING throws instead, and replaces on every platform.
-         */
-        internal fun write(file: File, bytes: ByteArray) {
-            file.parentFile?.mkdirs()
-            val tmp = File(file.path + NEW)
-            try {
-                FileOutputStream(tmp).use { out ->
-                    out.write(bytes)
-                    out.fd.sync()
-                }
-                Files.move(
-                    tmp.toPath(), file.toPath(),
-                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
-                )
-            } catch (t: Throwable) {
-                tmp.delete()
-                throw t
-            }
-        }
+        /** Write-then-rename; see [writeAtomically]. */
+        internal fun write(file: File, bytes: ByteArray) = writeAtomically(file, bytes)
 
-        internal const val NEW = ".new"
+        internal const val NEW = ATOMIC_NEW_SUFFIX
 
         private fun idOf(session: Session): String? =
             (session["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content
