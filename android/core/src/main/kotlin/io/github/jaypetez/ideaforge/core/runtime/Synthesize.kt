@@ -54,7 +54,8 @@ suspend fun runSynthesis(
 
     val result = try {
         provider.sampleJson(parts, modelTier, cache = true)
-    } catch (err: ProviderException) {
+    } catch (e: Exception) {
+        val err = asProviderFailure(e)
         val restored = setStatusField(clearPending(working, now), before, now)
         return if (err.code == "aborted") SynthesisResult(restored, false, null, true, warnings, 1)
         else SynthesisResult(restored, false, err, false, warnings, 1)

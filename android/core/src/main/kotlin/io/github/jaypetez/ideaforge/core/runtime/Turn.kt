@@ -125,7 +125,8 @@ suspend fun runTurn(
 
         val result = try {
             provider.sampleJson(parts, modelTier, cache = true).also { calls++ }
-        } catch (err: ProviderException) {
+        } catch (e: Exception) {
+            val err = asProviderFailure(e)
             calls++
             if (err.code == "aborted") {
                 return TurnResult(clearPending(working, now), null, false, null, null, true, warnings, calls)
@@ -216,7 +217,8 @@ suspend fun resumeTurn(
     }
     // The crash landed between askQuestion and clearPending: the work is done and only the
     // bookkeeping was lost. Calling the model again would duplicate the turn.
-    if (turnsOf(session).any { stringOf(it["id"]) == stringOf(pending["turnId"]) && it["id"] != null }) {
+    // Raw equality: a missing id and a missing turnId match, as undefined === undefined does.
+    if (turnsOf(session).any { it["id"] == pending["turnId"] }) {
         val s = clearPending(session, now)
         return TurnResult(s, openTurn(s), false, null, shouldOfferWrap(s), false, listOf("recovered a completed turn"), 0)
     }

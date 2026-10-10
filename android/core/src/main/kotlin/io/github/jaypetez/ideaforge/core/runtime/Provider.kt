@@ -20,5 +20,17 @@ interface Provider {
 
 data class SampleResult(val json: JsonElement?, val text: String = "", val modelTierApplied: String? = null)
 
+/**
+ * Any failure of a provider call as the runtime sees it. The JS catches every error and
+ * treats one without a code as 'error'; an adapter that lets an IOException or a decoding
+ * error through must still end in a bank question, never a dead end. Cancellation is not
+ * a failure: it propagates, so a cancelled scope is never handed a fallback.
+ */
+internal fun asProviderFailure(e: Exception): ProviderException = when (e) {
+    is kotlin.coroutines.cancellation.CancellationException -> throw e
+    is ProviderException -> e
+    else -> ProviderException(null, e.message ?: e.toString(), e)
+}
+
 /** A failed provider call. `code` is the JS ProviderError code (network, auth, aborted...). */
 class ProviderException(val code: String?, message: String, cause: Throwable? = null) : Exception(message, cause)
