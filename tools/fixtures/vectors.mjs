@@ -246,6 +246,12 @@ async function engineFamily() {
     ['Honestly the weather has been strange and my cat knocked over a plant yesterday which was annoying for everyone involved', 'typed'],
     ['Honestly the weather has been strange and my cat knocked over a plant yesterday which was annoying for everyone involved', 'voice'],
     ['ok', 'voice'], ['four words only here', 'typed'], ['four words only here', 'voice'],
+    // The dodge threshold sits at exactly 15 words; one either side pins it.
+    ['my cat knocked a plant off the shelf and the soil went everywhere today', 'typed'],
+    ['my cat knocked a plant off the shelf and the soil went everywhere again today', 'typed'],
+    ['my cat knocked a plant off the shelf and the soil went everywhere again today', 'voice'],
+    // Five words is past the terse limit for typed answers; four is not.
+    ['five words only right here', 'typed'],
   ];
   for (const [i, [text, source, chips]] of answers.entries()) {
     cases.push(rec(`classifyAnswer ${i} ${source}`, classifyAnswer, text, q, { source, chips: chips || [] }));

@@ -8064,6 +8064,66 @@
       }
     },
     {
+      "name": "classifyAnswer 16 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
+      "name": "classifyAnswer 17 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere again today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "dodge"
+      }
+    },
+    {
+      "name": "classifyAnswer 18 voice",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere again today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "voice",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
+      "name": "classifyAnswer 19 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "five words only right here",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
       "name": "classifyAnswer defaults",
       "fn": "classifyAnswer",
       "args": [
