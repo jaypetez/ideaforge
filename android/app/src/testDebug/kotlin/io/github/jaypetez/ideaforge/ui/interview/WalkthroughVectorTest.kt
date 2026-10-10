@@ -69,6 +69,24 @@ class WalkthroughVectorTest {
         )
     }
 
+    /**
+     * The scripted model never fails and the store is a private temp folder, so any Failed or
+     * Fallback notice means something underneath threw. Without this, a turn whose save threw
+     * only showed up as an interview two turns short (#138); with it, the failure names the
+     * exception and carries its stack.
+     */
+    private fun assertNoFailure(vm: InterviewViewModel, name: String, where: String) {
+        val notice = vm.state.value.notice
+        if (notice is InterviewNotice.Failed || notice is InterviewNotice.Fallback) {
+            val cause = notice.cause
+            throw AssertionError(
+                "$name: ${notice::class.simpleName} notice $where: ${notice.detail}" +
+                    (cause?.let { " [${it::class.qualifiedName}]" } ?: ""),
+                cause,
+            )
+        }
+    }
+
     private fun replay(name: String) {
         val case: Case = Vectors.load("walkthrough").cases.single { it.name == name }
         val input = case.input
@@ -78,6 +96,7 @@ class WalkthroughVectorTest {
         val now = toNumber(input["now"]).toLong()
         val vm = h.vm(model, id = id, clock = Clock { now })
         h.scheduler.advanceUntilIdle()
+        assertNoFailure(vm, name, "opening")
 
         for (step in input["steps"] as JsonArray) {
             val open = vm.state.value.openTurn!!
@@ -94,12 +113,14 @@ class WalkthroughVectorTest {
                 }
             }
             h.scheduler.advanceUntilIdle()
+            assertNoFailure(vm, name, "after answering turn ${vm.state.value.turnCount}")
             val st = vm.state.value
             if (st.finished || st.openTurn == null || st.wrapOffer != null) break
         }
         // Accept the offer, or press "Write it up" when the answers ran out first.
         if (!vm.state.value.finished) vm.writeUp()
         h.scheduler.advanceUntilIdle()
+        assertNoFailure(vm, name, "the write-up")
 
         assertTrue(vm.state.value.finished)
         val saved = h.store.get(id)!!
