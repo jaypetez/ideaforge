@@ -58,7 +58,16 @@ data class SpeakResult(
     /** Chunks the engine finished. */
     val chunksSpoken: Int = 0,
     val chunks: Int = 0,
+    /** Who spoke: the device engine, or OpenAI after a passing, consented check (#93). */
+    val backend: SpeechBackend = SpeechBackend.NATIVE,
+    /**
+     * Set when hosted speech failed live and the device voice took over: the reason, for the
+     * caller to show. Never set for a cancellation, which does not fall back at all.
+     */
+    val fallback: String? = null,
 )
+
+enum class SpeechBackend { NATIVE, HOSTED }
 
 /** The question, then its suggestions as a second utterance (null when there were none). */
 data class QuestionSpeech(val question: SpeakResult, val examples: SpeakResult?)
@@ -82,6 +91,12 @@ interface Speaker {
 
     /** Stop speaking now. The speak in progress resolves CANCELLED. */
     fun cancel()
+
+    /**
+     * A new drive begins: forget a hosted failure from the last one, so the next run tries
+     * the checked backend again rather than staying on the fallback for ever.
+     */
+    fun newSession() = Unit
 
     fun shutdown()
 }

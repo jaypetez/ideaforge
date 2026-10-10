@@ -145,7 +145,10 @@ class SettingsViewModelTest {
 
     private fun seed(ring: JsonObject): SoftwareKey = seed(ring, SoftwareKey())
 
-    private fun consenting() = mutablePreferencesOf(booleanPreferencesKey("hostedSpeechAllowed") to true)
+    private fun consenting() = mutablePreferencesOf(
+        booleanPreferencesKey("hostedSpeechAllowed") to true,
+        booleanPreferencesKey("hostedTranscriptionAllowed") to true,
+    )
 
     // Acceptance: every preference persists across process death. Each is set through the
     // ViewModel, the process dies, and a new one reads it back from the same file.
@@ -252,6 +255,8 @@ class SettingsViewModelTest {
         assertFalse("not reported as forgotten", after.forgotten)
         assertFalse(after.needsOnboarding)
         assertFalse("the consent was withdrawn before the keyring was touched", runBlocking { p.prefs.current() }.hostedSpeechAllowed)
+        // #93: the consent to send recorded audio goes with it, for the same reason.
+        assertFalse("the audio-transfer consent was withdrawn too", runBlocking { p.prefs.current() }.hostedTranscriptionAllowed)
         p.kill()
     }
 

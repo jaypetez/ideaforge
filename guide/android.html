@@ -109,8 +109,22 @@
             <tr>
               <th scope="row">Spoken replies</th>
               <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
-                its suggestions, at the speaking pace from Listening. Hosted speech and
-                transcription are not offered in the app.</td>
+                its suggestions, at the speaking pace from Listening. Optional OpenAI speech
+                (Marin or Cedar) is in Settings under Listening: it needs its own OpenAI key
+                (never your interview key), three consents (an AI-generated voice, the spoken
+                text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
+                OpenAI audio on the phone. Changing the key or the voice, unticking a consent
+                or Forget turns it off until the next passing check. If OpenAI fails during an
+                interview, the phone&rsquo;s voice takes over and the voice stage says so; Pause
+                never switches voices.</td>
+            </tr>
+            <tr>
+              <th scope="row">Transcription fallback</th>
+              <td>Only for phones with no working speech recogniser. In Settings, choose Groq
+                Whisper or OpenAI, paste a key for that service alone and agree to send
+                recorded audio. Hands-free answers are then recorded (at most 45 seconds per
+                segment and 120 seconds per answer) and transcribed. On a phone whose
+                recogniser works, nothing is recorded or sent.</td>
             </tr>
             <tr>
               <th scope="row">Signed release</th>

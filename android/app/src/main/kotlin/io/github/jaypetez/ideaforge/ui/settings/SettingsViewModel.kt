@@ -388,7 +388,11 @@ class SettingsViewModel(
         local.update { it.copy(confirmingForget = false, checking = true, failure = null, notice = null, unreadable = null) }
         return viewModelScope.launch {
             try {
-                if (prefsStore.current().hostedSpeechAllowed) prefsStore.update { it.copy(hostedSpeechAllowed = false) }
+                // Both hosted consents belonged to keys that are about to stop existing.
+                val p = prefsStore.current()
+                if (p.hostedSpeechAllowed || p.hostedTranscriptionAllowed) {
+                    prefsStore.update { it.copy(hostedSpeechAllowed = false, hostedTranscriptionAllowed = false) }
+                }
                 previous?.join()
                 keyring.forget()
                 local.update { it.copy(editor = null, forgotten = true, notice = "Keys deleted from this device.") }

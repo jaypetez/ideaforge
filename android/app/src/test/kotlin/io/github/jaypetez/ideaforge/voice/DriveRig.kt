@@ -83,6 +83,11 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
     var recognizerBuilt = false
     val recognizer: Recognizer by lazy { recognizerBuilt = true; Recognizer(factory, main) }
     val speaker = FakeSpeaker()
+    /** SpeechRecognizer.isRecognitionAvailable, as the device answers it. */
+    var recognitionAvailable = true
+    /** The Whisper fallback the graph would build (null: no consent or no stt key). */
+    var whisper: WhisperListener? = null
+    var whisperAsked = 0
     val service = FakeService()
     val clock = Clock { 1_760_000_000_000 }
     val id = "s_drive_00000001"
@@ -96,6 +101,8 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
         recognizerSource = { recognizer },
         speaker = { speaker },
         service = service,
+        recognitionAvailable = { recognitionAvailable },
+        whisper = { whisperAsked++; whisper },
     )
 
     val seeded: Session = seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now()))

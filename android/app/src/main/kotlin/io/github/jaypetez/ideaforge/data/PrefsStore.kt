@@ -34,6 +34,12 @@ data class Prefs(
      * app in a theme it does not know.
      */
     val theme: String = THEME_SYSTEM,
+    /**
+     * Consent to send recorded audio to the transcription vendor, for the Whisper fallback
+     * that runs only when the native recogniser is unavailable (#93). Android-only: the web's
+     * record path is the user's explicit choice of dictation engine. Cleared by Forget.
+     */
+    val hostedTranscriptionAllowed: Boolean = false,
 ) {
     /** The trigger the driving loop listens for (src/core/driving.js DEFAULTS.trigger). */
     val effectiveTrigger: String get() = trigger.ifBlank { DEFAULT_TRIGGER }
@@ -79,6 +85,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         val speechVoice = stringPreferencesKey("speechVoice")
         val speechRate = doublePreferencesKey("speechRate")
         val hostedSpeechAllowed = booleanPreferencesKey("hostedSpeechAllowed")
+        val hostedTranscriptionAllowed = booleanPreferencesKey("hostedTranscriptionAllowed")
         val theme = stringPreferencesKey("theme")
     }
 
@@ -96,6 +103,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         speechVoice = p[Keys.speechVoice] ?: "",
         speechRate = p[Keys.speechRate] ?: 1.0,
         hostedSpeechAllowed = p[Keys.hostedSpeechAllowed] == true,
+        hostedTranscriptionAllowed = p[Keys.hostedTranscriptionAllowed] == true,
         theme = p[Keys.theme] ?: Prefs.THEME_SYSTEM,
     ).validated()
 
@@ -113,6 +121,7 @@ class PrefsStore(private val store: DataStore<Preferences>) {
             p[Keys.speechVoice] = next.speechVoice
             p[Keys.speechRate] = next.speechRate
             p[Keys.hostedSpeechAllowed] = next.hostedSpeechAllowed
+            p[Keys.hostedTranscriptionAllowed] = next.hostedTranscriptionAllowed
             p[Keys.theme] = next.theme
         }
         true
