@@ -4,7 +4,7 @@
 // object the runtime hands back, once, after the turn settles. Saving on every rev change
 // is six writes per question for no benefit.
 
-import { SESSIONS, get, put, del, all } from './db.js';
+import { SESSIONS, get, put, del, all, keys } from './db.js';
 import { migrate } from '../core/session.js';
 import { mergeImported } from '../core/backup.js';
 
@@ -36,10 +36,13 @@ export async function listSessions() {
  * The decision is mergeImported's (src/core/backup.js, pure and unit-tested): exact
  * duplicates are skipped, and a conflicting id is retained as a named copy so both versions
  * survive and the user can decide which one to keep. This only does the writing.
+ *
+ * listSessions skips rows a newer build wrote, so every stored key is passed as well: an
+ * import that collides with an unreadable row must become a copy, not overwrite it.
  */
 export async function importSessions(sessions, { now = Date.now() } = {}) {
-  const local = await listSessions();
-  const { writes, summary } = mergeImported(local, sessions, { newId: newSessionId, now });
+  const [local, reservedIds] = await Promise.all([listSessions(), keys(SESSIONS)]);
+  const { writes, summary } = mergeImported(local, sessions, { newId: newSessionId, now, reservedIds });
   for (const session of writes) await saveSession(session);
   return summary;
 }

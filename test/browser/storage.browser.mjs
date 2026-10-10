@@ -6,7 +6,7 @@ import {
   saveCredentials, loadCredentials, clearCredentials, maskKey, withTts,
 } from '../../src/store/secrets.js';
 import {
-  importSessions, saveSession, loadSession, listSessions, newSessionId,
+  importSessions, saveSession, loadSession, listSessions, newSessionId, deleteSession,
 } from '../../src/store/sessions.js';
 import { createSession, renameSession } from '../../src/core/session.js';
 import { seedTurn, submitAnswer, runTurn } from '../../src/runtime/turn.js';
@@ -14,7 +14,7 @@ import { runSynthesis } from '../../src/runtime/synthesize.js';
 import { buildExport } from '../../src/core/markdown.js';
 import { buildBackup, parseBackup } from '../../src/core/backup.js';
 import { loadPrefs, savePrefs } from '../../src/store/prefs.js';
-import { openDb } from '../../src/store/db.js';
+import { openDb, put, get, SESSIONS } from '../../src/store/db.js';
 
 const SECRET = 'gsk_this_value_must_never_appear_at_rest';
 const SPEECH_SECRET = 'tts_this_different_value_must_never_appear_at_rest';
@@ -165,6 +165,22 @@ export default async function run(check) {
     conflict.copied === 1 && afterConflict.length === 2);
   check('the copied collision is visibly named',
     afterConflict.some((row) => row.name === 'Imported variant (imported)'));
+
+  // A row a newer build wrote is invisible to listSessions, but its id is still taken.
+  const futureId = 's_future_row';
+  const futureRow = { schema: 999, id: futureId, name: 'Written by a newer IdeaForge', marker: 'keep-me' };
+  await put(SESSIONS, futureRow);
+  const futureImport = await importSessions([createSession({ id: futureId, now: 5 })], { now: Date.now() });
+  const futureAfter = await get(SESSIONS, futureId);
+  check('an import colliding with a newer-schema row leaves that row untouched',
+    !!futureAfter && futureAfter.schema === 999 && futureAfter.marker === 'keep-me',
+    JSON.stringify(futureAfter));
+  check('the import that collided with an unreadable row is kept as a copy',
+    futureImport.copied === 1 && futureImport.imported === 0, JSON.stringify(futureImport));
+  for (const row of await listSessions()) {
+    if (row.name === 'Untitled idea (imported)') await deleteSession(row.id);
+  }
+  await deleteSession(futureId);
 
   const syn = await runSynthesis(s, { provider, now: Date.now() });
   check('synthesis writes session.synthesis', syn.ok && !!syn.session.synthesis.text);

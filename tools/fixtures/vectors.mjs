@@ -588,13 +588,21 @@ async function driveLoopFamily() {
  * mergeImported with its id source made JSON: `ids` is handed out in order, one per copy.
  * Running out throws, so a port that mints an id for a duplicate fails rather than passes.
  */
-function mergeImported(existing, incoming, { ids = [], now } = {}) {
+function mergeImported(existing, incoming, { ids = [], now, reservedIds } = {}) {
   const queue = [...ids];
   const newId = () => {
     if (!queue.length) throw new Error('newId: no ids left');
     return queue.shift();
   };
-  return mergeImportedCore(existing, incoming, now === undefined ? { newId } : { newId, now });
+  const opts = { newId };
+  if (now !== undefined) opts.now = now;
+  if (reservedIds !== undefined) opts.reservedIds = reservedIds;
+  return mergeImportedCore(existing, incoming, opts);
+}
+
+/** What a phone writes after importing a file: parseBackup, then buildBackup of its sessions. */
+function roundTripBackup(source, { now = 0 } = {}) {
+  return buildBackup(parseBackup(source).sessions, { now });
 }
 
 async function backupFamily() {
@@ -644,6 +652,12 @@ async function backupFamily() {
     rec('mergeImported copy of a copy', mergeImported, [mid], [final, { ...final, name: 'Other' }], { ids: ['s_copy_1', 's_copy_2'], now: tick(8) }),
     rec('mergeImported nulls', mergeImported, null, null, { ids: [] }),
     rec('mergeImported default clock', mergeImported, [mid], [final], { ids: ['s_copy_1'] }),
+    rec('mergeImported collision with an unreadable row', mergeImported, [mid], [fresh, collideTitle, mid], { ids: ['s_copy_1'], now: tick(9), reservedIds: ['s_walkthrough', 's_fresh_import', 's_not_imported'] }),
+    rec('mergeImported reserved null', mergeImported, [], [fresh], { ids: [], reservedIds: null }),
+    rec('parseBackup infinite schema is rejected', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","schema":1e400},{"id":"s_neg","schema":-1e400}]}'),
+    rec('parseBackup infinite values', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","createdAt":1e400,"archivedAt":1e400,"meta":{"big":-1e999}}]}'),
+    rec('roundTripBackup infinite values print null', roundTripBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_inf","createdAt":1e400,"meta":{"big":-1e999}}]}', { now: 1e400 }),
+    rec('roundTripBackup index keys first', roundTripBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_idx","b":1,"10":"ten","5":"five","01":"not an index","4294967295":"not an index","4294967294":"index","meta":{"z":1,"2":"two"}}]}', { now: tick(3) }),
   ];
   return { source: 'src/core/backup.js', cases };
 }

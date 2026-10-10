@@ -144,3 +144,14 @@ test('new ids import as they are, and a repeat within one import is a duplicate 
   assert.deepEqual(mergeImported(null, null, { newId: idsFrom() }),
     { writes: [], summary: { imported: 0, copied: 0, duplicates: 0 } });
 });
+
+test('a collision with a stored row this build cannot read becomes a copy, never a write to that id', () => {
+  // listSessions skips newer-schema rows, so the store passes every stored id as reserved.
+  const incoming = renameSession(createSession({ id: 's_future', now: 1 }), 'Imported', 2);
+  const same = createSession({ id: 's_same', now: 1 });
+  const { writes, summary } = mergeImported([same], [incoming, same], {
+    newId: idsFrom('s_new'), now: 9, reservedIds: ['s_future', 's_same', 's_unrelated'],
+  });
+  assert.deepEqual(summary, { imported: 0, copied: 1, duplicates: 1 });
+  assert.deepEqual(writes.map((s) => [s.id, s.name]), [['s_new', 'Imported (imported)']]);
+});

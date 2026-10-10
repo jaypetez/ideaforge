@@ -19,6 +19,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.booleanOrNull
 
 // Portable, key-free backups for the local ideas library: a port of src/core/backup.js.
@@ -34,6 +35,29 @@ const val MAX_BACKUP_BYTES = 10 * 1024 * 1024
 const val MAX_BACKUP_SESSIONS = 500
 
 private const val IMPORTED_SUFFIX = " (imported)"
+
+/**
+ * How deeply a backup may nest. The reader, the printer and the canonical comparison all
+ * recurse, so without a bound a hostile file would end in StackOverflowError rather than an
+ * error the user can read. A session nests about six deep; V8's JSON.parse has no such limit,
+ * so a file deeper than this is one the web app would read and this port refuses. The bound
+ * is small because Android worker threads have far less stack than a desktop JVM's main one.
+ */
+const val MAX_JSON_DEPTH = 256
+
+/** Thrown by the printer and the canonical comparison for input deeper than [MAX_JSON_DEPTH]. */
+class JsonTooDeepException : IllegalArgumentException("The backup is nested too deeply.")
+
+/** A canonical array index ("0" to "4294967294"): JS objects list these keys first, ascending. */
+private fun isArrayIndex(k: String): Boolean =
+    k.isNotEmpty() && k.length <= 10 && k.all { it in '0'..'9' } && (k == "0" || k[0] != '0') &&
+        k.toLong() < 4294967295L
+
+/** The order a JS object enumerates these keys in: array indices ascending, then insertion order. */
+private fun jsKeyOrder(keys: Collection<String>): List<String> {
+    val (indices, names) = keys.partition(::isArrayIndex)
+    return if (indices.isEmpty()) names else indices.sortedBy { it.toLong() } + names
+}
 
 /** UTF-8 length, counting a lone surrogate as the three bytes the JS counts it as. */
 private fun utf8Bytes(value: String): Long {
@@ -67,37 +91,58 @@ private fun primitiveText(e: JsonElement): String = when {
 }
 
 /** Sorted-key compact JSON: the identity two sessions share when only key order differs. */
-private fun canonical(value: JsonElement): String = when (value) {
-    is JsonArray -> value.joinToString(",", "[", "]") { canonical(it) }
-    // JS's default sort compares UTF-16 code units, which is what String.compareTo does.
-    is JsonObject -> value.keys.sorted().joinToString(",", "{", "}") { "${jsonQuote(it)}:${canonical(value.getValue(it))}" }
-    else -> primitiveText(value)
+private fun canonical(value: JsonElement, out: StringBuilder, depth: Int = 0) {
+    when (value) {
+        is JsonArray -> {
+            if (depth >= MAX_JSON_DEPTH) throw JsonTooDeepException()
+            out.append('[')
+            value.forEachIndexed { i, item ->
+                if (i > 0) out.append(',')
+                canonical(item, out, depth + 1)
+            }
+            out.append(']')
+        }
+        // JS's default sort compares UTF-16 code units, which is what String.compareTo does.
+        is JsonObject -> {
+            if (depth >= MAX_JSON_DEPTH) throw JsonTooDeepException()
+            out.append('{')
+            value.keys.sorted().forEachIndexed { i, key ->
+                if (i > 0) out.append(',')
+                out.append(jsonQuote(key)).append(':')
+                canonical(value.getValue(key), out, depth + 1)
+            }
+            out.append('}')
+        }
+        else -> out.append(primitiveText(value))
+    }
 }
 
-fun sessionsEqual(a: JsonElement?, b: JsonElement?): Boolean =
-    canonical(a ?: JsonNull) == canonical(b ?: JsonNull)
+private fun canonical(value: JsonElement?): String = StringBuilder().also { canonical(value ?: JsonNull, it) }.toString()
+
+fun sessionsEqual(a: JsonElement?, b: JsonElement?): Boolean = canonical(a) == canonical(b)
 
 /** JSON.stringify(value, null, 2). */
-private fun pretty(value: JsonElement, indent: String, out: StringBuilder) {
+private fun pretty(value: JsonElement, indent: String, out: StringBuilder, depth: Int = 0) {
     val inner = "$indent  "
+    if ((value is JsonArray || value is JsonObject) && depth >= MAX_JSON_DEPTH) throw JsonTooDeepException()
     when (value) {
         is JsonArray -> if (value.isEmpty()) out.append("[]") else {
             out.append("[\n")
             value.forEachIndexed { i, item ->
                 if (i > 0) out.append(",\n")
                 out.append(inner)
-                pretty(item, inner, out)
+                pretty(item, inner, out, depth + 1)
             }
             out.append('\n').append(indent).append(']')
         }
         is JsonObject -> if (value.isEmpty()) out.append("{}") else {
             out.append("{\n")
             var first = true
-            for ((key, item) in value) {
+            for (key in jsKeyOrder(value.keys)) {
                 if (!first) out.append(",\n")
                 first = false
                 out.append(inner).append(jsonQuote(key)).append(": ")
-                pretty(item, inner, out)
+                pretty(value.getValue(key), inner, out, depth + 1)
             }
             out.append('\n').append(indent).append('}')
         }
@@ -192,19 +237,24 @@ fun parseBackup(source: String): JsonObject = parseBackup(str(source))
 
 /**
  * Decide how imported sessions join the local library, without touching storage: a port of
- * mergeImported. An unknown id is imported as is; an exact duplicate (canonical comparison)
- * is skipped; a conflicting id is NEVER overwritten but kept as a copy under a fresh id,
- * named "<title> (imported)". `newId` is called once per copy and nowhere else.
+ * mergeImported. `existing` is the readable library; `reservedIds` is every stored id,
+ * including rows a newer schema wrote that migrate rejects. An id in neither is imported as
+ * is; an exact duplicate of a readable row (canonical comparison) is skipped; any other
+ * collision is kept as a copy under a fresh id named "<title> (imported)". `newId` is called
+ * once per copy and nowhere else.
  *
  * Returns `{writes, summary: {imported, copied, duplicates}}`; `writes` is every session to
- * save, in order, and none of them replaces a different local row.
+ * save, in order. No write replaces a different stored row only if `reservedIds` lists every
+ * stored id and `newId` mints ids the store does not hold; this cannot check either.
  */
 fun mergeImported(
     existing: JsonElement?,
     incoming: JsonElement?,
     newId: () -> JsonElement,
     now: JsonElement = num(0),
+    reservedIds: JsonElement? = null,
 ): JsonObject {
+    val reserved: Set<JsonElement?> = (reservedIds as? JsonArray)?.toSet() ?: emptySet()
     val local = HashMap<JsonElement?, JsonElement>()
     for (session in existing as? JsonArray ?: emptyList()) local[session["id"]] = session
     val writes = mutableListOf<JsonElement>()
@@ -215,13 +265,14 @@ fun mergeImported(
     for (element in incoming as? JsonArray ?: emptyList()) {
         val session = element as? JsonObject ?: throw IllegalArgumentException("an imported session must be an object")
         val current = local[session["id"]]
-        if (current == null) {
+        if (current == null && session["id"] !in reserved) {
             writes += session
             local[session["id"]] = session
             imported++
             continue
         }
-        if (sessionsEqual(current, session)) {
+        // An unreadable row cannot be compared, so a collision with one is always a copy.
+        if (current != null && sessionsEqual(current, session)) {
             duplicates++
             continue
         }
@@ -246,10 +297,16 @@ fun mergeImported(
  * keeps its first position and its last value, and array-index keys come first in ascending
  * order, as they do in a JS object. Numbers become JS doubles (1.0 is 1, -0 is 0).
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 private class JsJson(private val s: String) {
     class SyntaxError : Exception()
 
     private var i = 0
+    private var depth = 0
+
+    private fun enter() {
+        if (++depth > MAX_JSON_DEPTH) fail()
+    }
 
     fun parseDocument(): JsonElement {
         val v = value()
@@ -285,11 +342,13 @@ private class JsJson(private val s: String) {
     }
 
     private fun objectValue(): JsonElement {
+        enter()
         i++
         val map = LinkedHashMap<String, JsonElement>()
         space()
         if (i < s.length && s[i] == '}') {
             i++
+            depth--
             return JsonObject(map)
         }
         while (true) {
@@ -308,24 +367,20 @@ private class JsJson(private val s: String) {
                 else -> fail()
             }
         }
-        val (indices, names) = map.keys.partition(::isArrayIndex)
-        if (indices.isEmpty()) return JsonObject(map)
+        depth--
         val ordered = LinkedHashMap<String, JsonElement>()
-        for (k in indices.sortedBy { it.toLong() }) ordered[k] = map.getValue(k)
-        for (k in names) ordered[k] = map.getValue(k)
+        for (k in jsKeyOrder(map.keys)) ordered[k] = map.getValue(k)
         return JsonObject(ordered)
     }
 
-    private fun isArrayIndex(k: String): Boolean =
-        k.isNotEmpty() && k.length <= 10 && k.all { it in '0'..'9' } && (k == "0" || k[0] != '0') &&
-            k.toLong() < 4294967295L
-
     private fun arrayValue(): JsonElement {
+        enter()
         i++
         val items = mutableListOf<JsonElement>()
         space()
         if (i < s.length && s[i] == ']') {
             i++
+            depth--
             return JsonArray(items)
         }
         while (true) {
@@ -338,6 +393,7 @@ private class JsJson(private val s: String) {
                 else -> fail()
             }
         }
+        depth--
         return JsonArray(items)
     }
 
@@ -394,6 +450,9 @@ private class JsJson(private val s: String) {
             if (i >= s.length || s[i] !in '0'..'9') fail()
             while (i < s.length && s[i] in '0'..'9') i++
         }
-        return jsNumber(s.substring(start, i).toDouble())
+        val d = s.substring(start, i).toDouble()
+        // JSON.parse keeps an overflowing literal as Infinity (so migrate rejects a schema of
+        // 1e400); jsNumber would make it null. Printing still writes null, as JSON.stringify does.
+        return if (d.isInfinite()) JsonUnquotedLiteral(if (d > 0) "Infinity" else "-Infinity") else jsNumber(d)
     }
 }

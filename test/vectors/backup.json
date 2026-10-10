@@ -5450,6 +5450,612 @@
           }
         }
       }
+    },
+    {
+      "name": "mergeImported collision with an unreadable row",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        [
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          },
+          {
+            "$ref": "s_titled@0#2ab6c5d168"
+          },
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1"
+          ],
+          "now": 1760000009000,
+          "reservedIds": [
+            "s_walkthrough",
+            "s_fresh_import",
+            "s_not_imported"
+          ]
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 1,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000009000,
+              "status": "interviewing",
+              "name": "Untitled idea (imported)",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_titled",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 1,
+            "copied": 1,
+            "duplicates": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported reserved null",
+      "fn": "mergeImported",
+      "args": [
+        [],
+        [
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          }
+        ],
+        {
+          "ids": [],
+          "reservedIds": null
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_fresh_import",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 1,
+            "copied": 0,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "parseBackup infinite schema is rejected",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"schema\":1e400},{\"id\":\"s_neg\",\"schema\":-1e400}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_neg",
+              "rev": 0,
+              "createdAt": 0,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 1
+        }
+      }
+    },
+    {
+      "name": "parseBackup infinite values",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"createdAt\":1e400,\"archivedAt\":1e400,\"meta\":{\"big\":-1e999}}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_inf",
+              "rev": 0,
+              "createdAt": null,
+              "updatedAt": null,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop",
+                "big": null
+              }
+            }
+          ],
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "roundTripBackup infinite values print null",
+      "fn": "roundTripBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"createdAt\":1e400,\"meta\":{\"big\":-1e999}}]}",
+        {
+          "now": null
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": null,\n  \"sessions\": [\n    {\n      \"schema\": 2,\n      \"id\": \"s_inf\",\n      \"rev\": 0,\n      \"createdAt\": null,\n      \"updatedAt\": null,\n      \"status\": \"interviewing\",\n      \"name\": \"\",\n      \"title\": \"\",\n      \"tags\": [],\n      \"archivedAt\": 0,\n      \"opening\": \"\",\n      \"turns\": [],\n      \"coverage\": {\n        \"outcome\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"substance\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"bar\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"constraints\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"audience\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"voice\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"references\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        }\n      },\n      \"facts\": [],\n      \"moveHistory\": [],\n      \"openQuestions\": [],\n      \"synthesis\": {\n        \"text\": \"\",\n        \"tier\": \"\",\n        \"at\": 0,\n        \"stale\": false,\n        \"assumptions\": []\n      },\n      \"draftAnswer\": \"\",\n      \"pending\": null,\n      \"zeroGainStreak\": 0,\n      \"wrapOffered\": false,\n      \"meta\": {\n        \"device\": \"desktop\",\n        \"big\": null\n      }\n    }\n  ]\n}\n"
+      }
+    },
+    {
+      "name": "roundTripBackup index keys first",
+      "fn": "roundTripBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_idx\",\"b\":1,\"10\":\"ten\",\"5\":\"five\",\"01\":\"not an index\",\"4294967295\":\"not an index\",\"4294967294\":\"index\",\"meta\":{\"z\":1,\"2\":\"two\"}}]}",
+        {
+          "now": 1760000003000
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": 1760000003000,\n  \"sessions\": [\n    {\n      \"5\": \"five\",\n      \"10\": \"ten\",\n      \"4294967294\": \"index\",\n      \"schema\": 2,\n      \"id\": \"s_idx\",\n      \"rev\": 0,\n      \"createdAt\": 0,\n      \"updatedAt\": 0,\n      \"status\": \"interviewing\",\n      \"name\": \"\",\n      \"title\": \"\",\n      \"tags\": [],\n      \"archivedAt\": 0,\n      \"opening\": \"\",\n      \"turns\": [],\n      \"coverage\": {\n        \"outcome\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"substance\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"bar\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"constraints\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"audience\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"voice\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"references\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        }\n      },\n      \"facts\": [],\n      \"moveHistory\": [],\n      \"openQuestions\": [],\n      \"synthesis\": {\n        \"text\": \"\",\n        \"tier\": \"\",\n        \"at\": 0,\n        \"stale\": false,\n        \"assumptions\": []\n      },\n      \"draftAnswer\": \"\",\n      \"pending\": null,\n      \"zeroGainStreak\": 0,\n      \"wrapOffered\": false,\n      \"meta\": {\n        \"2\": \"two\",\n        \"device\": \"desktop\",\n        \"z\": 1\n      },\n      \"b\": 1,\n      \"01\": \"not an index\",\n      \"4294967295\": \"not an index\"\n    }\n  ]\n}\n"
+      }
     }
   ]
 }

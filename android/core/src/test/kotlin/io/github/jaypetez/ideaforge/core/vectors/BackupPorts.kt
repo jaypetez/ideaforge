@@ -15,21 +15,38 @@ import io.github.jaypetez.ideaforge.core.parseBackup
 import io.github.jaypetez.ideaforge.core.sessionsEqual
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 private fun Case.arg(i: Int): JsonElement? = args.getOrNull(i)
+
+/**
+ * The recorder's JSON round trip: JSON.stringify writes a non-finite number as null. The port
+ * keeps Infinity as a number (migrate must still see it), so normalise before comparing.
+ */
+private fun plain(e: JsonElement): JsonElement = when (e) {
+    is JsonObject -> JsonObject(e.mapValues { plain(it.value) })
+    is JsonArray -> JsonArray(e.map(::plain))
+    is JsonPrimitive -> if (e !is JsonNull && !e.isString && e.content.let { it == "Infinity" || it == "-Infinity" }) JsonNull else e
+}
+
+private fun Case.parseOptions(i: Int): Pair<Double, Double> {
+    val o = arg(i)
+    return toNumber(o.opt("maxBytes", num(MAX_BACKUP_BYTES))) to toNumber(o.opt("maxSessions", num(MAX_BACKUP_SESSIONS)))
+}
 
 val BACKUP_PORTS: Map<String, Port> = mapOf(
     "sessionsEqual" to { c -> JsonPrimitive(sessionsEqual(c.arg(0), c.arg(1))) },
     "backupFilename" to { c -> str(backupFilename(c.arg(0))) },
     "buildBackup" to { c -> str(buildBackup(c.arg(0), c.arg(1).opt("now", num(0)))) },
     "parseBackup" to { c ->
-        val o = c.arg(1)
-        parseBackup(
-            c.arg(0),
-            maxBytes = toNumber(o.opt("maxBytes", num(MAX_BACKUP_BYTES))),
-            maxSessions = toNumber(o.opt("maxSessions", num(MAX_BACKUP_SESSIONS))),
-        )
+        val (maxBytes, maxSessions) = c.parseOptions(1)
+        plain(parseBackup(c.arg(0), maxBytes = maxBytes, maxSessions = maxSessions))
+    },
+    // A string result, so the exact bytes (key order included) are compared, not a JSON tree.
+    "roundTripBackup" to { c ->
+        str(buildBackup(parseBackup(c.arg(0))["sessions"], c.arg(1).opt("now", num(0))))
     },
     // The recorder's wrapper hands out `ids` in order, one per copy, and throws when they run
     // out, so a port that mints an id for a duplicate or a fresh import fails here.
@@ -38,7 +55,7 @@ val BACKUP_PORTS: Map<String, Port> = mapOf(
         val queue = ArrayDeque((o.opt("ids", JsonArray(emptyList())) as JsonArray).toList())
         mergeImported(c.arg(0), c.arg(1), newId = {
             queue.removeFirstOrNull() ?: throw IllegalStateException("newId: no ids left")
-        }, now = o.opt("now", num(0)))
+        }, now = o.opt("now", num(0)), reservedIds = o.opt("reservedIds", JsonNull))
     },
 )
 
