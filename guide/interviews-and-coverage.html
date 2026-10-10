@@ -62,8 +62,9 @@
                 srcset="../docs/screenshots/04-coverage.dark.png">
         <img class="hero-shot"
              src="../docs/screenshots/04-coverage.light.png"
-             alt="An expanded IdeaForge coverage panel showing seven dimensions, their
-                  thin, partial, or covered levels, remaining gaps, and not relevant controls.">
+             alt="An IdeaForge interview with its seven-segment coverage meter at 64% and the
+                  coverage list expanded, showing seven dimensions with their thin, partial, or
+                  covered levels, remaining gaps, and not relevant controls.">
       </picture>
 
       <div class="callout">
@@ -72,9 +73,23 @@
         are still in scope. A low percentage means more specifics are needed, not that the
         idea is bad.
       </div>
+      <h3 id="meter">Reading the meter</h3>
+      <p>
+        The meter under the header has one segment per dimension, in the order of the table
+        below. An empty outlined segment is thin, a half-filled one is partial, a filled one
+        is covered, and a hatched one was marked not relevant. The number beside it is the
+        coverage percentage, and it is what a screen reader announces, with how many
+        dimensions are covered. Hover a segment to see which dimension it is.
+      </p>
+      <p>
+        In a window 1024 pixels wide or wider, the coverage list sits beside the
+        conversation as a panel that stays open. In a narrower window it is the
+        <strong>Coverage</strong> fold under the question; open it to see each dimension's
+        level and remaining gap. On a phone, the meter is a compact bar in the top app bar.
+      </p>
       <p>
         The coverage panel is part of the manual interview. The voice stage hides it
-        along with the answer form, but it uses the same engine and ratchet. Choose
+        and the meter along with the answer form, but it uses the same engine and ratchet. Choose
         <strong>Exit</strong> to inspect coverage or mark a dimension not relevant without
         ending the interview.
       </p>
