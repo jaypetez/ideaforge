@@ -5,6 +5,7 @@ import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { createSilenceGate, rmsOf } from '../../src/voice/vad.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { loadPrefs } from '../../src/store/prefs.js';
+import { createVoiceStage } from '../../src/ui/voice-stage.js';
 import {
   clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withTts,
 } from '../../src/store/secrets.js';
@@ -617,6 +618,70 @@ async function checkBarsStill(app, check, label) {
   }
 }
 
+/**
+ * A disabled Resume (paused with words still finishing) must not look tappable. Hover cannot
+ * be produced from page script, so each shipped :hover rule in app.css is copied, directly
+ * after itself, with :hover swapped for an attribute the probe sets: the same declarations,
+ * the same cascade position.
+ */
+async function checkDisabledResume(app, check) {
+  const original = app.$('voice-stage');
+  const sheet = [...app.doc.styleSheets].find((item) =>
+    item.href && new URL(item.href).pathname.endsWith('/src/ui/app.css'));
+  const inserted = [];
+  for (let index = sheet.cssRules.length - 1; index >= 0; index--) {
+    const rule = sheet.cssRules[index];
+    if (rule.type !== app.win.CSSRule.STYLE_RULE || !rule.selectorText.includes('.voice-actions')
+      || !rule.selectorText.includes(':hover')) continue;
+    sheet.insertRule(`${rule.selectorText.replaceAll(':hover', '[data-probe-hover]')} { ${rule.style.cssText} }`,
+      index + 1);
+    inserted.push(rule.selectorText);
+  }
+  const holders = [];
+  const look = async (pending, hover = false) => {
+    const holder = app.doc.createElement('div');
+    const stage = original.cloneNode(true);
+    stage.hidden = false;
+    holder.append(stage);
+    app.doc.body.append(holder);
+    holders.push(holder);
+    const view = createVoiceStage(holder);
+    view.render({ phase: 'paused', pending });
+    const button = stage.querySelector('#b-voice-pause');
+    if (hover) {
+      button.setAttribute('data-probe-hover', '');
+      // Let the state-layer transition (a duration token) settle before reading it.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    return {
+      disabled: button.disabled, label: button.textContent,
+      fill: app.win.getComputedStyle(button, '::after').backgroundColor,
+      icon: app.win.getComputedStyle(button, '::before').backgroundColor,
+    };
+  };
+  try {
+    const enabled = await look(false);
+    const enabledHover = await look(false, true);
+    const disabled = await look(true);
+    const disabledHover = await look(true, true);
+    const all = JSON.stringify({ enabled, enabledHover, disabled, disabledHover, inserted });
+    check('the hover simulation reaches the shipped Pause/Exit hover rules',
+      inserted.length > 0 && enabledHover.fill !== enabled.fill, all);
+    check('a disabled Resume is visibly different from an enabled one, in fill and icon',
+      disabled.disabled && !enabled.disabled && disabled.label === 'Resume'
+        && disabled.fill !== enabled.fill && disabled.icon !== enabled.icon, all);
+    check('hovering a disabled Resume does not tint it',
+      disabledHover.fill === disabled.fill && disabledHover.icon === disabled.icon, all);
+  } finally {
+    holders.forEach((holder) => holder.remove());
+    for (const selector of inserted) {
+      const copy = selector.replaceAll(':hover', '[data-probe-hover]');
+      const index = [...sheet.cssRules].findIndex((rule) => rule.selectorText === copy);
+      if (index >= 0) sheet.deleteRule(index);
+    }
+  }
+}
+
 function activateMediaRules(app, pattern, mediaText = 'all') {
   const sheet = [...app.doc.styleSheets].find((item) =>
     item.href && new URL(item.href).pathname.endsWith('/src/ui/app.css'));
@@ -703,6 +768,8 @@ async function checkMeterAndLayout(app, check) {
   // Pause and Exit are icon-over-label circles now; the label must still be the name, and
   // the coarse-pointer rule (activated in this frame only, as reduced motion is above) must
   // leave both at least 48px.
+  const circle = (id) => Number.parseFloat(app.win.getComputedStyle(app.$(id), '::after').width);
+  const fineCircles = ['b-voice-pause', 'b-voice-exit'].map(circle);
   const coarse = coarsePointerRules(app);
   try {
     check('the app ships an activatable coarse-pointer rule', coarse.count > 0);
@@ -723,12 +790,19 @@ async function checkMeterAndLayout(app, check) {
     check('Pause and Exit each draw an icon from the local mask set',
       controls.every((control) => control.icon) && app.$('b-voice-pause').dataset.icon === 'pause'
         && app.$('b-voice-exit').dataset.icon === 'close');
+    // The coarse rule must be what is being measured: its circles are larger than the
+    // fine-pointer ones, so a pass here cannot come from the fine layout alone.
+    const coarseCircles = ['b-voice-pause', 'b-voice-exit'].map(circle);
+    check('the coarse-pointer rule enlarges the Pause and Exit circles',
+      coarseCircles.every((size, index) => size >= 48 && size > fineCircles[index]),
+      `fine=${fineCircles.join('/')} coarse=${coarseCircles.join('/')}`);
     check('Pause and Exit are at least 48 by 48 CSS pixels on a coarse pointer',
       controls.every(({ rect }) => rect.width >= 48 && rect.height >= 48),
       controls.map(({ id, rect }) => `${id} ${rect.width}x${rect.height}`).join(', '));
   } finally {
     coarse.restore();
   }
+  await checkDisabledResume(app, check);
   app.$('b-voice-pause').focus({ focusVisible: true });
   const focus = app.win.getComputedStyle(app.$('b-voice-pause'));
   check('voice controls have a visible keyboard focus indicator',

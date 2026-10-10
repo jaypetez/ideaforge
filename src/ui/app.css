@@ -568,15 +568,21 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   --voice-ink: var(--primary);
 }
 .voice-stage .voice-actions button:hover { background: transparent; }
-.voice-stage .voice-actions button:hover::after {
+.voice-stage .voice-actions button:not(:disabled):hover::after {
   background: color-mix(in srgb, var(--voice-ink) var(--state-hover), var(--voice-fill));
 }
-.voice-stage .voice-actions button:active::after {
+.voice-stage .voice-actions button:not(:disabled):active::after {
   background: color-mix(in srgb, var(--voice-ink) var(--state-pressed), var(--voice-fill));
 }
-.voice-stage .voice-actions button:disabled {
+/* :is() takes the id's weight, so a disabled Resume loses the primary tint above it rather
+   than looking tappable while its captured words finish. */
+.voice-stage .voice-actions :is(button, #b-voice-pause):disabled {
   --voice-fill: var(--surface-container); --voice-ink: var(--on-surface-variant);
   background: transparent; color: var(--on-surface-variant);
+}
+/* A larger circle on touch screens: the 56px of a Material FAB. */
+@media (pointer: coarse) {
+  .voice-stage .voice-actions button { --voice-button: 56px; }
 }
 .voice-backend { color: var(--ink-dim); font-size: var(--t-xs); }
 .voice-stage > :is(.voice-question, .voice-transcript, .voice-detail, .voice-backend):empty {
