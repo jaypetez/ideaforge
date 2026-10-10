@@ -13,11 +13,9 @@ import io.github.jaypetez.ideaforge.core.utf8Length
 private fun pending(issue: String, vararg fns: String) = fns.associateWith { issue }
 
 val CONSUMERS: List<Consumer> = listOf(
-    Consumer("session", ported = emptyMap(), pending = pending(
-        "#72", "createSession", "applyCoverage", "addFacts", "skipQuestion", "answerQuestion", "askQuestion",
-        "isLowConfidence", "resumeDimension", "copySession", "reopen", "normalizeSessionName",
-        "normalizeTags", "sessionDisplayTitle", "migrate",
-    )),
+    Consumer("constants", ported = mapOf("constant" to CONSTANT_PORT), pending = emptyMap(),
+        pendingCases = CONSTANTS_PENDING),
+    Consumer("session", ported = SESSION_PORTS, pending = emptyMap()),
     Consumer("engine", ported = emptyMap(), pending = pending(
         "#73", "selectNextDimension", "lastAnswerClass", "isReadyToWrap", "shouldOfferWrap",
         "pickBankQuestion", "legalMoves", "wrapAdvisory", "classifyAnswer", "contentWords",

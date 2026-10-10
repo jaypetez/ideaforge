@@ -44,6 +44,14 @@ import { resolveTiers, presetModels, createProvider, PROVIDER_CHOICES } from '..
 import { parseModelList, OPENAI_COMPAT_PRESETS } from '../../src/providers/openaiCompat.js';
 import { ANTHROPIC_AUTH, ANTHROPIC_TIERS } from '../../src/providers/anthropic.js';
 import { ANSWERS, TURNS, SYNTHESIS } from './walkthrough.mjs';
+import * as dimensionsModule from '../../src/core/dimensions.js';
+import * as sessionModule from '../../src/core/session.js';
+import * as engineModule from '../../src/core/engine.js';
+import * as digestModule from '../../src/core/digest.js';
+import * as drivingModule from '../../src/core/driving.js';
+import * as backupModule from '../../src/core/backup.js';
+import * as synthesisModule from '../../src/core/synthesis.js';
+import * as turnModule from '../../src/runtime/turn.js';
 
 // ─────────────────────────────────────────────────────────────── recording
 
@@ -740,7 +748,35 @@ async function providersFamily() {
   return { source: 'src/providers/*.js', cases };
 }
 
+/**
+ * constants: every exported constant of the core, by module and name, so a port that
+ * transcribes the question bank, a ceiling or a command phrase wrongly fails on the exact
+ * entry. Sets are recorded as arrays in insertion order.
+ */
+function constantsFamily() {
+  const modules = {
+    'src/core/dimensions.js': dimensionsModule,
+    'src/core/session.js': sessionModule,
+    'src/core/engine.js': engineModule,
+    'src/core/digest.js': digestModule,
+    'src/core/driving.js': drivingModule,
+    'src/core/backup.js': backupModule,
+    'src/core/synthesis.js': synthesisModule,
+    'src/runtime/turn.js': turnModule,
+  };
+  const cases = [];
+  for (const [path, mod] of Object.entries(modules)) {
+    for (const [name, value] of Object.entries(mod).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      if (typeof value === 'function') continue;
+      const v = value instanceof Set ? [...value] : value;
+      cases.push({ name: `${path} ${name}`, fn: 'constant', args: [name], expect: { value: plain(v) } });
+    }
+  }
+  return { source: 'src/core/*.js, src/runtime/turn.js', cases };
+}
+
 export const FAMILIES = {
+  constants: constantsFamily,
   session: sessionFamily,
   engine: engineFamily,
   'turn-prompt': turnPromptFamily,

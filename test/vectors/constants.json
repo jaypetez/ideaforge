@@ -1,0 +1,518 @@
+{
+  "vectorsVersion": 1,
+  "family": "constants",
+  "source": "src/core/*.js, src/runtime/turn.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "src/core/dimensions.js DIMENSIONS",
+      "fn": "constant",
+      "args": [
+        "DIMENSIONS"
+      ],
+      "expect": {
+        "value": [
+          {
+            "id": "outcome",
+            "label": "What we’re making",
+            "weight": 1,
+            "section": "Task",
+            "covered": "I know the artifact type, its rough size and shape, and what state the world is in when it is done. Not \"a plan\" — \"a 2-page memo my CTO reads in 5 minutes and replies yes/no to.\"",
+            "bank": [
+              "What’s the actual thing you want back — an email, a script, a plan, a list? Be as concrete as you can.",
+              "Roughly how long should the output be — a sentence, a page, ten pages?",
+              "Where does the output go once you have it: pasted somewhere, sent to someone, used as a first draft?"
+            ]
+          },
+          {
+            "id": "substance",
+            "label": "What’s actually in it",
+            "weight": 1,
+            "section": "What it needs to cover",
+            "covered": "I have the domain specifics only this user has: the real numbers, names, mechanics, steps and edge cases. This is the dimension they would never think to type unprompted.",
+            "bank": [
+              "What specific facts, names, numbers or rules would the model have to know to get this right?",
+              "Is there a real case you have in mind? Walk through it.",
+              "What’s the awkward edge case a generic answer would get wrong?"
+            ]
+          },
+          {
+            "id": "bar",
+            "label": "What good looks like",
+            "weight": 0.9,
+            "section": "What good looks like",
+            "covered": "I know how the user will judge the output in the first ten seconds, and at least one specific failure that makes them throw it away.",
+            "bank": [
+              "It’s six weeks later and you’ve stopped using this. What went wrong?",
+              "What would make you reject the output on sight?",
+              "How will you actually judge whether it worked?"
+            ]
+          },
+          {
+            "id": "constraints",
+            "label": "Hard limits",
+            "weight": 0.85,
+            "section": "Constraints",
+            "covered": "I know the non-negotiables and the banned moves: length, format, stack, budget, deadline, things that must not appear, decisions already locked.",
+            "bank": [
+              "What must NOT appear in the output — anything banned, off-limits, or already decided?",
+              "Any hard limits on length, format, tools, platform or deadline?",
+              "What have you already ruled out, and why?"
+            ]
+          },
+          {
+            "id": "audience",
+            "label": "Who it’s for",
+            "weight": 0.8,
+            "section": "Context",
+            "covered": "I know who consumes it, what they already know, what they will do with it, and one thing that would annoy them. A reader, not a \"market\".",
+            "bank": [
+              "Who reads or uses this output — you, or someone else? If someone else, who specifically?",
+              "What do they already know, so the output doesn’t have to explain it?",
+              "What’s one thing that would annoy them or make them stop reading?"
+            ]
+          },
+          {
+            "id": "voice",
+            "label": "Tone & form",
+            "weight": 0.6,
+            "section": "Voice and form",
+            "covered": "I know the register and the structure, ideally via a sample fragment the user wrote or a quoted example of right and wrong.",
+            "bank": [
+              "What register should this be in — formal, casual, blunt, warm? Name something that sounds right.",
+              "Write the first line the way you’d want it to sound, even roughly.",
+              "How should it be structured — prose, bullets, headings, a table?"
+            ]
+          },
+          {
+            "id": "references",
+            "label": "Like / not like",
+            "weight": 0.5,
+            "section": "Reference points",
+            "covered": "At least one concrete analogue AND where the analogue breaks. \"Like Stripe’s docs, but not that chatty.\"",
+            "bank": [
+              "What existing thing is this most like?",
+              "Where does that resemblance break down — what should be different?",
+              "What’s an example of someone doing this badly that you want to avoid?"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "src/core/dimensions.js DIMENSION_IDS",
+      "fn": "constant",
+      "args": [
+        "DIMENSION_IDS"
+      ],
+      "expect": {
+        "value": [
+          "outcome",
+          "substance",
+          "bar",
+          "constraints",
+          "audience",
+          "voice",
+          "references"
+        ]
+      }
+    },
+    {
+      "name": "src/core/dimensions.js LEVELS",
+      "fn": "constant",
+      "args": [
+        "LEVELS"
+      ],
+      "expect": {
+        "value": [
+          "thin",
+          "partial",
+          "covered"
+        ]
+      }
+    },
+    {
+      "name": "src/core/dimensions.js LEVEL_RANK",
+      "fn": "constant",
+      "args": [
+        "LEVEL_RANK"
+      ],
+      "expect": {
+        "value": {
+          "thin": 0,
+          "partial": 1,
+          "covered": 2
+        }
+      }
+    },
+    {
+      "name": "src/core/dimensions.js MOVES",
+      "fn": "constant",
+      "args": [
+        "MOVES"
+      ],
+      "expect": {
+        "value": {
+          "concretize": "Ask them to walk through ONE real, specific instance end to end.",
+          "tradeoff": "Name two things they clearly both want, and make them choose. No straw men.",
+          "premortem": "It’s some weeks later and the thing failed. Ask them why. Use a concrete horizon.",
+          "scope_cut": "Force a brutal reduction: one screen, one paragraph, 200 words. What survives?",
+          "analogue": "What existing thing is this most like — AND where does the resemblance break?",
+          "challenge": "Quote them, offer a plausible counter-position, ask them to defend or revise.",
+          "anti_goal": "Ask what would make them reject the output on sight.",
+          "sample_output": "Ask them to write a fragment of the actual thing in the voice they want.",
+          "define_term": "They used a loaded word (\"clean\", \"simple\"). Quote it back; ask what it means here.",
+          "boundary": "Probe a specific edge case and ask what should happen there.",
+          "who_else": "Ask who else has a say, or who has to be able to live with this.",
+          "menu": "Give 3–4 concrete options, ask which is closest. A RESCUE move, not a default."
+        }
+      }
+    },
+    {
+      "name": "src/core/dimensions.js MOVE_IDS",
+      "fn": "constant",
+      "args": [
+        "MOVE_IDS"
+      ],
+      "expect": {
+        "value": [
+          "concretize",
+          "tradeoff",
+          "premortem",
+          "scope_cut",
+          "analogue",
+          "challenge",
+          "anti_goal",
+          "sample_output",
+          "define_term",
+          "boundary",
+          "who_else",
+          "menu"
+        ]
+      }
+    },
+    {
+      "name": "src/core/dimensions.js SEED_QUESTION",
+      "fn": "constant",
+      "args": [
+        "SEED_QUESTION"
+      ],
+      "expect": {
+        "value": "In a sentence or two — what’s the idea?"
+      }
+    },
+    {
+      "name": "src/core/dimensions.js STATUSES",
+      "fn": "constant",
+      "args": [
+        "STATUSES"
+      ],
+      "expect": {
+        "value": [
+          "probing",
+          "waived",
+          "deferred"
+        ]
+      }
+    },
+    {
+      "name": "src/core/session.js MAX_SESSION_NAME",
+      "fn": "constant",
+      "args": [
+        "MAX_SESSION_NAME"
+      ],
+      "expect": {
+        "value": 120
+      }
+    },
+    {
+      "name": "src/core/session.js MAX_TAGS",
+      "fn": "constant",
+      "args": [
+        "MAX_TAGS"
+      ],
+      "expect": {
+        "value": 12
+      }
+    },
+    {
+      "name": "src/core/session.js MAX_TAG_LENGTH",
+      "fn": "constant",
+      "args": [
+        "MAX_TAG_LENGTH"
+      ],
+      "expect": {
+        "value": 32
+      }
+    },
+    {
+      "name": "src/core/session.js SCHEMA",
+      "fn": "constant",
+      "args": [
+        "SCHEMA"
+      ],
+      "expect": {
+        "value": 2
+      }
+    },
+    {
+      "name": "src/core/engine.js HARD_TURN_CEILING",
+      "fn": "constant",
+      "args": [
+        "HARD_TURN_CEILING"
+      ],
+      "expect": {
+        "value": 25
+      }
+    },
+    {
+      "name": "src/core/engine.js READY_COVERED_TARGET",
+      "fn": "constant",
+      "args": [
+        "READY_COVERED_TARGET"
+      ],
+      "expect": {
+        "value": 5
+      }
+    },
+    {
+      "name": "src/core/engine.js SOFT_TURN_CEILING",
+      "fn": "constant",
+      "args": [
+        "SOFT_TURN_CEILING"
+      ],
+      "expect": {
+        "value": 18
+      }
+    },
+    {
+      "name": "src/core/engine.js TRIPWIRE_DIRECTIVE",
+      "fn": "constant",
+      "args": [
+        "TRIPWIRE_DIRECTIVE"
+      ],
+      "expect": {
+        "value": {
+          "generic": "Your previous question was generic MBA-speak. Ask something specific that only this person could answer.",
+          "compound": "Your previous question was compound. Ask ONE thing, in fewer than 20 words.",
+          "repeat": "Your previous question repeated one already asked. Ask about something genuinely new."
+        }
+      }
+    },
+    {
+      "name": "src/core/digest.js BUDGET_BYTES",
+      "fn": "constant",
+      "args": [
+        "BUDGET_BYTES"
+      ],
+      "expect": {
+        "value": 49152
+      }
+    },
+    {
+      "name": "src/core/digest.js FULL_VERBATIM_UNTIL_TURN",
+      "fn": "constant",
+      "args": [
+        "FULL_VERBATIM_UNTIL_TURN"
+      ],
+      "expect": {
+        "value": 8
+      }
+    },
+    {
+      "name": "src/core/digest.js MAX_ANSWER_CHARS",
+      "fn": "constant",
+      "args": [
+        "MAX_ANSWER_CHARS"
+      ],
+      "expect": {
+        "value": 1200
+      }
+    },
+    {
+      "name": "src/core/digest.js MAX_INPUT_BYTES",
+      "fn": "constant",
+      "args": [
+        "MAX_INPUT_BYTES"
+      ],
+      "expect": {
+        "value": 65536
+      }
+    },
+    {
+      "name": "src/core/digest.js WINDOW_STEPS",
+      "fn": "constant",
+      "args": [
+        "WINDOW_STEPS"
+      ],
+      "expect": {
+        "value": [
+          6,
+          3,
+          0
+        ]
+      }
+    },
+    {
+      "name": "src/core/driving.js COMMANDS",
+      "fn": "constant",
+      "args": [
+        "COMMANDS"
+      ],
+      "expect": {
+        "value": {
+          "repeat": [
+            "repeat",
+            "repeat that",
+            "repeat the question",
+            "say that again",
+            "say again",
+            "come again",
+            "what was that",
+            "can you repeat that",
+            "could you repeat that"
+          ],
+          "skip": [
+            "skip",
+            "skip it",
+            "skip this",
+            "skip that",
+            "skip this one",
+            "skip this question",
+            "next question",
+            "next one",
+            "pass",
+            "move on"
+          ],
+          "wrap": [
+            "wrap it up",
+            "wrap up",
+            "wrap this up",
+            "write it up",
+            "thats enough",
+            "that is enough",
+            "finish up",
+            "im done",
+            "i am done"
+          ],
+          "scratch": [
+            "scratch that",
+            "scratch",
+            "scratch that answer",
+            "strike that",
+            "ignore that",
+            "forget that",
+            "start over",
+            "let me try again",
+            "try again"
+          ],
+          "pause": [
+            "pause voice",
+            "pause"
+          ],
+          "exit": [
+            "exit voice"
+          ]
+        }
+      }
+    },
+    {
+      "name": "src/core/driving.js DRIVING",
+      "fn": "constant",
+      "args": [
+        "DRIVING"
+      ],
+      "expect": {
+        "value": {
+          "trigger": "over",
+          "settleMs": 600,
+          "maxMisses": 2
+        }
+      }
+    },
+    {
+      "name": "src/core/backup.js BACKUP_FORMAT",
+      "fn": "constant",
+      "args": [
+        "BACKUP_FORMAT"
+      ],
+      "expect": {
+        "value": "ideaforge-backup"
+      }
+    },
+    {
+      "name": "src/core/backup.js BACKUP_VERSION",
+      "fn": "constant",
+      "args": [
+        "BACKUP_VERSION"
+      ],
+      "expect": {
+        "value": 1
+      }
+    },
+    {
+      "name": "src/core/backup.js MAX_BACKUP_BYTES",
+      "fn": "constant",
+      "args": [
+        "MAX_BACKUP_BYTES"
+      ],
+      "expect": {
+        "value": 10485760
+      }
+    },
+    {
+      "name": "src/core/backup.js MAX_BACKUP_SESSIONS",
+      "fn": "constant",
+      "args": [
+        "MAX_BACKUP_SESSIONS"
+      ],
+      "expect": {
+        "value": 500
+      }
+    },
+    {
+      "name": "src/core/synthesis.js MAX_ASSUMPTIONS",
+      "fn": "constant",
+      "args": [
+        "MAX_ASSUMPTIONS"
+      ],
+      "expect": {
+        "value": 6
+      }
+    },
+    {
+      "name": "src/core/synthesis.js MAX_OPEN_QUESTIONS",
+      "fn": "constant",
+      "args": [
+        "MAX_OPEN_QUESTIONS"
+      ],
+      "expect": {
+        "value": 8
+      }
+    },
+    {
+      "name": "src/core/synthesis.js MAX_TITLE_WORDS",
+      "fn": "constant",
+      "args": [
+        "MAX_TITLE_WORDS"
+      ],
+      "expect": {
+        "value": 8
+      }
+    },
+    {
+      "name": "src/runtime/turn.js CAPPING_CLASSES",
+      "fn": "constant",
+      "args": [
+        "CAPPING_CLASSES"
+      ],
+      "expect": {
+        "value": [
+          "dodge",
+          "idk",
+          "refusal"
+        ]
+      }
+    }
+  ]
+}
