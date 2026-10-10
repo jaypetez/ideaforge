@@ -27,11 +27,13 @@ val CONSUMERS: List<Consumer> = listOf(
         pending = emptyMap(),
     ),
     Consumer("run-turn", ported = RUNTIME_PORTS, pending = emptyMap()),
-    Consumer("synthesis", ported = SYNTHESIS_PORTS + mapOf("buildExport" to BUILD_EXPORT_PORT), pending = emptyMap()),
-    Consumer("markdown", ported = MARKDOWN_PORTS, pending = emptyMap()),
-    Consumer("backup", ported = emptyMap(), pending = pending(
-        "#76", "sessionsEqual", "backupFilename", "buildBackup", "parseBackup",
+    Consumer("synthesis", ported = SYNTHESIS_PORTS, pending = pending("#75", "buildExport")),
+    Consumer("markdown", ported = emptyMap(), pending = pending(
+        "#75", "coveragePercent", "exportFilename", "buildExport", "libraryCard", "sessionLibraryStatus",
+        "sessionSearchText", "slug", "renderBlocks", "forSpeech", "speechChunks", "availableTags",
+        "filterSessions",
     )),
+    Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
     Consumer("speech", ported = emptyMap(), pending = pending(
         "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "normalizeTrigger",
         "triggerWarning", "spokenExamples",

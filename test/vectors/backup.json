@@ -3,6 +3,390 @@
   "family": "backup",
   "source": "src/core/backup.js",
   "fixtures": {
+    "s_fresh_import@0#3f72444758": {
+      "schema": 2,
+      "id": "s_fresh_import",
+      "rev": 0,
+      "createdAt": 1760000002000,
+      "updatedAt": 1760000002000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_titled@0#01d80b46c0": {
+      "schema": 2,
+      "id": "s_titled",
+      "rev": 0,
+      "createdAt": 1760000002000,
+      "updatedAt": 1760000004000,
+      "status": "interviewing",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_titled@0#2ab6c5d168": {
+      "schema": 2,
+      "id": "s_titled",
+      "rev": 0,
+      "createdAt": 1760000002000,
+      "updatedAt": 1760000002000,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_titled@0#93ced7fba1": {
+      "schema": 2,
+      "id": "s_titled",
+      "rev": 0,
+      "createdAt": 1760000002000,
+      "updatedAt": 1760000003000,
+      "status": "interviewing",
+      "name": "",
+      "title": "A title from the model",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
     "s_walkthrough@16#0875ee064d": {
       "schema": 2,
       "id": "s_walkthrough",
@@ -499,6 +883,329 @@
       "rev": 56,
       "id": "s_walkthrough",
       "schema": 2
+    },
+    "s_walkthrough@56#92e18efd70": {
+      "schema": 2,
+      "id": "s_walkthrough",
+      "rev": 56,
+      "createdAt": 1760000000000,
+      "updatedAt": 1760000999000,
+      "status": "done",
+      "name": "Other",
+      "title": "Conference name recall app",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "An app that helps me remember the names of people I meet at conferences.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "An app that helps me remember the names of people I meet at conferences.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000000000,
+          "answeredAt": 1760000010000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "substance",
+          "question": "At the last conference, how many names did you actually lose?",
+          "bridge": "Conferences, so a lot of names in a short window.",
+          "move": "concretize",
+          "chips": [
+            "maybe thirty names over three days",
+            "honestly I stopped counting",
+            "only a handful, but the ones that mattered",
+            "I never learned them in the first place"
+          ],
+          "questionSource": "model",
+          "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000015000,
+          "answeredAt": 1760000020000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "bar",
+          "question": "What would make you delete this in the first week?",
+          "bridge": "Thirty names, and the evening ones go first.",
+          "move": "anti_goal",
+          "chips": [
+            "if I had to type during a conversation",
+            "if it was just another contacts list",
+            "if it took more than five seconds",
+            "honestly, if I forgot it was there"
+          ],
+          "questionSource": "model",
+          "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000025000,
+          "answeredAt": 1760000030000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t4",
+          "n": 4,
+          "dimension": "constraints",
+          "question": "What are the hard limits on time and signal here?",
+          "bridge": "So nothing that puts a screen between you and the person.",
+          "move": "boundary",
+          "chips": [
+            "three seconds and one thumb",
+            "it has to work with no signal",
+            "anything under a minute is fine",
+            "no limit, I just need it to exist"
+          ],
+          "questionSource": "model",
+          "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000035000,
+          "answeredAt": 1760000040000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t5",
+          "n": 5,
+          "dimension": "audience",
+          "question": "Who else would use this, if anyone?",
+          "bridge": "Three seconds, one thumb, and no signal.",
+          "move": "who_else",
+          "chips": [
+            "honestly, just for me",
+            "the two others on my team",
+            "anyone who works a booth",
+            "nobody, it is a personal fix"
+          ],
+          "questionSource": "model",
+          "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000045000,
+          "answeredAt": 1760000050000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t6",
+          "n": 6,
+          "dimension": "voice",
+          "question": "Write the line you would want on screen when she walks up.",
+          "bridge": "A personal tool for three people on one circuit.",
+          "move": "sample_output",
+          "chips": [
+            "Sarah Chen, Vertex, API panel Tuesday",
+            "Sarah, Vertex. Kid plays clarinet.",
+            "just the name, nothing else",
+            "a photo, and I will do the rest"
+          ],
+          "questionSource": "model",
+          "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000055000,
+          "answeredAt": 1760000060000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t7",
+          "n": 7,
+          "dimension": "references",
+          "question": "What existing thing is this closest to?",
+          "bridge": "The clarinet does more work than the job title.",
+          "move": "analogue",
+          "chips": [
+            "like a business card with a memory",
+            "like LinkedIn, but only people I met",
+            "like the notes app, but faster",
+            "nothing really, that is the problem"
+          ],
+          "questionSource": "model",
+          "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000065000,
+          "answeredAt": 1760000070000,
+          "classification": "substantive"
+        },
+        {
+          "id": "t8",
+          "n": 8,
+          "dimension": "references",
+          "question": "Where does the business-card comparison stop being true?",
+          "bridge": "Not LinkedIn, then.",
+          "move": "define_term",
+          "chips": [
+            "a card cannot record my voice",
+            "I never look at cards again",
+            "cards do not know when I met you",
+            "it does not, that is exactly it"
+          ],
+          "questionSource": "model",
+          "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760000075000,
+          "answeredAt": 1760000080000,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "covered",
+          "status": "probing",
+          "gap": null,
+          "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "covered",
+          "status": "probing",
+          "gap": null,
+          "evidence": "Probably thirty names over three days",
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "covered",
+          "status": "probing",
+          "gap": null,
+          "evidence": "if it made me type while someone was still talking to me",
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "covered",
+          "status": "probing",
+          "gap": null,
+          "evidence": "Three seconds, one thumb, and it has to work with no signal",
+          "turnsSpent": 1,
+          "lastTurn": 4,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "nothing yet on what they already know",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 5,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "one sample line, but no rule for what earns a place",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 6,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "the analogue is named but not where it stops holding",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 8,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "A phone app for recalling names met at conferences."
+        },
+        {
+          "dimension": "substance",
+          "fact": "Roughly thirty names lost over a three-day conference."
+        },
+        {
+          "dimension": "substance",
+          "fact": "The losses cluster around the evening receptions."
+        },
+        {
+          "dimension": "constraints",
+          "fact": "Cannot require typing while someone is still talking."
+        },
+        {
+          "dimension": "constraints",
+          "fact": "Three seconds, one thumb, and it must work offline."
+        },
+        {
+          "dimension": "audience",
+          "fact": "The author plus two teammates on the same circuit."
+        },
+        {
+          "dimension": "voice",
+          "fact": "Wants the personal hook ahead of the job title."
+        },
+        {
+          "dimension": "references",
+          "fact": "Like the back of a business card; explicitly not LinkedIn."
+        }
+      ],
+      "moveHistory": [
+        "concretize",
+        "anti_goal",
+        "boundary",
+        "who_else",
+        "sample_output",
+        "analogue",
+        "define_term"
+      ],
+      "openQuestions": [
+        {
+          "dimension": "audience",
+          "question": "Do your two teammates see your notes, or only their own?",
+          "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+        },
+        {
+          "dimension": "voice",
+          "question": "What earns a place on the card besides the one personal hook?",
+          "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+        }
+      ],
+      "synthesis": {
+        "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+        "tier": "complex-model",
+        "at": 1760000999000,
+        "stale": false,
+        "assumptions": [
+          "Assumed the three-second limit applies to capture, not to looking a name back up.",
+          "Assumed captured audio stays on the device, since it has to work with no signal."
+        ]
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "phone"
+      }
     },
     "s_walkthrough@56#ffd558fae7": {
       "schema": 2,
@@ -1628,6 +2335,3726 @@
       ],
       "expect": {
         "throws": "The backup file is empty."
+      }
+    },
+    {
+      "name": "parseBackup duplicate keys keep the last",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_dup\",\"name\":\"first\",\"name\":\"last\"}],\"sessions\":[{\"id\":\"s_dup2\",\"schema\":2}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_dup2",
+              "rev": 0,
+              "createdAt": 0,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "parseBackup normalises numbers",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1.0,\"sessions\":[{\"id\":\"s_n\",\"createdAt\":1.50e3,\"updatedAt\":-0,\"archivedAt\":2E0}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_n",
+              "rev": 0,
+              "createdAt": 1500,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 2,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "parseBackup escapes and whitespace",
+      "fn": "parseBackup",
+      "args": [
+        " \r\n\t{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_😀\",\"name\":\"tab\\there \\\"q\\\" \\/ é \\ud800\"}]}\n"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_😀",
+              "rev": 0,
+              "createdAt": 0,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "tab here \"q\" / é \ud800",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "parseBackup non-JSON whitespace",
+      "fn": "parseBackup",
+      "args": [
+        " {\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[]}"
+      ],
+      "expect": {
+        "throws": "The selected file is not valid JSON."
+      }
+    },
+    {
+      "name": "parseBackup trailing garbage",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[]} x"
+      ],
+      "expect": {
+        "throws": "The selected file is not valid JSON."
+      }
+    },
+    {
+      "name": "parseBackup trailing comma",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[],}"
+      ],
+      "expect": {
+        "throws": "The selected file is not valid JSON."
+      }
+    },
+    {
+      "name": "parseBackup leading zero",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":01,\"sessions\":[]}"
+      ],
+      "expect": {
+        "throws": "The selected file is not valid JSON."
+      }
+    },
+    {
+      "name": "parseBackup multibyte limit",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[],\"pad\":\"€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€\"}",
+        {
+          "maxBytes": 1000
+        }
+      ],
+      "expect": {
+        "throws": "The backup is larger than 0 MB."
+      }
+    },
+    {
+      "name": "parseBackup ids that are not usable",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"\"},{\"id\":\"   \"},{\"id\":7},3,true,{\"id\":\"s_fine\"}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_fine",
+              "rev": 0,
+              "createdAt": 0,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 5
+        }
+      }
+    },
+    {
+      "name": "buildBackup non-array",
+      "fn": "buildBackup",
+      "args": [
+        {
+          "id": "x"
+        },
+        {
+          "now": 1760000001000
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": 1760000001000,\n  \"sessions\": []\n}\n"
+      }
+    },
+    {
+      "name": "buildBackup awkward values",
+      "fn": "buildBackup",
+      "args": [
+        [
+          {
+            "id": "s_odd",
+            "big": 1e+21,
+            "small": 1.5e-7,
+            "neg": -2.5,
+            "empty": {},
+            "none": [],
+            "nested": [
+              [],
+              {},
+              [
+                1,
+                [
+                  2
+                ]
+              ]
+            ],
+            "text": "line\nbreak\n \n\"q\"\n\\\n\u0001\n\udfff",
+            "ok": true,
+            "nil": null
+          }
+        ],
+        {
+          "now": 0
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": 0,\n  \"sessions\": [\n    {\n      \"id\": \"s_odd\",\n      \"big\": 1e+21,\n      \"small\": 1.5e-7,\n      \"neg\": -2.5,\n      \"empty\": {},\n      \"none\": [],\n      \"nested\": [\n        [],\n        {},\n        [\n          1,\n          [\n            2\n          ]\n        ]\n      ],\n      \"text\": \"line\\nbreak\\n \\n\\\"q\\\"\\n\\\\\\n\\u0001\\n\\udfff\",\n      \"ok\": true,\n      \"nil\": null\n    }\n  ]\n}\n"
+      }
+    },
+    {
+      "name": "backupFilename far date",
+      "fn": "backupFilename",
+      "args": [
+        4102444799000
+      ],
+      "expect": {
+        "value": "ideaforge-backup-2099-12-31.json"
+      }
+    },
+    {
+      "name": "mergeImported into empty",
+      "fn": "mergeImported",
+      "args": [
+        [],
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          },
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          }
+        ],
+        {
+          "ids": [],
+          "now": 1760000007000
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_walkthrough",
+              "rev": 56,
+              "createdAt": 1760000000000,
+              "updatedAt": 1760000999000,
+              "status": "done",
+              "name": "",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_fresh_import",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 2,
+            "copied": 0,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported identical skipped",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          },
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          }
+        ],
+        [
+          {
+            "$ref": "s_walkthrough@56#81781e541c"
+          },
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          }
+        ],
+        {
+          "ids": [],
+          "now": 1760000007000
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [],
+          "summary": {
+            "imported": 0,
+            "copied": 0,
+            "duplicates": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported collision becomes a named copy",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1"
+          ],
+          "now": 1760000007000
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 57,
+              "createdAt": 1760000000000,
+              "updatedAt": 1760000007000,
+              "status": "done",
+              "name": "Conference name recall app (imported)",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 0,
+            "copied": 1,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported mixed",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          },
+          {
+            "$ref": "s_titled@0#2ab6c5d168"
+          }
+        ],
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          },
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          },
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          },
+          {
+            "$ref": "s_titled@0#93ced7fba1"
+          },
+          {
+            "$ref": "s_titled@0#01d80b46c0"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1",
+            "s_copy_2",
+            "s_copy_3"
+          ],
+          "now": 1760000008000
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 57,
+              "createdAt": 1760000000000,
+              "updatedAt": 1760000008000,
+              "status": "done",
+              "name": "Conference name recall app (imported)",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_fresh_import",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_copy_2",
+              "rev": 1,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000008000,
+              "status": "interviewing",
+              "name": "A title from the model (imported)",
+              "title": "A title from the model",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_copy_3",
+              "rev": 1,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000008000,
+              "status": "interviewing",
+              "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn (imported)",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 1,
+            "copied": 3,
+            "duplicates": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported copy of a copy",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          },
+          {
+            "$ref": "s_walkthrough@56#92e18efd70"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1",
+            "s_copy_2"
+          ],
+          "now": 1760000008000
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 57,
+              "createdAt": 1760000000000,
+              "updatedAt": 1760000008000,
+              "status": "done",
+              "name": "Conference name recall app (imported)",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_copy_2",
+              "rev": 57,
+              "createdAt": 1760000000000,
+              "updatedAt": 1760000008000,
+              "status": "done",
+              "name": "Other (imported)",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 0,
+            "copied": 2,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported nulls",
+      "fn": "mergeImported",
+      "args": [
+        null,
+        null,
+        {
+          "ids": []
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [],
+          "summary": {
+            "imported": 0,
+            "copied": 0,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported default clock",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        [
+          {
+            "$ref": "s_walkthrough@56#ffd558fae7"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1"
+          ]
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 57,
+              "createdAt": 1760000000000,
+              "updatedAt": 0,
+              "status": "done",
+              "name": "Conference name recall app (imported)",
+              "title": "Conference name recall app",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "An app that helps me remember the names of people I meet at conferences.",
+              "turns": [
+                {
+                  "id": "t1",
+                  "n": 1,
+                  "dimension": "outcome",
+                  "question": "In a sentence or two — what’s the idea?",
+                  "bridge": null,
+                  "move": null,
+                  "chips": [],
+                  "questionSource": "seed",
+                  "answer": "An app that helps me remember the names of people I meet at conferences.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000000000,
+                  "answeredAt": 1760000010000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t2",
+                  "n": 2,
+                  "dimension": "substance",
+                  "question": "At the last conference, how many names did you actually lose?",
+                  "bridge": "Conferences, so a lot of names in a short window.",
+                  "move": "concretize",
+                  "chips": [
+                    "maybe thirty names over three days",
+                    "honestly I stopped counting",
+                    "only a handful, but the ones that mattered",
+                    "I never learned them in the first place"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000015000,
+                  "answeredAt": 1760000020000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t3",
+                  "n": 3,
+                  "dimension": "bar",
+                  "question": "What would make you delete this in the first week?",
+                  "bridge": "Thirty names, and the evening ones go first.",
+                  "move": "anti_goal",
+                  "chips": [
+                    "if I had to type during a conversation",
+                    "if it was just another contacts list",
+                    "if it took more than five seconds",
+                    "honestly, if I forgot it was there"
+                  ],
+                  "questionSource": "model",
+                  "answer": "I would delete it in the first week if it made me type while someone was still talking to me.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000025000,
+                  "answeredAt": 1760000030000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t4",
+                  "n": 4,
+                  "dimension": "constraints",
+                  "question": "What are the hard limits on time and signal here?",
+                  "bridge": "So nothing that puts a screen between you and the person.",
+                  "move": "boundary",
+                  "chips": [
+                    "three seconds and one thumb",
+                    "it has to work with no signal",
+                    "anything under a minute is fine",
+                    "no limit, I just need it to exist"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000035000,
+                  "answeredAt": 1760000040000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t5",
+                  "n": 5,
+                  "dimension": "audience",
+                  "question": "Who else would use this, if anyone?",
+                  "bridge": "Three seconds, one thumb, and no signal.",
+                  "move": "who_else",
+                  "chips": [
+                    "honestly, just for me",
+                    "the two others on my team",
+                    "anyone who works a booth",
+                    "nobody, it is a personal fix"
+                  ],
+                  "questionSource": "model",
+                  "answer": "Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000045000,
+                  "answeredAt": 1760000050000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t6",
+                  "n": 6,
+                  "dimension": "voice",
+                  "question": "Write the line you would want on screen when she walks up.",
+                  "bridge": "A personal tool for three people on one circuit.",
+                  "move": "sample_output",
+                  "chips": [
+                    "Sarah Chen, Vertex, API panel Tuesday",
+                    "Sarah, Vertex. Kid plays clarinet.",
+                    "just the name, nothing else",
+                    "a photo, and I will do the rest"
+                  ],
+                  "questionSource": "model",
+                  "answer": "On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000055000,
+                  "answeredAt": 1760000060000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t7",
+                  "n": 7,
+                  "dimension": "references",
+                  "question": "What existing thing is this closest to?",
+                  "bridge": "The clarinet does more work than the job title.",
+                  "move": "analogue",
+                  "chips": [
+                    "like a business card with a memory",
+                    "like LinkedIn, but only people I met",
+                    "like the notes app, but faster",
+                    "nothing really, that is the problem"
+                  ],
+                  "questionSource": "model",
+                  "answer": "The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000065000,
+                  "answeredAt": 1760000070000,
+                  "classification": "substantive"
+                },
+                {
+                  "id": "t8",
+                  "n": 8,
+                  "dimension": "references",
+                  "question": "Where does the business-card comparison stop being true?",
+                  "bridge": "Not LinkedIn, then.",
+                  "move": "define_term",
+                  "chips": [
+                    "a card cannot record my voice",
+                    "I never look at cards again",
+                    "cards do not know when I met you",
+                    "it does not, that is exactly it"
+                  ],
+                  "questionSource": "model",
+                  "answer": "A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.",
+                  "answerSource": "typed",
+                  "draftText": null,
+                  "skipped": false,
+                  "askedAt": 1760000075000,
+                  "answeredAt": 1760000080000,
+                  "classification": "substantive"
+                }
+              ],
+              "coverage": {
+                "outcome": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Sarah Chen, Vertex, the API panel on Tuesday",
+                  "turnsSpent": 1,
+                  "lastTurn": 1,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Probably thirty names over three days",
+                  "turnsSpent": 1,
+                  "lastTurn": 2,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "if it made me type while someone was still talking to me",
+                  "turnsSpent": 1,
+                  "lastTurn": 3,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "covered",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": "Three seconds, one thumb, and it has to work with no signal",
+                  "turnsSpent": 1,
+                  "lastTurn": 4,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "nothing yet on what they already know",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 5,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "one sample line, but no rule for what earns a place",
+                  "evidence": null,
+                  "turnsSpent": 1,
+                  "lastTurn": 6,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "partial",
+                  "status": "probing",
+                  "gap": "the analogue is named but not where it stops holding",
+                  "evidence": null,
+                  "turnsSpent": 2,
+                  "lastTurn": 8,
+                  "waivedReason": null
+                }
+              },
+              "facts": [
+                {
+                  "dimension": "outcome",
+                  "fact": "A phone app for recalling names met at conferences."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "Roughly thirty names lost over a three-day conference."
+                },
+                {
+                  "dimension": "substance",
+                  "fact": "The losses cluster around the evening receptions."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Cannot require typing while someone is still talking."
+                },
+                {
+                  "dimension": "constraints",
+                  "fact": "Three seconds, one thumb, and it must work offline."
+                },
+                {
+                  "dimension": "audience",
+                  "fact": "The author plus two teammates on the same circuit."
+                },
+                {
+                  "dimension": "voice",
+                  "fact": "Wants the personal hook ahead of the job title."
+                },
+                {
+                  "dimension": "references",
+                  "fact": "Like the back of a business card; explicitly not LinkedIn."
+                }
+              ],
+              "moveHistory": [
+                "concretize",
+                "anti_goal",
+                "boundary",
+                "who_else",
+                "sample_output",
+                "analogue",
+                "define_term"
+              ],
+              "openQuestions": [
+                {
+                  "dimension": "audience",
+                  "question": "Do your two teammates see your notes, or only their own?",
+                  "why_it_matters": "Shared notes turn a personal tool into something with a permission model."
+                },
+                {
+                  "dimension": "voice",
+                  "question": "What earns a place on the card besides the one personal hook?",
+                  "why_it_matters": "Without a rule the card fills up and stops being readable in three seconds."
+                }
+              ],
+              "synthesis": {
+                "text": "## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.",
+                "tier": "complex-model",
+                "at": 1760000999000,
+                "stale": false,
+                "assumptions": [
+                  "Assumed the three-second limit applies to capture, not to looking a name back up.",
+                  "Assumed captured audio stays on the device, since it has to work with no signal."
+                ]
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "phone"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 0,
+            "copied": 1,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported collision with an unreadable row",
+      "fn": "mergeImported",
+      "args": [
+        [
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        [
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          },
+          {
+            "$ref": "s_titled@0#2ab6c5d168"
+          },
+          {
+            "$ref": "s_walkthrough@16#0875ee064d"
+          }
+        ],
+        {
+          "ids": [
+            "s_copy_1"
+          ],
+          "now": 1760000009000,
+          "reservedIds": [
+            "s_walkthrough",
+            "s_fresh_import",
+            "s_not_imported"
+          ]
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_copy_1",
+              "rev": 1,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000009000,
+              "status": "interviewing",
+              "name": "Untitled idea (imported)",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            },
+            {
+              "schema": 2,
+              "id": "s_titled",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 1,
+            "copied": 1,
+            "duplicates": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "mergeImported reserved null",
+      "fn": "mergeImported",
+      "args": [
+        [],
+        [
+          {
+            "$ref": "s_fresh_import@0#3f72444758"
+          }
+        ],
+        {
+          "ids": [],
+          "reservedIds": null
+        }
+      ],
+      "expect": {
+        "value": {
+          "writes": [
+            {
+              "schema": 2,
+              "id": "s_fresh_import",
+              "rev": 0,
+              "createdAt": 1760000002000,
+              "updatedAt": 1760000002000,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "summary": {
+            "imported": 1,
+            "copied": 0,
+            "duplicates": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "parseBackup infinite schema is rejected",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"schema\":1e400},{\"id\":\"s_neg\",\"schema\":-1e400}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_neg",
+              "rev": 0,
+              "createdAt": 0,
+              "updatedAt": 0,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop"
+              }
+            }
+          ],
+          "skipped": 1
+        }
+      }
+    },
+    {
+      "name": "parseBackup infinite values",
+      "fn": "parseBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"createdAt\":1e400,\"archivedAt\":1e400,\"meta\":{\"big\":-1e999}}]}"
+      ],
+      "expect": {
+        "value": {
+          "sessions": [
+            {
+              "schema": 2,
+              "id": "s_inf",
+              "rev": 0,
+              "createdAt": null,
+              "updatedAt": null,
+              "status": "interviewing",
+              "name": "",
+              "title": "",
+              "tags": [],
+              "archivedAt": 0,
+              "opening": "",
+              "turns": [],
+              "coverage": {
+                "outcome": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "substance": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "bar": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "constraints": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "audience": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "voice": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                },
+                "references": {
+                  "level": "thin",
+                  "status": "probing",
+                  "gap": null,
+                  "evidence": null,
+                  "turnsSpent": 0,
+                  "lastTurn": 0,
+                  "waivedReason": null
+                }
+              },
+              "facts": [],
+              "moveHistory": [],
+              "openQuestions": [],
+              "synthesis": {
+                "text": "",
+                "tier": "",
+                "at": 0,
+                "stale": false,
+                "assumptions": []
+              },
+              "draftAnswer": "",
+              "pending": null,
+              "zeroGainStreak": 0,
+              "wrapOffered": false,
+              "meta": {
+                "device": "desktop",
+                "big": null
+              }
+            }
+          ],
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "name": "roundTripBackup infinite values print null",
+      "fn": "roundTripBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_inf\",\"createdAt\":1e400,\"meta\":{\"big\":-1e999}}]}",
+        {
+          "now": null
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": null,\n  \"sessions\": [\n    {\n      \"schema\": 2,\n      \"id\": \"s_inf\",\n      \"rev\": 0,\n      \"createdAt\": null,\n      \"updatedAt\": null,\n      \"status\": \"interviewing\",\n      \"name\": \"\",\n      \"title\": \"\",\n      \"tags\": [],\n      \"archivedAt\": 0,\n      \"opening\": \"\",\n      \"turns\": [],\n      \"coverage\": {\n        \"outcome\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"substance\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"bar\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"constraints\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"audience\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"voice\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"references\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        }\n      },\n      \"facts\": [],\n      \"moveHistory\": [],\n      \"openQuestions\": [],\n      \"synthesis\": {\n        \"text\": \"\",\n        \"tier\": \"\",\n        \"at\": 0,\n        \"stale\": false,\n        \"assumptions\": []\n      },\n      \"draftAnswer\": \"\",\n      \"pending\": null,\n      \"zeroGainStreak\": 0,\n      \"wrapOffered\": false,\n      \"meta\": {\n        \"device\": \"desktop\",\n        \"big\": null\n      }\n    }\n  ]\n}\n"
+      }
+    },
+    {
+      "name": "roundTripBackup index keys first",
+      "fn": "roundTripBackup",
+      "args": [
+        "{\"format\":\"ideaforge-backup\",\"version\":1,\"sessions\":[{\"id\":\"s_idx\",\"b\":1,\"10\":\"ten\",\"5\":\"five\",\"01\":\"not an index\",\"4294967295\":\"not an index\",\"4294967294\":\"index\",\"meta\":{\"z\":1,\"2\":\"two\"}}]}",
+        {
+          "now": 1760000003000
+        }
+      ],
+      "expect": {
+        "value": "{\n  \"format\": \"ideaforge-backup\",\n  \"version\": 1,\n  \"exportedAt\": 1760000003000,\n  \"sessions\": [\n    {\n      \"5\": \"five\",\n      \"10\": \"ten\",\n      \"4294967294\": \"index\",\n      \"schema\": 2,\n      \"id\": \"s_idx\",\n      \"rev\": 0,\n      \"createdAt\": 0,\n      \"updatedAt\": 0,\n      \"status\": \"interviewing\",\n      \"name\": \"\",\n      \"title\": \"\",\n      \"tags\": [],\n      \"archivedAt\": 0,\n      \"opening\": \"\",\n      \"turns\": [],\n      \"coverage\": {\n        \"outcome\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"substance\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"bar\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"constraints\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"audience\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"voice\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        },\n        \"references\": {\n          \"level\": \"thin\",\n          \"status\": \"probing\",\n          \"gap\": null,\n          \"evidence\": null,\n          \"turnsSpent\": 0,\n          \"lastTurn\": 0,\n          \"waivedReason\": null\n        }\n      },\n      \"facts\": [],\n      \"moveHistory\": [],\n      \"openQuestions\": [],\n      \"synthesis\": {\n        \"text\": \"\",\n        \"tier\": \"\",\n        \"at\": 0,\n        \"stale\": false,\n        \"assumptions\": []\n      },\n      \"draftAnswer\": \"\",\n      \"pending\": null,\n      \"zeroGainStreak\": 0,\n      \"wrapOffered\": false,\n      \"meta\": {\n        \"2\": \"two\",\n        \"device\": \"desktop\",\n        \"z\": 1\n      },\n      \"b\": 1,\n      \"01\": \"not an index\",\n      \"4294967295\": \"not an index\"\n    }\n  ]\n}\n"
       }
     }
   ]

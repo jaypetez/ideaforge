@@ -43,7 +43,8 @@ class VectorSuiteTest {
     /** A constant still listed as owed but already ported would skip a working case for ever. */
     @Test
     fun noPendingConstantIsAlreadyPorted() {
-        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in CONSTANTS_PORTED }
+        val all = allPortedConstants()
+        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in all }
         assertTrue(ported.isEmpty(), "ported but still listed as pending: $ported")
     }
 
