@@ -109,17 +109,19 @@ val CONSTANTS_PORTED: Map<String, JsonElement> = mapOf(
     "MAX_SESSION_NAME" to num(MAX_SESSION_NAME),
     "MAX_TAGS" to num(MAX_TAGS),
     "MAX_TAG_LENGTH" to num(MAX_TAG_LENGTH),
-)
+) + BACKUP_CONSTANTS
+
+/** Every ported constant, by exported name: what CONSTANT_PORT resolves and the pending guard checks. */
+fun allPortedConstants(): Map<String, JsonElement> = CONSTANTS_PORTED + ENGINE_CONSTANTS + RUNTIME_CONSTANTS
 
 val CONSTANT_PORT: Port = { c ->
     val name = stringOf(c.arg(0))!!
-    (CONSTANTS_PORTED + ENGINE_CONSTANTS + RUNTIME_CONSTANTS)[name] ?: error("constant $name is not ported")
+    allPortedConstants()[name] ?: error("constant $name is not ported")
 }
 
 /** Constants still owed, by the case name tools/vectors.mjs gives them. */
 val CONSTANTS_PENDING: Map<String, String> = buildMap {
     fun owe(issue: String, path: String, vararg names: String) = names.forEach { put("$path $it", issue) }
     owe("#77", "src/core/driving.js", "COMMANDS", "DRIVING")
-    owe("#76", "src/core/backup.js", "BACKUP_FORMAT", "BACKUP_VERSION", "MAX_BACKUP_BYTES", "MAX_BACKUP_SESSIONS")
 }
 

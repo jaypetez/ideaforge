@@ -66,6 +66,7 @@ export const put = (store, value, key) => tx(store, 'readwrite', (s) => s.put(va
 export const get = (store, key) => tx(store, 'readonly', (s) => s.get(key));
 export const del = (store, key) => tx(store, 'readwrite', (s) => s.delete(key));
 export const all = (store) => tx(store, 'readonly', (s) => s.getAll());
+export const keys = (store) => tx(store, 'readonly', (s) => s.getAllKeys());
 
 /**
  * Ask for storage that survives eviction. WebKit weighs "is this installed to the home
