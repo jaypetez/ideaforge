@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Android app | IdeaForge guide</title>
+  <meta name="description"
+        content="Sideload the native IdeaForge Android alpha on an emulator or a phone, connect a provider, and move backups between Android and the web app.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./android.html" aria-current="page">Android app</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Native Android app &middot; alpha</p>
+      <h1>Sideload the native Android app.</h1>
+      <p class="lede">
+        The Android app runs the same typed interview as the web app, natively. It is an
+        early alpha: there is no Play Store listing and no signed release yet, so you
+        install a debug build with <code>adb</code>.
+      </p>
+
+      <div class="callout warning">
+        <strong>Typed interviews only, for now.</strong>
+        Voice input and hands-free driving are still being built. If you want voice on a
+        phone today, install the web app instead; see
+        <a href="./mobile-and-voice.html#android">Mobile and voice</a>.
+      </div>
+
+      <h2 id="status">What is there, and what is not yet</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Area</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Setup</th>
+              <td>Two-step onboarding: choose a hosted or local provider, then add a key or
+                find a model on your server.</td>
+            </tr>
+            <tr>
+              <th scope="row">Interview</th>
+              <td>Typed answers, suggestion chips, a coverage strip, the wrap-up offer and
+                the built-in checklist when the model fails. An interrupted turn resumes.</td>
+            </tr>
+            <tr>
+              <th scope="row">Result</th>
+              <td>The rendered refined prompt with <strong>Share .md</strong>,
+                <strong>Copy markdown</strong>, <strong>Save .md</strong> and
+                <strong>Ask me more</strong>.</td>
+            </tr>
+            <tr>
+              <th scope="row">Library</th>
+              <td>Search, rename, tag, archive and delete; list and detail side by side on
+                a wide screen.</td>
+            </tr>
+            <tr>
+              <th scope="row">Settings</th>
+              <td>Connection, Listening, Appearance, Data (backup and import) and About.</td>
+            </tr>
+            <tr>
+              <th scope="row">Voice input</th>
+              <td>Not yet. The app does not ask for the microphone. Press-to-talk and the
+                hands-free voice stage are in progress. The Listening settings (hands-free,
+                finish word, speaking pace) are saved, but nothing listens yet.</td>
+            </tr>
+            <tr>
+              <th scope="row">Spoken replies</th>
+              <td>Not yet. Native speech output is built but no screen uses it, and hosted
+                speech and transcription are not offered in the app.</td>
+            </tr>
+            <tr>
+              <th scope="row">Signed release</th>
+              <td>Not yet. <!-- TODO(#95): replace with the signed-APK download once the
+                release job attaches it. -->A signed APK on GitHub releases arrives with
+                <a href="https://github.com/jaypetez/ideaforge/issues/95">issue #95</a>.
+                Until then only the debug build below exists.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Automated tests run on the JVM; no physical-phone result is recorded in the
+        repository yet.
+      </p>
+
+      <h2 id="get-the-apk">Get the debug APK</h2>
+      <p>
+        The app needs Android 10 (API 29) or newer. The debug build&rsquo;s application id
+        is <code>io.github.jaypetez.ideaforge.debug</code>, so it installs beside a future
+        release build rather than replacing it.
+      </p>
+      <p>
+        <strong>Build it.</strong> With JDK 21 and the Android SDK installed, from a clone of
+        the repository:
+      </p>
+      <pre><code>cd android
+./gradlew :app:assembleDebug
+# Windows: gradlew.bat :app:assembleDebug
+# APK: android/app/build/outputs/apk/debug/</code></pre>
+      <p>
+        <strong>Or download it.</strong> Every successful CI run uploads the debug APK as the
+        <code>ideaforge-debug-apk</code> artifact on its workflow run page. Artifacts need a
+        GitHub sign-in and expire after 14 days. The download is a zip; extract the
+        <code>.apk</code> first.
+      </p>
+      <!-- TODO(#95): add "Download the signed APK from the latest GitHub release" here,
+           with the certificate fingerprint published in SECURITY.md. -->
+      <p>
+        <strong>Signed release:</strong> not available yet. It arrives with
+        <a href="https://github.com/jaypetez/ideaforge/issues/95">issue #95</a>.
+      </p>
+
+      <h2 id="emulator">Install on the emulator</h2>
+      <ol class="steps">
+        <li>In Android Studio&rsquo;s Device Manager, create a virtual device (AVD) with a
+          system image of API 29 or newer, and start it.</li>
+        <li>Install it with one of the commands below: Gradle from the
+          <code>android/</code> directory, or <code>adb</code> for a downloaded APK.</li>
+        <li>Open IdeaForge from the emulator&rsquo;s app drawer.</li>
+      </ol>
+      <pre><code>./gradlew :app:installDebug
+adb install -r app-debug.apk</code></pre>
+      <p>
+        <code>-r</code> replaces an installed copy and keeps its data, so your ideas and
+        keys survive an update.
+      </p>
+
+      <h2 id="usb">Install on a phone over USB</h2>
+      <ol class="steps">
+        <li>On the phone, open <strong>Settings</strong>, then <strong>About phone</strong>,
+          and tap <strong>Build number</strong> seven times to enable Developer options.</li>
+        <li>In <strong>Developer options</strong>, turn on <strong>USB debugging</strong>.</li>
+        <li>Connect the phone with a USB cable. When the phone asks
+          <strong>Allow USB debugging?</strong> and shows the computer&rsquo;s RSA key
+          fingerprint, allow it.</li>
+        <li>Check that <code>adb devices</code> lists the phone as <code>device</code>, then
+          install with <code>adb install -r</code>, as below.</li>
+      </ol>
+      <pre><code>adb devices
+adb install -r app-debug.apk</code></pre>
+      <p>
+        <code>unauthorized</code> in <code>adb devices</code> means the RSA prompt has not
+        been accepted yet. Unlock the phone and look for it, or reconnect the cable.
+      </p>
+
+      <h2 id="wireless">Install on a phone over wireless adb</h2>
+      <p>
+        Wireless debugging needs Android 11 or newer, and the phone and computer on the same
+        network.
+      </p>
+      <ol class="steps">
+        <li>Enable Developer options as above, then turn on
+          <strong>Wireless debugging</strong> in <strong>Developer options</strong>.</li>
+        <li>Open <strong>Wireless debugging</strong> and choose
+          <strong>Pair device with pairing code</strong>. Note the IP address, port and
+          six-digit code it shows.</li>
+        <li>Pair with that address, port and code, then connect and install as below. The
+          connect port is the one on the main <strong>Wireless debugging</strong> screen,
+          not the pairing port.</li>
+      </ol>
+      <pre><code>adb pair 192.168.1.23:37155 123456
+adb connect 192.168.1.23:41733
+adb install -r app-debug.apk</code></pre>
+
+      <h2 id="play-protect">Play Protect and unknown apps</h2>
+      <p>
+        Google Play Protect may scan or warn about an app that did not come from Google Play.
+        That is expected for a debug build signed with a development key. Installing the
+        APK by opening the file on the phone, rather than with <code>adb</code>, also needs
+        the <strong>Install unknown apps</strong> permission for the app that opens it, such
+        as your file manager or browser.
+      </p>
+      <p>
+        Google is rolling out developer verification for apps installed on certified Android
+        devices. At the time of writing, Google&rsquo;s
+        <a href="https://developer.android.com/developer-verification/guides/faq">developer
+        verification FAQ</a> says that apps installed using ADB do not require verification.
+        This is why the steps above use <code>adb install</code>. Installing an unverified
+        APK file directly on the phone may need the extra steps that FAQ describes.
+      </p>
+
+      <h2 id="providers">Connect a provider</h2>
+      <p>
+        <strong>Hosted.</strong> Anthropic, OpenAI, Groq and OpenRouter take your own key.
+        The key is encrypted with a key held in Android Keystore and sent only to that
+        provider&rsquo;s fixed <code>https</code> address. Groq&rsquo;s free tier is the
+        cheapest way to start.
+      </p>
+      <p>
+        <strong>On your own network.</strong> Ollama (local), LM Studio (local) and Another
+        local server need no key, and the app never sends one to them. Unlike the web app,
+        which only reaches the computer it runs on, the Android app accepts a server on a
+        private network: loopback, <code>10.x</code>, <code>172.16&ndash;31.x</code>,
+        <code>192.168.x</code>, <code>100.64&ndash;127.x</code>, link-local, IPv6 ULA and
+        <code>.local</code> names. A public address, or a name that resolves to one, is
+        refused.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Where the app runs</th>
+              <th scope="col">Server address for Ollama on your computer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Emulator</th>
+              <td><code>http://10.0.2.2:11434/v1</code>. The emulator maps
+                <code>10.0.2.2</code> to your computer&rsquo;s loopback; onboarding has a
+                button that fills it in.</td>
+            </tr>
+            <tr>
+              <th scope="row">Phone over USB</th>
+              <td>Run <code>adb reverse tcp:11434 tcp:11434</code> and keep
+                <code>http://localhost:11434/v1</code>. Run it again after reconnecting the
+                phone.</td>
+            </tr>
+            <tr>
+              <th scope="row">Phone on Wi-Fi</th>
+              <td>The computer&rsquo;s private address, such as
+                <code>http://192.168.1.20:11434/v1</code>. Ollama must listen on the network
+                (<code>OLLAMA_HOST=0.0.0.0</code>), which exposes it to everything else on
+                that network too.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        LM Studio works the same way on its port, <code>1234</code>. See
+        <a href="./local-models-and-docker.html">Local models and Docker</a> for running the
+        server itself.
+      </p>
+
+      <h2 id="backups">Move ideas between Android and the web</h2>
+      <p>
+        Android and the web app use the same backup file. Under <strong>Settings</strong>,
+        <strong>Data</strong>, choose <strong>Back up ideas</strong> to save it, and
+        <strong>Import backup</strong> on the other side to read it. Move the file however
+        you like: a cloud drive, email to yourself, or <code>adb push</code>.
+      </p>
+      <ul class="checklist">
+        <li>A backup holds ideas only: never an API key and never a device preference.</li>
+        <li>It is not encrypted. Keep it like any other personal document.</li>
+        <li>An imported idea that would replace a different local one is kept as a copy
+          named &ldquo;(imported)&rdquo;. Nothing local is overwritten.</li>
+        <li>An idea written by a newer IdeaForge version is skipped and counted rather than
+          guessed at.</li>
+      </ul>
+      <p>
+        Android&rsquo;s own cloud backup and device-to-device transfer are turned off for the
+        app, so a new phone starts empty until you import a backup. Keys never move: set up
+        the provider again on the new device.
+      </p>
+
+      <h2 id="developers">For developers</h2>
+      <p>
+        The project layout, the golden-vector contract with the JavaScript core, and the CI
+        job are described in
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/CONTRIBUTING.md#the-android-app">
+        CONTRIBUTING.md</a>. The build and emulator procedure is the shared
+        <a href="https://github.com/jaypetez/ideaforge/tree/main/.claude/skills/android-verify">
+        android-verify skill</a>.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

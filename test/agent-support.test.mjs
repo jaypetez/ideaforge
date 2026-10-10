@@ -17,6 +17,7 @@ const REQUIRED_BROWSER_SCRIPT = 'node tools/browser-check.mjs --required';
 const ALL_TESTS_SCRIPT = 'npm test && npm run test:graph && npm run test:browser:required';
 const EXPECTED_SKILLS = new Set([
   'add-provider',
+  'android-verify',
   'change-voice-and-driving',
   'release',
   'review-ideaforge-documentation',

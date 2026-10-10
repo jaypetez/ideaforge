@@ -67,7 +67,7 @@ traffic.
   respect the required `ci` check, and do not merge unless explicitly asked.
 
 Use the shared [project skills](../.claude/skills/) for provider, voice, local-model,
-documentation, README artifacts, implementation review, documentation review, release,
+Android build and emulator verification, documentation, README artifacts, implementation review, documentation review, release,
 and backlog workflows. The
 [release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
 publish, or verify a release; do not select publication automatically or act in place

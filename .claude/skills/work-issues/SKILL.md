@@ -96,6 +96,8 @@ reasonable plan needs a product decision, escalate (section 9) now rather than g
 - Use the area skill when one applies:
   [change-voice-and-driving](../change-voice-and-driving/SKILL.md),
   [add-provider](../add-provider/SKILL.md),
+  [android-verify](../android-verify/SKILL.md) for anything under `android/` or a change
+  that regenerates the golden vectors,
   [update-documentation](../update-documentation/SKILL.md) (which invokes
   [update-readme](../update-readme/SKILL.md)), or
   [validate-local-model](../validate-local-model/SKILL.md).
@@ -116,7 +118,7 @@ screenshot you have looked at. "It should work" is not evidence.
 | Anything | `npm test`, `npm run test:docs`, `npm run test:graph` |
 | `src/ui/`, `src/voice/`, `src/store/`, `index.html`, `sw.js`, `manifest.webmanifest`, `guide/` | `npm run test:browser:required` |
 | Anything visible | `npm run screenshots`, then open the changed images, light and dark |
-| `android/` | `./gradlew check :app:assembleDebug` in `android/` (`gradlew.bat` on Windows), plus an emulator smoke run once an emulator exists |
+| `android/` | `./gradlew check :app:assembleDebug` in `android/` (`gradlew.bat` on Windows), plus the emulator smoke run in [android-verify](../android-verify/SKILL.md) when an emulator is available |
 | `.github/workflows/` | `npm run test:docs`, and read the workflow run on the PR |
 
 When a check fails, work out whether the assertion or the code is wrong before changing
