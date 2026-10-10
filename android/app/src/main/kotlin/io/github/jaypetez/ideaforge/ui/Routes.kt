@@ -16,7 +16,7 @@ data class InterviewRoute(val sessionId: String)
  * [synthesisFailed]: the interview's write-up call just failed (or returned nothing usable),
  * so the result has the transcript but no refined prompt. The interview cannot show that
  * itself, because it navigates here in the same moment, so the flag carries it over, as the
- * web shows the failure on its done panel. #86's real Result screen reads it.
+ * web shows the failure on its done panel. ResultScreen reads it.
  */
 @Serializable
 data class ResultRoute(val sessionId: String, val synthesisFailed: Boolean = false)

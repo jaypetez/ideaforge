@@ -10,7 +10,7 @@ import {
   createSession, askQuestion, answerQuestion, skipQuestion, setDraftText, applyCoverage,
   addFacts, migrate, normalizeSessionName, normalizeTags, sessionDisplayTitle, waiveDimension,
   deferDimension, resumeDimension, copySession, reopen, isLowConfidence, openTurn,
-  setWrapOffered, setStatusField,
+  setWrapOffered, setStatusField, archiveSession, restoreSession,
 } from '../../src/core/session.js';
 import {
   contentWords, classifyAnswer, lastAnswerClass, selectNextDimension, isReadyToWrap,
@@ -173,7 +173,7 @@ const DIMS = ['outcome', 'substance', 'bar', 'constraints', 'audience', 'voice',
 // ─────────────────────────────────────────────────────────────── families
 
 async function sessionFamily() {
-  const { snapshots } = await walkthrough();
+  const { snapshots, final } = await walkthrough();
   const mid = snapshots.find(([n]) => n === 'answered-3')[1];
   const fresh = createSession({ id: 's_cov', now: tick(0) });
   const partialAll = applyCoverage(fresh, Object.fromEntries(DIMS.map((d) => [d, { level: 'partial', gap: `gap ${d}` }])), { now: 1 });
@@ -207,6 +207,10 @@ async function sessionFamily() {
     rec('resumeDimension', resumeDimension, deferDimension(fresh, 'bar', 1), 'bar', 2),
     rec('copySession', copySession, mid, { id: 's_copy', now: tick(5) }),
     rec('reopen', reopen, { ...mid, status: 'done' }, tick(6)),
+    // "Ask me more" on a finished idea (the web's b-reopen): the refined prompt is kept but
+    // marked stale, and an archived idea comes back to the library with it.
+    rec('reopen a written-up session keeps its prompt, stale', reopen, final, tick(7)),
+    rec('restoreSession', restoreSession, archiveSession(final, tick(7)), tick(8)),
     rec('normalizeSessionName', normalizeSessionName, `  A  name\twith   spaces ${'x'.repeat(130)}  `),
     rec('normalizeSessionName non-string', normalizeSessionName, 42),
     rec('normalizeTags', normalizeTags, ['Work', ' work ', '', 'a'.repeat(40), 'Ideas', 7, 'ideas', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9']),
@@ -681,6 +685,13 @@ async function markdownFamily() {
   }
   cases.push(rec('buildExport generic mode with note', buildExport, final, { mode: 'generic', note: 'Written offline.' }));
   cases.push(rec('buildExport named', buildExport, { ...final, name: 'My own name' }));
+  // The result screen's bytes when the wrap-up failed: exportFor in src/ui/app.js passes
+  // checklist mode and this note whenever there is no refined prompt.
+  const unwritten = setStatusField({ ...final, synthesis: { text: '', tier: '', at: 0, stale: false, assumptions: [] } }, 'done', tick(9));
+  cases.push(rec('buildExport after a failed synthesis', buildExport, unwritten, {
+    mode: 'checklist', note: 'The refined prompt could not be generated, but nothing else was lost.',
+  }));
+  cases.push(rec('exportFilename after a failed synthesis', exportFilename, unwritten));
   for (const t of ['', 'Hello, World!', '  Ünïcödé — idea  ', '🌌🌌', 'x'.repeat(100), null]) {
     cases.push(rec(`slug ${JSON.stringify(t)}`, slug, t));
   }

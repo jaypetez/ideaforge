@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The result screen's labels (issue #86), kept apart from strings.xml so other screens'
+     work does not merge through them. Button labels are the web done panel's (index.html). -->
+<resources>
+    <string name="result_title_fallback">Your refined prompt</string>
+    <string name="result_back">Back</string>
+    <!-- #done-meta: "8 questions · coverage 79%" (always "questions", as on the web) -->
+    <string name="result_meta">%1$d questions · coverage %2$d%%</string>
+    <string name="result_meta_checklist">%1$s · some questions came from the built-in checklist</string>
+    <string name="result_share">Share .md</string>
+    <string name="result_copy">Copy markdown</string>
+    <string name="result_save">Save .md</string>
+    <string name="result_ask_more">Ask me more</string>
+    <string name="result_share_chooser">Share the refined prompt</string>
+    <string name="result_clip_label">IdeaForge export</string>
+    <string name="result_copied">Copied.</string>
+    <string name="result_saved">Saved.</string>
+    <string name="result_save_failed">The file could not be saved (%1$s).</string>
+    <string name="result_share_failed">The share sheet failed (%1$s).</string>
+    <string name="result_reopen_failed">The idea could not be reopened (%1$s).</string>
+    <string name="result_missing">This idea is no longer in the library.</string>
+</resources>
