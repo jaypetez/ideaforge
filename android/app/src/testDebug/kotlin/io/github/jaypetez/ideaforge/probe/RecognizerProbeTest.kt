@@ -1,6 +1,9 @@
 package io.github.jaypetez.ideaforge.probe
 
+import android.content.Context
 import android.content.Intent
+import android.os.Looper
+import android.speech.RecognitionListener
 import android.content.pm.PackageManager
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -12,6 +15,7 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.usableRing
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -20,6 +24,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.io.File
+import java.time.Duration
 
 /** The debug build's recognizer probe (issue #89) launches, and the launch hook reaches it. */
 @OptIn(ExperimentalTestApi::class)
@@ -46,6 +52,8 @@ class RecognizerProbeTest {
         val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_ACTIVITIES or PackageManager.GET_PERMISSIONS)
         assertTrue(info.activities!!.any { it.name == RecognizerProbeActivity::class.java.name })
         assertTrue(info.requestedPermissions!!.contains(android.Manifest.permission.RECORD_AUDIO))
+        val probe = info.activities!!.single { it.name == RecognizerProbeActivity::class.java.name }
+        assertFalse("the probe activity is exported", probe.exported)
     }
 
     @Test
@@ -64,27 +72,132 @@ class RecognizerProbeTest {
         }
     }
 
-    // `check` runs only the debug unit tests, so ReleaseHasNoProbeTest (testRelease) is not
-    // what guards CI. This does, from the source sets: the probe and its microphone
-    // permission live under src/debug, and src/main neither declares nor names them.
-    @Test
-    fun theReleaseSourceSetsCarryNoProbe() {
-        val start = java.io.File(System.getProperty("user.dir")).absoluteFile
-        val app = generateSequence(start) { it.parentFile }
-            .flatMap { sequenceOf(it, java.io.File(it, "app"), java.io.File(it, "android/app")) }
-            .firstOrNull { java.io.File(it, "src/main/AndroidManifest.xml").isFile && java.io.File(it, "src/debug").isDirectory }
+    private fun appDir(): File {
+        val start = File(System.getProperty("user.dir")).absoluteFile
+        return generateSequence(start) { it.parentFile }
+            .flatMap { sequenceOf(it, File(it, "app"), File(it, "android/app")) }
+            .firstOrNull { File(it, "src/main/AndroidManifest.xml").isFile && File(it, "src/debug").isDirectory }
             ?: error("no android/app above $start")
-        val main = java.io.File(app, "src/main")
-        val manifest = java.io.File(main, "AndroidManifest.xml").readText()
-        assertTrue("main manifest asks for RECORD_AUDIO", !manifest.contains("RECORD_AUDIO"))
-        assertTrue("main manifest names the probe", !manifest.contains("probe", ignoreCase = true))
-        val leaks = (main.walkTopDown() + java.io.File(app, "src/release").walkTopDown())
-            .filter { it.isFile && it.extension == "kt" }
-            .filter { f -> f.readText().let { it.contains("RecognizerProbeActivity") || it.contains("import io.github.jaypetez.ideaforge.probe") } }
+    }
+
+    // AGP creates no release unit-test task, so this debug test reads the release variant's
+    // final merged manifest (wired in by app/build.gradle.kts) and denies everything the
+    // debug manifest adds: each permission, the <queries> block, and the probe components.
+    @Test
+    fun theReleaseMergedManifestHasNothingTheProbeAdds() {
+        val path = System.getProperty("ideaforge.releaseManifest") ?: error("ideaforge.releaseManifest is not set")
+        val release = File(path).readText()
+        assertTrue("not the app's manifest: $path", release.contains("io.github.jaypetez.ideaforge.MainActivity"))
+        val debug = File(appDir(), "src/debug/AndroidManifest.xml").readText()
+        val added = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(debug).map { it.groupValues[1] }.toList()
+        assertTrue("the deny list came out empty", added.contains("android.permission.RECORD_AUDIO"))
+        for (permission in added) assertFalse("release asks for $permission", release.contains("\"$permission\""))
+        assertFalse("release has <queries>", release.contains("<queries"))
+        for (component in listOf(".probe.", "RecognizerProbeActivity", "ProbeMicService")) {
+            assertFalse("release names $component", release.contains(component))
+        }
+    }
+
+    @Test
+    fun releaseReachableSourcesNeverNameTheProbe() {
+        val app = appDir()
+        val leaks = (File(app, "src/main").walkTopDown() + File(app, "src/release").walkTopDown())
+            .filter { it.isFile && (it.extension == "kt" || it.extension == "xml") }
+            .filter { f -> f.readText().let { it.contains("RecognizerProbeActivity") || it.contains("ideaforge.probe") } }
             .toList()
         assertTrue("release-reachable sources name the probe: $leaks", leaks.isEmpty())
-        val releaseHook = java.io.File(app, "src/release/kotlin/io/github/jaypetez/ideaforge/DebugProbes.kt").readText()
+        val releaseHook = File(app, "src/release/kotlin/io/github/jaypetez/ideaforge/DebugProbes.kt").readText()
         assertTrue(releaseHook.contains("): Boolean = false"))
+    }
+
+    // ---- trials against a fake engine ------------------------------------------------------
+
+    private class FakeEngine : ProbeEngine {
+        val calls = mutableListOf<String>()
+        override fun setRecognitionListener(listener: RecognitionListener) {}
+        override fun startListening(intent: Intent) { calls += "start" }
+        override fun stopListening() { calls += "stop" } // never answers: a deaf engine
+        override fun cancel() { calls += "cancel" }
+        override fun destroy() { calls += "destroy" }
+    }
+
+    private fun advance(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
+    private val app get() = ApplicationProvider.getApplicationContext<Context>()
+
+    private fun withFakeEngines(body: (MutableList<FakeEngine>) -> Unit) {
+        val engines = mutableListOf<FakeEngine>()
+        val real = ProbeRunner.engineFactory
+        ProbeRunner.engineFactory = { _, _ -> FakeEngine().also { engines += it } }
+        try {
+            body(engines)
+        } finally {
+            ProbeRunner.cancel(); ProbeRunner.engineFactory = real; ProbeRunner.clear(app)
+        }
+    }
+
+    // Each trial restarts `session` at 1, so trial A's watchdog used to match trial B's
+    // session 1 and cancel it. Found in review, not by a run.
+    @Test
+    fun anEarlierTrialsWatchdogLeavesALaterTrialAlone() = withFakeEngines { engines ->
+        ProbeRunner.start(app, TrialConfig()); advance(10)
+        advance(1_000); ProbeRunner.cancel()               // A ends; its 60 s watchdog is still queued
+        advance(1_000)
+        ProbeRunner.start(app, TrialConfig()); advance(10)  // B's session 1
+        advance(58_500)                                     // A's watchdog fires here; B's at ~62 s
+        assertTrue("trial B was ended by trial A's watchdog", ProbeRunner.running.value)
+        assertFalse(engines[1].calls.contains("cancel"))
+        assertFalse(ProbeRunner.text().contains("watchdog"))
+        advance(2_000)                                      // B's own watchdog still works
+        assertFalse(ProbeRunner.running.value)
+        assertTrue(ProbeRunner.text().contains("watchdog"))
+    }
+
+    @Test
+    fun anEarlierTrialsStopTimerLeavesALaterTrialAlone() = withFakeEngines {
+        ProbeRunner.start(app, TrialConfig()); advance(10)
+        ProbeRunner.stopListening(); advance(100); ProbeRunner.cancel() // A's 5 s stop timer is queued
+        advance(900)
+        ProbeRunner.start(app, TrialConfig()); advance(10)
+        advance(3_000); ProbeRunner.stopListening()                    // B's own timer is 5 s from here
+        advance(1_100)                                                 // A's timer fires here
+        assertTrue("trial B was ended by trial A's stop timer", ProbeRunner.running.value)
+        advance(5_000)
+        assertFalse(ProbeRunner.running.value)
+        assertTrue(ProbeRunner.text().contains("no end callback 5 s after stopListening"))
+    }
+
+    @Test
+    fun aReportDuringATrialKeepsTheTrialClock() = withFakeEngines {
+        ProbeRunner.start(app, TrialConfig()); advance(10)
+        advance(2_000)
+        ProbeRunner.report(app)
+        val ms = ProbeRunner.lines.value.last().trim().substringBefore(' ').toDouble()
+        assertTrue("the report re-timed the trial: $ms ms", ms >= 2_000)
+    }
+
+    // The probe's activity is not exported but MainActivity is, and forwards its extras: an
+    // intent from any app must not start the microphone. Autostart needs a shell-only property.
+    @Test
+    fun autostartFromAnIntentNeedsTheShellProperty() = withFakeEngines { engines ->
+        val gate = RecognizerProbeActivity.shellAllowsAutostart
+        try {
+            installTestGraph(ring = usableRing())
+            val hostile = Intent(app, RecognizerProbeActivity::class.java)
+                .putExtra("autostart", true).putExtra("fgs", true).putExtra("wakelock", true)
+            RecognizerProbeActivity.shellAllowsAutostart = { false }
+            ActivityScenario.launch<RecognizerProbeActivity>(hostile).use { advance(100) }
+            assertFalse(ProbeRunner.running.value)
+            assertTrue(engines.isEmpty())
+            assertTrue(ProbeRunner.text().contains("autostart ignored"))
+            RecognizerProbeActivity.shellAllowsAutostart = { true }
+            val shell = Intent(app, RecognizerProbeActivity::class.java).putExtra("autostart", true)
+            ActivityScenario.launch<RecognizerProbeActivity>(shell).use {
+                advance(100)
+                assertTrue(ProbeRunner.running.value)
+            }
+        } finally {
+            RecognizerProbeActivity.shellAllowsAutostart = gate
+        }
     }
 
     @Test

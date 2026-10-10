@@ -105,6 +105,19 @@ androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(walkthroughAsset, WalkthroughAsset::outputDir)
     }
+    // AGP creates no release unit-test task, so the debug tests check the release variant's
+    // final merged manifest for anything the debug-only recognizer probe (#89) adds. Declared
+    // as an input, which also makes the test task build it.
+    onVariants(selector().withBuildType("release")) { variant ->
+        val manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
+        tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseManifest(manifest)) }
+    }
+}
+
+class ReleaseManifest(
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val file: Provider<RegularFile>,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.releaseManifest=${file.get().asFile.absolutePath}")
 }
 
 // The interview tests replay the walkthrough vector through InterviewViewModel, with the same

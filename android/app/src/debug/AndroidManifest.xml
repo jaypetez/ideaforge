@@ -27,9 +27,10 @@
     </queries>
 
     <application>
+        <!-- Not exported: reached only through the "probe recognizer" launch extra on MainActivity. -->
         <activity
             android:name=".probe.RecognizerProbeActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Recognizer probe" />
 
         <service

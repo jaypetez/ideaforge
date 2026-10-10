@@ -48,10 +48,12 @@ import androidx.compose.ui.unit.sp
  *
  *     adb shell am start -n io.github.jaypetez.ideaforge.debug/io.github.jaypetez.ideaforge.MainActivity --es probe recognizer
  *
- * or directly as `.../io.github.jaypetez.ideaforge.probe.RecognizerProbeActivity`. Trial
- * settings can also come from the intent so a run is scriptable over adb (see [configFrom]),
- * with `--ez autostart true` to start one at once. The release build has neither this class
- * nor the RECORD_AUDIO permission it needs; `ReleaseHasNoProbeTest` holds that.
+ * The activity itself is not exported. Trial settings in the launch extras only pre-fill the
+ * toggles (see [configFrom]); nothing listens until someone taps Start, because MainActivity
+ * is exported and any installed app could send it these extras. `--ez autostart true` starts
+ * a trial at once only while the shell has set `adb shell setprop debug.ideaforge.probe 1`,
+ * which no app can do. The release build has neither this class nor the RECORD_AUDIO
+ * permission it needs; RecognizerProbeTest checks the release merged manifest for that.
  */
 class RecognizerProbeActivity : ComponentActivity() {
     private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -68,10 +70,14 @@ class RecognizerProbeActivity : ComponentActivity() {
         }
         if (savedInstanceState == null) {
             askPermissions.launch(wanted.toTypedArray())
-            ProbeRunner.report(this)
+            // A relaunch during a running trial must not interleave a report into it.
+            if (ProbeRunner.running.value) ProbeRunner.log("activity created while a trial runs", 0) else ProbeRunner.report(this)
         }
         val initial = configFrom(intent)
-        if (savedInstanceState == null && intent.getBooleanExtra("autostart", false)) ProbeRunner.start(this, initial)
+        if (savedInstanceState == null && intent.getBooleanExtra("autostart", false)) {
+            if (shellAllowsAutostart()) ProbeRunner.start(this, initial)
+            else ProbeRunner.log("autostart ignored: run `adb shell setprop $AUTOSTART_PROP 1` first", 0)
+        }
         setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { ProbeScreen(initial) } } }
     }
 
@@ -154,6 +160,17 @@ class RecognizerProbeActivity : ComponentActivity() {
     }
 
     companion object {
+        /** Only the shell (or root) can set debug.* properties; an installed app cannot. */
+        const val AUTOSTART_PROP = "debug.ideaforge.probe"
+
+        /** Read through getprop: SystemProperties is hidden API. */
+        @androidx.annotation.VisibleForTesting
+        var shellAllowsAutostart: () -> Boolean = {
+            runCatching {
+                Runtime.getRuntime().exec(arrayOf("getprop", AUTOSTART_PROP)).inputStream.bufferedReader().use { it.readText().trim() } == "1"
+            }.getOrDefault(false)
+        }
+
         const val SCREEN = "recognizer-probe"
         const val LOG = "recognizer-probe-log"
         private const val MAX_SHARE = 200_000

@@ -11,7 +11,8 @@ import io.github.jaypetez.ideaforge.probe.RecognizerProbeActivity
  *         --es probe recognizer
  *
  * `recognizer` opens the SpeechRecognizer probe (issue #89), forwarding the launch extras so
- * its trial settings can be scripted too. The release source set's DebugProbes does nothing.
+ * its toggles can be pre-filled. This is the probe's only route: its activity is not
+ * exported, and it starts nothing on its own unless the shell allowed autostart. The release source set's DebugProbes does nothing.
  */
 object DebugProbes {
     fun fromLaunch(activity: Activity, intent: Intent?): Boolean = when (intent?.getStringExtra("probe")) {

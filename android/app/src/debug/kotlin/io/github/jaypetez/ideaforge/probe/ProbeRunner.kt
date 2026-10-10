@@ -20,6 +20,7 @@ import android.speech.RecognitionSupport
 import android.speech.RecognitionSupportCallback
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,26 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * The slice of SpeechRecognizer the probe drives. A seam so a test can run trials against a
+ * fake engine; [ProbeRunner.engineFactory] makes the real one.
+ */
+interface ProbeEngine {
+    fun setRecognitionListener(listener: RecognitionListener)
+    fun startListening(intent: Intent)
+    fun stopListening()
+    fun cancel()
+    fun destroy()
+}
+
+private class SpeechRecognizerEngine(private val r: SpeechRecognizer) : ProbeEngine {
+    override fun setRecognitionListener(listener: RecognitionListener) = r.setRecognitionListener(listener)
+    override fun startListening(intent: Intent) = r.startListening(intent)
+    override fun stopListening() = r.stopListening()
+    override fun cancel() = r.cancel()
+    override fun destroy() = r.destroy()
+}
 
 /** One trial's settings: what the probe screen's toggles say. */
 data class TrialConfig(
@@ -78,7 +99,17 @@ object ProbeRunner {
     private var restartsDone = 0
     private var stopRequested = false
     private var config = TrialConfig()
-    private var recognizer: SpeechRecognizer? = null
+    private var recognizer: ProbeEngine? = null
+
+    /** Makes the engine for a session: (context, onDevice). Tests swap in a fake. */
+    @VisibleForTesting
+    var engineFactory: (Context, Boolean) -> ProbeEngine = { ctx, onDevice ->
+        if (onDevice) {
+            if (Build.VERSION.SDK_INT < 31) error("createOnDeviceSpeechRecognizer needs API 31")
+            if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) error("isOnDeviceRecognitionAvailable is false")
+            SpeechRecognizerEngine(SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx))
+        } else SpeechRecognizerEngine(SpeechRecognizer.createSpeechRecognizer(ctx))
+    }
     private var wakeLock: PowerManager.WakeLock? = null
     private var screenReceiver: BroadcastReceiver? = null
     private var clip: Pair<String, TtsClip>? = null
@@ -117,7 +148,9 @@ object ProbeRunner {
 
     fun report(context: Context) {
         init(context)
-        t0 = SystemClock.elapsedRealtimeNanos()
+        // Mid-trial (a relaunch, or Report pressed), the trial's clock must keep running:
+        // resetting it would re-time every later line of that trial.
+        if (!_running.value) t0 = SystemClock.elapsedRealtimeNanos()
         val pm = context.packageManager
         log("==== report ${wall()} ====", 0)
         log("device: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE}), Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT}", 0)
@@ -208,7 +241,8 @@ object ProbeRunner {
         if (cfg.foregroundService) ProbeMicService.start(ctx)
         val begin = {
             if (cfg.delayMs > 0) log("waiting ${cfg.delayMs} ms before the first startListening (turn the screen off now if testing that)", 0)
-            main.postDelayed({ if (_running.value) startSession() }, cfg.delayMs)
+            val t = trial
+            main.postDelayed({ if (trial == t && _running.value && session == 0) startSession() }, cfg.delayMs)
         }
         val phrase = cfg.ttsPhrase
         when {
@@ -234,7 +268,10 @@ object ProbeRunner {
         log("user: stopListening()")
         recognizer?.stopListening()
         // A recognizer that never answers stopListening must not leave the trial running.
-        main.postDelayed({ if (stopRequested && _running.value) finish("no end callback 5 s after stopListening") }, 5_000)
+        // Scoped to this trial: `session` restarts at 1 every trial, so an unscoped timer from
+        // an earlier trial could end a later one.
+        val t = trial
+        main.postDelayed({ if (trial == t && stopRequested && _running.value) finish("no end callback 5 s after stopListening") }, 5_000)
     }
 
     fun cancel() {
@@ -283,13 +320,7 @@ object ProbeRunner {
         if (recognizer == null || config.recreateOnRestart) {
             recognizer?.let { log("destroying the previous recognizer before restart"); it.destroy() }
             recognizer = null
-            val created = runCatching {
-                if (config.onDevice) {
-                    if (Build.VERSION.SDK_INT < 31) error("createOnDeviceSpeechRecognizer needs API 31")
-                    if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) error("isOnDeviceRecognitionAvailable is false")
-                    SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx)
-                } else SpeechRecognizer.createSpeechRecognizer(ctx)
-            }
+            val created = runCatching { engineFactory(ctx, config.onDevice) }
             val r = created.getOrElse { log("create recognizer failed: ${it.message}"); finish("no recognizer"); return }
             r.setRecognitionListener(listener)
             recognizer = r
@@ -308,8 +339,9 @@ object ProbeRunner {
             return
         }
         val mine = session
+        val t = trial
         main.postDelayed({
-            if (_running.value && session == mine && endedSession < mine) {
+            if (trial == t && _running.value && session == mine && endedSession < mine) {
                 log("watchdog: no onResults/onError ${SESSION_WATCHDOG_MS / 1000} s after startListening; cancelling")
                 recognizer?.cancel()
                 finish("watchdog")

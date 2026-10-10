@@ -56,10 +56,12 @@ class TtsClip(val pcm: ByteArray, val sampleRate: Int, val channels: Int) {
             val out = File(context.cacheDir, "probe-tts.wav")
             var tts: TextToSpeech? = null
             tts = TextToSpeech(context.applicationContext) { status ->
-                val engine = tts!!
+                // onInit(ERROR) can run inside the constructor, before `tts` is assigned (a
+                // phone with no TTS engine): never dereference it on that path.
                 if (status != TextToSpeech.SUCCESS) {
-                    done(null, "TTS init failed ($status)"); engine.shutdown(); return@TextToSpeech
+                    done(null, "TTS init failed ($status)"); tts?.shutdown(); return@TextToSpeech
                 }
+                val engine = tts ?: run { done(null, "TTS init ran before the engine existed"); return@TextToSpeech }
                 engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(id: String?) {}
                     override fun onDone(id: String?) {
