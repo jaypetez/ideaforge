@@ -230,10 +230,13 @@ function layoutDoneActions() {
   const files = canShareFile({ filename: 'idea.md', type: 'text/markdown' });
   const primary = files ? els['b-share'] : els['b-copy'];
   const secondary = files ? els['b-copy'] : els['b-share'];
+  // Move only what is out of place: a manual write-up lays Done out twice (writing, then
+  // written), and prepend re-inserts even a node already first, dropping a focused button's
+  // focus to <body> and stranding an open menu's.
   primary.className = '';
-  els['done-actions'].prepend(primary);
+  if (els['done-actions'].firstElementChild !== primary) els['done-actions'].prepend(primary);
   secondary.className = 'quiet idea-menu-item';
-  els['done-menu'].prepend(secondary);
+  if (els['done-menu'].firstElementChild !== secondary) els['done-menu'].prepend(secondary);
   els['b-share'].hidden = !files && !canShareText();
   els['done-actions'].dataset.primary = files ? 'share' : 'copy';
 }
