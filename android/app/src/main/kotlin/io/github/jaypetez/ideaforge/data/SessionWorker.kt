@@ -51,4 +51,12 @@ class SessionWorker {
         commit(value)
         Outcome.Committed(value)
     }
+
+    /**
+     * Runs [work] under the session's lock regardless of epoch: for work that ends the
+     * session's life (a delete) rather than belonging to one epoch of it. It waits for any
+     * [run] already holding the lock, and every [run] queued behind it sees its result.
+     */
+    suspend fun <T> exclusive(sessionId: String, work: suspend () -> T): T =
+        locks.getOrPut(sessionId) { Mutex() }.withLock { work() }
 }

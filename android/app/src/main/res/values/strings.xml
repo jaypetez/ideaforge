@@ -8,7 +8,6 @@
     <string name="screen_interview">Interview</string>
     <string name="screen_result">Result</string>
     <string name="screen_settings">Settings</string>
-    <string name="library_empty">No ideas yet. Start one with New idea.</string>
     <string name="action_how_it_works">How it works</string>
     <string name="action_see_result">See result</string>
     <string name="pref_hands_free">Hands-free</string>
@@ -45,4 +44,50 @@
     <string name="onboarding_model_label">Model</string>
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_back">Back</string>
+
+    <!-- Library. Wording follows index.html and src/ui/library.js where the web has it. -->
+    <string name="library_title">Your ideas</string>
+    <string name="library_hint">Stored on this device.</string>
+    <!-- The web has no zero-ideas message of its own (it shows #library-empty for both). -->
+    <string name="library_empty">No ideas yet. Start one with New idea.</string>
+    <!-- #library-empty -->
+    <string name="library_no_match">No ideas match these filters.</string>
+    <string name="library_search">Search conversations</string>
+    <string name="library_search_placeholder">name, tag, question, answer or prompt</string>
+    <string name="library_show_archived">Show archived</string>
+    <plurals name="library_count">
+        <item quantity="one">%1$d of %2$d idea</item>
+        <item quantity="other">%1$d of %2$d ideas</item>
+    </plurals>
+    <plurals name="idea_questions">
+        <item quantity="one">%1$d question</item>
+        <item quantity="other">%1$d questions</item>
+    </plurals>
+    <string name="idea_meta">%1$s · %2$d%% coverage · updated %3$s</string>
+    <string name="idea_unknown_date">unknown date</string>
+    <string name="idea_status_active">Active</string>
+    <string name="idea_status_completed">Completed</string>
+    <string name="idea_status_archived">Archived</string>
+    <string name="idea_more">More actions for %1$s</string>
+    <string name="idea_continue">Continue</string>
+    <string name="idea_view_result">View result</string>
+    <string name="idea_edit">Rename or tag</string>
+    <string name="idea_archive">Archive</string>
+    <string name="idea_restore">Restore</string>
+    <string name="idea_delete">Delete</string>
+    <string name="idea_name">Idea name</string>
+    <string name="idea_tags">Tags</string>
+    <string name="idea_tags_placeholder">work, writing, product</string>
+    <string name="idea_save_details">Save details</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="idea_delete_title">Permanently delete “%1$s”?</string>
+    <string name="idea_delete_body">It is removed from this device and cannot be undone.</string>
+    <string name="idea_select">Select an idea to see its summary.</string>
+    <string name="idea_no_preview">No answers yet, so there is nothing to preview.</string>
+    <string name="idea_all">All ideas</string>
+    <string name="notice_saved">Idea details saved.</string>
+    <string name="notice_archived">Idea archived.</string>
+    <string name="notice_restored">Idea restored.</string>
+    <string name="notice_deleted">Idea deleted from this device.</string>
+    <string name="notice_failed">That change could not be saved.</string>
 </resources>
