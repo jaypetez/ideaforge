@@ -17,10 +17,12 @@ java {
 }
 
 dependencies {
+    // Sessions are JSON documents shared with the web app; the port works on them directly.
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test)
-    testImplementation(libs.kotlinx.serialization.json)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

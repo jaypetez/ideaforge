@@ -18,7 +18,7 @@ class VectorSuiteTest {
     @TestFactory
     fun portedCases(): List<DynamicNode> = CONSUMERS.map { consumer ->
         val family = Vectors.load(consumer.family)
-        val ported = family.cases.filter { it.fn in consumer.ported }
+        val ported = family.cases.filter { it.fn in consumer.ported && it.name !in consumer.pendingCases }
         DynamicContainer.dynamicContainer(
             consumer.family,
             ported.map { case ->
@@ -40,6 +40,13 @@ class VectorSuiteTest {
         assertEquals(case.expect["value"], port(case), case.name)
     }
 
+    /** A constant still listed as owed but already ported would skip a working case for ever. */
+    @Test
+    fun noPendingConstantIsAlreadyPorted() {
+        val ported = CONSTANTS_PENDING.keys.filter { name -> name.substringAfter(' ') in CONSTANTS_PORTED }
+        assertTrue(ported.isEmpty(), "ported but still listed as pending: $ported")
+    }
+
     /** Nothing is skipped silently: every recorded function is either ported or owed. */
     @Test
     fun everyRecordedFunctionIsPortedOrOwedToAnIssue() {
@@ -51,9 +58,18 @@ class VectorSuiteTest {
             assertTrue(stale.isEmpty(), "${consumer.family}: lists functions no vector records: $stale")
             val both = consumer.ported.keys intersect consumer.pending.keys
             assertTrue(both.isEmpty(), "${consumer.family}: $both is both ported and pending")
+            val names = Vectors.load(consumer.family).cases.map { it.name }.toSet()
+            val unknownCases = consumer.pendingCases.keys - names
+            assertTrue(unknownCases.isEmpty(), "${consumer.family}: pendingCases names no recorded case: $unknownCases")
+            for ((case, issue) in consumer.pendingCases) {
+                assertTrue(ISSUE.matches(issue), "${consumer.family} '$case': pending needs an issue, got '$issue'")
+            }
             for ((fn, issue) in consumer.pending) {
-                assertTrue(Regex("""^#\d+$""").matches(issue), "${consumer.family}.$fn: pending needs an issue, got '$issue'")
+                assertTrue(ISSUE.matches(issue), "${consumer.family}.$fn: pending needs an issue, got '$issue'")
             }
         }
     }
 }
+
+/** An owning GitHub issue, written "#123". */
+private val ISSUE = Regex("^#[0-9]+$")

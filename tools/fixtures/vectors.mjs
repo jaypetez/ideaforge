@@ -44,6 +44,14 @@ import { resolveTiers, presetModels, createProvider, PROVIDER_CHOICES } from '..
 import { parseModelList, OPENAI_COMPAT_PRESETS } from '../../src/providers/openaiCompat.js';
 import { ANTHROPIC_AUTH, ANTHROPIC_TIERS } from '../../src/providers/anthropic.js';
 import { ANSWERS, TURNS, SYNTHESIS } from './walkthrough.mjs';
+import * as dimensionsModule from '../../src/core/dimensions.js';
+import * as sessionModule from '../../src/core/session.js';
+import * as engineModule from '../../src/core/engine.js';
+import * as digestModule from '../../src/core/digest.js';
+import * as drivingModule from '../../src/core/driving.js';
+import * as backupModule from '../../src/core/backup.js';
+import * as synthesisModule from '../../src/core/synthesis.js';
+import * as turnModule from '../../src/runtime/turn.js';
 
 // ─────────────────────────────────────────────────────────────── recording
 
@@ -164,6 +172,9 @@ async function sessionFamily() {
   const mid = snapshots.find(([n]) => n === 'answered-3')[1];
   const fresh = createSession({ id: 's_cov', now: tick(0) });
   const partialAll = applyCoverage(fresh, Object.fromEntries(DIMS.map((d) => [d, { level: 'partial', gap: `gap ${d}` }])), { now: 1 });
+  const hostileCoverage = JSON.parse(JSON.stringify(fresh));
+  for (const d of DIMS) hostileCoverage.coverage[d] = { ...hostileCoverage.coverage[d], level: d === 'outcome' ? null : 'COVERED' };
+  hostileCoverage.coverage.bar.status = 'banana';
   const cases = [
     rec('createSession', createSession, { id: 's_new', now: tick(0), device: 'phone' }),
     rec('createSession without id throws', createSession, {}),
@@ -199,6 +210,8 @@ async function sessionFamily() {
     rec('migrate array', migrate, []),
     rec('migrate schema 1 with junk', migrate, { schema: 1, id: 's_old', createdAt: 5, turns: [{ question: 'q', chips: ['a', 3, null] }, 'bad', null], facts: [{ fact: 'f' }, 2], moveHistory: ['concretize', 9], tags: ['A', 'a'], archivedAt: -1, name: '  n  ' }),
     rec('migrate current', migrate, mid),
+    rec('migrate resets unknown levels and statuses', migrate, hostileCoverage),
+    rec('ratchet holds after migrating hostile coverage', applyCoverage, migrate(hostileCoverage), Object.fromEntries(DIMS.map((d) => [d, { level: 'covered', evidence: 'quote' }])), { now: 3 }),
     rec('migrate missing id', migrate, { schema: 2 }),
   ];
   return { source: 'src/core/session.js', cases };
@@ -740,7 +753,62 @@ async function providersFamily() {
   return { source: 'src/providers/*.js', cases };
 }
 
+/**
+ * constants: every exported constant of the core, by module and name, so a port that
+ * transcribes the question bank, a ceiling or a command phrase wrongly fails on the exact
+ * entry. Sets are recorded as arrays in insertion order.
+ */
+function constantsFamily() {
+  const modules = {
+    'src/core/dimensions.js': dimensionsModule,
+    'src/core/session.js': sessionModule,
+    'src/core/engine.js': engineModule,
+    'src/core/digest.js': digestModule,
+    'src/core/driving.js': drivingModule,
+    'src/core/backup.js': backupModule,
+    'src/core/synthesis.js': synthesisModule,
+    'src/runtime/turn.js': turnModule,
+  };
+  const cases = [];
+  for (const [path, mod] of Object.entries(modules)) {
+    for (const [name, value] of Object.entries(mod).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      if (typeof value === 'function') continue;
+      const v = value instanceof Set ? [...value] : value;
+      cases.push({ name: `${path} ${name}`, fn: 'constant', args: [name], expect: { value: plain(v) } });
+    }
+  }
+  return { source: 'src/core/*.js, src/runtime/turn.js', cases };
+}
+
+/**
+ * js: the JavaScript semantics the port reproduces by hand (android/core js/JsCompat.kt),
+ * recorded from the engine itself rather than from anyone's memory of the spec. Inputs are
+ * JSON values; `String`, `Number` and `plusOne` are String(v), Number(v) and v + 1, with
+ * a non-finite Number recorded as its String() so it survives JSON.
+ */
+function jsFamily() {
+  const values = [
+    0, -0, 1, -1, 1.5, 1.50, 0.1, 1e-6, 1e-7, 1.5e-7, 123456789, 1e15, 1e16, 2 ** 53, 1e20, 1e21, 1.5e21,
+    1.7976931348623157e308, 5e-324, 1 / 3, 100, 255.5,
+    '', ' ', '  42 ', '0x1F', '0X1f', '0b11', '0o17', '0x+3', '0x-3', '0x1FFFFFFFFFFFFFFFF', '+5', '-5',
+    '1e3', '.5', '5.', '1_000', 'Infinity', '-Infinity', '+Infinity', 'infinity', 'NaN', 'abc', '12px', '\u00a0 7 \ufeff',
+    null, true, false, [], [5], ['7'], [1, 2], [true], ['0b11'], [null], {}, { a: 1 },
+  ];
+  const numberOut = (n) => (Number.isFinite(n) ? n : String(n));
+  const cases = [];
+  for (const [i, v] of values.entries()) {
+    const label = `${i} ${JSON.stringify(v)}`;
+    cases.push({ name: `String ${label}`, fn: 'String', args: [v], expect: { value: String(v) } });
+    cases.push({ name: `Number ${label}`, fn: 'Number', args: [v], expect: { value: numberOut(Number(v)) } });
+    const sum = v + 1;
+    cases.push({ name: `plusOne ${label}`, fn: 'plusOne', args: [v], expect: { value: typeof sum === 'number' ? numberOut(sum) : sum } });
+  }
+  return { source: 'ECMAScript semantics, as run by Node', cases };
+}
+
 export const FAMILIES = {
+  constants: constantsFamily,
+  js: jsFamily,
   session: sessionFamily,
   engine: engineFamily,
   'turn-prompt': turnPromptFamily,

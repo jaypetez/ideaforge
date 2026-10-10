@@ -80,6 +80,9 @@ data class Consumer(
     val family: String,
     val ported: Map<String, Port>,
     val pending: Map<String, String>,
+    /** Individual cases of a ported function still owed to an issue, by case name. Used where
+     *  one recorded function covers many things, as `constant` covers every constant. */
+    val pendingCases: Map<String, String> = emptyMap(),
 )
 
 fun str(e: JsonElement?): String = (e as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content ?: ""
