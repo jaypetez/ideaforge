@@ -37,9 +37,7 @@ val CONSUMERS: List<Consumer> = listOf(
         "sessionSearchText", "slug", "renderBlocks", "forSpeech", "speechChunks", "availableTags",
         "filterSessions",
     )),
-    Consumer("backup", ported = emptyMap(), pending = pending(
-        "#76", "sessionsEqual", "backupFilename", "buildBackup", "parseBackup",
-    )),
+    Consumer("backup", ported = BACKUP_PORTS, pending = emptyMap()),
     Consumer("speech", ported = emptyMap(), pending = pending(
         "#77", "parseSpeech", "endsWithTrigger", "stripTrigger", "matchAffirmation", "normalizeTrigger",
         "triggerWarning", "spokenExamples",

@@ -109,7 +109,7 @@ val CONSTANTS_PORTED: Map<String, JsonElement> = mapOf(
     "MAX_SESSION_NAME" to num(MAX_SESSION_NAME),
     "MAX_TAGS" to num(MAX_TAGS),
     "MAX_TAG_LENGTH" to num(MAX_TAG_LENGTH),
-)
+) + BACKUP_CONSTANTS
 
 val CONSTANT_PORT: Port = { c ->
     val name = stringOf(c.arg(0))!!
@@ -120,7 +120,6 @@ val CONSTANT_PORT: Port = { c ->
 val CONSTANTS_PENDING: Map<String, String> = buildMap {
     fun owe(issue: String, path: String, vararg names: String) = names.forEach { put("$path $it", issue) }
     owe("#77", "src/core/driving.js", "COMMANDS", "DRIVING")
-    owe("#76", "src/core/backup.js", "BACKUP_FORMAT", "BACKUP_VERSION", "MAX_BACKUP_BYTES", "MAX_BACKUP_SESSIONS")
     owe("#74", "src/core/synthesis.js", "MAX_ASSUMPTIONS", "MAX_OPEN_QUESTIONS", "MAX_TITLE_WORDS")
     owe("#74", "src/runtime/turn.js", "CAPPING_CLASSES")
 }

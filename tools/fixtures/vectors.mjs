@@ -25,7 +25,7 @@ import {
   triggerWarning, spokenExamples,
 } from '../../src/core/driving.js';
 import {
-  sessionsEqual, backupFilename, buildBackup, parseBackup,
+  sessionsEqual, backupFilename, buildBackup, parseBackup, mergeImported as mergeImportedCore,
 } from '../../src/core/backup.js';
 import {
   sessionLibraryStatus, sessionSearchText, libraryCard, availableTags, filterSessions,
@@ -584,12 +584,29 @@ async function driveLoopFamily() {
   return { source: 'src/runtime/drive.js', cases };
 }
 
+/**
+ * mergeImported with its id source made JSON: `ids` is handed out in order, one per copy.
+ * Running out throws, so a port that mints an id for a duplicate fails rather than passes.
+ */
+function mergeImported(existing, incoming, { ids = [], now } = {}) {
+  const queue = [...ids];
+  const newId = () => {
+    if (!queue.length) throw new Error('newId: no ids left');
+    return queue.shift();
+  };
+  return mergeImportedCore(existing, incoming, now === undefined ? { newId } : { newId, now });
+}
+
 async function backupFamily() {
   const { final, snapshots } = await walkthrough();
   const mid = snapshots.find(([l]) => l === 'answered-3')[1];
   const reordered = JSON.parse(JSON.stringify(final));
   const keysReversed = Object.fromEntries(Object.entries(reordered).reverse());
   const backup = buildBackup([final, mid], { now: tick(5) });
+  const fresh = createSession({ id: 's_fresh_import', now: tick(2) });
+  const collideTitle = createSession({ id: 's_titled', now: tick(2) });
+  const collideTitleChanged = { ...collideTitle, title: 'A title from the model', updatedAt: tick(3) };
+  const longNamed = { ...collideTitle, name: 'n'.repeat(130), updatedAt: tick(4) };
   const cases = [
     rec('sessionsEqual same', sessionsEqual, final, final),
     rec('sessionsEqual key order ignored', sessionsEqual, final, keysReversed),
@@ -608,6 +625,25 @@ async function backupFamily() {
     rec('parseBackup too large', parseBackup, backup, { maxBytes: 100 }),
     rec('parseBackup junk sessions', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, exportedAt: 1, sessions: [null, 'x', { schema: 99, id: 'future' }, { schema: 2, id: 's_ok' }] })),
     rec('parseBackup non-string', parseBackup, 42),
+    rec('parseBackup duplicate keys keep the last', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_dup","name":"first","name":"last"}],"sessions":[{"id":"s_dup2","schema":2}]}'),
+    rec('parseBackup normalises numbers', parseBackup, '{"format":"ideaforge-backup","version":1.0,"sessions":[{"id":"s_n","createdAt":1.50e3,"updatedAt":-0,"archivedAt":2E0}]}'),
+    rec('parseBackup escapes and whitespace', parseBackup, ' \r\n\t' + String.raw`{"format":"ideaforge-backup","version":1,"sessions":[{"id":"s_😀","name":"tab\there \"q\" \/ é \ud800"}]}` + '\n'),
+    rec('parseBackup non-JSON whitespace', parseBackup, String.fromCharCode(0xa0) + '{"format":"ideaforge-backup","version":1,"sessions":[]}'),
+    rec('parseBackup trailing garbage', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[]} x'),
+    rec('parseBackup trailing comma', parseBackup, '{"format":"ideaforge-backup","version":1,"sessions":[],}'),
+    rec('parseBackup leading zero', parseBackup, '{"format":"ideaforge-backup","version":01,"sessions":[]}'),
+    rec('parseBackup multibyte limit', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, sessions: [], pad: String.fromCharCode(0x20ac).repeat(400) }), { maxBytes: 1000 }),
+    rec('parseBackup ids that are not usable', parseBackup, JSON.stringify({ format: 'ideaforge-backup', version: 1, sessions: [{ id: '' }, { id: ` ${String.fromCharCode(0xa0)} ` }, { id: 7 }, 3, true, { id: 's_fine' }] })),
+    rec('buildBackup non-array', buildBackup, { id: 'x' }, { now: tick(1) }),
+    rec('buildBackup awkward values', buildBackup, [{ id: 's_odd', big: 1e21, small: 1.5e-7, neg: -2.5, empty: {}, none: [], nested: [[], {}, [1, [2]]], text: ['line', 'break', String.fromCharCode(0x2028), '"q"', String.fromCharCode(92), String.fromCharCode(1), String.fromCharCode(0xdfff)].join(String.fromCharCode(10)), ok: true, nil: null }], { now: 0 }),
+    rec('backupFilename far date', backupFilename, Date.UTC(2099, 11, 31, 23, 59, 59)),
+    rec('mergeImported into empty', mergeImported, [], [final, fresh], { ids: [], now: tick(7) }),
+    rec('mergeImported identical skipped', mergeImported, [final, fresh], [keysReversed, fresh], { ids: [], now: tick(7) }),
+    rec('mergeImported collision becomes a named copy', mergeImported, [mid], [final], { ids: ['s_copy_1'], now: tick(7) }),
+    rec('mergeImported mixed', mergeImported, [mid, collideTitle], [final, mid, fresh, collideTitleChanged, longNamed], { ids: ['s_copy_1', 's_copy_2', 's_copy_3'], now: tick(8) }),
+    rec('mergeImported copy of a copy', mergeImported, [mid], [final, { ...final, name: 'Other' }], { ids: ['s_copy_1', 's_copy_2'], now: tick(8) }),
+    rec('mergeImported nulls', mergeImported, null, null, { ids: [] }),
+    rec('mergeImported default clock', mergeImported, [mid], [final], { ids: ['s_copy_1'] }),
   ];
   return { source: 'src/core/backup.js', cases };
 }

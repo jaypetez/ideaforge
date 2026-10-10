@@ -5,10 +5,8 @@
 // is six writes per question for no benefit.
 
 import { SESSIONS, get, put, del, all } from './db.js';
-import {
-  copySession, MAX_SESSION_NAME, migrate, sessionDisplayTitle,
-} from '../core/session.js';
-import { sessionsEqual } from '../core/backup.js';
+import { migrate } from '../core/session.js';
+import { mergeImported } from '../core/backup.js';
 
 export async function saveSession(session) {
   await put(SESSIONS, session);
@@ -35,39 +33,14 @@ export async function listSessions() {
 /**
  * Import migrated sessions without silently overwriting local work.
  *
- * Exact duplicates are skipped. A conflicting id is retained as a copy so both versions
- * survive and the user can decide which one to keep.
+ * The decision is mergeImported's (src/core/backup.js, pure and unit-tested): exact
+ * duplicates are skipped, and a conflicting id is retained as a named copy so both versions
+ * survive and the user can decide which one to keep. This only does the writing.
  */
 export async function importSessions(sessions, { now = Date.now() } = {}) {
-  const local = new Map((await listSessions()).map((session) => [session.id, session]));
-  const summary = { imported: 0, copied: 0, duplicates: 0 };
-
-  for (const session of sessions || []) {
-    const existing = local.get(session.id);
-    if (!existing) {
-      await saveSession(session);
-      local.set(session.id, session);
-      summary.imported++;
-      continue;
-    }
-    if (sessionsEqual(existing, session)) {
-      summary.duplicates++;
-      continue;
-    }
-
-    const id = newSessionId();
-    const suffix = ' (imported)';
-    const baseName = sessionDisplayTitle(session).slice(0, MAX_SESSION_NAME - suffix.length);
-    const copied = copySession(session, {
-      id,
-      name: `${baseName}${suffix}`,
-      now,
-    });
-    await saveSession(copied);
-    local.set(id, copied);
-    summary.copied++;
-  }
-
+  const local = await listSessions();
+  const { writes, summary } = mergeImported(local, sessions, { newId: newSessionId, now });
+  for (const session of writes) await saveSession(session);
   return summary;
 }
 
