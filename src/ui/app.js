@@ -63,6 +63,7 @@ for (const id of [
   'manual-interview', 'voice-stage', 'voice-status', 'voice-signal', 'voice-question',
   'voice-transcript', 'voice-detail', 'voice-backend', 'b-voice-pause', 'b-voice-exit',
   'b-send', 'b-mic', 'b-skip', 'b-wrap', 'turnline', 'coverage',
+  'wrap-offer', 'wrap-offer-text', 'b-wrap-offer', 'b-wrap-keep',
   'listening', 'listening-label', 'pulse', 'handsfree', 'handsfree-wrap',
   'panel-library', 'library-search', 'library-status', 'library-tag',
   'library-rows', 'library-empty', 'library-count',
@@ -117,6 +118,12 @@ const state = {
   speechRevoked: false,
   starting: false,
   voiceWrapPending: null,
+  /**
+   * The wrap-up offer on screen: `{ id, text }` for the idea it was made to, or null.
+   * `session.wrapOffered` is what stops the engine offering twice; this is only whether
+   * the card is still showing, and it never outlives the turn it was offered on.
+   */
+  wrapOffer: null,
 };
 
 const now = () => Date.now();
@@ -210,6 +217,7 @@ function busy(on, label) {
   els['b-mic'].disabled = on || !hasQuestion;
   els.answer.disabled = on || !hasQuestion;
   els['b-wrap'].disabled = on;
+  els['b-wrap-offer'].disabled = on;
   els['b-reopen'].disabled = on || !!(state.session
     && (workBySession.has(state.session.id) || state.writing === state.session.id));
   els.asking.hidden = !on;
@@ -835,11 +843,30 @@ function render() {
     els.turnline.textContent = 'Your answers are saved. Write it up whenever you are ready.';
   }
   els['b-wrap'].hidden = !(s.turns.length >= 4 || state.voiceWrapPending);
+  renderWrapOffer(s, open);
   els['b-send'].disabled = state.busy || !open;
   els['b-skip'].disabled = state.busy || !open;
   els.answer.disabled = state.busy || !open;
   renderCoverage();
   renderVoiceStage();
+}
+
+/**
+ * The card belongs to one idea and one open question. Answering, skipping, Keep going, a
+ * write-up and opening another idea all clear `state.wrapOffer`; the id check is the
+ * backstop, so a delayed render can never show one idea's offer over another's question.
+ */
+function renderWrapOffer(s = state.session, open = s && openTurn(s)) {
+  const offer = state.wrapOffer;
+  const visible = !!(offer && s && open && offer.id === s.id);
+  els['wrap-offer'].hidden = !visible;
+  els['wrap-offer-text'].textContent = visible ? offer.text : '';
+  els['b-wrap-offer'].disabled = state.busy || state.voiceMode !== 'manual';
+}
+
+function dismissWrapOffer() {
+  state.wrapOffer = null;
+  renderWrapOffer();
 }
 
 function renderChips(chips) {
@@ -901,8 +928,8 @@ async function nextQuestion(
         : 'That is everything worth asking.');
       return;
     }
+    if (out.advisory) state.wrapOffer = { id: session.id, text: out.advisory };
     render();
-    if (out.advisory) say(out.advisory);
     if (state.voiceMode === 'manual') els.answer.focus();
   } catch (e) {
     if (currentView(session.id, navigation)) fail(e);
@@ -919,6 +946,7 @@ async function doSkip() {
   busy(true);
   cancelDraftSave();
   state.session = skipQuestion(state.session, { now: now() });
+  dismissWrapOffer();
   const session = state.session;
   const provider = state.provider;
   const navigation = state.navigation;
@@ -937,6 +965,7 @@ async function submitAndAdvance(text, source) {
   busy(true);
   cancelDraftSave();
   state.session = submitAnswer(state.session, { text, source, now: now() });
+  dismissWrapOffer();
   const session = state.session;
   const provider = state.provider;
   const navigation = state.navigation;
@@ -976,6 +1005,7 @@ function renderVoiceStage() {
   els['b-skip'].disabled = visible || state.busy || !hasQuestion;
   els['b-mic'].disabled = visible || state.busy || !hasQuestion;
   els['b-wrap'].disabled = visible || state.busy;
+  els['b-wrap-offer'].disabled = visible || state.busy;
   els.answer.disabled = visible || state.busy || !hasQuestion;
   if (!visible) return;
   state.voiceStage.render({
@@ -1573,6 +1603,7 @@ async function wrapUp(note) {
   const wasDriving = state.voiceMode === 'active';
   state.writing = session.id;
   state.voiceWrapPending = null;
+  dismissWrapOffer();
   state.handsFree = false;
   els.handsfree.checked = false;
   if (state.drive) state.drive.stop();
@@ -1932,6 +1963,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   state.wantHandsFree = handsFree;
   savePrefs({ handsFree });
   state.voiceWrapPending = null;
+  state.wrapOffer = null;
   state.voiceMode = handsFree ? 'active' : 'manual';
   state.voicePhase = 'starting';
   prepareSpeechOutput();
@@ -1988,6 +2020,7 @@ async function resumeInterview(id) {
   if (!s) { fail('That session was written by a newer version of IdeaForge.'); return; }
   state.session = s;
   state.voiceWrapPending = null;
+  state.wrapOffer = null;
   state.capturePrefix = '';
   busy(false);
 
@@ -2217,6 +2250,16 @@ function bind() {
     await doSkip();
   };
   els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
+  els['b-wrap-offer'].onclick = () => {
+    if (state.busy || state.voiceMode !== 'manual') return;
+    return wrapUp('Wrapped up at your request.');
+  };
+  // Dismissing is the whole of it: session.wrapOffered is already persisted, so the engine
+  // will not offer again, and the next answer goes ahead as if the card was never there.
+  els['b-wrap-keep'].onclick = () => {
+    dismissWrapOffer();
+    if (!els.answer.disabled) els.answer.focus();
+  };
   els['b-library'].onclick = openLibrary;
   els['b-nav-new'].onclick = () => openStart().catch(fail);
   els['b-view-all'].onclick = openLibrary;

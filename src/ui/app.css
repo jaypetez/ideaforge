@@ -307,6 +307,19 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .turnline { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); }
 
+/* A choice, not a status: a tonal primary card with the one action it offers, beside the
+   composer it competes with. The warning-tinted .note banner it replaces read as an alert. */
+.wrap-offer {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s4); border-radius: var(--r-md);
+  background: var(--primary-container); color: var(--on-primary-container);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.wrap-offer-text {
+  margin: 0; font-size: var(--type-body-size); line-height: var(--type-body-line);
+  font-weight: 600;
+}
+
 /* The stage owns presentation only. The parent sets hidden on the manual UI and navigation. */
 .voice-stage {
   --voice-size: clamp(136px, 38vmin, 184px);
