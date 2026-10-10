@@ -8064,6 +8064,66 @@
       }
     },
     {
+      "name": "classifyAnswer 16 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
+      "name": "classifyAnswer 17 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere again today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "dodge"
+      }
+    },
+    {
+      "name": "classifyAnswer 18 voice",
+      "fn": "classifyAnswer",
+      "args": [
+        "my cat knocked a plant off the shelf and the soil went everywhere again today",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "voice",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
+      "name": "classifyAnswer 19 typed",
+      "fn": "classifyAnswer",
+      "args": [
+        "five words only right here",
+        "What would make you stop using it in the first week?",
+        {
+          "source": "typed",
+          "chips": []
+        }
+      ],
+      "expect": {
+        "value": "substantive"
+      }
+    },
+    {
       "name": "classifyAnswer defaults",
       "fn": "classifyAnswer",
       "args": [
@@ -8260,6 +8320,45 @@
       ],
       "expect": {
         "value": "compound"
+      }
+    },
+    {
+      "name": "questionTripwire 11",
+      "fn": "questionTripwire",
+      "args": [
+        "Is this a goto market thing?",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": "generic"
+      }
+    },
+    {
+      "name": "questionTripwire 12",
+      "fn": "questionTripwire",
+      "args": [
+        "Is this a go😀to😀market plan?",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "questionTripwire 13",
+      "fn": "questionTripwire",
+      "args": [
+        "go\nto market",
+        {
+          "$ref": "s_walkthrough@23#a82d461d23"
+        }
+      ],
+      "expect": {
+        "value": null
       }
     },
     {
@@ -8708,6 +8807,78 @@
           "suggestWrap": true,
           "wrapReason": "enough",
           "warnings": []
+        }
+      }
+    },
+    {
+      "name": "parseTurnResult 11",
+      "fn": "parseTurnResult",
+      "args": [
+        {
+          "question": "Why?",
+          "move": {
+            "toString": 0
+          }
+        },
+        {
+          "moves": [
+            "concretize",
+            "contrast",
+            "stress_test"
+          ],
+          "target": "bar"
+        }
+      ],
+      "expect": {
+        "value": {
+          "ok": true,
+          "bridge": null,
+          "question": "Why?",
+          "move": "concretize",
+          "dimension": "bar",
+          "chips": [],
+          "facts": [],
+          "coverage": {},
+          "suggestWrap": false,
+          "wrapReason": null,
+          "warnings": [
+            "illegal move object"
+          ]
+        }
+      }
+    },
+    {
+      "name": "parseTurnResult 12",
+      "fn": "parseTurnResult",
+      "args": [
+        {
+          "question": "Why?",
+          "move": 7
+        },
+        {
+          "moves": [
+            "concretize",
+            "contrast",
+            "stress_test"
+          ],
+          "target": "bar"
+        }
+      ],
+      "expect": {
+        "value": {
+          "ok": true,
+          "bridge": null,
+          "question": "Why?",
+          "move": "concretize",
+          "dimension": "bar",
+          "chips": [],
+          "facts": [],
+          "coverage": {},
+          "suggestWrap": false,
+          "wrapReason": null,
+          "warnings": [
+            "illegal move number"
+          ]
         }
       }
     },

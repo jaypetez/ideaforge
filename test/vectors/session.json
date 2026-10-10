@@ -3,7 +3,7 @@
   "family": "session",
   "source": "src/core/session.js",
   "fixtures": {
-    "s_cov@0#358062470a": {
+    "s_cov@0#4e96259310": {
       "schema": 2,
       "id": "s_cov",
       "rev": 0,
@@ -31,7 +31,7 @@
           "status": "probing",
           "gap": null,
           "evidence": null,
-          "turnsSpent": 0,
+          "turnsSpent": "10",
           "lastTurn": 0,
           "waivedReason": null
         },
@@ -58,7 +58,7 @@
           "status": "probing",
           "gap": null,
           "evidence": null,
-          "turnsSpent": 0,
+          "turnsSpent": null,
           "lastTurn": 0,
           "waivedReason": null
         },
@@ -4291,7 +4291,7 @@
       "fn": "migrate",
       "args": [
         {
-          "$ref": "s_cov@0#358062470a"
+          "$ref": "s_cov@0#4e96259310"
         }
       ],
       "expect": {

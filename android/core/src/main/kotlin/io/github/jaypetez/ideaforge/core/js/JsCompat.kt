@@ -69,6 +69,17 @@ fun truthy(e: JsonElement?): Boolean = when (e) {
     }
 }
 
+/** JS `typeof v` for a JSON value (undefined for a missing one). */
+fun jsTypeof(e: JsonElement?): String = when (e) {
+    null -> "undefined"
+    JsonNull, is JsonObject, is JsonArray -> "object"
+    is JsonPrimitive -> when {
+        e.isString -> "string"
+        e.booleanOrNull != null -> "boolean"
+        else -> "number"
+    }
+}
+
 /** JS `typeof v === 'string'`. */
 fun isString(e: JsonElement?): Boolean = e is JsonPrimitive && e !is JsonNull && e.isString
 

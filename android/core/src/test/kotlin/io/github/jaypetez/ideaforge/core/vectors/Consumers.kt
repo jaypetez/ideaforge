@@ -17,18 +17,14 @@ val CONSUMERS: List<Consumer> = listOf(
         pendingCases = CONSTANTS_PENDING),
     Consumer("session", ported = SESSION_PORTS, pending = emptyMap()),
     Consumer("js", ported = JS_PORTS, pending = emptyMap()),
-    Consumer("engine", ported = emptyMap(), pending = pending(
-        "#73", "selectNextDimension", "lastAnswerClass", "isReadyToWrap", "shouldOfferWrap",
-        "pickBankQuestion", "legalMoves", "wrapAdvisory", "classifyAnswer", "contentWords",
-        "questionTripwire", "parseTurnResult",
-    )),
+    Consumer("engine", ported = ENGINE_PORTS, pending = emptyMap()),
     Consumer(
         "turn-prompt",
-        ported = mapOf(
+        ported = TURN_PROMPT_PORTS + mapOf(
             "promptHash" to { c -> json(promptHash(str(c.args[0]))) },
             "utf8Length" to { c -> json(utf8Length(str(c.args[0]))) },
         ),
-        pending = pending("#73", "buildTurnPromptParts", "turnPromptHash", "buildTranscriptBlock", "serializeFacts"),
+        pending = emptyMap(),
     ),
     Consumer("run-turn", ported = emptyMap(), pending = pending(
         "#74", "runTurn", "resumeTurn", "seedTurn", "submitAnswer", "levelSnapshot", "isZeroGain",
