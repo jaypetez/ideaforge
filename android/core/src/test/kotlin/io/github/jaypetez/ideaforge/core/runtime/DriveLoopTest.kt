@@ -379,6 +379,29 @@ class DriveLoopTest {
     }
 
     @Test
+    fun anAbortErrorNamedFailureIsCancellationNotAMiss() {
+        // drive.js stops on err.name === 'AbortError'. A voice layer that reports Pause/Exit
+        // as a named failure rather than a CancellationException must not be answered with
+        // "I didn't catch that" and a fresh capture.
+        val abort = { ListenFailure("The capture was aborted.", name = "AbortError") }
+        runBlocking {
+            val s = Scripted(listOf(Outcome(throws = abort()), answer("never heard over")), turns = 2)
+            assertEquals(DriveResult.STOPPED, DriveLoop(s).run())
+            assertEquals(1, s.only("listen").size, "an aborted capture is not retried")
+            assertEquals(listOf("q0"), s.said(), "and nothing is said after it")
+            assertFalse("recovering" in states(s))
+            assertEquals("stopped", states(s).last())
+        }
+        for (effect in listOf("speak", "submit")) runBlocking {
+            val s = Scripted(listOf(answer("one over")))
+            s.failWith = effect to abort()
+            assertEquals(DriveResult.STOPPED, DriveLoop(s).run(), "$effect: an abort is not rethrown")
+            assertEquals("stopped", states(s).last(), effect)
+            assertFalse("recovering" in states(s), effect)
+        }
+    }
+
+    @Test
     fun cancellingTheCallerStandsDownAndPropagates() = runBlocking {
         val s = Scripted(listOf(answer("one over")))
         val hold = Hold("listen").also { s.hold = it }

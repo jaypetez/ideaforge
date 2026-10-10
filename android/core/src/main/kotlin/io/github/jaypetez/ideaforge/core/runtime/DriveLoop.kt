@@ -33,6 +33,8 @@ import kotlin.coroutines.cancellation.CancellationException
 // Cancellation replaces the JS AbortError. A CancellationException out of an effect (the UI
 // cancelled the recogniser or the speech) stops the run, never recovers it. Cancelling the
 // coroutine that called run() stops the run and propagates, as structured concurrency wants.
+// A ListenFailure named "AbortError" (a voice layer reporting Pause/Exit as a failure) is the
+// same cancellation, as err.name === 'AbortError' is in JS.
 //
 // stop() is the JS `halt`: synchronous, idempotent, and it invalidates progression without
 // waiting for the effect in flight. That effect is NOT cancelled, matching the JS race: a
@@ -189,7 +191,17 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
         if (!live()) throw DriveCancelled()
     }
 
-    private fun setState(next: DrivePhase) {
+    /**
+     * Announce a phase. Under the same lock as [halt], and refused once stopped, so a stop
+     * from another thread can never be followed by a stale LISTENING or SPEAKING. The
+     * observer runs under the lock too (it is reentrant, so an observer may call [stop]); it
+     * must not block on another thread.
+     */
+    private fun setState(next: DrivePhase) = synchronized(lock) {
+        if (!stopped) announce(next)
+    }
+
+    private fun announce(next: DrivePhase) {
         if (phase == next) return
         phase = next
         io.onState(next)
@@ -199,9 +211,9 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
         synchronized(lock) {
             if (stopped) return
             stopped = true
+            announce(next)
         }
         stopSignal.complete()
-        setState(next)
     }
 
     /** Stand down: progression is invalidated now, without waiting for the effect in flight. */
@@ -246,6 +258,7 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
     private suspend fun handleListenError(err: Throwable) {
         checkRunning()
         if (err is CancellationException) throw err
+        if (isAbort(err)) throw DriveCancelled()
         if (err is ListenFailure && (err.fatal == true || err.recoverable == false)) throw err
         val name = (err as? ListenFailure)?.name ?: err::class.simpleName.orEmpty()
         if (RE_FATAL.containsMatchIn("$name ${err.message.orEmpty()}")) {
@@ -425,6 +438,15 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
      * Drive until done, wrapped or stopped. The first caller runs the loop in its own
      * coroutine; any other caller awaits the same outcome. A non-cancellation failure (an
      * explicitly fatal capture, a failed submit) is rethrown after announcing STOPPED.
+     *
+     * run() returns as soon as [stop] is called, but an effect abandoned by that stop is a
+     * child of the CALLER's Job, so the caller's Job completes only after that effect settles.
+     * A UI that must be sure nothing is left running uses `job.cancelAndJoin()`, which
+     * cancels the abandoned effect too, rather than `join()`.
+     *
+     * [DriveIo.listen] must bound its own wait for a first word and resolve "" when that bound
+     * expires (a miss, which the recovery ladder handles). Letting a TimeoutCancellationException
+     * escape instead reads as cancellation and stands the whole loop down.
      */
     suspend fun run(): DriveResult {
         val mine = CompletableDeferred<DriveResult>()
@@ -440,7 +462,9 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
             // Our own coroutine was cancelled: stand down, then let cancellation propagate.
             if (caller?.isActive == false) Result.failure(e) else Result.success(DriveResult.STOPPED)
         } catch (e: Throwable) {
-            Result.failure(e)
+            // A voice layer that reports Pause/Exit as an AbortError-named failure is
+            // cancelling, exactly as the JS run() treats err.name === 'AbortError'.
+            if (isAbort(e)) Result.success(DriveResult.STOPPED) else Result.failure(e)
         }
         halt()
         supervisor.complete()
@@ -450,6 +474,9 @@ class DriveLoop(private val io: DriveIo, trigger: String? = null) {
         return result.getOrThrow()
     }
 }
+
+/** JS `err?.name === 'AbortError'`: a cancellation reported as a failure, never recovered. */
+private fun isAbort(err: Throwable) = (err as? ListenFailure)?.name == "AbortError"
 
 /** JS `!text.trim()`. */
 private fun String.isBlankJs() = jsTrim(this).isEmpty()

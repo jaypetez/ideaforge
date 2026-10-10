@@ -73,6 +73,17 @@ class DrivingTest {
     }
 
     @Test
+    fun caseFoldingIsAsciiOnlyAsJsSlashIWithoutU() {
+        // JS /k/i does not match the Kelvin sign (U+212A) or /s/i the long s (U+017F);
+        // Kotlin's IGNORE_CASE adds UNICODE_CASE and would match both.
+        assertFalse(io.github.jaypetez.ideaforge.core.js.jsRegexI("k").containsMatchIn("K"))
+        assertFalse(io.github.jaypetez.ideaforge.core.js.jsRegexI("s").containsMatchIn("ſ"))
+        assertTrue(io.github.jaypetez.ideaforge.core.js.jsRegexI("over").containsMatchIn("OVER"))
+        assertFalse(endsWithTrigger("all set oK", "ok"), "a Kelvin sign is not the trigger's k")
+        assertTrue(endsWithTrigger("all set OK", "ok"))
+    }
+
+    @Test
     fun theSuggestionsAreTheirOwnSentenceAndAlwaysKeepTheFirstChip() {
         assertEquals("", spokenExamples(emptyList()))
         assertEquals("", spokenExamples(listOf(" ", null)))
