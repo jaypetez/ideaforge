@@ -89,16 +89,18 @@ class RecognizerProbeTest {
         val release = File(path).readText()
         assertTrue("not the app's manifest: $path", release.contains("io.github.jaypetez.ideaforge.MainActivity"))
         val debug = File(appDir(), "src/debug/AndroidManifest.xml").readText()
-        val main = File(appDir(), "src/main/AndroidManifest.xml").readText()
-        // Only what the debug manifest adds beyond main is the probe's: RECORD_AUDIO and the
-        // RecognitionService query belong to the app itself since native capture (#91).
+        // An explicit allowlist, not "whatever main declares": subtracting main would let a
+        // probe permission copied into main pass. RECORD_AUDIO and the RecognitionService
+        // query belong to the app itself since native capture (#91); nothing else may leak.
+        val sharedPermissions = setOf("android.permission.RECORD_AUDIO")
+        val sharedQueries = setOf("android.speech.RecognitionService")
         fun permissions(x: String) = Regex("""<uses-permission\s+android:name="([^"]+)"""").findAll(x).map { it.groupValues[1] }.toSet()
         fun queryActions(x: String) = Regex("""<queries>(.*?)</queries>""", RegexOption.DOT_MATCHES_ALL).findAll(x)
             .flatMap { q -> Regex("""<action\s+android:name="([^"]+)"""").findAll(q.groupValues[1]).map { it.groupValues[1] } }.toSet()
-        val added = permissions(debug) - permissions(main)
+        val added = permissions(debug) - sharedPermissions
         assertTrue("the deny list came out empty", added.isNotEmpty())
         for (permission in added) assertFalse("release asks for $permission", release.contains("\"$permission\""))
-        val addedQueries = queryActions(debug) - queryActions(main)
+        val addedQueries = queryActions(debug) - sharedQueries
         assertTrue("the debug manifest adds no query", addedQueries.isNotEmpty())
         for (action in addedQueries) assertFalse("release queries $action", release.contains("\"$action\""))
         for (component in listOf(".probe.", "RecognizerProbeActivity", "ProbeMicService")) {
