@@ -1,0 +1,1711 @@
+{
+  "vectorsVersion": 1,
+  "family": "speech",
+  "source": "src/core/driving.js",
+  "fixtures": {},
+  "cases": [
+    {
+      "name": "parseSpeech \"we went over budget\"",
+      "fn": "parseSpeech",
+      "args": [
+        "we went over budget"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "we went over budget",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"we went over budget\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "we went over budget"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"we went over budget\"",
+      "fn": "stripTrigger",
+      "args": [
+        "we went over budget"
+      ],
+      "expect": {
+        "value": "we went over budget"
+      }
+    },
+    {
+      "name": "parseSpeech \"we went over budget over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "we went over budget over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "we went over budget",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"we went over budget over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "we went over budget over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"we went over budget over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "we went over budget over"
+      ],
+      "expect": {
+        "value": "we went over budget"
+      }
+    },
+    {
+      "name": "parseSpeech \"we went over budget, over.\"",
+      "fn": "parseSpeech",
+      "args": [
+        "we went over budget, over."
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "we went over budget",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"we went over budget, over.\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "we went over budget, over."
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"we went over budget, over.\"",
+      "fn": "stripTrigger",
+      "args": [
+        "we went over budget, over."
+      ],
+      "expect": {
+        "value": "we went over budget"
+      }
+    },
+    {
+      "name": "parseSpeech \"Over.\"",
+      "fn": "parseSpeech",
+      "args": [
+        "Over."
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"Over.\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "Over."
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"Over.\"",
+      "fn": "stripTrigger",
+      "args": [
+        "Over."
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "parseSpeech \"over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "over"
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "parseSpeech \"skip this\"",
+      "fn": "parseSpeech",
+      "args": [
+        "skip this"
+      ],
+      "expect": {
+        "value": {
+          "kind": "skip",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"skip this\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "skip this"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"skip this\"",
+      "fn": "stripTrigger",
+      "args": [
+        "skip this"
+      ],
+      "expect": {
+        "value": "skip this"
+      }
+    },
+    {
+      "name": "parseSpeech \"skip this over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "skip this over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "skip",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"skip this over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "skip this over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"skip this over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "skip this over"
+      ],
+      "expect": {
+        "value": "skip this"
+      }
+    },
+    {
+      "name": "parseSpeech \"I'd skip this one if I could\"",
+      "fn": "parseSpeech",
+      "args": [
+        "I'd skip this one if I could"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "I'd skip this one if I could",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"I'd skip this one if I could\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "I'd skip this one if I could"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"I'd skip this one if I could\"",
+      "fn": "stripTrigger",
+      "args": [
+        "I'd skip this one if I could"
+      ],
+      "expect": {
+        "value": "I'd skip this one if I could"
+      }
+    },
+    {
+      "name": "parseSpeech \"I'd skip this one if I could, over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "I'd skip this one if I could, over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "I'd skip this one if I could",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"I'd skip this one if I could, over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "I'd skip this one if I could, over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"I'd skip this one if I could, over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "I'd skip this one if I could, over"
+      ],
+      "expect": {
+        "value": "I'd skip this one if I could"
+      }
+    },
+    {
+      "name": "parseSpeech \"repeat\"",
+      "fn": "parseSpeech",
+      "args": [
+        "repeat"
+      ],
+      "expect": {
+        "value": {
+          "kind": "repeat",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"repeat\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "repeat"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"repeat\"",
+      "fn": "stripTrigger",
+      "args": [
+        "repeat"
+      ],
+      "expect": {
+        "value": "repeat"
+      }
+    },
+    {
+      "name": "parseSpeech \"repeat that please\"",
+      "fn": "parseSpeech",
+      "args": [
+        "repeat that please"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "repeat that please",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"repeat that please\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "repeat that please"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"repeat that please\"",
+      "fn": "stripTrigger",
+      "args": [
+        "repeat that please"
+      ],
+      "expect": {
+        "value": "repeat that please"
+      }
+    },
+    {
+      "name": "parseSpeech \"repeat customers are the point over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "repeat customers are the point over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "repeat customers are the point",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"repeat customers are the point over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "repeat customers are the point over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"repeat customers are the point over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "repeat customers are the point over"
+      ],
+      "expect": {
+        "value": "repeat customers are the point"
+      }
+    },
+    {
+      "name": "parseSpeech \"scratch that\"",
+      "fn": "parseSpeech",
+      "args": [
+        "scratch that"
+      ],
+      "expect": {
+        "value": {
+          "kind": "scratch",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"scratch that\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "scratch that"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"scratch that\"",
+      "fn": "stripTrigger",
+      "args": [
+        "scratch that"
+      ],
+      "expect": {
+        "value": "scratch that"
+      }
+    },
+    {
+      "name": "parseSpeech \"scratch that, over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "scratch that, over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "scratch",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"scratch that, over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "scratch that, over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"scratch that, over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "scratch that, over"
+      ],
+      "expect": {
+        "value": "scratch that"
+      }
+    },
+    {
+      "name": "parseSpeech \"start over\"",
+      "fn": "parseSpeech",
+      "args": [
+        "start over"
+      ],
+      "expect": {
+        "value": {
+          "kind": "scratch",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"start over\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "start over"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"start over\"",
+      "fn": "stripTrigger",
+      "args": [
+        "start over"
+      ],
+      "expect": {
+        "value": "start"
+      }
+    },
+    {
+      "name": "parseSpeech \"wrap up\"",
+      "fn": "parseSpeech",
+      "args": [
+        "wrap up"
+      ],
+      "expect": {
+        "value": {
+          "kind": "wrap",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"wrap up\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "wrap up"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"wrap up\"",
+      "fn": "stripTrigger",
+      "args": [
+        "wrap up"
+      ],
+      "expect": {
+        "value": "wrap up"
+      }
+    },
+    {
+      "name": "parseSpeech \"let's wrap it up\"",
+      "fn": "parseSpeech",
+      "args": [
+        "let's wrap it up"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "let's wrap it up",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"let's wrap it up\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "let's wrap it up"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"let's wrap it up\"",
+      "fn": "stripTrigger",
+      "args": [
+        "let's wrap it up"
+      ],
+      "expect": {
+        "value": "let's wrap it up"
+      }
+    },
+    {
+      "name": "parseSpeech \"pause\"",
+      "fn": "parseSpeech",
+      "args": [
+        "pause"
+      ],
+      "expect": {
+        "value": {
+          "kind": "pause",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"pause\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "pause"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"pause\"",
+      "fn": "stripTrigger",
+      "args": [
+        "pause"
+      ],
+      "expect": {
+        "value": "pause"
+      }
+    },
+    {
+      "name": "parseSpeech \"stop\"",
+      "fn": "parseSpeech",
+      "args": [
+        "stop"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "stop",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"stop\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "stop"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"stop\"",
+      "fn": "stripTrigger",
+      "args": [
+        "stop"
+      ],
+      "expect": {
+        "value": "stop"
+      }
+    },
+    {
+      "name": "parseSpeech \"exit\"",
+      "fn": "parseSpeech",
+      "args": [
+        "exit"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "exit",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"exit\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "exit"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"exit\"",
+      "fn": "stripTrigger",
+      "args": [
+        "exit"
+      ],
+      "expect": {
+        "value": "exit"
+      }
+    },
+    {
+      "name": "parseSpeech \"go back\"",
+      "fn": "parseSpeech",
+      "args": [
+        "go back"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "go back",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"go back\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "go back"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"go back\"",
+      "fn": "stripTrigger",
+      "args": [
+        "go back"
+      ],
+      "expect": {
+        "value": "go back"
+      }
+    },
+    {
+      "name": "parseSpeech \"next question\"",
+      "fn": "parseSpeech",
+      "args": [
+        "next question"
+      ],
+      "expect": {
+        "value": {
+          "kind": "skip",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"next question\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "next question"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"next question\"",
+      "fn": "stripTrigger",
+      "args": [
+        "next question"
+      ],
+      "expect": {
+        "value": "next question"
+      }
+    },
+    {
+      "name": "parseSpeech \"OVER AND OUT\"",
+      "fn": "parseSpeech",
+      "args": [
+        "OVER AND OUT"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"OVER AND OUT\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "OVER AND OUT"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"OVER AND OUT\"",
+      "fn": "stripTrigger",
+      "args": [
+        "OVER AND OUT"
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "parseSpeech \"over the years we grew\"",
+      "fn": "parseSpeech",
+      "args": [
+        "over the years we grew"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "over the years we grew",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"over the years we grew\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "over the years we grew"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"over the years we grew\"",
+      "fn": "stripTrigger",
+      "args": [
+        "over the years we grew"
+      ],
+      "expect": {
+        "value": "over the years we grew"
+      }
+    },
+    {
+      "name": "parseSpeech \"  over  \"",
+      "fn": "parseSpeech",
+      "args": [
+        "  over  "
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"  over  \"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "  over  "
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "stripTrigger \"  over  \"",
+      "fn": "stripTrigger",
+      "args": [
+        "  over  "
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "parseSpeech \"\"",
+      "fn": "parseSpeech",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"\"",
+      "fn": "stripTrigger",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "parseSpeech \"ending with overture\"",
+      "fn": "parseSpeech",
+      "args": [
+        "ending with overture"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "ending with overture",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"ending with overture\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "ending with overture"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"ending with overture\"",
+      "fn": "stripTrigger",
+      "args": [
+        "ending with overture"
+      ],
+      "expect": {
+        "value": "ending with overture"
+      }
+    },
+    {
+      "name": "parseSpeech \"done\"",
+      "fn": "parseSpeech",
+      "args": [
+        "done"
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "done",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"done\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "done"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"done\"",
+      "fn": "stripTrigger",
+      "args": [
+        "done"
+      ],
+      "expect": {
+        "value": "done"
+      }
+    },
+    {
+      "name": "parseSpeech \"I'm done\"",
+      "fn": "parseSpeech",
+      "args": [
+        "I'm done"
+      ],
+      "expect": {
+        "value": {
+          "kind": "wrap",
+          "text": "",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger \"I'm done\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "I'm done"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "stripTrigger \"I'm done\"",
+      "fn": "stripTrigger",
+      "args": [
+        "I'm done"
+      ],
+      "expect": {
+        "value": "I'm done"
+      }
+    },
+    {
+      "name": "parseSpeech trigger=done \"all set, done\"",
+      "fn": "parseSpeech",
+      "args": [
+        "all set, done",
+        {
+          "trigger": "done"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "all set",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger done \"all set, done\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "all set, done",
+        "done"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "parseSpeech trigger=done \"all set done\"",
+      "fn": "parseSpeech",
+      "args": [
+        "all set done",
+        {
+          "trigger": "done"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "all set",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger done \"all set done\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "all set done",
+        "done"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "parseSpeech trigger=done \"done\"",
+      "fn": "parseSpeech",
+      "args": [
+        "done",
+        {
+          "trigger": "done"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "",
+          "stopped": true
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger done \"done\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "done",
+        "done"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "parseSpeech trigger=done \"finished?\"",
+      "fn": "parseSpeech",
+      "args": [
+        "finished?",
+        {
+          "trigger": "done"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "finished?",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger done \"finished?\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "finished?",
+        "done"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "parseSpeech trigger=done \"we are finished\"",
+      "fn": "parseSpeech",
+      "args": [
+        "we are finished",
+        {
+          "trigger": "done"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "answer",
+          "text": "we are finished",
+          "stopped": false
+        }
+      }
+    },
+    {
+      "name": "endsWithTrigger done \"we are finished\"",
+      "fn": "endsWithTrigger",
+      "args": [
+        "we are finished",
+        "done"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "matchAffirmation \"yes\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "yes"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "matchAffirmation \"Yeah, sure.\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "Yeah, sure."
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "matchAffirmation \"yep\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "yep"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "matchAffirmation \"no\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "no"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "matchAffirmation \"nope, not yet\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "nope, not yet"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "matchAffirmation \"no thanks\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "no thanks"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "matchAffirmation \"maybe\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "maybe"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "matchAffirmation \"yes and no\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "yes and no"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "matchAffirmation \"\"",
+      "fn": "matchAffirmation",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "matchAffirmation \"go ahead\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "go ahead"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "matchAffirmation \"not yet\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "not yet"
+      ],
+      "expect": {
+        "value": false
+      }
+    },
+    {
+      "name": "matchAffirmation \"sure thing\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "sure thing"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "matchAffirmation \"ok\"",
+      "fn": "matchAffirmation",
+      "args": [
+        "ok"
+      ],
+      "expect": {
+        "value": true
+      }
+    },
+    {
+      "name": "normalizeTrigger \" Over \"",
+      "fn": "normalizeTrigger",
+      "args": [
+        " Over "
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"OVER.\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "OVER."
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"two words\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "two words"
+      ],
+      "expect": {
+        "value": "two words"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"  \"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "  "
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"done!\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "done!"
+      ],
+      "expect": {
+        "value": "done"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"Ünïcödé\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "Ünïcödé"
+      ],
+      "expect": {
+        "value": "n c d"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"a\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "a"
+      ],
+      "expect": {
+        "value": "a"
+      }
+    },
+    {
+      "name": "normalizeTrigger \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+      "fn": "normalizeTrigger",
+      "args": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "expect": {
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "name": "normalizeTrigger null",
+      "fn": "normalizeTrigger",
+      "args": [
+        null
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "normalizeTrigger 7",
+      "fn": "normalizeTrigger",
+      "args": [
+        7
+      ],
+      "expect": {
+        "value": "over"
+      }
+    },
+    {
+      "name": "triggerWarning \"over\"",
+      "fn": "triggerWarning",
+      "args": [
+        "over"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"done\"",
+      "fn": "triggerWarning",
+      "args": [
+        "done"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"the\"",
+      "fn": "triggerWarning",
+      "args": [
+        "the"
+      ],
+      "expect": {
+        "value": "“the” is common enough that you will say it mid-answer and be cut off. Something you rarely say works better."
+      }
+    },
+    {
+      "name": "triggerWarning \"a\"",
+      "fn": "triggerWarning",
+      "args": [
+        "a"
+      ],
+      "expect": {
+        "value": "A single letter is too easy to mishear. Try a whole word."
+      }
+    },
+    {
+      "name": "triggerWarning \"and\"",
+      "fn": "triggerWarning",
+      "args": [
+        "and"
+      ],
+      "expect": {
+        "value": "“and” is common enough that you will say it mid-answer and be cut off. Something you rarely say works better."
+      }
+    },
+    {
+      "name": "triggerWarning \"skip\"",
+      "fn": "triggerWarning",
+      "args": [
+        "skip"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"repeat\"",
+      "fn": "triggerWarning",
+      "args": [
+        "repeat"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"finished\"",
+      "fn": "triggerWarning",
+      "args": [
+        "finished"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"yes\"",
+      "fn": "triggerWarning",
+      "args": [
+        "yes"
+      ],
+      "expect": {
+        "value": "“yes” is common enough that you will say it mid-answer and be cut off. Something you rarely say works better."
+      }
+    },
+    {
+      "name": "triggerWarning \"stop\"",
+      "fn": "triggerWarning",
+      "args": [
+        "stop"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"thanks\"",
+      "fn": "triggerWarning",
+      "args": [
+        "thanks"
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "triggerWarning \"\"",
+      "fn": "triggerWarning",
+      "args": [
+        ""
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "spokenExamples 0",
+      "fn": "spokenExamples",
+      "args": [
+        []
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "spokenExamples 0 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": ""
+      }
+    },
+    {
+      "name": "spokenExamples 1",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one"
+        ]
+      ],
+      "expect": {
+        "value": "For example: one."
+      }
+    },
+    {
+      "name": "spokenExamples 1 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: one."
+      }
+    },
+    {
+      "name": "spokenExamples 2",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one",
+          "two"
+        ]
+      ],
+      "expect": {
+        "value": "For example: one, or two."
+      }
+    },
+    {
+      "name": "spokenExamples 2 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one",
+          "two"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: one, or two."
+      }
+    },
+    {
+      "name": "spokenExamples 3",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one",
+          "two",
+          "three"
+        ]
+      ],
+      "expect": {
+        "value": "For example: one, two, or three."
+      }
+    },
+    {
+      "name": "spokenExamples 3 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "one",
+          "two",
+          "three"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: one, two, or three."
+      }
+    },
+    {
+      "name": "spokenExamples 4",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "maybe thirty names over three days",
+          "honestly I stopped counting",
+          "only a handful, but the ones that mattered",
+          "I never learned them in the first place"
+        ]
+      ],
+      "expect": {
+        "value": "For example: maybe thirty names over three days, honestly I stopped counting, only a handful, but the ones that mattered, or I never learned them in the first place."
+      }
+    },
+    {
+      "name": "spokenExamples 4 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "maybe thirty names over three days",
+          "honestly I stopped counting",
+          "only a handful, but the ones that mattered",
+          "I never learned them in the first place"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: maybe thirty names over three days."
+      }
+    },
+    {
+      "name": "spokenExamples 5",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "a chip that is extremely long and goes on and on for many words well past any sensible budget for a spoken example sentence"
+        ]
+      ],
+      "expect": {
+        "value": "For example: a chip that is extremely long and goes on and on for many words well past any sensible budget for a spoken example sentence."
+      }
+    },
+    {
+      "name": "spokenExamples 5 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "a chip that is extremely long and goes on and on for many words well past any sensible budget for a spoken example sentence"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: a chip that is extremely long and goes on and on for many words well past any sensible budget for a spoken example sentence."
+      }
+    },
+    {
+      "name": "spokenExamples 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "  trailing punctuation.  ",
+          "semicolon;",
+          "",
+          7,
+          null,
+          "ok,"
+        ]
+      ],
+      "expect": {
+        "value": "For example: trailing punctuation, semicolon, or ok."
+      }
+    },
+    {
+      "name": "spokenExamples 6 maxWords 6",
+      "fn": "spokenExamples",
+      "args": [
+        [
+          "  trailing punctuation.  ",
+          "semicolon;",
+          "",
+          7,
+          null,
+          "ok,"
+        ],
+        {
+          "maxWords": 6
+        }
+      ],
+      "expect": {
+        "value": "For example: trailing punctuation, semicolon, or ok."
+      }
+    },
+    {
+      "name": "spokenExamples not an array",
+      "fn": "spokenExamples",
+      "args": [
+        "nope"
+      ],
+      "expect": {
+        "value": ""
+      }
+    }
+  ]
+}

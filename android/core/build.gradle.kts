@@ -20,6 +20,7 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.serialization.json)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -30,4 +31,15 @@ tasks.test {
     // the very run that should catch a JS change the Kotlin port has not followed.
     inputs.file(rootProject.layout.projectDirectory.file("../src/core/session.js"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // The golden vectors (npm run vectors) are the contract this module is tested against.
+    // Passed through an argument provider rather than systemProperty: the provider declares
+    // the directory as a relative-path input, so its absolute location stays out of the cache
+    // key and a worktree or CI runner can reuse the result.
+    jvmArgumentProviders.add(GoldenVectors(rootProject.layout.projectDirectory.dir("../test/vectors").asFile))
+}
+
+class GoldenVectors(
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) val dir: File,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-Dideaforge.vectors=${dir.absolutePath}")
 }
