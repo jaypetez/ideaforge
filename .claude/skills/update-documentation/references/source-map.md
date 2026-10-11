@@ -67,6 +67,14 @@ source wins over prose, and a generated artifact wins over a description of that
   for temporary shared files. Re-check the README, privacy policy, security guide and
   provider guide. An unresolved privacy contact blocks release through
   `tools/check-privacy-policy.mjs`; only the maintainer confirms the public address.
+  Web local authentication follows `readRingFromForm` in
+  [`src/ui/app.js`](../../../../src/ui/app.js) and `applyAuth` in
+  [`src/providers/http.js`](../../../../src/providers/http.js); do not describe it as
+  Android's enforced key omission. Web Pause in
+  [`src/voice/index.js`](../../../../src/voice/index.js) may finish pending transcription;
+  Android `pauseRun` in
+  [`DriveController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/DriveController.kt)
+  cancels capture work and preserves only the caption/segments already available.
 - **Setup disclosures.** Sources: [`index.html`](../../../../index.html) (`model-settings`,
   `speech-options`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`onProviderChange`,
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.

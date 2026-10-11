@@ -100,9 +100,14 @@
             </tr>
             <tr>
               <td><strong>Provider address and model choices</strong></td>
-              <td colspan="2">
-                In the credential keyring, per provider. They select where requests go
-                and which model handles them; local server connections do not carry a key.
+              <td id="web-provider-settings">
+                In the credential keyring, per provider. Local inference requires no key,
+                but a nonempty key in the web connection settings can be sent to the
+                loopback server for authentication.
+              </td>
+              <td id="android-provider-settings">
+                In the credential keyring, per provider. Android local server connections
+                omit credentials, even if a key was configured.
               </td>
             </tr>
             <tr>
@@ -128,7 +133,8 @@
               <td><strong>Backups, exports and shared copies</strong></td>
               <td colspan="2">
                 Created by explicit actions. A JSON backup contains the active and
-                archived interviews, but no credentials, device preferences or audio.
+                archived interviews, but not the app's credential keyring, device
+                preferences or audio. Text you put in an idea is not redacted.
                 Markdown exports include the idea's document and transcript.
                 These copies are unencrypted.
               </td>
@@ -195,13 +201,19 @@
         sends text to OpenAI. A failed hosted reply can visibly fall back to the
         device voice; cancellation does not start fallback playback.
       </p>
-      <p>
+      <p id="android-pause">
         In Android hands-free mode, a microphone foreground service keeps the active
         voice interview listening when the screen is off, with notification controls
-        to pause or exit. Pause stops owned recording/playback resources; already
-        captured audio may finish transcription to preserve a draft. Exit preserves
-        transcribed words. Neither action recalls data already sent to a provider.
-        The app does not run a background wake-word listener.
+        to pause or exit. Pause cancels the capture and pending transcription, keeping
+        the available native caption and completed transcribed segments as a draft.
+        An unfinished hosted-transcription segment is not added after pausing.
+        Exit preserves captured words.
+      </p>
+      <p id="web-pause">
+        On the web, Pause releases owned microphone/playback resources, but an already
+        captured recording may finish transcription to preserve a draft. Exit keeps
+        transcribed words and cancels unfinished audio. Neither platform can recall data
+        already sent to a provider. The app does not run a background wake-word listener.
       </p>
 
       <h2 id="network">Secure handling and network limits</h2>

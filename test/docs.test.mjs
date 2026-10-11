@@ -193,6 +193,17 @@ test('the privacy policy covers both platforms and the current provider choices'
   if (contact[1] === 'pending') assert.match(contact[2], /PENDING maintainer confirmation/);
 });
 
+test('the privacy policy distinguishes local credentials and Pause by platform', () => {
+  const html = guide('privacy-policy.html');
+  const cell = (id) => html.match(new RegExp(`<td id="${id}">([\\s\\S]*?)</td>`))?.[1] || '';
+  assert.match(cell('web-provider-settings'), /nonempty key[\s\S]*loopback server/);
+  assert.match(cell('android-provider-settings'), /omit credentials/);
+  const paragraph = (id) => html.match(new RegExp(`<p id="${id}">([\\s\\S]*?)</p>`))?.[1] || '';
+  assert.match(paragraph('android-pause'), /cancels the capture and pending transcription/);
+  assert.match(paragraph('android-pause'), /completed transcribed segments/);
+  assert.match(paragraph('web-pause'), /may finish transcription/);
+});
+
 test('the guide only documents npm scripts that exist and keeps browser checks fail-closed', () => {
   let commands = 0;
   for (const page of GUIDE_PAGES) {
