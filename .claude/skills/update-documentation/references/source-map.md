@@ -44,6 +44,8 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Release publication.** Sources:
   [`.github/workflows/release.yml`](../../../../.github/workflows/release.yml),
   [release-note configuration](../../../../.github/release.yml),
+  [`tools/apk-cert-pin.mjs`](../../../../tools/apk-cert-pin.mjs) with the signer pin in
+  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK),
   [`package.json`](../../../../package.json), and
   [`src/version.js`](../../../../src/version.js). Re-check `CONTRIBUTING.md`, the development
   guide, and [`release`](../../release/SKILL.md).
@@ -169,7 +171,8 @@ source wins over prose, and a generated artifact wins over a description of that
   `test/docs.test.mjs` fails when a page is missing from this list.
 - **Native Android app.** Sources:
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) (SDK levels,
-  application id, `.debug` suffix, version from `package.json`),
+  application id, `.debug` suffix, version from `package.json`, release signing from the
+  environment or `android/keystore.properties`, and `verifyReleaseApk`),
   [`android/gradle/libs.versions.toml`](../../../../android/gradle/libs.versions.toml) (AGP,
   Kotlin and every library version),
   [`android/gradle/wrapper/gradle-wrapper.properties`](../../../../android/gradle/wrapper/gradle-wrapper.properties),
@@ -184,8 +187,8 @@ source wins over prose, and a generated artifact wins over a description of that
   `CONTRIBUTING.md#the-android-app`, `docs/ARCHITECTURE.md`, CLAUDE.md's Android invariants
   and [`android-verify`](../../android-verify/SKILL.md). `test/docs.test.mjs` fails when a
   stated SDK level, AGP, Kotlin, Gradle or JDK version, the debug id or the CI artifact
-  drifts. Voice input and signed releases are not shipped: say so rather than describing
-  plans as features.
+  drifts. A signed APK exists only for tags cut after SECURITY.md pins a real fingerprint
+  instead of `PENDING`: say so rather than describing plans as features.
 - **Assistant discovery.** Sources:
   [Copilot instructions](../../../../.github/copilot-instructions.md),
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and

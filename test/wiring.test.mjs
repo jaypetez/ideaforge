@@ -162,11 +162,19 @@ test('packaging never publishes the Android project, even when it exists', async
     put('android/app/build.gradle.kts');
     put('android/app/src/main/AndroidManifest.xml');
     put('android/keystore.properties', 'storePassword=secret');
+    // Signing material is gitignored, but a stray local copy inside a published root must
+    // still never be copied into a served or Pages tree (#95).
+    put('src/release.jks');
+    put('src/keystore.properties', 'storePassword=secret');
+    put('guide/upload.keystore');
 
     const written = await assembleSite({ root, outDir, clean: false });
     assert.ok(written.length > 0, 'the fixture must publish something');
     assert.deepEqual(written.filter((file) => file.startsWith('android/')), []);
     assert.deepEqual(tree(outDir).filter((file) => file.startsWith('android/')), []);
+    const signing = /\.(jks|keystore)$|keystore\.properties$/;
+    assert.deepEqual(written.filter((file) => signing.test(file)), [], 'signing material was published');
+    assert.deepEqual(tree(outDir).filter((file) => signing.test(file)), []);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outDir, { recursive: true, force: true });
@@ -192,4 +200,81 @@ test('the app service worker leaves the public guide alone', () => {
   assert.match(SW, /url\.pathname\.startsWith\(GUIDE_PATH\)[\s\S]*GUIDE_SCREENSHOTS_PATH/);
   assert.doesNotMatch(SW, /^\s*'\.\/guide\//m,
     'guide pages must not join the app shell cache');
+});
+
+// The signed-APK release job (#95). There is no YAML parser here (no dependencies), so jobs
+// are cut out by their two-space indentation, which is how every workflow in this repo is
+// written.
+const RELEASE = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8').replace(/\r\n/g, '\n');
+const CI = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8').replace(/\r\n/g, '\n');
+const SIGNING_SECRETS = ['ANDROID_KEYSTORE_B64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'];
+
+function job(workflow, name) {
+  const start = workflow.search(new RegExp(`^  ${name}:\n`, 'm'));
+  assert.ok(start >= 0, `no ${name} job`);
+  const rest = workflow.slice(start + 1);
+  const end = rest.search(/^ {2}\S/m);
+  return end < 0 ? rest : rest.slice(0, end);
+}
+
+test('the android-apk job is the only one given the signing secrets, and it fails closed', () => {
+  const apk = job(RELEASE, 'android-apk');
+  assert.match(apk, /^ {4}needs: verify$/m);
+  assert.match(apk, /^ {4}environment: release$/m);
+  assert.match(apk, /^ {6}contents: read$/m);
+  assert.doesNotMatch(apk, /: write/, 'the signing job must not hold a write token');
+
+  const inApk = new Set([...apk.matchAll(/secrets\.(\w+)/g)].map((m) => m[1]));
+  assert.deepEqual([...inApk].sort(), [...SIGNING_SECRETS].sort(), 'android-apk reads exactly the four secrets');
+  const outside = RELEASE.replace(apk, '');
+  assert.doesNotMatch(outside, /secrets\.ANDROID_/, 'a signing secret is exposed outside android-apk');
+
+  assert.ok(apk.includes('::error::release keystore secrets are not configured'),
+    'a missing secret must fail the release, never skip the APK');
+  const required = apk.match(/for name in ([\w ]+); do/)?.[1].split(' ');
+  assert.deepEqual(required?.sort(), [...SIGNING_SECRETS].sort(), 'the presence check covers all four secrets');
+  assert.match(apk, /\$RUNNER_TEMP\/release\.jks/, 'the keystore is decoded outside the checkout');
+  assert.match(apk, /:app:assembleRelease :app:verifyReleaseApk/);
+  assert.match(apk, /apksigner" verify --print-certs/);
+  assert.match(apk, /node tools\/apk-cert-pin\.mjs "\$RUNNER_TEMP\/apksigner\.txt" SECURITY\.md/);
+  assert.match(apk, /ideaforge-\$\{VERSION\}\.apk/);
+  assert.match(apk, /- name: Delete the release keystore\n\s+if: always\(\)\n\s+run: rm -f "\$RUNNER_TEMP\/release\.jks"/,
+    'the keystore is deleted whether the job passed or not');
+});
+
+test('the android-apk job pins the same actions as the ci android job', () => {
+  const apk = job(RELEASE, 'android-apk');
+  const android = job(CI, 'android');
+  const pins = (text) => new Map([...text.matchAll(/uses: ([\w/-]+)@(\S+)/g)].map((m) => [m[1], m[2]]));
+  const ours = pins(apk);
+  const theirs = pins(android);
+  for (const action of ['actions/checkout', 'actions/setup-java', 'gradle/actions/setup-gradle', 'actions/upload-artifact']) {
+    assert.ok(ours.has(action), `android-apk does not use ${action}`);
+    assert.equal(ours.get(action), theirs.get(action), `${action} is pinned differently from ci.yml`);
+  }
+  for (const [action, ref] of pins(RELEASE)) {
+    assert.match(ref, /^[0-9a-f]{40}$/, `${action} is not pinned to a full commit SHA`);
+  }
+  assert.match(apk, /distribution: temurin\n\s+java-version: '21'/);
+});
+
+test('the release waits for the signed APK and publishes it with its checksum', () => {
+  const release = job(RELEASE, 'release');
+  assert.match(release, /^ {4}needs: \[verify, android-apk\]$/m);
+  const uploaded = job(RELEASE, 'android-apk').match(/name: (ideaforge-[\w-]+)\n\s+path: dist\/\*\.apk/)?.[1];
+  assert.ok(uploaded, 'android-apk uploads no APK artifact');
+  assert.match(release, new RegExp(String.raw`actions/download-artifact@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+name: ${uploaded}\n\s+path: dist`));
+  assert.match(release, /sha256sum "\$\{NAME\}\.tar\.gz" "\$\{NAME\}\.zip" "\$\{NAME\}\.apk" > SHA256SUMS/);
+  assert.match(release, /gh release create[\s\S]*dist\/\*\.apk[\s\S]*dist\/SHA256SUMS/);
+});
+
+test('release signing material is ignored by git and docker', () => {
+  const gitignore = readFileSync(join(ROOT, '.gitignore'), 'utf8').split(/\r?\n/);
+  const dockerignore = readFileSync(join(ROOT, '.dockerignore'), 'utf8').split(/\r?\n/);
+  for (const pattern of ['android/keystore.properties', '*.jks', '*.keystore']) {
+    assert.ok(gitignore.includes(pattern), `.gitignore lost ${pattern}`);
+  }
+  for (const pattern of ['**/*.jks', '**/*.keystore', '**/keystore.properties']) {
+    assert.ok(dockerignore.includes(pattern), `.dockerignore lost ${pattern}`);
+  }
 });

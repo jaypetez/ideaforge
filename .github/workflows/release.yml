@@ -51,8 +51,105 @@ jobs:
           BROWSER_CHECK_REQUIRED: '1'
         run: npm run test:all
 
-  release:
+  # The signed Android APK (#95). A separate job so the signing secrets are exposed to one
+  # job, behind the `release` environment's protection rules, and never to the job holding a
+  # write token. The release job below only downloads the finished, verified APK.
+  android-apk:
     needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Fail, never skip. A release that quietly shipped without its APK, or with an unsigned
+      # one, would look complete; this makes a missing secret a red release instead.
+      - name: Require the release keystore secrets
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::release keystore secrets are not configured (missing:$missing)"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Validates gradle-wrapper.jar before anything runs it. Read-only cache: a tag build has
+      # no business writing what main's builds restore.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+
+      # Into $RUNNER_TEMP, outside the checkout, so nothing can stage or archive it.
+      - name: Decode the release keystore
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      # android/app/build.gradle.kts reads these four; verifyReleaseApk (also run by
+      # assembleRelease) refuses an APK that carries the debug-only scripted provider, the
+      # recognizer probe or the walkthrough script.
+      - name: Build the signed APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          ./gradlew --no-daemon :app:assembleRelease :app:verifyReleaseApk
+
+      # A valid signature only proves some key signed it. The pin in SECURITY.md proves it was
+      # the key users were told to expect, which is the one existing installs will accept.
+      - name: Verify the signature against the pinned certificate
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          [ -f "$APK" ] || { echo "::error::no signed APK at $APK"; exit 1; }
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+          node tools/apk-cert-pin.mjs "$RUNNER_TEMP/apksigner.txt" SECURITY.md
+          mkdir -p dist
+          cp "$APK" "dist/ideaforge-${VERSION}.apk"
+
+      - name: Upload the signed APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ideaforge-release-apk
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Delete the release keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
+  release:
+    needs: [verify, android-apk]
     runs-on: ubuntu-latest
     permissions:
       contents: write        # create the release and upload its assets
@@ -61,6 +158,13 @@ jobs:
         with:
           fetch-depth: 0     # git archive needs the tag object, not just a shallow tip
           persist-credentials: false
+
+      # Signed and pinned by the android-apk job; this job never sees the keystore.
+      - name: Download the signed APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ideaforge-release-apk
+          path: dist
 
       - name: Build the archives
         shell: bash
@@ -76,7 +180,8 @@ jobs:
           git archive --format=zip    --prefix="${NAME}/" -o "dist/${NAME}.zip"    "${GITHUB_REF_NAME}"
 
           cd dist
-          sha256sum "${NAME}.tar.gz" "${NAME}.zip" > SHA256SUMS
+          [ -f "${NAME}.apk" ] || { echo "::error::the signed APK ${NAME}.apk is missing"; exit 1; }
+          sha256sum "${NAME}.tar.gz" "${NAME}.zip" "${NAME}.apk" > SHA256SUMS
           cat SHA256SUMS
 
       - name: Publish the release
@@ -85,7 +190,7 @@ jobs:
         shell: bash
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            dist/*.tar.gz dist/*.zip dist/SHA256SUMS \
+            dist/*.tar.gz dist/*.zip dist/*.apk dist/SHA256SUMS \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             --verify-tag

@@ -66,7 +66,10 @@ The publishing workflows defend against shipping the wrong tree. `.github/workfl
 only runs after a successful `CI` workflow run for a push to `main`, then re-checks that the
 tested SHA is still the exact tip of `main` before deploying. `.github/workflows/release.yml`
 puts a read-only `verify` job — version triplet, `main` ancestry, full `npm run test:all`
-ladder — in front of the write-enabled release job.
+ladder — in front of the write-enabled release job. Its `android-apk` job is the only one
+given the keystore secrets; it signs the APK and fails unless `tools/apk-cert-pin.mjs` finds
+exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the release job only
+ever handles a finished, verified APK.
 
 The Pages artifact has two static surfaces: the app at its root and the public guide under
 `guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests.

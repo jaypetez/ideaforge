@@ -50,8 +50,8 @@
       <h1>Sideload the native Android app.</h1>
       <p class="lede">
         The Android app runs the same typed interview as the web app, natively. It is an
-        early alpha: there is no Play Store listing and no signed release yet, so you
-        install a debug build with <code>adb</code>.
+        early alpha with no Play Store listing: you install an APK with <code>adb</code>,
+        either the signed release APK once releases carry one, or a debug build.
       </p>
 
       <div class="callout warning">
@@ -133,10 +133,11 @@
             </tr>
             <tr>
               <th scope="row">Signed release</th>
-              <td>Not yet. <!-- TODO(#95): replace with the signed-APK download once the
-                release job attaches it. -->A signed APK on GitHub releases arrives with
-                <a href="https://github.com/jaypetez/ideaforge/issues/95">issue #95</a>.
-                Until then only the debug build below exists.</td>
+              <td>Signed APKs are attached to GitHub releases, starting with the first
+                tag after the release key&rsquo;s fingerprint is published in
+                <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#release-signing-certificate">SECURITY.md</a>.
+                While SECURITY.md still says <code>PENDING</code>, no signed APK exists; use
+                the debug build below.</td>
             </tr>
           </tbody>
         </table>
@@ -149,7 +150,7 @@
       <h2 id="get-the-apk">Get the debug APK</h2>
       <p>
         The app needs Android 10 (API 29) or newer. The debug build&rsquo;s application id
-        is <code>io.github.jaypetez.ideaforge.debug</code>, so it installs beside a future
+        is <code>io.github.jaypetez.ideaforge.debug</code>, so it installs beside the signed
         release build rather than replacing it.
       </p>
       <p>
@@ -166,14 +167,36 @@
         GitHub sign-in and expire after 14 days. The download is a zip; extract the
         <code>.apk</code> first.
       </p>
-      <!-- TODO(#95): add "Download the signed APK from the latest GitHub release" here,
-           with the certificate fingerprint published in SECURITY.md. -->
+      <h2 id="signed-apk">Get the signed release APK</h2>
       <p>
-        <strong>Signed release:</strong> not available yet. It arrives with
-        <a href="https://github.com/jaypetez/ideaforge/issues/95">issue #95</a>.
+        Each GitHub release from the first one after the signing key exists carries
+        <code>ideaforge-VERSION.apk</code>, signed with the release key, and a
+        <code>SHA256SUMS</code> file. Its application id is
+        <code>io.github.jaypetez.ideaforge</code>, different from the debug build&rsquo;s, so
+        the two install side by side, each with its own ideas and keys. If the
+        <a href="https://github.com/jaypetez/ideaforge/releases/latest">latest release</a>
+        has no APK, signed releases have not begun yet.
+      </p>
+      <ol class="steps">
+        <li>Download <code>ideaforge-VERSION.apk</code> and <code>SHA256SUMS</code> from the
+          release&rsquo;s assets.</li>
+        <li>Check the hash: <code>sha256sum --check --ignore-missing SHA256SUMS</code>.</li>
+        <li>Check the signer with <code>apksigner</code> from the Android SDK build tools:
+          it must print exactly one signer whose SHA-256 digest equals the fingerprint in
+          <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#release-signing-certificate">SECURITY.md</a>
+          (ignore case and colons). If it does not, do not install it.</li>
+        <li>Install it with <code>adb install -r</code>, as below. Opening the file on the
+          phone instead may need the extra steps in
+          <a href="#play-protect">Play Protect and unknown apps</a>.</li>
+      </ol>
+      <pre><code>apksigner verify --print-certs ideaforge-VERSION.apk
+adb install -r ideaforge-VERSION.apk</code></pre>
+      <p>
+        Android updates an installed release only with an APK signed by the same key, so a
+        later release installs over it and keeps its data.
       </p>
 
-      <h2 id="emulator">Install on the emulator</h2>
+<h2 id="emulator">Install on the emulator</h2>
       <ol class="steps">
         <li>In Android Studio&rsquo;s Device Manager, create a virtual device (AVD) with a
           system image of API 29 or newer, and start it.</li>
@@ -228,7 +251,8 @@ adb install -r app-debug.apk</code></pre>
       <h2 id="play-protect">Play Protect and unknown apps</h2>
       <p>
         Google Play Protect may scan or warn about an app that did not come from Google Play.
-        That is expected for a debug build signed with a development key. Installing the
+        That is expected for a debug build signed with a development key, and for a release
+        APK from GitHub rather than Google Play. Installing the
         APK by opening the file on the phone, rather than with <code>adb</code>, also needs
         the <strong>Install unknown apps</strong> permission for the app that opens it, such
         as your file manager or browser.

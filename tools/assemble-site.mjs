@@ -11,7 +11,10 @@ export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const ROOT_FILES = ['index.html', 'manifest.webmanifest', 'sw.js', 'LICENSE'];
 export const ROOT_DIRS = ['src', 'guide', 'docs/screenshots'];
 
-const OMIT = /\.test\.mjs$/;
+// Test files, and anything that can sign an Android release (#95). Signing material is
+// gitignored, so a CI checkout never has any; this keeps a stray local keystore under src/
+// out of a locally assembled or served tree too.
+const OMIT = /\.test\.mjs$|\.(jks|keystore)$|(^|\/)keystore\.properties$/;
 
 const toPosix = (path) => path.replace(/\\/g, '/');
 const fromPosix = (root, path) => join(root, ...path.split('/'));

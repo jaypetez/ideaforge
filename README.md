@@ -342,12 +342,15 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   and audio consent, used only when the phone's recogniser is missing or cannot recognise
   your language.
 - **Not yet:** press-to-talk.
-- **Not yet:** a signed release or a Play Store listing.
-  <!-- TODO(#95): link the signed APK on GitHub releases once the release job attaches it. -->
-  The signed APK on GitHub releases arrives with
-  [issue #95](https://github.com/jaypetez/ideaforge/issues/95).
+- **Signed APK:** attached to each GitHub release, starting with the first tag after the
+  release key's fingerprint is pinned in
+  [SECURITY.md](SECURITY.md#release-signing-certificate) (it still reads `PENDING` until
+  then). Verify it against `SHA256SUMS` and that fingerprint before installing; the
+  [Android guide](https://jaypetez.github.io/ideaforge/guide/android.html#signed-apk) has the
+  steps.
+- **Not yet:** a Play Store listing.
 
-Until then, install the debug build by sideloading. It needs Android 10 (API 29) or newer and
+Until a release carries a signed APK, install the debug build by sideloading. It needs Android 10 (API 29) or newer and
 installs as `io.github.jaypetez.ideaforge.debug`, beside any later release build. Build it with
 JDK 21 and the Android SDK, or download the `ideaforge-debug-apk` artifact from a CI run, then
 install it on an emulator or a phone with USB debugging:

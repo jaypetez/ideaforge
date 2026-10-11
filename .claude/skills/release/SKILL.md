@@ -60,6 +60,11 @@ changes from the same task, including this skill's initial creation; do not swee
 changes into a release. Use a separate branch/worktree when needed. Never reset someone
 else's work, alter global Git/Docker credentials, or bypass branch protection.
 
+The release workflow also builds the signed Android APK, and fails the whole release when
+[SECURITY.md](../../../SECURITY.md#release-signing-certificate) still pins `PENDING` or the
+`release` environment lacks the four `ANDROID_*` keystore secrets. Check the pin before a
+tag is pushed; creating the key and the secrets is the maintainer's task, never this skill's.
+
 Read both version files and the latest stable release. Confirm the requested version is
 appropriate and available. An existing tag or release is not permission to overwrite it:
 if it belongs to this same completed release, use `verify`; if it conflicts, stop.
@@ -186,18 +191,21 @@ gh run view "$RELEASE_RUN_ID" --repo jaypetez/ideaforge --json headSha,headBranc
 ```
 
 Do not select a run by recency alone. Require the matching tag and commit, a completed
-successful run, and successful `verify`, `release` and `image` jobs. If no matching run
+successful run, and successful `verify`, `android-apk`, `release` and `image` jobs. If no matching run
 exists, publication is pending or blocked; creating a release by hand is not a repair.
 
 Inspect and download the actual release into a new scratch directory:
 
 ```sh
 gh release view "$TAG" --repo jaypetez/ideaforge --json tagName,isDraft,isPrerelease,assets,url
-gh release download "$TAG" --repo jaypetez/ideaforge --dir "$SCRATCH" --pattern "ideaforge-$VERSION.tar.gz" --pattern "ideaforge-$VERSION.zip" --pattern SHA256SUMS
+gh release download "$TAG" --repo jaypetez/ideaforge --dir "$SCRATCH" --pattern "ideaforge-$VERSION.tar.gz" --pattern "ideaforge-$VERSION.zip" --pattern "ideaforge-$VERSION.apk" --pattern SHA256SUMS
 ```
 
-Require a published stable release and all three expected uploaded assets. Verify both
-archive hashes against `SHA256SUMS`, accepting only the two expected filenames. Inspect
+Require a published stable release and all four expected uploaded assets. Verify the
+archive and APK hashes against `SHA256SUMS`, accepting only the three expected filenames.
+Check the APK's signer with `apksigner verify --print-certs` and require exactly one signer
+whose SHA-256 matches SECURITY.md (`node tools/apk-cert-pin.mjs` on the saved output does
+that comparison). Never install it as part of verification. Inspect
 both archives with standard-library/platform tools: require the `ideaforge-VERSION/`
 prefix and matching `package.json`/`src/version.js` contents. Reject unsafe archive paths
 and never execute downloaded content. An HTTP 200 or a release page is not this check.
