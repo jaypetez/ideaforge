@@ -8,6 +8,7 @@ const GUIDE_PAGES = [
   'android.html',
   'providers.html',
   'local-models-and-docker.html',
+  'privacy-policy.html',
   'privacy-and-security.html',
   'troubleshooting.html',
   'development-and-delivery.html',
@@ -125,6 +126,38 @@ export default async function run(check, { subpath }) {
   }
 
   for (const base of ['/', subpath]) {
+    const policyViolations = [];
+    const policy = await loadFrame(`${base}guide/privacy-policy.html`, {
+      width: 390, height: 844,
+      onWindow(win) {
+        win.addEventListener('securitypolicyviolation', (event) =>
+          policyViolations.push(`${event.violatedDirective} blocked ${event.blockedURI}`));
+      },
+    });
+    try {
+      const doc = policy.contentDocument;
+      check(`${base}privacy policy loads its own static document`,
+        doc.title === 'Privacy policy | IdeaForge guide' && doc.scripts.length === 0
+          && !doc.getElementById('provider'));
+      checkPhoneOpening(check, doc, `${base}privacy-policy.html`);
+      check(`${base}privacy policy retains its current navigation item`,
+        doc.querySelector('.docs-nav a[aria-current="page"]')?.textContent === 'Privacy policy');
+      check(`${base}privacy policy stylesheet stays under its site prefix`,
+        [...doc.styleSheets].some((sheet) =>
+          sheet.href && new URL(sheet.href).pathname === `${base}guide/assets/guide.css`));
+      check(`${base}privacy policy app link stays under its site prefix`,
+        new URL(doc.querySelector('.site-actions a').href).pathname === base);
+      const contact = doc.getElementById('privacy-contact');
+      check(`${base}privacy policy states its contact readiness visibly`,
+        !!contact && ['pending', 'ready'].includes(contact.dataset.status)
+          && contact.getBoundingClientRect().height > 0
+          && (contact.dataset.status !== 'pending' || contact.textContent.includes('PENDING')));
+      check(`${base}privacy policy CSP blocks nothing it needs`,
+        policyViolations.length === 0, policyViolations.join('; '));
+    } finally {
+      policy.remove();
+    }
+
     const voice = await loadFrame(`${base}guide/mobile-and-voice.html`, { width: 390, height: 844 });
     try {
       const doc = voice.contentDocument;

@@ -12,10 +12,12 @@ know.
 
 For user-facing storage, backup, key and cleanup guidance, see the
 [privacy and security guide](https://jaypetez.github.io/ideaforge/guide/privacy-and-security.html).
+The [privacy policy](https://jaypetez.github.io/ideaforge/guide/privacy-policy.html)
+covers both the web and Android apps; an unconfirmed privacy contact blocks releases.
 
 ## What this app is, security-wise
 
-IdeaForge is a static page with **no server and no dependencies**. It runs entirely in
+The web app is a static page with **no server and no dependencies**. It runs entirely in
 your browser. Inference, transcription and optional hosted speech requests go directly to
 their selected providers, without an IdeaForge proxy. Browser recognition and network
 speech voices may also send audio or spoken text to services controlled by the browser.
@@ -114,7 +116,7 @@ The Android APK attached to each GitHub release is signed with one release key. 
 above is that key's certificate fingerprint. It reads `PENDING` until the maintainer creates
 the key; while it does, the release workflow fails before publishing anything, so no
 release of any kind (archives, APK or container image) is published. Signed releases begin
-with the first tag after the fingerprint is pinned here.
+with the first tag after the fingerprint is pinned here and the privacy contact is confirmed.
 The release workflow compares every APK it builds against this line (with
 `tools/apk-cert-pin.mjs`) and fails the release on any difference.
 
