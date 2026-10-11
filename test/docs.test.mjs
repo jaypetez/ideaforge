@@ -13,6 +13,7 @@ import { HARD_TURN_CEILING, SOFT_TURN_CEILING } from '../src/core/engine.js';
 import { PROVIDER_CHOICES } from '../src/providers/index.js';
 import { TTS_PRESETS } from '../src/providers/tts.js';
 import { STT_PRESETS } from '../src/voice/transcribe.js';
+import { checkPrivacyPolicy } from '../tools/check-privacy-policy.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const README = readFileSync(join(ROOT, 'README.md'), 'utf8');
@@ -27,6 +28,7 @@ const GUIDE_PAGES = [
   'android.html',
   'providers.html',
   'local-models-and-docker.html',
+  'privacy-policy.html',
   'privacy-and-security.html',
   'troubleshooting.html',
   'development-and-delivery.html',
@@ -164,6 +166,42 @@ test('every guide link, image, stylesheet and anchor resolves', () => {
     }
   }
   assert.deepEqual(missing, []);
+});
+
+test('the privacy policy covers both platforms and the current provider choices', () => {
+  const html = guide('privacy-policy.html');
+  assert.match(html, /<title>Privacy policy\b/);
+  for (const source of ['IndexedDB', 'localStorage', 'JSON', 'Keystore', 'DataStore']) {
+    assert.ok(html.includes(source), `privacy policy omits ${source}`);
+  }
+  for (const provider of PROVIDER_CHOICES.filter((choice) => choice.needsKey)) {
+    assert.ok(html.includes(provider.label), `privacy policy omits ${provider.label}`);
+  }
+  for (const preset of [...Object.values(STT_PRESETS), ...Object.values(TTS_PRESETS)]) {
+    assert.ok(html.includes(preset.label), `privacy policy omits ${preset.label}`);
+  }
+  for (const section of ['developer', 'data-map', 'model-requests', 'voice', 'network',
+    'retention', 'age', 'changes']) {
+    assert.ok(html.includes(`id="${section}"`), `privacy policy omits ${section}`);
+  }
+  assert.match(html, /http:\/\//, 'privacy policy must explain plain-http local servers');
+  assert.match(html, /18 or over/, 'privacy policy must state the intended adult audience');
+  const contact = html.match(/<address id="privacy-contact" data-status="(pending|ready)">([\s\S]*?)<\/address>/);
+  assert.ok(contact, 'privacy contact must explicitly be pending or confirmed');
+  const result = checkPrivacyPolicy(html);
+  assert.equal(result.ok, contact[1] === 'ready', result.message);
+  if (contact[1] === 'pending') assert.match(contact[2], /PENDING maintainer confirmation/);
+});
+
+test('the privacy policy distinguishes local credentials and Pause by platform', () => {
+  const html = guide('privacy-policy.html');
+  const cell = (id) => html.match(new RegExp(`<td id="${id}">([\\s\\S]*?)</td>`))?.[1] || '';
+  assert.match(cell('web-provider-settings'), /nonempty key[\s\S]*loopback server/);
+  assert.match(cell('android-provider-settings'), /omit credentials/);
+  const paragraph = (id) => html.match(new RegExp(`<p id="${id}">([\\s\\S]*?)</p>`))?.[1] || '';
+  assert.match(paragraph('android-pause'), /cancels the capture and pending transcription/);
+  assert.match(paragraph('android-pause'), /completed transcribed segments/);
+  assert.match(paragraph('web-pause'), /may finish transcription/);
 });
 
 test('the guide only documents npm scripts that exist and keeps browser checks fail-closed', () => {

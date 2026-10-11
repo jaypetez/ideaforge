@@ -38,6 +38,7 @@
           <li><a href="./android.html">Android app</a></li>
           <li><a href="./providers.html">Providers</a></li>
           <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-policy.html">Privacy policy</a></li>
           <li><a href="./privacy-and-security.html">Privacy and security</a></li>
           <li><a href="./troubleshooting.html">Troubleshooting</a></li>
           <li><a href="./development-and-delivery.html" aria-current="page">Development and delivery</a></li>
@@ -398,8 +399,11 @@ npm run serve</code></pre>
       </p>
       <p>
         The release workflow first checks that the tag, <code>package.json</code>, and
-        <code>src/version.js</code> agree, proves the commit belongs to <code>main</code>, and
-        reruns <code>npm run test:all</code>. A separate job, the only one that references the
+        <code>src/version.js</code> agree, proves the commit belongs to <code>main</code>,
+        checks that the <a href="./privacy-policy.html">privacy policy</a> has a confirmed
+        public contact, and reruns <code>npm run test:all</code>. The release skill runs
+        <code>node tools/check-privacy-policy.mjs</code> before preparation or tagging;
+        an unresolved placeholder is a stop condition. A separate job, the only one that references the
         Android keystore secrets (held as secrets of a <code>release</code> environment that
         accepts only version tags), builds the signed APK and refuses it unless its signer matches the
         fingerprint pinned in <code>SECURITY.md</code>; it fails while that pin reads

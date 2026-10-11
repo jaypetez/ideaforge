@@ -34,6 +34,8 @@ Read the [working loop](../../../AGENTS.md) and
   [release workflow](../../../.github/workflows/release.yml) for the actual gates.
 - [release-note configuration](../../../.github/release.yml) for generated notes.
 - [Pages](../../../.github/workflows/pages.yml) for deployment, which is separate from tagging.
+- [privacy policy](../../../guide/privacy-policy.html) and
+  [its readiness guard](../../../tools/check-privacy-policy.mjs) for the public contact.
 
 The upstream release target is **`jaypetez/ideaforge`**, and the image is
 **`ghcr.io/jaypetez/ideaforge:VERSION`** (no `v` in the image tag). A writable fork can
@@ -70,6 +72,14 @@ The release workflow also builds the signed Android APK, and fails the whole rel
 SECURITY.md's "Release signing certificate" section. If it says `PENDING`, do not tag or
 publish: report that signed releases have not been set up and stop. `npm run test:all`
 stays green with `PENDING`, so a green ladder is not evidence that a tag can publish.
+
+**STOP if the privacy contact is incomplete.** Run
+`node tools/check-privacy-policy.mjs` from the root before preparation or tagging.
+The policy's single `address` with `id="privacy-contact"` must have
+`data-status="ready"` and show the same real public email address as its `mailto:`
+link. The maintainer supplies and confirms it; do not invent an address, change
+the marker alone, or remove the check. A clearly marked pending policy can be
+developed in a PR, but cannot be released. The tag workflow runs this guard too.
 
 Creating the key and its secrets is the maintainer's task, never this skill's. Report, as
 preflight findings rather than actions to take, whether the maintainer has: stored
@@ -140,6 +150,22 @@ Fetch `main` from the verified upstream remote and prove `SHA` is a commit conta
 that branch. Read both version files at **that SHA**, not from the working directory;
 both must equal `VERSION`. Recheck upstream write access and that the tag/release has not
 appeared or been superseded while the PR was under review.
+
+Recheck privacy readiness using the policy at **that merged SHA**, not merely
+the working copy. In a POSIX shell with `pipefail`:
+
+```sh
+git show "$SHA:guide/privacy-policy.html" | node tools/check-privacy-policy.mjs -
+```
+
+In PowerShell:
+
+```powershell
+git show "${SHA}:guide/privacy-policy.html" | node tools/check-privacy-policy.mjs -
+if ($LASTEXITCODE -ne 0) { throw 'The approved release policy is not ready' }
+```
+
+Any refusal is a stop condition before constructing or pushing the tag.
 
 Find the upstream CI push run for that exact merged SHA:
 

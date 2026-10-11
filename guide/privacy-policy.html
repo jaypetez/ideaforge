@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy | IdeaForge guide</title>
+  <meta name="description"
+        content="How IdeaForge for the web and Android handles interviews, credentials, voice, provider transfers, retention and deletion.">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; img-src 'self' data:;
+                 base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../src/ui/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the guide</a>
+  <header class="site-header">
+    <a class="brand" href="./">
+      <img src="../src/ui/icon.svg" alt="">
+      <span>IdeaForge guide</span>
+    </a>
+    <div class="site-actions">
+      <a class="button-link" href="../">Open the app</a>
+      <a class="button-link primary" href="./getting-started.html">Get started</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="docs-nav" aria-label="Documentation">
+      <details open>
+        <summary>Documentation <span class="nav-hint">Scroll for all pages</span></summary>
+        <ul tabindex="0" aria-label="Guide pages">
+          <li><a href="./">Overview</a></li>
+          <li><a href="./getting-started.html">Getting started</a></li>
+          <li><a href="./interviews-and-coverage.html">Interviews and coverage</a></li>
+          <li><a href="./ideas-library.html">Ideas library</a></li>
+          <li><a href="./mobile-and-voice.html">Mobile and voice</a></li>
+          <li><a href="./android.html">Android app</a></li>
+          <li><a href="./providers.html">Providers</a></li>
+          <li><a href="./local-models-and-docker.html">Local models and Docker</a></li>
+          <li><a href="./privacy-policy.html" aria-current="page">Privacy policy</a></li>
+          <li><a href="./privacy-and-security.html">Privacy and security</a></li>
+          <li><a href="./troubleshooting.html">Troubleshooting</a></li>
+          <li><a href="./development-and-delivery.html">Development and delivery</a></li>
+        </ul>
+      </details>
+    </nav>
+
+    <main id="main">
+      <p class="eyebrow">Your interviews and your chosen services</p>
+      <h1>Privacy policy</h1>
+      <p class="lede">
+        This policy covers IdeaForge for the web and Android. Interviews stay on your
+        device, while the content needed for model requests and optional voice services
+        goes to the services you choose. There is no IdeaForge account or sync server.
+      </p>
+
+      <h2 id="developer">Developer and privacy contact</h2>
+      <p>
+        IdeaForge is maintained as the open-source
+        <a href="https://github.com/jaypetez/ideaforge">jaypetez/ideaforge project</a>.
+        This policy describes the app's data handling, not the independent policies of
+        your model provider, speech service, browser or hosting service.
+      </p>
+      <address id="privacy-contact" data-status="ready">
+        Privacy contact: <a href="mailto:jayson@duck.com">jayson@duck.com</a>
+      </address>
+
+      <h2 id="data-map">Data accessed and kept on the device</h2>
+      <p>
+        IdeaForge uses the idea, questions, answers, unfinished drafts, extracted facts,
+        coverage, generated write-up, names and tags to conduct, resume, search and
+        export interviews. Whatever you put in an idea can contain personal information;
+        the app does not separate that information from the rest of your text.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Web app</th><th>Android app</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Interviews and library</strong></td>
+              <td>Unencrypted session records in this browser profile and origin's IndexedDB.</td>
+              <td>Unencrypted JSON files in the app's private sessions directory.</td>
+            </tr>
+            <tr>
+              <td><strong>Inference, transcription and speech credentials</strong></td>
+              <td>
+                An AES-GCM-encrypted keyring in IndexedDB, using a non-extractable
+                Web Crypto wrapping key stored alongside it.
+              </td>
+              <td>
+                An AES-GCM-encrypted keyring in no-backup private storage, using an
+                app-specific, non-exportable key in Android Keystore.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Provider address and model choices</strong></td>
+              <td id="web-provider-settings">
+                In the credential keyring, per provider. Local inference requires no key,
+                but a nonempty key in the web connection settings can be sent to the
+                loopback server for authentication.
+              </td>
+              <td id="android-provider-settings">
+                In the credential keyring, per provider. Android local server connections
+                omit credentials, even if a key was configured.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Device preferences</strong></td>
+              <td>
+                Plain localStorage, including theme, finish word, hands-free choice,
+                speaking voice/pace and hosted-speech permission.
+              </td>
+              <td>
+                Plain Preferences DataStore, including those choices and the separate
+                hosted-transcription permission.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Voice recordings and generated speech audio</strong></td>
+              <td colspan="2">
+                Temporarily held in memory while the app records, transcribes or plays
+                audio. IdeaForge does not save audio in interviews, backups or a
+                persistent audio cache. Device speech services have their own handling.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Backups, exports and shared copies</strong></td>
+              <td colspan="2">
+                Created by explicit actions. A JSON backup contains the active and
+                archived interviews, but not the app's credential keyring, device
+                preferences or audio. Text you put in an idea is not redacted.
+                Markdown exports include the idea's document and transcript.
+                These copies are unencrypted.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Android cloud backup and device-to-device app-data transfer are disabled.
+        The app's explicit backup/export actions are separate. The web app caches public
+        app-shell files for offline opening; that cache does not hold provider requests,
+        credentials or interviews. The static guide is outside the app-shell cache.
+      </p>
+
+      <h2 id="model-requests">What goes to a model provider, and when</h2>
+      <p>
+        Generating a follow-up question or write-up sends interview context to the
+        selected provider: the opening idea, questions and answers (compacted as needed),
+        facts and coverage. The provider returns generated questions, suggestions or a
+        write-up, which become part of the local interview. Connection/key checks and
+        model-list reads also contact the selected service, without sending an interview.
+      </p>
+      <p>
+        Hosted inference choices are <strong>Anthropic</strong>, <strong>OpenAI</strong>,
+        <strong>Groq</strong> and <strong>OpenRouter</strong>. The relevant API key is sent
+        to that provider to authenticate the request. OpenRouter also routes inputs to
+        an underlying model provider; review
+        <a href="https://openrouter.ai/privacy">its provider data practices</a>.
+        Local choices are <strong>Ollama (local)</strong>, <strong>LM Studio (local)</strong>
+        and <strong>Another local server</strong>. In the web-only
+        <strong>Claude (this viewer)</strong> path, the hosting Claude viewer receives
+        the prompt through its sampling capability; no IdeaForge API key is needed.
+      </p>
+      <p>
+        IdeaForge does not proxy these requests through an application server.
+        Provider logging, retention, training, abuse monitoring and account controls
+        are governed by the selected service and your account settings, not by deleting
+        an interview in IdeaForge. A local address is not a promise about what that
+        server does after receiving your content.
+      </p>
+
+      <h2 id="voice">Microphone, transcription and spoken replies</h2>
+      <p>
+        Voice input requires microphone permission. Browser recognition and Android's
+        speech recognition service process your audio, on-device where available or
+        through the service's own remote processing. Choosing a device voice or
+        recognizer is not an offline guarantee.
+      </p>
+      <p>
+        The web record-and-transcribe path uploads recorded audio to the selected
+        <strong>Groq Whisper</strong> or <strong>OpenAI</strong> transcription service,
+        with its transcription key, language and a text hint where used. A hint can
+        contain the current question and earlier transcribed words. On Android, this
+        hosted fallback runs only when native recognition is unavailable or cannot
+        handle the language, and only with its own key and explicit audio-transfer
+        consent. The returned words are stored as interview text, not as audio.
+      </p>
+      <p>
+        Native/device speech is the default. Optional <strong>OpenAI speech</strong>
+        sends the text being read aloud to OpenAI, using a separate speech key.
+        That text can contain your idea, questions, examples and refined prompt.
+        Hosted speech requires consent to text transfer, an AI-generated voice and
+        metered usage, plus a successful hosted check/preview. The preview itself
+        sends text to OpenAI. A failed hosted reply can visibly fall back to the
+        device voice; cancellation does not start fallback playback.
+      </p>
+      <p id="android-pause">
+        In Android hands-free mode, a microphone foreground service keeps the active
+        voice interview listening when the screen is off, with notification controls
+        to pause or exit. Pause cancels the capture and pending transcription, keeping
+        the available native caption and completed transcribed segments as a draft.
+        An unfinished hosted-transcription segment is not added after pausing.
+        Exit preserves captured words.
+      </p>
+      <p id="web-pause">
+        On the web, Pause releases owned microphone/playback resources, but an already
+        captured recording may finish transcription to preserve a draft. Exit keeps
+        transcribed words and cancels unfinished audio. Neither platform can recall data
+        already sent to a provider. The app does not run a background wake-word listener.
+      </p>
+
+      <h2 id="network">Secure handling and network limits</h2>
+      <p>
+        Hosted model, transcription and speech connections use HTTPS. The web app
+        permits user-entered model endpoints only on loopback. Android also permits
+        private-network model servers. A plain <code>http://</code> connection is not
+        encrypted in transit: another machine on your LAN can receive interview text,
+        and network observers may be able to read it. Use HTTPS on that server when
+        available; a local model does not make hosted voice services local.
+      </p>
+      <p>
+        Credential encryption does not encrypt your interviews or exports. It does not
+        protect an unlocked device, a compromised operating system/browser or a
+        malicious script already running as the web app's origin. Keep keys scoped,
+        protect your device and treat interview files as sensitive.
+        See <a href="./privacy-and-security.html">Privacy and security</a> for the
+        browser's CSP, storage and encryption boundaries.
+      </p>
+      <p>
+        IdeaForge contains no analytics, advertising, telemetry, user accounts or
+        application sync service, and does not sell interview data. Hosting and
+        provider services still receive ordinary request metadata, such as an IP
+        address and request headers. The web app also requests its IBM Plex stylesheet
+        and font files from Google Fonts, without interview content or an IdeaForge
+        key in those asset requests. This guide uses local assets and system fonts.
+      </p>
+
+      <h2 id="retention">Retention, deletion and your copies</h2>
+      <p>
+        Local interviews have no automatic expiry. They remain until you delete an
+        idea or clear the app's storage; browser storage can also be evicted.
+        Use the library's Delete action for an idea. Browser site-data controls
+        remove that origin's stored data and caches; clearing Android app storage
+        or uninstalling removes its local app data. Back up first if you need it.
+        There is no IdeaForge server copy from which to restore a lost interview.
+      </p>
+      <p>
+        <strong>Forget my key</strong> removes the saved inference, transcription and
+        speech credentials. It does not delete interviews or revoke credentials at
+        their providers. Revoke a compromised key through the provider's account
+        controls. Non-secret preferences generally remain; permissions tied to
+        hosted speech/transcription are withdrawn.
+      </p>
+      <p>
+        Android creates a temporary private export file when sharing; older share
+        files are pruned on a later app start or share. A destination app, clipboard,
+        downloaded Markdown or JSON backup is a separate copy outside IdeaForge's
+        control. Delete or secure those copies separately. Deleting locally cannot
+        erase provider-side records or copies already shared. Ask the relevant
+        provider about its retention/deletion options; there is no IdeaForge account
+        to delete.
+      </p>
+
+      <h2 id="age">Adult audience</h2>
+      <p>
+        IdeaForge is intended for people aged <strong>18 or over</strong>, not for
+        children. The app does not collect an age field or verify your age.
+      </p>
+
+      <h2 id="changes">Changes and questions</h2>
+      <p>
+        Changes to data handling will be reflected on this page and in relevant
+        in-app disclosures. Review the policy when updating the app or changing
+        services. Send privacy questions to the contact address above; do not include
+        a live API key or sensitive transcript in a public issue. The <a href="https://github.com/jaypetez/ideaforge">repository</a>
+        records policy changes alongside their implementation.
+      </p>
+
+      <footer class="page-footer">
+        <p>
+          IdeaForge is open source under the MIT licence.
+          <a href="https://github.com/jaypetez/ideaforge">View the repository</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

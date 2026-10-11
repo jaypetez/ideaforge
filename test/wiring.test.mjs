@@ -217,6 +217,14 @@ function job(workflow, name) {
   return end < 0 ? rest : rest.slice(0, end);
 }
 
+test('release verification refuses an incomplete privacy policy before publication', () => {
+  const verify = job(RELEASE, 'verify');
+  assert.match(verify, /- name: Verify the privacy policy\n\s+run: node tools\/check-privacy-policy\.mjs/);
+  assert.doesNotMatch(verify, /continue-on-error:\s*true/);
+  assert.ok(verify.indexOf('node tools/check-privacy-policy.mjs')
+    < verify.indexOf('npm run test:all'), 'check policy readiness before the release ladder');
+});
+
 test('the android-apk job is the only one given the signing secrets, and it fails closed', () => {
   const apk = job(RELEASE, 'android-apk');
   assert.match(apk, /^ {4}needs: verify$/m);

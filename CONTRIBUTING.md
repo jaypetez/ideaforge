@@ -355,6 +355,11 @@ Label the PR before it merges. Release notes are generated from labels — `prov
 Use the shared [release skill](.claude/skills/release/SKILL.md). It owns the detailed
 preflight, publication and verification procedure; do not maintain a second checklist here.
 
+The [privacy policy](guide/privacy-policy.html) must have a confirmed public contact
+before a release is prepared or tagged. `node tools/check-privacy-policy.mjs`
+refuses an unresolved placeholder, missing contact or example address; the release
+workflow runs the same guard. Only the maintainer supplies and confirms the address.
+
 | Explicit invocation | What it does |
 |---|---|
 | `/release prepare <version>` | Updates both version files, validates the change, and opens a new PR. It does not publish. |

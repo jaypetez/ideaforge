@@ -46,12 +46,35 @@ source wins over prose, and a generated artifact wins over a description of that
   [release-note configuration](../../../../.github/release.yml),
   [`tools/apk-cert-pin.mjs`](../../../../tools/apk-cert-pin.mjs) with the signer pin in
   [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK),
+  [`tools/check-privacy-policy.mjs`](../../../../tools/check-privacy-policy.mjs) with
+  [`guide/privacy-policy.html`](../../../../guide/privacy-policy.html) (the confirmed contact),
   [`package.json`](../../../../package.json), and
   [`src/version.js`](../../../../src/version.js). Re-check `CONTRIBUTING.md`, the development
   guide, and [`release`](../../release/SKILL.md).
 - **Security and privacy.** Sources:
   [`SECURITY.md`](../../../../SECURITY.md), [`index.html`](../../../../index.html),
-  `src/store/`, and `src/providers/`. Re-check the README, privacy guide, and provider guide.
+  `src/store/`, `src/providers/`, `src/voice/`, and the Android
+  [`AppGraph.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/AppGraph.kt),
+  [`KeyringStore.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/KeyringStore.kt),
+  [`PrefsStore.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/PrefsStore.kt),
+  [`AndroidManifest.xml`](../../../../android/app/src/main/AndroidManifest.xml),
+  [`data_extraction_rules.xml`](../../../../android/app/src/main/res/xml/data_extraction_rules.xml),
+  [`ProviderHttp.kt`](../../../../android/providers/src/main/kotlin/io/github/jaypetez/ideaforge/providers/ProviderHttp.kt),
+  [`LocalNetworkPolicy.kt`](../../../../android/providers/src/main/kotlin/io/github/jaypetez/ideaforge/providers/LocalNetworkPolicy.kt),
+  the speech/transcription consent gates in
+  [`HostedSpeech.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/HostedSpeech.kt),
+  and [`ResultActions.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/result/ResultActions.kt)
+  for temporary shared files. Re-check the README, privacy policy, security guide and
+  provider guide. An unresolved privacy contact blocks release through
+  `tools/check-privacy-policy.mjs`; only the maintainer confirms the public address.
+  Web local authentication follows `readRingFromForm` in
+  [`src/ui/app.js`](../../../../src/ui/app.js) and `applyAuth` in
+  [`src/providers/http.js`](../../../../src/providers/http.js); do not describe it as
+  Android's enforced key omission. Web Pause in
+  [`src/voice/index.js`](../../../../src/voice/index.js) may finish pending transcription;
+  Android `pauseRun` in
+  [`DriveController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/DriveController.kt)
+  cancels capture work and preserves only the caption/segments already available.
 - **Setup disclosures.** Sources: [`index.html`](../../../../index.html) (`model-settings`,
   `speech-options`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`onProviderChange`,
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.
@@ -167,6 +190,7 @@ source wins over prose, and a generated artifact wins over a description of that
   `mobile-and-voice.html` (voice stage, installation, dictation, hands-free),
   `android.html` (native Android alpha: sideloading, providers, backups, status),
   `providers.html` (inference, transcription, speech), `local-models-and-docker.html`,
+  `privacy-policy.html` (web and Android data handling and the public contact),
   `privacy-and-security.html`, `troubleshooting.html` and `development-and-delivery.html`.
   `test/docs.test.mjs` fails when a page is missing from this list.
 - **Native Android app.** Sources:

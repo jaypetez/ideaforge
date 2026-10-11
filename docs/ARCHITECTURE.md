@@ -65,8 +65,9 @@ publish.
 The publishing workflows defend against shipping the wrong tree. `.github/workflows/pages.yml`
 only runs after a successful `CI` workflow run for a push to `main`, then re-checks that the
 tested SHA is still the exact tip of `main` before deploying. `.github/workflows/release.yml`
-puts a read-only `verify` job — version triplet, `main` ancestry, full `npm run test:all`
-ladder — in front of the write-enabled release job. Its `android-apk` job is the only one
+puts a read-only `verify` job — version triplet, `main` ancestry, a confirmed privacy contact
+through `tools/check-privacy-policy.mjs`, full `npm run test:all` ladder — in front of the
+write-enabled release job. Its `android-apk` job is the only one
 given the keystore secrets; it signs the APK and fails unless `tools/apk-cert-pin.mjs` finds
 exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the release job only
 ever handles a finished, verified APK.
