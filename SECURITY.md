@@ -106,6 +106,38 @@ The mitigations that actually matter here are structural:
   wrapping key. It does not revoke them at their providers or delete your interviews.
 - Never paste a key into a GitHub issue. If you do, revoke it immediately.
 
+## Release signing certificate
+
+Signer certificate SHA-256: `PENDING`
+
+The Android APK attached to each GitHub release is signed with one release key. The value
+above is that key's certificate fingerprint. It reads `PENDING` until the maintainer creates
+the key; while it does, the release workflow fails before publishing anything, so no
+release of any kind (archives, APK or container image) is published. Signed releases begin
+with the first tag after the fingerprint is pinned here.
+The release workflow compares every APK it builds against this line (with
+`tools/apk-cert-pin.mjs`) and fails the release on any difference.
+
+To check a downloaded APK, verify its hash against the release's `SHA256SUMS`, then its
+signer with `apksigner` from the Android SDK build tools:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+apksigner verify --print-certs ideaforge-VERSION.apk
+```
+
+`apksigner` must exit 0 and print exactly one `Signer #1 certificate SHA-256 digest:` equal to
+the fingerprint above (ignore case and colons). Anything else is not an IdeaForge release:
+do not install it. Android also refuses to update an installed release with an APK signed by
+another key.
+
+The release keystore never enters the repository: `*.jks`, `*.keystore` and
+`android/keystore.properties` are ignored by git and never published with the site. The
+release workflow decodes it from an environment secret on the `release` environment into the
+runner's temporary directory and deletes it when the job ends, whether the job passed or
+failed. That environment accepts only `v*.*.*` tags, which is what keeps the key out of
+reach of branches, pull requests and other workflows.
+
 ## Scope
 
 In scope: anything that exfiltrates a stored key, executes script in the page, tampers

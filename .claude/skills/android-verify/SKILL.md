@@ -13,8 +13,10 @@ are in [CLAUDE.md](../../../CLAUDE.md#android-invariants), and the project layou
 
 This workflow downloads Gradle dependencies, starts a Gradle daemon and may boot an emulator.
 Inspect what is already running first. Do not wipe an existing AVD, uninstall an app someone
-else is testing, or kill an emulator you did not start. Never create, copy or commit a release
-keystore; signing is a maintainer task (issue #95).
+else is testing, or kill an emulator you did not start. Never copy or commit a release
+keystore or its passwords; creating the real key and its secrets is a maintainer task. To
+exercise a signed, minified build, generate a throwaway keystore outside the repository and
+point the `ANDROID_KEYSTORE_*`/`ANDROID_KEY_*` variables at it (section 5b).
 
 ## 0. Prerequisites
 
@@ -157,6 +159,33 @@ ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   -Pandroid.inj
   variant's merged assets.
 - To prove it bites, make the scripted provider throw for one turn: the run fails with
   "turn N is the scripted question, not the checklist".
+
+## 5b. The signed, minified release build
+
+The release build runs R8, and a crash there never shows in a debug build or a JVM test.
+Sign it with a throwaway key kept outside the repository (the scratchpad), never the real one:
+
+```sh
+keytool -genkeypair -keystore "$SCRATCH/throwaway.jks" -alias ideaforge -keyalg RSA \
+  -keysize 4096 -validity 10000 -storepass throwaway -keypass throwaway -dname "CN=throwaway"
+ANDROID_KEYSTORE_PATH="$SCRATCH/throwaway.jks" ANDROID_KEYSTORE_PASSWORD=throwaway \
+  ANDROID_KEY_ALIAS=ideaforge ANDROID_KEY_PASSWORD=throwaway ./gradlew :app:assembleRelease
+"$ANDROID_HOME/build-tools/<version>/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
+adb install app/build/outputs/apk/release/app-release.apk
+adb shell am start -W -n io.github.jaypetez.ideaforge/.MainActivity
+adb logcat -d | grep -E "FATAL|E AndroidRuntime"
+adb uninstall io.github.jaypetez.ideaforge
+```
+
+- `assembleRelease` is finalised by `verifyReleaseApk`, which fails if the APK packages the
+  walkthrough script or R8's mapping file lists a class declared only under `src/debug`.
+- Without the variables (or `android/keystore.properties`) the build is
+  `app-release-unsigned.apk`, which cannot be installed; setting only some of them is an error.
+- Go past onboarding (list a local server's models, save, open Settings, run one turn) before
+  calling R8 safe: that is where serialization and OkHttp run. Add a keep rule to
+  `app/proguard-rules.pro` only for a crash reproduced here, with a comment saying why.
+- The release app id has no `.debug` suffix, so it installs beside the debug build. Uninstall
+  it afterwards; the throwaway key would block a real release from updating it.
 
 ## 6. Windows test-host quirks
 

@@ -19,3 +19,7 @@ docker
 android
 *.md
 !LICENSE
+# Release signing material (#95) never enters an image, even a stray local copy under src/.
+**/*.jks
+**/*.keystore
+**/keystore.properties

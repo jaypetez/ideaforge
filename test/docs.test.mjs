@@ -494,6 +494,36 @@ test('the documented debug application id and APK artifact match the build and C
   assert.ok(page.includes(`expire after ${retention} days`), `guide omits the ${retention}-day retention`);
 });
 
+test('the signed-APK instructions match the release workflow and SECURITY.md (#95)', () => {
+  const app = androidFile('app', 'build.gradle.kts');
+  const id = app.match(/applicationId = "([^"]+)"/)?.[1];
+  const release = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  const security = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8');
+  const apkName = release.match(/dist\/(ideaforge-)\$\{VERSION\}(\.apk)/);
+  assert.ok(apkName, 'release.yml no longer names the APK ideaforge-${VERSION}.apk');
+  const documented = `${apkName[1]}VERSION${apkName[2]}`;
+
+  const section = security.split(/\r?\n## /).find((part) => part.startsWith('Release signing certificate'));
+  assert.ok(section, 'SECURITY.md has no "Release signing certificate" section');
+  for (const fact of ['Signer certificate SHA-256: `', 'apksigner verify --print-certs', 'SHA256SUMS',
+    'never enters the repository', documented]) {
+    assert.ok(section.includes(fact), `SECURITY.md's signing section omits ${fact}`);
+  }
+
+  const page = guide('android.html');
+  assert.ok(page.includes(`<code>${id}</code>`), `guide omits the release id ${id}`);
+  assert.ok(page.includes(`<code>${documented}</code>`), `guide omits ${documented}`);
+  assert.ok(page.includes('SECURITY.md#release-signing-certificate'), 'guide does not link the pinned fingerprint');
+  assert.ok(page.includes('apksigner verify --print-certs'), 'guide does not show how to verify the signer');
+  for (const [name, text] of [
+    ['guide/android.html', page],
+    ['README.md', README],
+    ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
+  ]) {
+    assert.ok(!text.includes('TODO(#95)'), `${name} still has a TODO(#95) marker`);
+  }
+});
+
 test('the device workflow runs the declared managed device, on demand, outside the ci gate', () => {
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
   const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');

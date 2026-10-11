@@ -534,9 +534,23 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   directory as a channel. FileProvider finds no root under Robolectric on Windows, so
   `ResultActions.contentUri` is a seam `ResultScreenTest` swaps only after a real-provider
   probe fails, and only on Windows.
-- **The release keystore never enters the repository.** `android/keystore.properties` is
-  ignored and `test/wiring.test.mjs` pins that it is never published. Signing arrives with
-  #95.
+- **The release keystore never enters the repository, and the signer is pinned.**
+  `app/build.gradle.kts` signs `release` from `ANDROID_KEYSTORE_PATH`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`, else from the
+  gitignored `android/keystore.properties`; with neither the APK is unsigned and the CI gate
+  never needs a key, and a half-filled source is an error rather than a quiet unsigned build.
+  `*.jks`, `*.keystore` and `keystore.properties` are ignored and `test/wiring.test.mjs` pins
+  that none is published. `release.yml`'s `android-apk` job is the only job that references
+  the keystore secrets; that keeps them there only because they are environment secrets on
+  the `release` environment, whose deployments are restricted to `v*.*.*` tags (repository
+  settings, not workflow text). It fails (never skips) when one is missing, and refuses the APK unless
+  `tools/apk-cert-pin.mjs` finds exactly one signer equal to the SHA-256 pinned in
+  `SECURITY.md`; while that reads `PENDING`, every release fails there by design. Never
+  loosen the pin to get a release out: an APK signed by another key cannot update existing
+  installs. `verifyReleaseApk` (finalising `assembleRelease`) reads the shipped APK and R8's
+  mapping for the walkthrough script and every class declared only under `src/debug`. R8
+  needs no keep rules today (the libraries ship their own); add one only for a crash
+  reproduced in a signed release build, with its reason.
 
 ## Tests
 
