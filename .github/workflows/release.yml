@@ -51,9 +51,11 @@ jobs:
           BROWSER_CHECK_REQUIRED: '1'
         run: npm run test:all
 
-  # The signed Android APK (#95). A separate job so the signing secrets are exposed to one
-  # job, behind the `release` environment's protection rules, and never to the job holding a
-  # write token. The release job below only downloads the finished, verified APK.
+  # The signed Android APK (#95). A separate job so the signing secrets are referenced by one
+  # job, never by the job holding a write token; the release job below only downloads the
+  # finished, verified APK. The text alone does not confine them: that holds only because the
+  # four are environment secrets on `release` (not repository secrets) and the environment's
+  # deployments are restricted to v*.*.* tags. CONTRIBUTING.md#cutting-a-release has the setup.
   android-apk:
     needs: verify
     runs-on: ubuntu-latest

@@ -540,8 +540,10 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   gitignored `android/keystore.properties`; with neither the APK is unsigned and the CI gate
   never needs a key, and a half-filled source is an error rather than a quiet unsigned build.
   `*.jks`, `*.keystore` and `keystore.properties` are ignored and `test/wiring.test.mjs` pins
-  that none is published. `release.yml`'s `android-apk` job is the only job given the keystore
-  secrets, fails (never skips) when one is missing, and refuses the APK unless
+  that none is published. `release.yml`'s `android-apk` job is the only job that references
+  the keystore secrets; that keeps them there only because they are environment secrets on
+  the `release` environment, whose deployments are restricted to `v*.*.*` tags (repository
+  settings, not workflow text). It fails (never skips) when one is missing, and refuses the APK unless
   `tools/apk-cert-pin.mjs` finds exactly one signer equal to the SHA-256 pinned in
   `SECURITY.md`; while that reads `PENDING`, every release fails there by design. Never
   loosen the pin to get a release out: an APK signed by another key cannot update existing

@@ -12,7 +12,9 @@ disable-model-invocation: true
 This skill is shared by Claude Code and GitHub Copilot (CLI and VS Code). Invoke it
 explicitly as `/release prepare VERSION`, `/release publish VERSION PR`, or
 `/release verify VERSION`. `VERSION` is a confirmed stable `MAJOR.MINOR.PATCH`, without
-the `v`; `TAG` is `v` followed by `VERSION`. Prereleases are outside this procedure.
+the `v`; `TAG` is `v` followed by `VERSION`. Prereleases are outside this procedure, and
+unsupported while the signed APK is required: the Android build accepts only a plain
+`MAJOR.MINOR.PATCH` version, and the workflow has no skip for anything else.
 
 An unspecified action means preflight/preparation, never publication. Confirm a missing
 version or publisher before mutations. If the user chose a maintainer to push the tag,
@@ -62,8 +64,20 @@ else's work, alter global Git/Docker credentials, or bypass branch protection.
 
 The release workflow also builds the signed Android APK, and fails the whole release when
 [SECURITY.md](../../../SECURITY.md#release-signing-certificate) still pins `PENDING` or the
-`release` environment lacks the four `ANDROID_*` keystore secrets. Check the pin before a
-tag is pushed; creating the key and the secrets is the maintainer's task, never this skill's.
+`release` environment lacks the four `ANDROID_*` keystore secrets.
+
+**STOP if the pin reads `PENDING`.** Read the `Signer certificate SHA-256:` line in
+SECURITY.md's "Release signing certificate" section. If it says `PENDING`, do not tag or
+publish: report that signed releases have not been set up and stop. `npm run test:all`
+stays green with `PENDING`, so a green ladder is not evidence that a tag can publish.
+
+Creating the key and its secrets is the maintainer's task, never this skill's. Report, as
+preflight findings rather than actions to take, whether the maintainer has: stored
+`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD` as environment secrets on the `release` environment, never as
+repository secrets; and restricted that environment's deployment branches and tags to
+`v*.*.*` tags (a required reviewer is optional). The workflow keeps those secrets in one job
+only if the environment is configured that way.
 
 Read both version files and the latest stable release. Confirm the requested version is
 appropriate and available. An existing tag or release is not permission to overwrite it:

@@ -198,8 +198,9 @@ together. The README remains the landing page, not a second copy of the full gui
 with real dependencies. It is a separate Gradle project: nothing under it is imported by,
 copied into or served beside the web app, and `test/wiring.test.mjs` pins that
 `tools/assemble-site.mjs` never publishes it. The app is an alpha that runs the typed
-interview; native voice capture and the hands-free voice stage are not built yet. CI uploads a
-debug APK; the release workflow attaches a signed one (see [cutting a release](#cutting-a-release)).
+interview and a hands-free voice interview: native speech capture (#91) and the voice stage,
+kept hearing by a microphone foreground service (#92). CI uploads a debug APK; the release
+workflow attaches a signed one (see [cutting a release](#cutting-a-release)).
 
 ```
 android/core/       pure Kotlin/JVM port of src/core + src/runtime (no Android, no clock, no network)
@@ -379,13 +380,28 @@ and reruns the full ladder with `npm run test:all`. Only then does the write-ena
 than its tag is a support problem forever afterwards.
 
 The APK comes from a separate `android-apk` job in the `release` environment, the only job
-that sees the four keystore secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). It fails rather than skips when one is missing,
-and `tools/apk-cert-pin.mjs` fails it unless `apksigner verify --print-certs` shows exactly
-one signer whose SHA-256 equals the fingerprint pinned in
-[SECURITY.md](SECURITY.md#release-signing-certificate). While that pin reads `PENDING`, every
-release fails at this job, by design: the maintainer creates the key, stores the secrets and
-pins its fingerprint before the first signed tag.
+in the workflow that references the four keystore secrets (`ANDROID_KEYSTORE_B64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). It fails rather
+than skips when one is missing, and `tools/apk-cert-pin.mjs` fails it unless
+`apksigner verify --print-certs` shows exactly one signer whose SHA-256 equals the fingerprint
+pinned in [SECURITY.md](SECURITY.md#release-signing-certificate). While that pin reads
+`PENDING`, every release fails at this job and nothing at all is published, by design.
+
+The workflow text alone does not keep the secrets in that job; the repository settings do.
+Before the first signed tag the maintainer:
+
+- creates the release key and stores the four values as **environment secrets on the
+  `release` environment**, never as repository secrets (a repository secret is readable by
+  any job in any workflow that names it);
+- restricts the `release` environment's deployment branches and tags to tags matching
+  `v*.*.*`, so no branch, pull request or other workflow can run a job in it (a required
+  reviewer is optional);
+- replaces `PENDING` in SECURITY.md with the key's certificate SHA-256, through a PR.
+
+Prerelease tags (`v1.2.3-rc.1`) are not supported while the APK is required: the Android
+build reads `package.json`'s version and accepts only plain `MAJOR.MINOR.PATCH`, so such a
+version would already have turned CI's `android` job red on `main`. There is no skip for
+them.
 
 The tag produces two things: a GitHub release with `.tar.gz`, `.zip`, the signed
 `ideaforge-VERSION.apk` and `SHA256SUMS` covering all three, the archives built straight from

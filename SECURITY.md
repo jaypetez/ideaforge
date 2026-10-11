@@ -112,8 +112,9 @@ Signer certificate SHA-256: `PENDING`
 
 The Android APK attached to each GitHub release is signed with one release key. The value
 above is that key's certificate fingerprint. It reads `PENDING` until the maintainer creates
-the key; while it does, the release workflow refuses to attach an APK at all, so no signed
-APK exists yet. Signed releases begin with the first tag after the fingerprint is pinned here.
+the key; while it does, the release workflow fails before publishing anything, so no
+release of any kind (archives, APK or container image) is published. Signed releases begin
+with the first tag after the fingerprint is pinned here.
 The release workflow compares every APK it builds against this line (with
 `tools/apk-cert-pin.mjs`) and fails the release on any difference.
 
@@ -132,8 +133,10 @@ another key.
 
 The release keystore never enters the repository: `*.jks`, `*.keystore` and
 `android/keystore.properties` are ignored by git and never published with the site. The
-release workflow decodes it from a GitHub secret into the runner's temporary directory and
-deletes it when the job ends, whether the job passed or failed.
+release workflow decodes it from an environment secret on the `release` environment into the
+runner's temporary directory and deletes it when the job ends, whether the job passed or
+failed. That environment accepts only `v*.*.*` tags, which is what keeps the key out of
+reach of branches, pull requests and other workflows.
 
 ## Scope
 

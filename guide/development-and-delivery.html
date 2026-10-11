@@ -399,8 +399,9 @@ npm run serve</code></pre>
       <p>
         The release workflow first checks that the tag, <code>package.json</code>, and
         <code>src/version.js</code> agree, proves the commit belongs to <code>main</code>, and
-        reruns <code>npm run test:all</code>. A separate job, the only one given the Android
-        keystore secrets, builds the signed APK and refuses it unless its signer matches the
+        reruns <code>npm run test:all</code>. A separate job, the only one that references the
+        Android keystore secrets (held as secrets of a <code>release</code> environment that
+        accepts only version tags), builds the signed APK and refuses it unless its signer matches the
         fingerprint pinned in <code>SECURITY.md</code>; it fails while that pin reads
         <code>PENDING</code>. Only then may write-enabled jobs publish the reproducible source
         archives, the signed APK, <code>SHA256SUMS</code>, and the multi-architecture
