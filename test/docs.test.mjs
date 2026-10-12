@@ -97,6 +97,7 @@ test('the public Markdown surfaces have no broken local links', () => {
     'SECURITY.md',
     'CONTRIBUTING.md',
     'docs/ARCHITECTURE.md',
+    'docs/DESIGN.md',
   ];
   const missing = [];
   for (const path of files) {

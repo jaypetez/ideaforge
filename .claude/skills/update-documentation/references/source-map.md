@@ -21,6 +21,20 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Available commands.** Source:
   [`package.json`](../../../../package.json). Re-check every command block in repository
   documentation and skills.
+- **Design contract and reference-only boards.** Sources:
+  [`docs/DESIGN.md`](../../../../docs/DESIGN.md) distinguishes current shipped values
+  from the unimplemented Focus Studio target;
+  [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
+  [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
+  references, not app/README/native screenshots or a production route.
+  [`test/design-reference.test.mjs`](../../../../test/design-reference.test.mjs) checks
+  inventory, local-only/CSP structure, priorities, recovery copy and proposed opaque contrast;
+  `test:docs` in `package.json` includes it. Re-check the design state/transition matrix
+  against the owning UI/store/provider/voice symbols before changing a screen.
+  Native drawings use a system family and fallback colours; actual dynamic colour,
+  device/IME/permission behavior and running-app accessibility need separate evidence.
+  `tools/assemble-site.mjs` excludes `docs/design/` from published assets. Do not refresh
+  canonical README screenshots to make an unimplemented design appear shipped.
 - **Public guide shell and navigation.** Sources:
   [`guide/index.html`](../../../../guide/index.html) and
   [`guide/assets/guide.css`](../../../../guide/assets/guide.css). Re-check every guide page.

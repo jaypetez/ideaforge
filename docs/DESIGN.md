@@ -10,6 +10,14 @@ side, change its twin, or the apps drift apart a shade at a time.
 resolve, and `test/browser/contrast.browser.mjs` checks every colour pair in light and in
 dark (see [Contrast and targets](#contrast-and-targets)).
 
+The [Focus Studio contract](#focus-studio-contract) below is the approved target for
+[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). It is **not yet
+implemented**. The current shipped tokens in the next section still describe the actual
+app; do not replace that evidence with the proposed reference palette before its owning
+implementation lands.
+
+## Current shipped tokens
+
 ## Colour roles
 
 Web values are `light-dark(light, dark)` over an explicit `color-scheme`. On Android 12 and
@@ -178,3 +186,186 @@ A mask on `::before` rather than an inline `<svg>` for three reasons. The CSP al
 only from `'self'` and `data:`. `app.js` rewrites some button labels, and a pseudo-element
 survives that. And the icon adds no text, so tests that find a button by its exact label
 still find it.
+
+## Focus Studio contract
+
+Focus Studio is a quiet working space for a question, an answer and a useful document.
+Navigation and metadata recede without becoming faint; separators and alignment replace
+repeated card borders. No dashboard, decorative gradient, glass surface, stock illustration,
+confetti, AI-confidence gauge or fabricated waveform earns a place in the interview.
+
+Open the [static reference boards](design/focus-studio.html) from a repository server:
+`npm run serve`, then
+`http://127.0.0.1:8765/docs/design/focus-studio.html`. They are repository documentation,
+not a production route, functional prototype, README screenshot or native-device capture.
+The boards use local assets and system fonts, have no script, make no provider or media
+request, and are excluded from the assembled site by `tools/assemble-site.mjs`.
+Their controls are disabled drawings of the intended controls, not working app actions.
+The actual web app keeps IBM Plex Sans; Android keeps its system family and wallpaper
+dynamic colour. Native boards show the fallback scheme at logical compact/expanded widths,
+not a pixel claim about an emulator or phone.
+
+### Reference inventory and deliberate differences
+
+The main web compositions have light/dark pairs at **390x844** and **1280x900**:
+provider choice, ready Start, Ideas list/detail, Interview, listening/paused/recovering
+voice, Result and Settings. Compact pairs also show true-empty/filtered/unavailable
+Ideas, provider checking/failure, missing model discovery, unsaved Settings, busy turn,
+failed save, wrap offer, blocked voice, failed synthesis and long content. Native Ideas
+has compact 390 and expanded 840 logical-width compositions in both fallback themes.
+
+These are new targets, not a repetition of the completed first pass (#60):
+
+| Current composition | New target |
+|---|---|
+| Top navigation buttons on wide web | Quiet labelled adaptive rail and task-specific main width |
+| Large repeated library cards/edit disclosures | Compact rows, direct compact Continue/View result, selected expanded detail action |
+| Tall connection/hero stack | Short lead, provider/required-fields/ready stages in the existing shared form |
+| Question, coverage and composer competing | Current question first, quiet history/progress, compact expanding composer |
+| Result inside a 60dvh card | Page-scrolling document and direct Copy/Download or Share/Copy |
+| Colour/type-only native theme | Explicit native spacing, shape, width and shared control roles |
+
+Long/enlarged content is allowed to grow. Reference density is not permission to shrink text,
+clip a caption or remove an action. The state matrix, source owners and actual browser/native
+checks take precedence over a pleasant drawing.
+
+### Proposed roles and measurements
+
+`design/focus-studio.css` owns only these reference values. Web and native implementation
+issues migrate their actual owners independently; Android dynamic colour remains supported.
+The existing token table above stays current until that implementation changes it.
+
+| Role | Light | Dark | Intended use |
+|---|---|---|---|
+| Ground | `#F5F7FA` | `#11161B` | Quiet page/workspace |
+| Lowest surface | `#FFFFFF` | `#1B222A` | Foreground work, fields |
+| Container | `#E8EDF2` | `#27313B` | Quiet selection/hover/grouping |
+| Raised | `#DEE6EE` | `#313E49` | Menu/dialog/foreground support |
+| Ink | `#17212B` | `#EEF3F8` | Body and headings |
+| Secondary ink | `#526171` | `#B4C0CB` | Readable metadata/help |
+| Outline | `#718091` | `#91A1B2` | Operative field/control boundaries |
+| Primary | `#0F6963` | `#7AD5C7` | Main action, selection, focus |
+| On primary | `#FFFFFF` | `#0A332E` | Primary-button text |
+| Error | `#A83C3A` | `#F3AAA0` | Failure/destructive text |
+| Warning | `#765C20` | `#E7C882` | Untested/pending/degraded text |
+
+Opaque-pair tests require body, secondary, primary, error and warning text to reach 4.5:1
+on every proposed surface, outline to reach 3:1, and on-primary text to reach 4.5:1.
+This is a baseline, not proof of blended component states or native dynamic palettes.
+Future implementation still uses the computed/composited contrast probes.
+
+| Role | Reference value / rule |
+|---|---|
+| Spacing | 4, 8, 12, 16, 24, 32, 48 and 64px/dp steps |
+| Shape | 8px/dp controls, 12 surfaces, 16 dialogs; pills only for tags/status |
+| Body | 16px/sp, approximately 1.6 line height, regular weight |
+| Metadata | 14px/sp, approximately 1.45 line height; never lower contrast to create hierarchy |
+| Titles | 24-28px/sp, 600; long titles wrap or retain accessible full text |
+| Reading measure | Approximately 65-72ch for a document; 680-760px equivalent for conversation/forms |
+| Primary | One strong action for the task/state; useful secondary actions remain visible |
+| Focus | 2px primary outline with 3px separation; do not rely on a tonal fill alone |
+| Touch | 48x48 CSS px on coarse pointers / 48dp; voice controls at least 64px/dp high |
+| Motion | Optional, usually 100-180ms and at most 4px displacement; reduced/system-scaled |
+| Elevation | Background is flat; menus/dialogs, not every card, get foreground treatment |
+
+Hover/pressed/selected/busy/disabled/error/success must be distinguishable in text or
+shape as well as colour. Busy controls describe the actual operation, not a made-up
+progress percentage or remaining time. Motion cannot delay input, microphone permission,
+speech priming or `navigator.share`.
+
+### Layout and primary-action rules
+
+| Surface | Compact | Expanded | Primary action |
+|---|---|---|---|
+| Shell | Below 600 CSS px: bottom destinations on Ideas/Start/Settings; contextual Interview/Result top bar | 600-1199: compact labelled rail; 1200+: roughly 208px rail | Destination or current task, never an extra dashboard |
+| Connection | Concise provider -> required fields -> ready stages; required labels/check/recovery visible | Bounded form/support width, not stretched fields | Choose/Continue for the current required step |
+| Ready Start | Voice first, Type instead visible, before optional/recent content | Same priorities with connection summary | **Start with voice** |
+| Ideas | Compact title/status/metadata rows, search/filter summary, direct resume/result | List/detail from 1024px when both panes fit; selected detail holds the main action | New idea; Continue/View result for the chosen idea |
+| Interview | Current question above an expanding IME-safe composer; quiet inspectable history | Bounded conversation; optional factual dimension detail | Send answer |
+| Voice | Focused phase/question/caption/recovery, stable bottom controls | Constrained reading width, no unrelated navigation | Pause, or Resume after a pause |
+| Result | File-capable Share .md primary with Copy visible; otherwise Copy primary | Copy markdown primary, Download .md visible, Share available | Capability/context-dependent as stated |
+| Settings | Connection, Voice, Appearance, Your data, About in a predictable sequence | Quiet section index/support column and bounded form | The explicit action for the edited operation |
+
+Native uses installed Material window classes and adaptive panes, not copied CSS breakpoints.
+The native New idea/onboarding completion choice is explicitly Voice primary/Type secondary;
+mere navigation starts no microphone/service. Compact native Result uses Share primary/Copy
+visible; expanded uses Copy primary/Save visible, with native Share and CreateDocument intact.
+
+The normal 390x844 library fixture should show its first row by about y=320 and three
+complete short-title rows before navigation. The normal composer aims at 140-180px before
+multiline growth. These are inspection targets for the fixture, not forced heights.
+At 200% text or small landscape sizes, reflow/scrolling preserves the task instead.
+
+### Source-owned state and transition matrix
+
+This is the implementation contract, not new reducers or a second state store. The owner
+column identifies existing data/effect ownership. New view-only presentation state belongs
+with that UI; no credential, backup or session schema is introduced here.
+
+| State / entry | Truthful presentation and actions | Focus / announcement / next transition | Existing owner and boundary |
+|---|---|---|---|
+| First visit, no provider | Concise provider/connection flow; required labels and privacy/network consequence. No mic request. | Heading/first required control; advance or Back without losing typed values. | Web `boot`, `onProviderChange`, `readRingFromForm`; native keyring gate, `OnboardingViewModel` |
+| Configured, no ideas | Voice primary and Type alternative on web; native empty Library/New idea choice. Show saved key, not asserted health. | Start heading, deliberate mode tap; seed exactly one new session. | Web `connectionReady`, `startInterview`; native `AppShell`/`InterviewViewModel` |
+| Existing ideas | Open Ideas; selected row/detail reflects the same session. Resume active/View result done. | Destination heading, not automatic search focus; retain valid selection on resize. | `boot`, `createLibraryView`/`syncSelection`; native `LibraryViewModel`/adaptive panes |
+| Provider checking | Checking the selected provider; label busy operation, keep entered data. | Polite bounded status; success/error returns to the responsible operation. | Web check handler/provider adapter; native `ProviderCheck` |
+| Key saved / check passed | Saved means local persistence only. A check passed at that attempt, not permanent connectivity. | Announce the specific operation once; after reload/provider/key change do not invent a cached health verdict. | Keyring/store plus view-local check state; no second health store |
+| Provider/check failure | Specific actionable key/server/CORS/LNA recovery; no success badge. Typing remains possible when the normal start rules permit it. | Responsible field/status; reveal failed connection fields without discarding values. | Existing provider errors, `fail`, `renderConnect`; native check failure |
+| Model list unavailable | Show failure and allow a known required model to be typed. Do not clear a valid manual model or fake an empty successful list. | Model field and polite status; retry or retain manual entry. | Provider model discovery and model-required guards |
+| Unsaved form / Back / Change | Typed form beats older saved credentials; changing view preserves fields. Save is explicit where required. | Section/changed field; validation stays local, no secret write per keystroke. | Web shared `panel-setup`/`readRingFromForm`; native settings/onboarding state |
+| Busy turn / repeated Send | Actual Thinking/processing state, current question/history and preserved answer; no guessed percentage. Answer operations remain guarded. | Polite state once; settled next question receives task focus only when appropriate. | `busy`/`sessionWork`/`currentView`; native `InterviewWork` |
+| Reading old history / next turn | Keep all settled pairs and accurate Show earlier count. Do not yank a reader to the live end. | Preserve scroll/focus when inspecting; live-end users can reveal the new question. | `renderThread`; native Interview presentation over its ViewModel |
+| Suggestion / typed / voice / skip | Chips fill editable text, never submit automatically; source marker remains truthful. Skip is not an answer. | Composer after a chip; submit/skip through the existing path only. | `renderChips`, `submitAnswer`, reducers/provenance/ratchet; native port |
+| Offline / checklist fallback | Cached app/local ideas are not proof of model connectivity. Current checklist source and sticky degraded history are visible. | Polite source/failure status; continue/retry through normal provider policy. | SW shell/store, turn `questionSource`, `warn`/`fail`; native provider/runtime |
+| Failed save | **Not saved to this device**; export before closing. Persistent until saved or deliberately dismissed, not a success toast. | Error available without covering Send/Pause/Exit/export; next turn cannot erase it. | Web `persist`/`saveFailure`/`saveWarning`; native store/work error |
+| Wrap offer | Once-only Write it up versus Keep going; never disguised as an answer chip. Hands-free speaks it without a manual card. | Offer actions reachable; Keep going returns to the same question/task. | `renderWrapOffer`/`wrapOffered`, engine advisory; native core/UI |
+| Writing / synthesis failed | Writing is actual work. Failure says refined prompt was not generated; transcript/open questions/coverage remain exportable. | Result heading or persistent failure; retry/Ask me more uses the same idea. | `runSynthesis`, `renderDone`/`showDone`, canonical export; native Result/InterviewWork |
+| Voice permission denied | Mic permission is blocked/unavailable; Type instead/Exit available. No recognizer/service starts. Native notification denial is separate and nonfatal. | Rationale/recovery status; only explicit voice retry requests permission again. | Web probe/controller and `startInterview`; native Interview permission launchers |
+| Voice listening / no samples | Actual phase/backend, current question and full caption. **No level reading** is honest, never a simulated meter. | Bounded status/captions, not an announcement per sample; Pause/Exit remain reachable. | `createVoiceStage`, supplied mic samples; native `VoiceStage`/`Recognizer.samples` |
+| Voice transient recovery | Existing bounded repeat/retry/skip ladder with factual detail, not an unbounded spinner or forced tap for every miss. | Status plus captions; fatal input/output failure stands down. | `createDriveLoop`; native `DriveLoop`/`DriveController` |
+| Voice Pause / Resume | Pause stops effects, preserves available draft; Resume needs a deliberate tap. Web pending transcription may settle; native preserves available caption/segments. | Paused status, Resume primary; retired effects cannot restart capture. | `pauseVoice`/`voiceEpoch`; native controller job/epoch and service |
+| Voice Exit / late work | Exit returns to manual/result without skip/wrap; late work may settle only for its original idea. Cancelled unfinished audio is reported. | Appropriate manual/result task heading; no hidden resume listener. | `exitVoice`/`currentView`/`sessionWork`; native app-scope work/controller |
+| Empty / filtered / unavailable Ideas | Separate No ideas yet, No ideas match (Clear filters) and Ideas unavailable (Retry) compositions. An unreadable store is never an empty library. | Heading or active filter, polite load/error/count; controls remain useful. | `createLibraryView` loaded/filter/zero states; native library/store |
+| Active preview, no synthesis | Latest question/answer/draft and **No write-up yet**, not an invented generation failure. Canonical export is unchanged. | Selected idea title; Continue is the main action. | `libraryCard`/detail renderer/session status; native preview/ViewModel |
+| Rename / tag / archive / restore | Explicit edit surface; archive is reversible and distinct from permanent Delete. Pending work retains newer metadata. | Return to changed row/detail, next selection when hidden by filters. | Reducers, `withLibraryMetadata`, library callbacks; native ViewModel/store |
+| Delete / Cancel / Escape | Clear consequence and Cancel/destructive action. Await confirmation's boolean; cancel/Escape makes no mutation. | Dialog containment then original/next row/heading; late work cannot recreate a deleted idea. | `confirmDelete`/library callback, deleted-session guards; native confirmation/store |
+| Import / collision / failure | Sessions only; collision becomes a copy. Corrupt/newer data and storage failure are explicit, not partial success. | Dialog/operation status then resulting rows; focus remains reachable. | `buildBackup`/parse/import/store; native backup jobs/store |
+| Forget / delayed check | Forget revokes credentials before delayed work can restore them; ideas/preferences remain. Distinct STT/TTS/inference consents/checks stay separate. | Confirm/Cancel; status identifies what was removed, no false deletion of ideas. | Web credential epoch/keyring; native revoke/`saveIf` generation |
+| Long text / large fonts / keyboard | Full question/caption/labels/document accessible by reflow/scrolling; no forced fit, clipped CTA or page-wide sideways scroll. | Fully visible focus and owned IME/safe-area lift; no speech/share delay. | `trackComposer`, shell CSS; native scaffold/inset ownership |
+
+The future native onboarding layout consumes #173 privacy links, #174 interview consent
+and #177 LAN warnings. Reporting delivery (#175/#183), Play listing/icon/publication
+(#179/#180/#171/#182), and physical recognition evidence (#89) keep their existing owners.
+No design reference approves a new contact, reporting endpoint, paid call or Play URL.
+
+### Evidence and implementation handoff
+
+`npm run test:docs` checks the local board inventory, links, primary actions, truthful
+recovery copy, absence of scripts/remote resources and opaque palette contrast. Open the
+boards in the existing discovered browser to inspect real layout, both themes and every
+named viewport/state; Node cannot prove geometry. This is reference-document evidence,
+not proof that the application already behaves that way.
+
+Each screen issue updates its owning UI, related guide/README/source-map text and actual
+screenshots together. Preserve stable selectors/test tags or migrate every consumer in
+the same PR. Never weaken a probe, hide required controls for a capture, change the engine
+to suit a walkthrough, or overwrite generated example markdown by hand.
+
+Normal text needs 4.5:1; large/operative non-text 3:1. WCAG AA's target floor is 24 CSS px
+with exceptions; the 48px/dp comfort target is a deliberate stronger choice. Full focus
+visibility is also stricter than AA's "not entirely hidden" minimum. Test 200% text,
+320px-equivalent reflow, keyboard/coarse pointer, reduced motion and native 1.0/1.3/2.0
+font scales. Physical phones, manual screen readers, hosted voice/CORS and real-user
+usability remain separately evidenced, never inferred from a static board or fake-media pass.
+
+The research supports hierarchy, disclosure, adaptation and honest correction/recovery.
+The particular palette, 65-72ch measure, rail size, density and motion are product choices,
+not scientifically proven universal values. See
+[Apple layout](https://developer.apple.com/design/human-interface-guidelines/layout),
+[NN/g progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/),
+[Android adaptive layouts](https://developer.android.com/develop/ui/compose/layouts/adaptive/canonical-layouts),
+[Microsoft HAX](https://www.microsoft.com/en-us/haxtoolkit/library/) and the
+[WAI contrast](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html),
+[reflow](https://www.w3.org/WAI/WCAG21/Understanding/reflow.html) and
+[target-size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+explanations. Linear's [refresh](https://linear.app/now/behind-the-latest-design-refresh)
+is aesthetic inspiration only, not a template or usability proof.
