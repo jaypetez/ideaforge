@@ -13,6 +13,42 @@ maintainer's permission to merge green PRs for `agent-ready` issues, and nothing
 Keep one definition of each skill, not client-specific copies. See
 [coding assistant setup](CONTRIBUTING.md#coding-assistants) for discovery and invocation.
 
+## Lean coding
+
+Establish the complete scope before choosing a smaller implementation: inspect the owning
+code and every affected caller, test, fixture, configuration and documentation surface.
+Then take the first rung that fully satisfies the request: no new mechanism, an existing
+project helper or pattern, a native/standard API, an already-installed dependency where
+the project permits it, or the smallest clear implementation. The web app still allows
+no dependency. Fewer lines are a consequence, never a correctness or completion metric.
+
+| Mode | Behaviour |
+|---|---|
+| `lite` | Honour the requested design; name a materially smaller option briefly when useful. |
+| `full` | Apply the complete-scope, reuse-first ladder without speculative machinery. |
+| `ultra` | Also challenge unnecessary scope before building; never silently deliver less than agreed. |
+| `off` | Disable this extra guidance, not any repository invariant, permission or validation gate. |
+
+Full is the default. The native adapters consume this section, not a second rulebook.
+Explicit whole-message `/ideaforge-assist` controls select a session mode or local default;
+review, audit, debt, gain and help never select a mode. The
+[process reference](docs/ASSISTANT-PROCESS.md) explains discovery, context restoration,
+statusline setup and the client's limits. For a delegated agent without lifecycle-hook
+support, include its inherited mode and this section in the task prompt yourself.
+
+Never remove trust-boundary validation, data-loss guards, explicit errors, security,
+accessibility, calibrated voice/audio knobs, concurrency protections, required tests or
+requested functionality to make a diff shorter. Preserve error handling when moving code.
+Test non-trivial changed logic with a case that would fail without the fix, including an
+adversarial case where appropriate; a test's presence alone is not evidence of its quality.
+Disclose material unperformed checks or limits when they matter, not a footer of boilerplate.
+
+A deliberate bounded shortcut may use `shortcut: <decision>; limit: <bound>; upgrade:
+<trigger>` in a source comment. Add one only when it clarifies a real decision, not to
+label existing code or excuse a bug. The read-only debt report does not automatically fix
+or persist its findings. Source attribution is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## The short version
 
 In a POSIX shell:

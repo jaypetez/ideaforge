@@ -240,6 +240,20 @@ source wins over prose, and a generated artifact wins over a description of that
   [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs), plus
   `.claude/skills/`, `.claude/agents/`, and `.github/agents/`. Re-check assistant guidance
   and adapters.
+- **Lean coding and assistant processes.** Sources:
+  [`AGENTS.md`](../../../../AGENTS.md) (`Lean coding`),
+  [`tools/assistant-process.mjs`](../../../../tools/assistant-process.mjs)
+  (`createGuidance`, `readMode`, `buildMap`, `scanDebt`, `measureGain`),
+  [`tools/assistant.mjs`](../../../../tools/assistant.mjs) (`runAssistant`),
+  [Claude hook configuration](../../../../.claude/settings.json), and
+  [Copilot command hooks](../../../../.github/hooks/ideaforge-assist.json) plus the
+  [foreground SDK entry](../../../../.github/extensions/ideaforge-assist/extension.mjs).
+  Re-check [`docs/ASSISTANT-PROCESS.md`](../../../../docs/ASSISTANT-PROCESS.md),
+  `CONTRIBUTING.md`, the README assistant paragraph, the development guide,
+  the five assist/audit/debt/gain/help skills, and `test/agent-support.test.mjs`.
+  The host supplies Copilot's SDK; this is not an app dependency. Local mode state never
+  belongs in the published tree. Native loading/protocol proof and empirical coding
+  benefit remain separate claims.
 
 ## Change triggers
 

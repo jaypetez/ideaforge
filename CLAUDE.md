@@ -5,6 +5,10 @@ filename is also Claude Code's entry point. Load the shared working loop alongsi
 
 @AGENTS.md
 
+The [lean coding section](AGENTS.md#lean-coding) is the single owner of optional process
+guidance. Project-native hooks read it; mode controls never supersede the invariants below.
+See [assistant processes](docs/ASSISTANT-PROCESS.md) for state, discovery and client limits.
+
 ## What this is
 
 IdeaForge interviews a user about a half-formed idea — one question at a time, each

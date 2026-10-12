@@ -84,6 +84,14 @@ discovered by the existing harness for exploratory, isolated inspection; it does
 not replace `npm run test:browser:required`. See the contributor guide for
 discovery and workspace-trust guidance.
 
+The [lean coding contract](../AGENTS.md#lean-coding) has one canonical owner.
+The project-native CLI adapters apply Full by default, with explicit `ideaforge-assist`
+mode/default/reset controls and read-only audit, debt, gain and help skills. The
+[process reference](../docs/ASSISTANT-PROCESS.md) describes the Copilot command hooks and
+foreground host-SDK supplement,
+client limits and optional badge. No helper changes tool permissions, makes model calls,
+or adds an app dependency; Off leaves every repository invariant in force.
+
 See [coding assistant setup](../CONTRIBUTING.md#coding-assistants) for discovery
 commands and troubleshooting. Copilot support here is for developing the repository,
 not a new inference provider inside the app.

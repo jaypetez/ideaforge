@@ -52,6 +52,33 @@ the code.
 - Version and release files remain synchronized when a release change is in scope.
 - The PR does not bypass the required `ci` check or introduce a dependency/build step.
 
+### Scale, races, test quality and reuse
+
+Apply these checks only to the exact supplied change set and its affected consumers.
+[Lean coding](../../../AGENTS.md#lean-coding) owns the complexity ladder, not this review.
+
+- Derive realistic load from the current input/deployment path. A repeated full scan,
+  quadratic loop or unbounded buffer is a finding only with a concrete reachable workload
+  and a resulting failure, unacceptable latency or resource exhaustion; do not invent a
+  future server fleet or demand caching for an unmeasured small collection.
+- Trace overlapping work by identity, not just a busy flag. Test the reasoning against a
+  delayed request after Pause/Exit, navigation to another idea, a deleted row, or concurrent
+  assistant sessions/worktrees. A stale completion must not overwrite another owner's
+  state or restart a retired effect.
+- Read assertions and fixtures, not just test filenames or counts. Would a flipped
+  comparison, dropped guard, malformed input, replay or reordered completion still pass?
+  A permissive fake, implementation-shaped assertion or swallowed failure is actionable
+  when it conceals a concrete changed contract. A missing test alone is not a defect
+  finding; identify the failing behaviour the current validation does not exercise.
+- Check existing helpers, reducers, error types and native APIs before recommending more
+  machinery. Report duplicated logic only when a demonstrated contract mismatch, lost
+  error handling or broken consumer follows from it; "could be shorter" is not a bug.
+  A shorter fix must still preserve all requested behaviour and affected callers/tests.
+- A `shortcut:` or legacy `ponytail:` comment records a decision, not an exemption. Check
+  its stated limit and upgrade trigger against the failing scenario. Do not flag a bound
+  merely for being finite, and do not dismiss a current correctness, privacy, security,
+  accessibility or data-loss defect because a comment names it.
+
 Running existing read-only checks is allowed when the caller permits it:
 
 ```sh

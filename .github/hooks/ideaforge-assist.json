@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "exec": "node",
+        "args": [
+          "-e",
+          "const p=require('node:path');const u=require('node:url');const r=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();Promise.all([import(u.pathToFileURL(p.join(r,'tools','assistant-hook.mjs')).href),import(u.pathToFileURL(p.join(r,'tools','assistant.mjs')).href)]).then(async([h,a])=>{const s=await h.copilotHook('sessionStart',await a.readHookInput(process.stdin));process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge assist unavailable: '+e.message+'\\n');process.exitCode=1})"
+        ]
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "exec": "node",
+        "args": [
+          "-e",
+          "const p=require('node:path');const u=require('node:url');const r=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();Promise.all([import(u.pathToFileURL(p.join(r,'tools','assistant-hook.mjs')).href),import(u.pathToFileURL(p.join(r,'tools','assistant.mjs')).href)]).then(async([h,a])=>{const s=await h.copilotHook('userPromptSubmitted',await a.readHookInput(process.stdin));process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge assist unavailable: '+e.message+'\\n');process.exitCode=1})"
+        ]
+      }
+    ],
+    "subagentStart": [
+      {
+        "type": "command",
+        "exec": "node",
+        "args": [
+          "-e",
+          "const p=require('node:path');const u=require('node:url');const r=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();Promise.all([import(u.pathToFileURL(p.join(r,'tools','assistant-hook.mjs')).href),import(u.pathToFileURL(p.join(r,'tools','assistant.mjs')).href)]).then(async([h,a])=>{const s=await h.copilotHook('subagentStart',await a.readHookInput(process.stdin));process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge assist unavailable: '+e.message+'\\n');process.exitCode=1})"
+        ]
+      }
+    ]
+  }
+}
