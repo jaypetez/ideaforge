@@ -199,7 +199,7 @@ export function withinRoot(root, path) {
 }
 
 export async function trustedWorkingDirectory(root, cwd) {
-  if (typeof cwd !== 'string' || !isAbsolute(cwd) || !withinRoot(root, cwd)) {
+  if (typeof cwd !== 'string' || !isAbsolute(cwd)) {
     throw new Error('Assistant event is outside its trusted repository/worktree');
   }
   const actualRoot = await realpath(root);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, copyFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, copyFile, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -358,7 +358,24 @@ test('a lexical descendant that is a nested worktree is not the main helper trus
   await writeFile(join(nested, '.git'), 'gitdir: elsewhere');
   await assert.rejects(trustedWorkingDirectory(root, nested), /different worktree/);
   await put(root, 'src/core/fixture.js', 'export const a = 1');
-  assert.equal(await trustedWorkingDirectory(root, join(root, 'src', 'core')), join(root, 'src', 'core'));
+  const directory = join(root, 'src', 'core');
+  assert.equal(await trustedWorkingDirectory(root, directory), await realpath(directory));
+});
+
+test('trusted root aliases share canonical identity while resolved escapes and nested repositories still fail', async (t) => {
+  const root = await fixture(t);
+  const outside = await fixture(t);
+  const alias = join(outside, 'root-alias');
+  await symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  await put(root, 'src/core/fixture.js', 'export const a = 1');
+  const actual = await realpath(join(root, 'src', 'core'));
+  assert.equal(await trustedWorkingDirectory(root, join(alias, 'src', 'core')), actual);
+  assert.equal(await trustedWorkingDirectory(alias, join(root, 'src', 'core')), actual);
+  await symlink(outside, join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
+  await assert.rejects(trustedWorkingDirectory(root, join(root, 'escape')), /resolves outside/);
+  await mkdir(join(root, 'nested'));
+  await writeFile(join(root, 'nested', '.git'), 'gitdir: elsewhere');
+  await assert.rejects(trustedWorkingDirectory(root, join(alias, 'nested')), /nested repository/);
 });
 
 test('child guidance preserves review restrictions, and never grants authority or edits tool data', async (t) => {
