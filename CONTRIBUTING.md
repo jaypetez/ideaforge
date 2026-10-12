@@ -50,6 +50,11 @@ The shared skills are:
 - `release` for explicitly requested preparation, publication, or verification;
 - `work-issues` for explicitly invoked backlog work, one issue at a time, merging only on
   a green `ci` check.
+- `ideaforge-assist` for explicit Lite, Full, Ultra and Off session/default controls;
+- `audit-ideaforge-codebase` for an explicitly requested, read-only map-first audit;
+- `ideaforge-debt` for a read-only shortcut/upgrade-trigger ledger;
+- `ideaforge-gain` for counted diff/debt facts, not invented savings;
+- `ideaforge-assist-help` for the source-linked process reference.
 
 The review agents are thin client adapters around the two shared review skills. They
 deliberately have no shell or edit tool, so supply an attached/pasted diff or readable
@@ -66,6 +71,31 @@ takes the next unblocked `agent-ready` issue, proves each acceptance criterion, 
 read-only review agent check the exact diff, and squash-merges only when `ci` is green on
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
+
+The [lean coding contract](AGENTS.md#lean-coding) is adapted from Ponytail without copying
+its many-client distribution. Full guidance is automatic in the two CLI clients after
+normal workspace trust; `/ideaforge-assist lite`, `full`, `ultra` or `off` selects the
+current native session's level. Off never turns off the repository's baseline rules.
+Defaults and reset are explicit actions; the other process skills are read-only one-shots.
+The [process reference](docs/ASSISTANT-PROCESS.md) owns the commands, local configuration,
+client limits, optional statusline setup and evidence boundaries.
+
+Claude consumes `.claude/settings.json` lifecycle hooks. Copilot CLI consumes
+`.github/hooks/ideaforge-assist.json` for startup/child context and explicit state changes.
+Its `.github/extensions/ideaforge-assist/extension.mjs` supplements prompt/compaction
+context in a foreground client with extension support; the SDK is supplied by the client,
+not by an npm dependency. Command-hook prompt output is ignored by Copilot, so without
+the supplement use the control skill's explicit helper confirmation rather than claim
+same-turn automatic refresh. These adapters read one canonical rule section and keep only
+mode metadata in the ignored `.ideaforge-assist/` directory, isolated by worktree, client
+and native session. They make no model calls, request no secrets, and change no permissions.
+VS Code still discovers the shared skills; these CLI lifecycle adapters are not a claim of
+automatic mode/context support in the editor.
+
+The bounded map, debt and gain helpers use Node and Git. They do not replace source
+inspection, LSP, a supplied exact review diff, or a correctness test. Gain means measured
+facts about the named diff and markers, never an estimate of code or money that was saved.
+Any upstream benchmark evidence is explicitly not an IdeaForge measurement.
 
 **Check what was discovered before relying on it.** In a terminal at the repository root:
 
@@ -111,7 +141,11 @@ adds no app dependency or build step. Tool output goes to a temporary directory
 and is removed when the MCP server exits. Check `copilot mcp list --json` or VS
 Code's MCP server view after trusting the workspace; approve the executable
 when prompted. This supplements, not replaces, `npm run test:browser:required`.
-No repository plugin, hook, or extension is needed.
+The optional browser MCP needs no plugin installation. The lean-process adapters above
+are project-native hooks/extension files; use a client with those capabilities, inspect
+their fresh-session loading, and preserve normal trust/approval prompts. A custom mode
+badge is opt-in and must not overwrite an existing personal statusline. No global
+assistant installation or configuration change is part of repository setup.
 
 ## The one rule that is enforced mechanically
 

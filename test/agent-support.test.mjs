@@ -19,6 +19,11 @@ const EXPECTED_SKILLS = new Set([
   'add-provider',
   'android-verify',
   'change-voice-and-driving',
+  'ideaforge-assist',
+  'audit-ideaforge-codebase',
+  'ideaforge-debt',
+  'ideaforge-gain',
+  'ideaforge-assist-help',
   'release',
   'review-ideaforge-documentation',
   'review-ideaforge-change',
@@ -26,6 +31,9 @@ const EXPECTED_SKILLS = new Set([
   'update-readme',
   'validate-local-model',
   'work-issues',
+]);
+const EXPLICIT_SKILLS = new Set([
+  'release', 'work-issues', 'ideaforge-assist', 'audit-ideaforge-codebase',
 ]);
 const skillPath = (name) => join(ROOT, '.claude', 'skills', name, 'SKILL.md');
 
@@ -410,11 +418,12 @@ test('shared skills use valid metadata, unique names, and existing resources', (
   for (const skill of definitions) {
     const label = relative(ROOT, skill.file);
     assert.ok(lstatSync(skill.file).isFile(), `${skill.file} must be a regular file`);
-    // Skills with side effects (tagging, merging) must be explicitly invoked.
-    const keys = ['release', 'work-issues'].includes(skill.name)
+    // State changes and broad audits, like release/backlog work, need an explicit request.
+    const keys = EXPLICIT_SKILLS.has(skill.name)
       ? ['description', 'disable-model-invocation', 'name']
       : ['description', 'name'];
     assert.deepEqual(new Set(Object.keys(skill.config)), new Set(keys));
+    if (EXPLICIT_SKILLS.has(skill.name)) assert.equal(skill.config['disable-model-invocation'], 'true');
     plainString(skill.name, `${skill.name}: name`);
     plainString(skill.description, `${skill.name}: description`);
     assert.match(skill.name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -638,7 +647,53 @@ test('personal assistant settings stay out of the repository', () => {
     'CLAUDE.local.md',
     '.claude/settings.local.json',
     '.github/copilot/settings.local.json',
+    '.ideaforge-assist/',
   ]) {
     assert.ok(ignore.includes(entry), `${entry} is not ignored`);
   }
+});
+
+test('native assist adapters are project-local consumers, not permissions or duplicated rules', () => {
+  const claude = JSON.parse(read('.claude', 'settings.json'));
+  assert.deepEqual(Object.keys(claude), ['hooks']);
+  assert.deepEqual(Object.keys(claude.hooks), ['SessionStart', 'UserPromptSubmit', 'SubagentStart']);
+  assert.match(claude.hooks.SessionStart[0].matcher, /fork/);
+  for (const entries of Object.values(claude.hooks)) {
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].hooks.length, 1);
+    const hook = entries[0].hooks[0];
+    assert.deepEqual(Object.keys(hook), ['type', 'command']);
+    assert.equal(hook.type, 'command');
+    assert.match(hook.command, /process\.env\.CLAUDE_PROJECT_DIR/);
+    assert.doesNotMatch(hook.command, /\$\{CLAUDE_PROJECT_DIR\}|%CLAUDE_PROJECT_DIR%|--allow-all/);
+  }
+  const extension = read('.github', 'extensions', 'ideaforge-assist', 'extension.mjs');
+  assert.match(extension, /from '@github\/copilot-sdk\/extension'/);
+  assert.match(extension, /from '\.\.\/\.\.\/\.\.\/tools\/assistant-copilot\.mjs'/);
+  assert.match(extension, /await joinAssistant\(joinSession\)/);
+  const adapter = read('tools', 'assistant-copilot.mjs');
+  assert.doesNotMatch(adapter, /requestedEnvironmentVariables|onPermissionRequest|modifiedPrompt|modifiedArgs|modifiedResult|sendAndWait|\.send\(/);
+  assert.match(adapter, /additionalContext/);
+  assert.match(adapter, /session\.compaction_complete/);
+  const copilot = JSON.parse(read('.github', 'hooks', 'ideaforge-assist.json'));
+  assert.equal(copilot.version, 1);
+  assert.deepEqual(Object.keys(copilot.hooks), ['sessionStart', 'userPromptSubmitted', 'subagentStart']);
+  for (const actions of Object.values(copilot.hooks)) {
+    assert.equal(actions.length, 1);
+    assert.deepEqual(Object.keys(actions[0]), ['type', 'exec', 'args']);
+    assert.equal(actions[0].type, 'command');
+    assert.equal(actions[0].exec, 'node');
+    assert.deepEqual(actions[0].args.slice(0, 1), ['-e']);
+    assert.match(actions[0].args[1], /execFileSync\('git'/);
+    assert.doesNotMatch(actions[0].args[1], /--allow-all|permissionDecision|modifiedPrompt/);
+  }
+  const rules = read('AGENTS.md');
+  assert.match(rules, /^## Lean coding$/m);
+  assert.ok(rules.indexOf('## Lean coding') < rules.indexOf('## The short version'));
+  assert.match(read('tools', 'assistant-process.mjs'), /leanRules\(root/);
+  for (const file of ['tools/assistant.mjs', 'tools/assistant-hook.mjs', 'tools/assistant-copilot.mjs']) {
+    assert.doesNotMatch(read(file), /Establish the complete scope before choosing/);
+  }
+  assert.deepEqual(PACKAGE.dependencies || {}, {});
+  assert.deepEqual(PACKAGE.devDependencies || {}, {});
 });

@@ -138,6 +138,8 @@ test('the assembled site contains exactly the publishable tree', async () => {
       'only generated screenshots may ship from docs/');
     assert.ok(!actual.some((file) => /\.test\.mjs$/.test(file)), 'test modules must not ship');
     assert.ok(!actual.some((file) => file.startsWith('android/')), 'the Android project must not ship');
+    assert.ok(!actual.some((file) => /^(?:tools|\.claude|\.github|\.ideaforge-assist)\//.test(file)),
+      'developer-assistance code, native host SDK entry points and local state must not ship');
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
@@ -167,6 +169,10 @@ test('packaging never publishes the Android project, even when it exists', async
     put('src/release.jks');
     put('src/keystore.properties', 'storePassword=secret');
     put('guide/upload.keystore');
+    put('tools/assistant.mjs');
+    put('.github/extensions/ideaforge-assist/extension.mjs', 'host SDK, not an app dependency');
+    put('.claude/settings.json');
+    put('.ideaforge-assist/session-fixture.json', 'local assistant state');
 
     const written = await assembleSite({ root, outDir, clean: false });
     assert.ok(written.length > 0, 'the fixture must publish something');
@@ -175,6 +181,8 @@ test('packaging never publishes the Android project, even when it exists', async
     const signing = /\.(jks|keystore)$|keystore\.properties$/;
     assert.deepEqual(written.filter((file) => signing.test(file)), [], 'signing material was published');
     assert.deepEqual(tree(outDir).filter((file) => signing.test(file)), []);
+    assert.deepEqual(written.filter((file) =>
+      /^(?:tools|\.claude|\.github|\.ideaforge-assist)\//.test(file)), []);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outDir, { recursive: true, force: true });

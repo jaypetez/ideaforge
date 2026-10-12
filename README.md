@@ -625,7 +625,11 @@ silently when broken, which is most of them. Security policy and the honest thre
 Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
 local-model, Android, README, review, and explicit release work, plus client-specific read-only
 review agents. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
-discovery and use.
+discovery and use. The CLI clients also consume one
+[lean process contract](AGENTS.md#lean-coding): complete scope before smaller code, with
+explicit mode controls, read-only audits, a shortcut ledger and counted evidence rather
+than a promise of saved tokens. The [process reference](docs/ASSISTANT-PROCESS.md) explains
+the native adapters and their limits; no app dependency or global plugin install is added.
 
 ## Licence
 
