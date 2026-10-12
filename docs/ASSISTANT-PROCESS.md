@@ -163,7 +163,7 @@ The implemented paths have different contracts; this is not a blanket native-tes
 |---|---|---|
 | Claude project hooks | Startup and supported child context; explicit prompt controls | Startup execution/output observed; remaining lifecycle cases need their own evidence |
 | Copilot command hooks | Startup and supported child `{additionalContext}` in foreground/non-interactive sessions | Prompt output is `{}` and dropped; state changes alone do not refresh same-turn context |
-| Copilot SDK supplement, when loaded | Prompt/pre-tool context only; first prompt handles late attachment | Same-turn prompt and compaction restoration enhancement; no startup/child callbacks, not required for basic Full, native runtime proof pending |
+| Copilot SDK supplement, when loaded | Prompt/pre-tool context only; first prompt handles late attachment | Native project loading and first-prompt LITE consumption observed; compaction restoration has protocol coverage, no startup/child callbacks |
 
 ### Claude Code
 
@@ -211,8 +211,13 @@ double context. Its first prompt restores guidance after late attachment, with t
 [initialisation boundary](#session-initialisation-and-one-shot-bodies) above.
 It does not rewrite prompts, tool arguments/results, models, permissions or execution mode,
 send another model turn, or request sensitive environment variables.
-This describes the implementation, not a verified project-extension load; see
-[pending native consumption](#pending-native-consumption).
+The foreground client may separately ask to let `project:ideaforge-assist` register
+hooks after workspace trust. That approval is not a tool/path/URL allowance or secret
+request. Inspect the reviewed entry and shared handlers before allowing it; a
+session-only choice is sufficient, and this setup does not require an always-allow
+personal setting. Native project loading and mode-specific first-prompt consumption
+were observed; see [verified native discovery](#verified-native-discovery) and the
+[remaining coverage boundaries](#pending-native-consumption).
 
 Command/HTTP `userPromptSubmitted` hook stdout is dropped by Copilot CLI. Writing a state
 file through that route alone cannot refresh guidance. The SDK's
@@ -490,31 +495,45 @@ Evidence gathered on 2026-10-11:
   4194 stdout characters containing Full and the canonical rules. This proves native
   startup-hook execution and reported output, not a model following those rules.
   No user/model prompts were sent.
-- **Copilot native registration:** the real CLI was launched in a hidden Windows console
-  without input; logs showed a project session and SDK-hook registration. The programmatic
-  SDK server's empty `extensions.list` is not TUI loading evidence. Project-extension
-  discovery was visible, but `folder trust unknown; waiting` blocked actual workspace
-  hook/extension execution. Trust was not approved or bypassed; fresh trusted-UI
-  lifecycle proof remains pending normal user trust.
+- **Copilot native startup, 2026-10-12:** the official ACP stdio interface advertised
+  the project skills and hooks. A normal integration prompt returned the exact Full
+  context header with its own session identity, and that session's Full mode record
+  existed afterwards. ACP reported no loaded project extensions: this proves the
+  command-hook startup path, not the foreground SDK supplement.
+- **Copilot native foreground, 2026-10-12:** the exact reviewed commit was temporarily
+  checked out at the already-trusted original repository, under clean-tree/HEAD guards.
+  The native extension tools reported `ideaforge-assist` ready and project-sourced.
+  In an owned, genuine Windows console, `/env` reported it running. The CLI's separate
+  request to register this reviewed extension's hooks was allowed for that test session
+  only, not with an always-allow setting or tool/path/URL grants.
+  After the explicit CLI helper prepared that owned session as Lite, its first normal
+  prompt returned the exact LITE context header and its own session identity. This
+  distinguishes SDK prompt consumption from the earlier Full startup context.
+  The real session also produced `[IDEAFORGE:LITE]` through the status helper; no personal
+  statusline was installed. The original main branch and exact HEAD were restored,
+  owned test-mode records removed, and owned clients/extensions stopped. The isolated
+  feature worktree's trust remained unchanged; no folder-trust grant was made.
 
 The controlled Claude/parser and no-input hidden-UI checks supplied no model input.
 One earlier piped UI probe submitted a single CLI turn (`/exit`); it is not part of that
-zero-model-input evidence. No claim is made that all native checks performed zero
-inference. No additional hosted-provider/API checks or paid benchmarks were run.
+zero-model-input evidence. The ACP and foreground context checks each used one normal
+Copilot integration prompt, not a coding-benefit benchmark or an app/provider API key.
+No claim is made that all native checks performed zero inference. No additional
+hosted-provider/API checks or paid benchmarks were run.
 Actual command-string protocol fixtures, including hostile Windows paths, and pure SDK
 handler tests are separate from native workspace execution.
 
 ### Pending native consumption
 
-Claude startup-hook execution/output is observed, but resume, mode changes/Off,
-compaction/restored context, child inheritance and actual statusline payload/display
-checks still need separate results. Copilot project-extension execution and same-turn
-SDK context consumption remain unverified; registration or an SDK-server listing cannot
-prove them. The fresh native UI's workspace trust remained unknown, and explicit
-authorisation was unavailable; no approval was inferred or permission gate bypassed.
-Copilot native lifecycle consumption after normal user trust and the built-in
-general-purpose fallback boundary still need their own evidence. Offline fixtures and the strengthened
-realpath/nested-worktree regression do not convert these pending native checks into passes.
+Native evidence now covers Claude discovery/startup output, Copilot command-hook startup
+consumption, and Copilot foreground project loading and mode-specific first-prompt SDK
+consumption. Offline fixtures cover controls/Off, reset, identity isolation, queued events,
+resume/clear, compaction restoration and child envelopes. Those fixtures are not a claim
+that every such permutation was driven live in both clients, or that an opt-in custom
+statusline was installed and visually checked. The built-in general-purpose child
+boundary remains documented and requires explicit delegating context; no universal
+automatic inheritance is claimed. These are evidence limits, not permission to bypass
+trust or treat a native SDK-server listing as foreground loading proof.
 
 For delivery, record actual client/version/command/result for discovery, fresh start,
 resume, mode switch/Off, restored context, supported child context and the unsupported-child

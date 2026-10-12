@@ -86,7 +86,10 @@ Its `.github/extensions/ideaforge-assist/extension.mjs` supplements prompt/compa
 context in a foreground client with extension support; the SDK is supplied by the client,
 not by an npm dependency. Command-hook prompt output is ignored by Copilot, so without
 the supplement use the control skill's explicit helper confirmation rather than claim
-same-turn automatic refresh. These adapters read one canonical rule section and keep only
+same-turn automatic refresh. A foreground CLI may ask to let `project:ideaforge-assist`
+register hooks after normal workspace trust; approve only if you trust this reviewed
+project code. A session-only choice is sufficient; do not grant unrelated tools, paths,
+URLs or secrets to enable it. These adapters read one canonical rule section and keep only
 mode metadata in the ignored `.ideaforge-assist/` directory, isolated by worktree, client
 and native session. They make no model calls, request no secrets, and change no permissions.
 VS Code still discovers the shared skills; these CLI lifecycle adapters are not a claim of
