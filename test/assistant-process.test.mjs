@@ -207,22 +207,36 @@ test('regexp quotes, escapes and character classes cannot hide subsequent real d
   assert.equal(markers[0].upgrade, 'larger input');
 });
 
+test('postfix and prefix increment/decrement divisions preserve an inline debt comment', () => {
+  for (const expression of ['n++ / 2', 'n-- / 2', '++n / 2', '--n / 2']) {
+    const text = `let n = 1;\nconst ratio = ${expression}; // shortcut: direct ratio; limit: one sample; upgrade: batch input`;
+    const markers = debtIn(text, 'src/a.js');
+    assert.equal(markers.length, 1, expression);
+    assert.equal(markers[0].line, 2);
+    assert.equal(markers[0].upgrade, 'batch input');
+  }
+});
+
 test('unsupported YAML literal contexts are disclosed rather than reported as authored debt', async (t) => {
   const root = await fixture(t);
-  await put(root, 'example.yml', 'message: |\n  // shortcut: string; limit: example; upgrade: edit example\n');
-  const report = await scanDebt(root, { files: ['example.yml'] });
+  const files = ['example.yml', 'example.yaml', 'example.YML', 'example.YAML'];
+  for (const file of files) {
+    await put(root, file, 'message: |\n  // shortcut: string; limit: example; upgrade: edit example\n');
+  }
+  const report = await scanDebt(root, { files });
   assert.equal(report.markers.length, 0);
-  assert.deepEqual(report.unread, [{
-    file: 'example.yml', reason: 'YAML literal contexts are not supported by the debt lexer',
-  }]);
+  assert.deepEqual(report.unread, files.map((file) => ({
+    file, reason: 'YAML literal contexts are not supported by the debt lexer',
+  })));
 });
 
 test('debt scan is report-only and includes unread coverage, excluding documentation examples', async (t) => {
   const root = await fixture(t);
   await put(root, 'src/a.js', '// shortcut: a; limit: b; upgrade: c\n');
   await put(root, 'README.md', '// shortcut: example; upgrade: never\n');
+  await put(root, 'README.MD', '// shortcut: example; upgrade: never\n');
   await put(root, 'src/large.js', '// shortcut: too large\n'.repeat(15000));
-  const report = await scanDebt(root, { files: ['src/a.js', 'README.md', 'src/large.js'] });
+  const report = await scanDebt(root, { files: ['src/a.js', 'README.md', 'README.MD', 'src/large.js'] });
   assert.equal(report.markers.length, 1);
   assert.deepEqual(report.unread, [{ file: 'src/large.js', reason: 'oversized' }]);
   assert.equal(await readFile(join(root, 'src', 'a.js'), 'utf8'), '// shortcut: a; limit: b; upgrade: c\n');
@@ -386,6 +400,37 @@ test('Copilot joins the foreground with hooks only, no tools/secrets/model calls
   subscriptions[0].handler();
   const restored = await config.hooks.onPreToolUse(event(root, 'native-session', { toolName: 'view', toolArgs: {} }));
   assert.deepEqual(Object.keys(restored), ['additionalContext']);
+});
+
+test('the shipped SDK first-prompt notice honors quietStartup without hiding guidance or repeating notices', async (t) => {
+  for (const [mode, quietStartup, notices] of [
+    ['full', false, 1], ['full', true, 0], ['off', false, 0],
+  ]) {
+    const root = await fixture(t);
+    await put(root, `${STATE_DIR}/config.json`, JSON.stringify({ defaultMode: mode, quietStartup }));
+    const logs = [];
+    const subscriptions = [];
+    let config;
+    const session = {
+      sessionId: 'notice-session',
+      log: async (message, options) => logs.push({ message, options }),
+      on: (name, handler) => subscriptions.push({ name, handler }),
+    };
+    await joinAssistant(async (options) => { config = options; return session; },
+      { root, env: {}, mapSource: fixtureMap });
+    assert.equal(logs.length, 0);
+    const input = event(root, 'notice-session', { prompt: 'ordinary task' });
+    const first = await config.hooks.onUserPromptSubmitted(input);
+    assert.match(first.additionalContext, new RegExp(mode.toUpperCase()));
+    assert.equal(logs.length, notices);
+    if (notices) assert.deepEqual(logs[0],
+      { message: 'IdeaForge assist started in full.', options: { level: 'info' } });
+    assert.equal(await config.hooks.onUserPromptSubmitted(input), undefined);
+    subscriptions[0].handler();
+    const restored = await config.hooks.onPreToolUse(event(root, 'notice-session'));
+    assert.match(restored.additionalContext, new RegExp(mode.toUpperCase()));
+    assert.equal(logs.length, notices);
+  }
 });
 
 test('Claude emits the native child envelope, but ordinary prompt hooks do not re-inject the full map', async (t) => {

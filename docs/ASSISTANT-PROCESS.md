@@ -122,7 +122,10 @@ Local configuration also provides bounded integer `mapChars` and boolean `mapEna
 from `readConfig` in the [shared implementation](../tools/assistant-process.mjs).
 `mapChars` accepts 256 through 4000 characters and defaults to 2000; `mapEnabled` defaults
 to true, while `quietStartup` and `hideStatus` default to false. These configure map
-context, startup notice and status text respectively, not scope or permission gates.
+context, the SDK supplement's first-prompt notice and status text respectively, not scope
+or permission gates. Command adapters do not display that notice; `quietStartup` does
+not remove their startup context. SDK reload can produce a new first-prompt notice;
+ordinary later prompts and compaction restoration do not repeat it.
 Do not infer that hiding a banner or badge disables the mode, or that enlarging a map
 makes it complete.
 Default changes preserve unrelated configuration fields and never write personal/global

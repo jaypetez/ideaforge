@@ -374,6 +374,10 @@ export function commentsIn(text, { hashComments = false } = {}) {
       i += word.length;
       continue;
     }
+    if (text.startsWith('++', i) || text.startsWith('--', i)) {
+      i += 2;
+      continue;
+    }
     if (!/\s/.test(text[i])) regexpAllowed = '=([{,;:?!&|+-*%^~<>/'.includes(text[i]);
     if (text[i] === '\n') line++;
     i++;
@@ -382,7 +386,7 @@ export function commentsIn(text, { hashComments = false } = {}) {
 }
 
 export function debtIn(text, file) {
-  const hashComments = ['.py', '.sh', '.ps1', '.yml', '.yaml'].includes(extname(file));
+  const hashComments = ['.py', '.sh', '.ps1', '.yml', '.yaml'].includes(extname(file).toLowerCase());
   const out = [];
   for (const comment of commentsIn(text, { hashComments })) {
     const match = comment.text.match(/^(shortcut|ponytail):\s*(.+)$/i);
@@ -400,8 +404,9 @@ export async function scanDebt(root, { files = trackedSources(root) } = {}) {
   const markers = [];
   const unread = [];
   for (const file of files.slice(0, MAX_FILES)) {
-    if (!sourcePathAllowed(file) || ['.md', '.json', '.html'].includes(extname(file))) continue;
-    if (['.yaml', '.yml'].includes(extname(file))) {
+    const extension = extname(file).toLowerCase();
+    if (!sourcePathAllowed(file) || ['.md', '.json', '.html'].includes(extension)) continue;
+    if (['.yaml', '.yml'].includes(extension)) {
       unread.push({ file, reason: 'YAML literal contexts are not supported by the debt lexer' });
       continue;
     }
@@ -527,6 +532,8 @@ export function createGuidance({
       const restore = pending.has(sessionId);
       if (command) {
         await notify(message || `IdeaForge assist is ${fresh.mode}.`, 'info');
+      } else if (initial && !fresh.config.quietStartup && fresh.mode !== 'off') {
+        await notify(`IdeaForge assist started in ${fresh.mode}.`, 'info');
       }
       await remember(sessionId);
       if (!command && !initial && !restore) return undefined;
