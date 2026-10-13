@@ -229,6 +229,64 @@ security, packaging, command or workflow changes. Run `npm run test:docs` while 
 new pages must update the guide navigation, docs inventory and Pages/container packaging
 together. The README remains the landing page, not a second copy of the full guide.
 
+## Development UX evidence
+
+The [design state inventory](docs/DESIGN.md#development-fixtures-and-captures) has
+deterministic, secret-free stress fixtures shared by browser and native tests. Generate and
+check their reducer-built data from the repository root:
+
+```powershell
+node tools\ux-fixtures.mjs
+node tools\ux-fixtures.mjs --check
+node tools\ux-captures.mjs --out C:\scratch\ideaforge-ux
+```
+
+The capture runner uses the existing discovered browser/server/CDP harness on the assembled
+site. It requests both themes and compact/expanded windows, checks narrow reflow, and writes
+PNG tiles plus a state/geometry/font-scale/tested-SHA manifest. `--states fresh,result-long`
+narrows the state set; `--theme light`, `--viewport 390x844` and `--text-scale 2` narrow or
+enlarge a run. Output goes to a new development-artifact directory, not `docs/screenshots/`.
+Missing states, clipped actions, fallback fonts and forbidden external model/media requests
+fail explicitly. The app's existing Google Fonts requests are allowed and recorded.
+
+Final evidence needs a clean head; `--allow-dirty` labels temporary development evidence.
+Failures leave their manifest rather than claiming a skipped pass. Real-app and isolated
+voice renderer captures are distinguished, with unavailable samples never drawn as a live
+meter. Lab response samples are not field Web Vitals or a usability study. The canonical
+README walkthrough still uses `npm run screenshots`, with its byte-stable export.
+
+Native `UxCaptureDeviceTest` reads the same debug-only data. From `android\`, with an
+explicit owned emulator serial and JDK/SDK environment:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+The all-window matrix uses compact/expanded, light/dark and actual font scales 1.0/1.3/2.0.
+Add `'-Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=voice-listening+result-long'`
+for a focused run; `+` avoids AGP's comma truncation. Final evidence needs a clean unchanged
+checkout, not merely a supplied SHA. `uxCapture=walkthrough` instead captures only the real
+scripted seed/chip/Result frames and rejects state selectors; it is not a full-matrix pass.
+Use `uxCaptureSourceState=development-dirty` for uncommitted iteration; its default `clean`
+does not replace checking that the supplied SHA and worktree are actually unchanged.
+PNGs, reachability shots, semantics and manifests land
+in `android/app/build/outputs/connected_android_test_additional_output/`; the managed-device
+equivalent is `managed_device_android_test_additional_output/`. The Android-device workflow
+uploads both named evidence and reports even after failure.
+
+Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
+Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected
+by the web runner. [DESIGN](docs/DESIGN.md#development-fixtures-and-captures) documents native
+phase/route mappings and the prerequisite fixes the matrix exposed. A focused green run
+is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
+and black PNGs must remain failures.
+
 ## The Android app
 
 `android/` is a native Kotlin and Jetpack Compose app, and the one place in the repository
@@ -305,7 +363,8 @@ the debug build with its scripted provider, answers the interview through the sc
 answers and a chip), presses Write it up and checks the Result screen shows the export. The
 scripted provider exists only in the debug source set, which `ScriptedProviderIsDebugOnlyTest`
 asserts. `.github/workflows/android-device.yml` runs it on the Gradle managed device
-`pixel6Api34` (an ATD image) on every push to `main`, nightly and on demand
+`pixel6Api34` (an ATD image), followed by UX captures on the rendering-enabled
+`pixel6Api34Visual` and `pixelTabletApi34Visual`, on every push to `main`, nightly and on demand
 (`workflow_dispatch`). It is not part of the required `ci` check. Locally, against an emulator
 that is already running (without the `leaveApksInstalledAfterRun` property the task uninstalls
 the app afterwards, wiping its keyring and ideas):
@@ -314,6 +373,18 @@ the app afterwards, wiping its keyring and ideas):
 ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
 ./gradlew pixel6Api34DebugAndroidTest   # downloads and boots its own emulator
 ```
+
+In PowerShell set `$env:ANDROID_SERIAL` explicitly and quote dotted Gradle properties:
+
+```powershell
+$env:ANDROID_SERIAL = 'emulator-5554'
+.\gradlew.bat connectedDebugAndroidTest '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true'
+```
+
+Without those quotes PowerShell can split the property into an unintended task name.
+The ATD image disables drawing and omits SystemUI/IME, so use a standard rendering-enabled
+image for UX screenshots, visual inspection and system-bar evidence. Do not relabel a green
+semantic ATD walkthrough or a black PNG as visual evidence.
 
 The shared [`android-verify`](.claude/skills/android-verify/SKILL.md) skill is the full build,
 vector and emulator procedure, including planting a fault to prove a test bites. The Android

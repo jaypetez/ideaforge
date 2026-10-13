@@ -61,6 +61,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.BuildConfig
@@ -78,6 +82,8 @@ object LibraryTags {
     const val DETAIL = "library-detail"
     const val ZERO = "library-zero"
     const val EMPTY = "library-empty"
+    const val UNAVAILABLE = "library-unavailable"
+    const val RETRY = "library-retry"
     const val SEARCH = "library-search"
     const val ARCHIVED = "library-archived"
     const val NEW = "library-new"
@@ -146,11 +152,12 @@ fun LibraryScreen(
         // The app shell's Scaffold has already applied the system-bar insets.
         contentWindowInsets = WindowInsets(0),
         floatingActionButton = {
+            val label = stringResource(R.string.nav_new_idea)
             ExtendedFloatingActionButton(
-                text = { Text(stringResource(R.string.nav_new_idea)) },
+                text = { Text(label) },
                 icon = { Icon(painterResource(R.drawable.ic_new_idea), contentDescription = null) },
                 onClick = newIdea,
-                modifier = Modifier.testTag(LibraryTags.NEW),
+                modifier = Modifier.testTag(LibraryTags.NEW).semantics { contentDescription = label },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -254,7 +261,23 @@ private fun LibraryList(
                 Text(stringResource(R.string.library_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (state.noIdeasYet) {
+        if (state.loadProblem != null) {
+            item {
+                Column(
+                    Modifier.testTag(LibraryTags.UNAVAILABLE).semantics { liveRegion = LiveRegionMode.Polite },
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(stringResource(R.string.library_unavailable), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.library_unavailable_body))
+                    Text(state.loadProblem, style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = vm::retryLoad, modifier = Modifier.testTag(LibraryTags.RETRY)) {
+                        Text(stringResource(R.string.keyring_retry))
+                    }
+                }
+            }
+        } else if (state.loading) {
+            item { Text(stringResource(R.string.library_loading)) }
+        } else if (state.noIdeasYet) {
             item {
                 Column(Modifier.testTag(LibraryTags.ZERO), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyLarge)
@@ -322,11 +345,12 @@ private fun Filters(state: LibraryState, vm: LibraryViewModel) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(stringResource(R.string.library_show_archived), style = MaterialTheme.typography.labelLarge)
+            val archivedLabel = stringResource(R.string.library_show_archived)
+            Text(archivedLabel, style = MaterialTheme.typography.labelLarge)
             Switch(
                 checked = state.filters.showArchived,
                 onCheckedChange = vm::setShowArchived,
-                modifier = Modifier.padding(start = 8.dp).testTag(LibraryTags.ARCHIVED),
+                modifier = Modifier.padding(start = 8.dp).testTag(LibraryTags.ARCHIVED).semantics { contentDescription = archivedLabel },
             )
         }
     }

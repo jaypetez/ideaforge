@@ -134,7 +134,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                         }
                     },
                     // The Scaffold's padding already lifts content above the bottom bar, so the
-                    // composer's imePadding adds only what the keyboard covers beyond it.
+                    // interview's imePadding adds only what the keyboard covers beyond it.
                     modifier = Modifier.consumeWindowInsets(padding),
                     drive = graph.driveController,
                 )
@@ -171,4 +171,3 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
         }
     }
 }
-

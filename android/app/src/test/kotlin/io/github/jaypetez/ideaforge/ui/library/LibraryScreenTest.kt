@@ -6,6 +6,9 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -150,6 +153,39 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun newIdeaHasAnAccessibleLabelAndTheExistingClickAction() {
+        show()
+        compose.onNodeWithTag(LibraryTags.NEW)
+            .assert(hasContentDescription("New idea") and hasClickAction())
+            .performClick()
+        assertEquals(1, newIdeas)
+    }
+
+    @Test
+    fun unavailableStorageIsNotAnEmptyLibraryAndRetryReadsThePreservedRows() {
+        dir.writeText("owned inaccessible storage")
+        show()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LibraryTags.UNAVAILABLE).assertIsDisplayed()
+        compose.onNodeWithText("Ideas unavailable").assertExists()
+        compose.onNodeWithTag(LibraryTags.ZERO).assertDoesNotExist()
+        compose.onNodeWithTag(LibraryTags.EMPTY).assertDoesNotExist()
+        compose.onNodeWithTag(LibraryTags.RETRY).performClick()
+        compose.waitForIdle()
+        assertEquals("owned inaccessible storage", dir.readText())
+        compose.onNodeWithTag(LibraryTags.UNAVAILABLE).assertIsDisplayed()
+        assertTrue(dir.delete())
+        assertTrue(dir.mkdirs())
+        val saved = idea(garden, 1, "A preserved garden idea")
+        File(dir, "$garden.json").writeBytes(SessionStore.encode(saved))
+        compose.onNodeWithTag(LibraryTags.RETRY).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LibraryTags.UNAVAILABLE).assertDoesNotExist()
+        compose.onNodeWithText("A preserved garden idea").assertExists()
+        assertEquals(saved, store.get(garden))
+    }
+
+    @Test
     fun searchMatchesAnswersAndShowsTheNoMatchState() {
         val vm = show(*library())
         assertEquals(3, cardCount())
@@ -191,6 +227,7 @@ class LibraryScreenTest {
     fun theArchivedToggleShowsOnlyArchivedIdeas() {
         show(*library())
         compose.onNodeWithTag(LibraryTags.ARCHIVED).assertIsOff()
+        compose.onNodeWithTag(LibraryTags.ARCHIVED).assert(hasContentDescription("Show archived"))
         compose.onNodeWithText("Automate my tax receipts").assertDoesNotExist()
         compose.onNodeWithTag(LibraryTags.ARCHIVED).performClick()
         compose.waitForIdle()

@@ -1,38 +1,18 @@
 package io.github.jaypetez.ideaforge
 
 import android.content.Intent
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.jaypetez.ideaforge.core.SEED_QUESTION
-import io.github.jaypetez.ideaforge.core.js.get
-import io.github.jaypetez.ideaforge.core.js.stringOf
-import io.github.jaypetez.ideaforge.core.js.toNumber
-import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.KeyringState
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
 import io.github.jaypetez.ideaforge.ui.onboarding.hasUsableProvider
-import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -69,11 +49,14 @@ class WalkthroughDeviceTest {
 
     private var scenario: ActivityScenario<MainActivity>? = null
     private var restore: (suspend () -> Unit)? = null
+    private var restoreProvider: (() -> Unit)? = null
     // Null until @Before has read the store: a throw before then leaves nothing to delete.
     private var knownBefore: Set<String>? = null
 
     @Before
     fun seedAUsableProvider() = runBlocking {
+        val providers = graph.providerSource
+        restoreProvider = { graph.providerSource = providers }
         val keyring = graph.keyringStore
         val state = keyring.load()
         check(state.status != KeyringState.Status.UNREADABLE) { "the keyring on this device is unreadable: ${state.problem}" }
@@ -101,91 +84,19 @@ class WalkthroughDeviceTest {
                 }
             }
         } finally {
-            restore?.invoke()
+            try {
+                restore?.invoke()
+            } finally {
+                restoreProvider?.invoke()
+            }
         }
         Unit
     }
 
     @Test
     fun theScriptedWalkthroughReachesTheResultScreen() {
-        // The vector case with typed answers and a chip; the script is the one the debug
-        // build's ScriptedProvider replays, read from the same debug asset.
-        val vector = Json.parseToJsonElement(target.assets.open(ScriptedProvider.ASSET).use { it.readBytes().decodeToString() })
-        val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == "a chip answer" }
-        val script = ScriptedProvider.loadScript(target)
-        val steps = case["input"]["steps"] as JsonArray
-        assertTrue("the case answers with a chip", steps.any { it["chip"] != null })
-
-        val intent = Intent(target, MainActivity::class.java).putExtra("provider", "scripted")
-        scenario = ActivityScenario.launch(intent)
-
-        // The library, not onboarding: the seeded keyring is usable.
-        compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), TIMEOUT)
-        compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
-
-        var turn = 1
-        for (step in steps) {
-            val expected = if (turn == 1) SEED_QUESTION else stringOf(script["turns"][turn.toString()]["question"])
-            awaitOpenQuestion()
-            assertEquals("turn $turn is the scripted question, not the checklist", expected, text(compose.onNodeWithTag("question")))
-            compose.onNodeWithTag("degraded").assertDoesNotExist()
-
-            when {
-                truthy(step["skip"]) -> compose.onNodeWithTag("skip").performClick()
-                step["chip"] != null -> {
-                    compose.onNodeWithTag("chip-${toNumber(step["chip"]).toInt()}").performClick()
-                    compose.onNodeWithTag("send").performClick()
-                }
-                else -> {
-                    compose.onNodeWithTag("answer").performTextInput(stringOf(step["text"])!!)
-                    compose.onNodeWithTag("send").performClick()
-                }
-            }
-            turn++
-            // The next question, or the offer to wrap up: whichever the run reaches first.
-            compose.waitUntil(TIMEOUT) {
-                exists("wrap-offer") || (!exists("interview-busy") && exists("question") && questionText() != expected)
-            }
-            if (exists("wrap-offer")) break
-        }
-        assertTrue("the run reached past the first few turns ($turn)", turn > 4)
-
-        // Accept the offer, or press "Write it up" when the answers ran out first.
-        compose.onNodeWithTag(if (exists("wrap-offer")) "wrap-accept" else "write-up").performClick()
-
-        compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.SCREEN), TIMEOUT)
-        compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), TIMEOUT)
-        val title = stringOf(script["synthesis"]["title"])!!
-        assertEquals(title, text(compose.onNodeWithTag(ResultTags.TITLE)))
-        compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
-
-        // The export's `## ` sections, rendered as headings: the markdown source the vector
-        // recorded for this case names them, so the test cannot drift from the export format.
-        val export = stringOf(case["expect"]["value"]["export"])!!
-        val headings = export.lines().filter { it.startsWith("## ") }.map { it.removePrefix("## ").trim() }
-        assertTrue("the export has ## headings", headings.isNotEmpty())
-        val output = hasAnyAncestor(hasTestTag(ResultTags.OUTPUT))
-        for (heading in headings) {
-            compose.onNode(hasText(heading) and output).assertExists("the result shows the \"## $heading\" section")
-        }
-    }
-
-    private fun exists(tag: String) =
-        compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
-
-    private fun questionText(): String? =
-        compose.onAllNodes(hasTestTag("question")).fetchSemanticsNodes().firstOrNull()
-            ?.config?.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }
-
-    private fun awaitOpenQuestion() = compose.waitUntil(TIMEOUT) {
-        !exists("interview-busy") && exists("question")
-    }
-
-    private fun text(node: SemanticsNodeInteraction): String =
-        node.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()
-
-    private companion object {
-        // Generous: an emulator in CI runs on software rendering.
-        const val TIMEOUT = 30_000L
+        scriptedWalkthrough(compose, target, launch = {
+            scenario = ActivityScenario.launch(Intent(target, MainActivity::class.java).putExtra("provider", "scripted"))
+        })
     }
 }

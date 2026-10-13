@@ -339,6 +339,116 @@ No design reference approves a new contact, reporting endpoint, paid call or Pla
 
 ### Evidence and implementation handoff
 
+#### Development fixtures and captures
+
+[`tools/fixtures/ux.mjs`](../tools/fixtures/ux.mjs) owns the deterministic state inventory
+and reducer-built session seeds. Regenerate its cross-platform data with
+`node tools\ux-fixtures.mjs`; `--check` and `test/ux-fixtures.test.mjs` reject drift.
+[`test/fixtures/ux.json`](../test/fixtures/ux.json) is test/debug data, not a session schema,
+credential store, production route or published asset. It includes mixed and large libraries,
+maximum-length names/tags, long interviews/documents, checklist provenance and effect-failure
+states. Active ideas have no synthesis; that is not a failed completed result. A descriptor
+with `platform: "android"` is native-only: `voice-writing` covers native's distinct Writing
+presentation, which the web voice renderer does not support. Web requests for it fail
+explicitly rather than inventing a phase.
+
+The development browser runner reuses `tools/lib/harness.mjs` and the assembled static tree:
+
+```powershell
+node tools\ux-captures.mjs --out C:\scratch\ideaforge-ux
+node tools\ux-captures.mjs --out C:\scratch\ideaforge-ux-large --text-scale 2
+```
+
+The default requests every web-applicable state in both themes at 390x844 and 1280x900. Each state also
+measures 320/360/600/840/1440-width reflow; small windows use a 640px height. `--states`,
+`--theme` and `--viewport` narrow a run. Output must be a new development-artifact directory,
+not the canonical README inventory. The manifest identifies the tested SHA, requested and
+completed states, actual viewport/font size, geometry, evidence kind and artifact paths.
+Large pages are tiled rather than silently cropped. A missing state, inaccessible necessary
+control, wrong font, external model/media request or page-wide overflow fails the run and
+leaves a failed manifest. Existing approved Google Fonts requests remain; they are not
+inference or speech calls.
+
+Clean-head evidence is the default. `--allow-dirty` is only for iteration and records
+`dirty: true`; it is not final tested-commit evidence. Fresh profiles/origins and owned
+scratch trees are removed when a run settles. Only the model/effect failures are scripted;
+real app navigation, stores, rendering and layout run normally. Voice phase boards are
+explicitly **isolated-component** evidence using shipped markup and its renderer, with no
+microphone, speech service or supplied level samples. They do not demonstrate live drive
+sequencing. The existing required browser/policy checks still own those regression claims.
+
+State-settle measurements, including the large-library fixture, record their isolated
+Chromium/scripted-input setup. They are lab samples, not field INP/CLS or user percentiles.
+The harness deliberately refuses known-bad layouts: for example, the pre-foundation Start
+buttons overflow at 320px with 200% text. A failed baseline is a defect to fix in the owning
+visual slice, not permission to hide controls, weaken geometry or report a pass.
+
+Native captures need a rendering-enabled image. The existing `pixel6Api34` ATD is useful
+for semantic walkthroughs but disables drawing and omits SystemUI/IME; a successful ATD
+test alone cannot supply visual or system-bar evidence. `UxCaptureDeviceTest` consumes the
+same serialized inventory through debug-only `UxFixtures`. Real-app states navigate
+`MainActivity` with private fixture files, a fixed injected clock, dummy encrypted
+credentials and scripted effects. Voice presentations use the non-exported debug-only
+`UxFixtureActivity`, visibly labelled **Isolated component** and supplying no level data.
+Native ready starts at Ideas, Writing stays in Interview, voice-ready maps to Starting,
+voice-transcribing to Thinking, and voice-complete to Result; manifests record those
+platform mappings rather than claiming identical routes/phases.
+
+From `android\`, with JDK/SDK paths and an explicit owned `ANDROID_SERIAL`, request the
+matrix against the tested checkout:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+`uxCaptureStates=voice-listening+voice-writing+result-long` selects a focused set; use `+`,
+because AGP truncates comma-separated runner-property values. `uxCapture=walkthrough`
+requests only the real scripted seed/chip/Result frames with the same window/theme/font
+matrix; it rejects state selectors and does not certify the full stress matrix. Without capture opt-in the
+ordinary connected walkthrough remains unchanged. Each requested compact/expanded window
+runs light/dark at actual system font scales 1.0/1.3/2.0. The manifest records measured
+pixels/dp/density, font scale, dynamic/fallback colour source, mappings, controls, PNG and
+semantics paths, and the explicitly supplied SHA. Use a clean unchanged checkout for final
+evidence; the caller-supplied SHA does not certify an uncommitted tree.
+`uxCaptureSourceState=development-dirty` explicitly labels iteration; its `clean` default
+is only valid for a genuinely committed, unchanged checkout.
+
+Evidence lands under `android/app/build/outputs/connected_android_test_additional_output/`
+or `managed_device_android_test_additional_output/`. Failed navigation retains an explicitly
+unverified current-UI PNG; late walkthrough failures preserve earlier independent frame
+records. Finalization is attempted even after cleanup failures, which are recorded in the
+terminal failed manifest. Missing requested states, blank/black images, lost action labels
+and clipping fail rather than becoming skipped passes. The Android-device workflow runs
+the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
+`pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
+failure without changing the required `ci` gate.
+
+The native baseline exposed missing action labels, compact enlarged composer clipping and
+a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
+UI: labelled existing actions, wrapping composer actions and a bounded editor leave a real
+scrollable question/chip viewport. `SessionStore.loadState` and `LibraryViewModel` distinguish
+loading, fresh-empty, filtered-empty and unavailable. Failed reads publish no partial index;
+Try again retries the real read without deleting corrupt/newer rows or overwriting them.
+Capture tests assert that real unavailable screen, not a test-only substitute. Focused
+passing cases still must not be described as a full-matrix pass. Keep actual app walkthroughs,
+isolated Compose phase fixtures, dynamic/fallback colours and physical-device results
+separately labelled.
+
+The supplementary `requestedShortImeEvidenceKeepsTheEditorAndActionsUsableAboveAnOpenKeyboard`
+method in `UxCaptureDeviceTest` opens the actual emulator keyboard at two short landscape
+heights, both themes and all three font scales. Select that method with the instrumentation
+`class` argument and add `uxShortImeProbe=true` plus the same explicit capture SHA/source
+arguments. Its `ux-short-ime` artifacts are separate from the standard matrix. IME avoidance
+is outside the composer height budget; short remaining panes scroll rather than collapsing
+the editor. Bitmap/control safe bounds exclude the real keyboard and manifests record its
+visibility/inset. This is emulator layout evidence, not physical-device input certification.
+
 `npm run test:docs` checks the local board inventory, links, primary actions, truthful
 recovery copy, absence of scripts/remote resources and opaque palette contrast. Open the
 boards in the existing discovered browser to inspect real layout, both themes and every

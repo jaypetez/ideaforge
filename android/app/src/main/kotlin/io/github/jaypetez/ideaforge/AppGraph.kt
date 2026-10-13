@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge
 import android.speech.SpeechRecognizer
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.jaypetez.ideaforge.data.AndroidKeystoreKey
@@ -36,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 
 /**
  * Manual dependency injection: every long-lived collaborator, built once and lazily.
@@ -172,8 +174,15 @@ class IdeaForgeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph(this)
-        // The library index fills in the background; the shell renders an empty list first.
-        graph.appScope.launch { graph.sessionStore.load() }
+        graph.appScope.launch {
+            try {
+                graph.sessionStore.load()
+            } catch (e: IOException) {
+                Log.w("IdeaForge", "Could not preload the ideas library", e)
+            } catch (e: SecurityException) {
+                Log.w("IdeaForge", "Access to the ideas library was denied", e)
+            }
+        }
         // Never throws: an unreadable keyring reads as none, and says so in its state.
         graph.appScope.launch { graph.keyringStore.load() }
         // Shared exports older than a day are no longer anyone's to read (ResultActions).

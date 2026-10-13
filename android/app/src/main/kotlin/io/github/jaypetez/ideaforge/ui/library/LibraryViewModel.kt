@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.ui.library
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
@@ -26,6 +27,7 @@ import io.github.jaypetez.ideaforge.core.setSessionTags
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
+import io.github.jaypetez.ideaforge.data.SessionLoadState
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import java.io.IOException
 
 /** One library card, read off [libraryCard] so the web and Android cards cannot disagree. */
 data class LibraryItem(
@@ -77,12 +80,14 @@ data class LibraryState(
     val items: List<LibraryItem> = emptyList(),
     /** Every idea on the device, archived included: the web's "N of M ideas". */
     val total: Int = 0,
+    val loading: Boolean = false,
+    val loadProblem: String? = null,
 ) {
     /** Nothing stored at all: the welcome, not a filter result. */
-    val noIdeasYet: Boolean get() = total == 0
+    val noIdeasYet: Boolean get() = !loading && loadProblem == null && total == 0
 
     /** Ideas exist, but the search, tag or archive filter hides every one of them. */
-    val nothingMatches: Boolean get() = total > 0 && items.isEmpty()
+    val nothingMatches: Boolean get() = !loading && loadProblem == null && total > 0 && items.isEmpty()
 }
 
 /** What the last mutation did, for a snackbar. The web says the same through `say()`. */
@@ -112,11 +117,25 @@ class LibraryViewModel(
 
     val notice: StateFlow<LibraryNotice?> = _notice.asStateFlow()
 
-    val state: StateFlow<LibraryState> = combine(store.sessions, filters, ::present)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, present(store.sessions.value, filters.value))
+    val state: StateFlow<LibraryState> = combine(store.sessions, filters, store.loadState, ::present)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, present(store.sessions.value, filters.value, store.loadState.value))
 
     /** The stored documents, for the detail pane's export preview. */
     val sessions: StateFlow<List<Session>> = store.sessions
+
+    init { retryLoad() }
+
+    fun retryLoad() {
+        viewModelScope.launch {
+            try {
+                store.load()
+            } catch (e: IOException) {
+                Log.w("IdeaForge", "Could not read the ideas library", e)
+            } catch (e: SecurityException) {
+                Log.w("IdeaForge", "Access to the ideas library was denied", e)
+            }
+        }
+    }
 
     /** A fresh id for a new idea. Nothing is written until the interview has an answer. */
     fun newSessionId(): String = ids.newSessionId()
@@ -193,7 +212,9 @@ class LibraryViewModel(
             }
         }
 
-        internal fun present(sessions: List<Session>, filters: LibraryFilters): LibraryState {
+        internal fun present(
+            sessions: List<Session>, filters: LibraryFilters, load: SessionLoadState = SessionLoadState(ready = true),
+        ): LibraryState {
             val all = JsonArray(sessions)
             val tags = availableTags(all).mapNotNull(::stringOf)
             // A tag that no idea carries any more stops filtering, as the web's select resets
@@ -210,6 +231,8 @@ class LibraryViewModel(
                 tags = tags,
                 items = shown.map(::item),
                 total = sessions.size,
+                loading = !load.ready && load.problem == null,
+                loadProblem = load.problem,
             )
         }
 

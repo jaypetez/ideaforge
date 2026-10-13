@@ -134,6 +134,20 @@ android {
                     systemImageSource = "aosp-atd"
                     testedAbi = "x86_64"
                 }
+                // ATD disables HWUI drawing: semantics can pass against an all-black PNG.
+                // Visual evidence needs a standard image with rendering and system bars.
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixel6Api34Visual") {
+                    device = "Pixel 6"
+                    apiLevel = 34
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixelTabletApi34Visual") {
+                    device = "Pixel Tablet"
+                    apiLevel = 34
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
             }
         }
     }
@@ -154,11 +168,16 @@ kotlin {
 // The debug build's scripted provider (`--es provider scripted`) replays the walkthrough
 // golden vector, so the fixture reaches the app as data rather than a Kotlin transcription of
 // tools/fixtures/walkthrough.mjs. Copied into the debug variant's assets only: a release APK
-// carries neither the script nor the provider that reads it.
+// carries neither the script nor the provider that reads it. The same debug-only generated
+// directory holds UX 02's shared test/fixtures/ux.json; it is data, not another native seed.
 abstract class WalkthroughAsset : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val vector: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val uxFixture: RegularFileProperty
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -169,11 +188,13 @@ abstract class WalkthroughAsset : DefaultTask() {
         out.deleteRecursively()
         out.mkdirs()
         vector.get().asFile.copyTo(File(out, "walkthrough.json"))
+        uxFixture.get().asFile.copyTo(File(out, "ux.json"))
     }
 }
 
 val walkthroughAsset = tasks.register<WalkthroughAsset>("walkthroughAsset") {
     vector.set(layout.projectDirectory.file("../../test/vectors/walkthrough.json"))
+    uxFixture.set(layout.projectDirectory.file("../../test/fixtures/ux.json"))
 }
 
 androidComponents {
@@ -186,8 +207,7 @@ androidComponents {
     onVariants(selector().withBuildType("release")) { variant ->
         val manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
         tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseManifest(manifest)) }
-        // And the release variant's merged assets, which must not carry the walkthrough script
-        // the debug-only scripted provider replays (#94).
+        // The release assets must carry neither the scripted walkthrough nor UX fixtures.
         val assets = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.ASSETS)
         tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseAssets(assets)) }
         // The checks above read inputs to packaging; this one reads the APK that ships (#95).
@@ -202,7 +222,7 @@ androidComponents {
     }
 }
 
-// The release APK must carry neither the walkthrough script nor any class that exists only in
+// The release APK must carry neither debug fixture JSON nor any class that exists only in
 // the debug source set (the scripted provider, the recognizer probe). R8 renames classes, so
 // the APK's dex cannot be searched for their names; its mapping file can, because every class
 // that survives shrinking is listed there under its original name. A debug-only class is one
@@ -248,9 +268,9 @@ abstract class VerifyReleaseApk : DefaultTask() {
         check(apks.isNotEmpty()) { "no APK in ${apkDir.get().asFile}" }
         for (apk in apks) {
             ZipFile(apk).use { zip ->
-                val walkthrough = zip.entries().asSequence().map { it.name }
-                    .filter { it.startsWith("assets/") && it.endsWith("walkthrough.json") }.toList()
-                check(walkthrough.isEmpty()) { "${apk.name} packages the walkthrough script: $walkthrough" }
+                val fixtures = zip.entries().asSequence().map { it.name }
+                    .filter { it.startsWith("assets/") && it.substringAfterLast('/') in setOf("walkthrough.json", "ux.json") }.toList()
+                check(fixtures.isEmpty()) { "${apk.name} packages debug fixtures: $fixtures" }
             }
         }
         stamp.get().asFile.writeText("checked ${apks.map { it.name }} against ${debugOnly.size} debug-only classes\n")
