@@ -635,6 +635,12 @@ full painted labels and safe unclipped geometry. Root-theme evidence requires pi
 matching the requested scheme's actual surface, including labelled fallback/simulations.
 Whole-image mean luma is diagnostic only: an inverse error notice can dominate it without
 changing the root theme. Negative swapped-theme/blank-render guards remain.
+Native root capture requires two consecutive requested-root samples within the existing
+30-second capture budget. Earlier unsettled display frames remain diagnostic PNGs and
+manifest attempts, not passes. The isolated fixture records its actual rendering context;
+the oracle remains the requested theme's factory background, never a self-reported
+rendered colour. Window PixelCopy is additional diagnostic evidence, not a substitute
+for the saved display pixels.
 
 The board checks actual controls, minimum targets and full painted labels through
 scrolling; base frames include disabled/busy/selected/destructive/error states and native

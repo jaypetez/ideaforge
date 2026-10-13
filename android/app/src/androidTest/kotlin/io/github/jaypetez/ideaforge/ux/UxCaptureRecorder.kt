@@ -2,20 +2,24 @@ package io.github.jaypetez.ideaforge.ux
 
 import android.app.Activity
 import android.app.UiAutomation
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.SystemClock
 import android.view.WindowInsets
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
@@ -82,10 +86,10 @@ internal class UxCaptureRecorder(
         val geometry = mutableListOf<JsonElement>()
         var failure: String? = null
         var pixels: UxPixels? = null
+        val rootAttempts = mutableListOf<JsonElement>()
         val display = activity.resources.displayMetrics
         val config = activity.resources.configuration
         val view = activity.window.decorView
-        val rootSurfaceRgb = expectedRootSurface(configuration, activity)
         val insets = view.rootWindowInsets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
         val safe = UxBounds(
             (insets?.left ?: 0).toFloat(), (insets?.top ?: 0).toFloat(),
@@ -105,8 +109,7 @@ internal class UxCaptureRecorder(
                     "requested ${configuration.window} window, actual ${config.screenWidthDp}dp"
                 }
             }
-            pixels = saveImage(relative, safe, rootSurfaceRgb)
-            UxEvidence.requireTheme(configuration.theme, pixels)
+            pixels = saveImage(relative, safe, configuration, activity, rootAttempts)
             var currentImage = relative
             for (control in controls) {
                 var revealedFromLazyList = false
@@ -141,7 +144,7 @@ internal class UxCaptureRecorder(
                     "${configuration.id}/${state.evidence}/${state.id}-reach-${control.name}.png"
                 } else currentImage
                 if (reachedByScroll) {
-                    saveImage(controlPath, safe, rootSurfaceRgb)
+                    saveImage(controlPath, safe, configuration, activity)
                     currentImage = controlPath
                 }
                 val semantics = node.fetchSemanticsNode()
@@ -240,6 +243,7 @@ internal class UxCaptureRecorder(
                 put("safeBoundsPx", bounds(safe))
             })
             put("geometry", JsonArray(geometry))
+            put("rootPixelAttempts", JsonArray(rootAttempts))
             pixels?.let {
                 put("pixels", buildJsonObject {
                     put("sampledColours", it.colours)
@@ -308,28 +312,80 @@ internal class UxCaptureRecorder(
         UxEvidence.requireComplete(expected, records.keys, failures)
     }
 
-    private fun saveImage(relative: String, safe: UxBounds, rootSurfaceRgb: Int): UxPixels {
-        compose.waitForIdle()
-        automation.waitForIdle(300, DEVICE_TIMEOUT)
-        val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
+    private fun saveImage(
+        relative: String, safe: UxBounds, configuration: UxConfiguration, activity: Activity,
+        attempts: MutableList<JsonElement>? = null,
+    ): UxPixels {
+        val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
+        var attempt = 0
+        var latestFile: File? = null
+        fun sample(): UxPixels {
+            compose.waitForIdle()
+            val remaining = deadline - SystemClock.uptimeMillis()
+            check(remaining > 0) { "root capture budget expired before screenshot" }
+            automation.waitForIdle(minOf(300L, remaining), remaining)
+            // Resolve the requested factory role after composition/configuration settles.
+            // A context is observed; no self-reported rendered colour becomes the oracle.
+            val context = if (activity is UxFixtureActivity) checkNotNull(activity.rootRenderingContext) {
+                "isolated fixture has no committed root rendering context"
+            } else activity
+            val expected = expectedRootSurface(configuration, context)
+            val windowPixels = if (attempts != null) {
+                val windowBitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+                UxEvidence.requireRendered(windowBitmap,
+                    UxBounds(0f, 0f, windowBitmap.width.toFloat(), windowBitmap.height.toFloat()), expected)
+            } else null
+            val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
+            val attemptPath = if (attempts == null) relative else relative.removeSuffix(".png") + "-root-attempt-${++attempt}.png"
+            try {
+                val file = File(output, attemptPath)
+                check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
+                file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $attemptPath" } }
+                latestFile = file
+                val pixels = UxEvidence.requireRendered(bitmap, safe, expected)
+                attempts?.add(buildJsonObject {
+                    put("attempt", attempt)
+                    put("artifact", attemptPath)
+                    put("expectedRootSurfaceRgb", "#%06X".format(expected and 0x00FFFFFF))
+                    put("activityRootSurfaceRgb", "#%06X".format(expectedRootSurface(configuration, activity) and 0x00FFFFFF))
+                    put("roleOwner", "requested theme factory background; native Scaffold default containerColor")
+                    put("contextClass", context.javaClass.name)
+                    put("sameContextAsActivity", context === activity)
+                    put("sameResourcesAsActivity", context.resources === activity.resources)
+                    put("contextUiMode", context.resources.configuration.uiMode)
+                    put("rootSurfaceMatches", pixels.rootSurfaceMatches)
+                    put("sampledPixels", pixels.sampledPixels)
+                    put("meanLuma", pixels.meanLuma)
+                    put("rootIdentityPassed", runCatching { UxEvidence.requireTheme(configuration.theme, pixels) }.isSuccess)
+                    windowPixels?.let {
+                        put("windowCopyRootMatches", it.rootSurfaceMatches)
+                        put("windowCopySampledPixels", it.sampledPixels)
+                        put("windowCopyRootIdentityPassed", runCatching { UxEvidence.requireTheme(configuration.theme, it) }.isSuccess)
+                        put("windowCopySource", "Compose captureToImage Android PixelCopy of the actual app window; diagnostic only, not a replacement for UiAutomation display pixels")
+                    }
+                })
+                return pixels
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        if (attempts == null) return sample()
         try {
-            val file = File(output, relative)
-            check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
-            file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $relative" } }
-            return UxEvidence.requireRendered(bitmap, safe, rootSurfaceRgb)
+            return UxEvidence.requireStableTheme(configuration.theme, deadline, SystemClock::uptimeMillis, ::sample)
         } finally {
-            bitmap.recycle()
+            // A failed run still keeps its last diagnostic frame and every earlier attempt.
+            latestFile?.copyTo(File(output, relative), overwrite = true)
         }
     }
 
-    private fun expectedRootSurface(configuration: UxConfiguration, activity: Activity): Int {
+    private fun expectedRootSurface(configuration: UxConfiguration, context: Context): Int {
         val dark = configuration.theme == "dark"
         val fallback = if (dark) Color(0xFF11161B) else Color(0xFFF5F7FA)
         val palette = configuration.palette?.let(UxFoundationPalette::from)
         return when {
             palette == UxFoundationPalette.FocusStudio -> fallback.toArgb()
             palette != null -> palette.scheme(dark, lightColorScheme()).background.toArgb()
-            Build.VERSION.SDK_INT >= 31 -> (if (dark) dynamicDarkColorScheme(activity) else dynamicLightColorScheme(activity)).background.toArgb()
+            Build.VERSION.SDK_INT >= 31 -> (if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)).background.toArgb()
             else -> fallback.toArgb()
         }
     }

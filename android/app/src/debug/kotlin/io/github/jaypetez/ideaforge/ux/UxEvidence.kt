@@ -137,6 +137,26 @@ object UxEvidence {
         }
     }
 
+    fun requireStableTheme(theme: String, deadlineMs: Long, now: () -> Long, sample: () -> UxPixels): UxPixels {
+        var consecutive = 0
+        var previousRoot: Int? = null
+        var last: UxPixels? = null
+        while (now() < deadlineMs) {
+            val pixels = sample()
+            last = pixels
+            if (now() > deadlineMs) break
+            if (runCatching { requireTheme(theme, pixels) }.isSuccess) {
+                consecutive = if (previousRoot == pixels.rootSurfaceRgb) consecutive + 1 else 1
+                previousRoot = pixels.rootSurfaceRgb
+                if (consecutive == 2) return pixels
+            } else {
+                consecutive = 0
+                previousRoot = null
+            }
+        }
+        error("requested $theme root did not stabilize within the capture budget (last $last)")
+    }
+
     fun requireComplete(expected: Set<String>, captured: Set<String>, failures: List<String>) {
         check(expected == captured) { "missing requested UX evidence: ${unrecorded(expected, captured)}; unexpected: ${captured - expected}" }
         check(failures.isEmpty()) { "invalid requested UX evidence:\n${failures.joinToString("\n")}" }
