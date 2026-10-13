@@ -2,15 +2,24 @@ package io.github.jaypetez.ideaforge.ux
 
 import android.app.Activity
 import android.app.UiAutomation
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.SystemClock
 import android.view.WindowInsets
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
@@ -28,11 +37,18 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.File
 
-internal data class UxConfiguration(val window: String, val theme: String, val fontScale: Float) {
+internal data class UxConfiguration(
+    val window: String, val theme: String, val fontScale: Float, val palette: String? = null,
+    val requestedWidthDp: Int? = null, val requestedHeightDp: Int? = null,
+) {
     val id get() = "$window-$theme-f${fontScale.toString().replace('.', '_')}"
 }
 
-internal data class UxControl(val name: String, val matcher: SemanticsMatcher, val actionRequired: Boolean = true)
+internal data class UxControl(
+    val name: String, val matcher: SemanticsMatcher, val actionRequired: Boolean = true,
+    val minHeightDp: Float = if (name in setOf("voice-start", "voice-pause", "voice-resume", "voice-exit",
+            "foundation-voice-pause", "foundation-voice-exit")) 64f else 48f,
+)
 
 /**
  * Actual device PNGs plus incremental manifests. A failed assertion keeps its screenshot
@@ -63,12 +79,14 @@ internal class UxCaptureRecorder(
         nativeSurface: String = state.surface,
         nativeMapping: String? = null,
         labNavigationMs: Double? = null,
+        documentViewport: UxBounds? = null,
     ) {
         val key = "${configuration.id}/${state.id}"
         val relative = "${configuration.id}/${state.evidence}/${state.id}.png"
         val geometry = mutableListOf<JsonElement>()
         var failure: String? = null
         var pixels: UxPixels? = null
+        val rootAttempts = mutableListOf<JsonElement>()
         val display = activity.resources.displayMetrics
         val config = activity.resources.configuration
         val view = activity.window.decorView
@@ -81,11 +99,17 @@ internal class UxCaptureRecorder(
             check(kotlin.math.abs(config.fontScale - configuration.fontScale) < 0.01f) {
                 "requested fontScale ${configuration.fontScale}, actual ${config.fontScale}"
             }
-            check(if (configuration.window == "compact") config.screenWidthDp < 600 else config.screenWidthDp >= 840) {
-                "requested ${configuration.window} window, actual ${config.screenWidthDp}dp"
+            if (configuration.requestedWidthDp != null && configuration.requestedHeightDp != null) {
+                check(kotlin.math.abs(view.width / display.density - configuration.requestedWidthDp) < 1f &&
+                    kotlin.math.abs(view.height / display.density - configuration.requestedHeightDp) < 1f) {
+                    "requested ${configuration.requestedWidthDp}x${configuration.requestedHeightDp}dp, actual ${view.width / display.density}x${view.height / display.density}dp"
+                }
+            } else {
+                check(if (configuration.window == "compact") config.screenWidthDp < 600 else config.screenWidthDp >= 840) {
+                    "requested ${configuration.window} window, actual ${config.screenWidthDp}dp"
+                }
             }
-            pixels = saveImage(relative, safe)
-            UxEvidence.requireTheme(configuration.theme, pixels)
+            pixels = saveImage(relative, safe, configuration, activity, rootAttempts)
             var currentImage = relative
             for (control in controls) {
                 var revealedFromLazyList = false
@@ -104,8 +128,9 @@ internal class UxCaptureRecorder(
                 val node = compose.onNode(control.matcher)
                 var raw = rawBounds(node.fetchSemanticsNode())
                 var clipped = clippedBounds(node.fetchSemanticsNode())
+                var touch = UxEvidence.touchBounds(node.fetchSemanticsNode())
                 var reachedByScroll = revealedFromLazyList
-                if (!safe.intersect(clipped).contains(raw)) {
+                if (!safe.intersect(clipped).contains(raw) || control.actionRequired && !safe.contains(touch)) {
                     // An offscreen action is valid when a real scroll can reveal it.
                     // Unscrollable clipped controls still fail after the attempt.
                     runCatching { node.performScrollTo() }
@@ -113,12 +138,13 @@ internal class UxCaptureRecorder(
                     reachedByScroll = true
                     raw = rawBounds(node.fetchSemanticsNode())
                     clipped = clippedBounds(node.fetchSemanticsNode())
+                    touch = UxEvidence.touchBounds(node.fetchSemanticsNode())
                 }
                 val controlPath = if (reachedByScroll) {
                     "${configuration.id}/${state.evidence}/${state.id}-reach-${control.name}.png"
                 } else currentImage
                 if (reachedByScroll) {
-                    saveImage(controlPath, safe)
+                    saveImage(controlPath, safe, configuration, activity)
                     currentImage = controlPath
                 }
                 val semantics = node.fetchSemanticsNode()
@@ -127,6 +153,10 @@ internal class UxCaptureRecorder(
                     semantics.config.contains(SemanticsActions.SetText) || semantics.config.contains(SemanticsActions.SetProgress)
                 val checks = runCatching {
                     UxEvidence.requireControl(control.name, raw, safe.intersect(clipped), label, actionable || !control.actionRequired)
+                    if (control.actionRequired) {
+                        check(safe.contains(touch)) { "required control ${control.name} has a clipped touch target: $touch outside $safe" }
+                        UxEvidence.requireTarget(control.name, touch.width / display.density, touch.height / display.density, control.minHeightDp)
+                    }
                     for (child in descendants(semantics)) {
                         val layout = child.config.getOrNull(SemanticsActions.GetTextLayoutResult) ?: continue
                         val results = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
@@ -149,9 +179,13 @@ internal class UxCaptureRecorder(
                     put("control", control.name)
                     put("boundsPx", bounds(raw))
                     put("clippedBoundsPx", bounds(clipped))
+                    put("touchBoundsPx", bounds(touch))
+                    put("clippedTouchBoundsPx", bounds(safe.intersect(touch)))
+                    put("targetMeasurement", "Compose native touchBoundsInRoot transformed to window; distinct from paint/layout bounds")
                     put("semanticLabel", label)
                     put("actionable", actionable)
                     put("actionRequired", control.actionRequired)
+                    if (control.actionRequired) put("minimumTargetDp", "48x${control.minHeightDp}")
                     put("enabled", !semantics.config.contains(SemanticsProperties.Disabled))
                     put("reachedByScroll", reachedByScroll)
                     put("artifact", controlPath)
@@ -181,13 +215,19 @@ internal class UxCaptureRecorder(
             put("testedSha", request.sha)
             put("sourceState", request.sourceState)
             put("theme", configuration.theme)
-            put("colourSource", if (Build.VERSION.SDK_INT >= 31) "dynamic-wallpaper" else "fallback")
-            put("fallback", Build.VERSION.SDK_INT < 31)
+            val palette = configuration.palette?.let(UxFoundationPalette::from)
+            put("colourSource", palette?.colourSource ?: if (Build.VERSION.SDK_INT >= 31) "dynamic-wallpaper" else "fallback")
+            put("fallback", if (palette != null) palette == UxFoundationPalette.FocusStudio else Build.VERSION.SDK_INT < 31)
+            put("simulatedPalette", palette != null && palette != UxFoundationPalette.FocusStudio)
+            palette?.let { put("paletteId", it.id) }
             put("fontScale", config.fontScale)
             put("imeVisible", view.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true)
             put("imeBottomPx", view.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0)
             put("requestedFontScale", configuration.fontScale)
             put("window", configuration.window)
+            configuration.requestedWidthDp?.let { put("requestedWidthDp", it) }
+            configuration.requestedHeightDp?.let { put("requestedHeightDp", it) }
+            documentViewport?.let { put("documentViewportPx", bounds(it)) }
             put("configurationSource", "instrumentation wm size/density and system font_scale overrides")
             put("apiLevel", Build.VERSION.SDK_INT)
             put("deviceModel", Build.MODEL)
@@ -203,6 +243,7 @@ internal class UxCaptureRecorder(
                 put("safeBoundsPx", bounds(safe))
             })
             put("geometry", JsonArray(geometry))
+            put("rootPixelAttempts", JsonArray(rootAttempts))
             pixels?.let {
                 put("pixels", buildJsonObject {
                     put("sampledColours", it.colours)
@@ -210,6 +251,9 @@ internal class UxCaptureRecorder(
                     put("dominantRgb", it.dominantRgb)
                     put("bitmapWidthPx", it.width)
                     put("bitmapHeightPx", it.height)
+                    it.rootSurfaceRgb?.let { rgb -> put("expectedRootSurfaceRgb", "#%06X".format(rgb and 0x00FFFFFF)) }
+                    put("rootSurfaceMatches", it.rootSurfaceMatches)
+                    put("sampledPixels", it.sampledPixels)
                 })
             }
             put("artifact", relative)
@@ -268,17 +312,81 @@ internal class UxCaptureRecorder(
         UxEvidence.requireComplete(expected, records.keys, failures)
     }
 
-    private fun saveImage(relative: String, safe: UxBounds): UxPixels {
-        compose.waitForIdle()
-        automation.waitForIdle(300, DEVICE_TIMEOUT)
-        val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
+    private fun saveImage(
+        relative: String, safe: UxBounds, configuration: UxConfiguration, activity: Activity,
+        attempts: MutableList<JsonElement>? = null,
+    ): UxPixels {
+        val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
+        var attempt = 0
+        var latestFile: File? = null
+        fun sample(): UxPixels {
+            compose.waitForIdle()
+            val remaining = deadline - SystemClock.uptimeMillis()
+            check(remaining > 0) { "root capture budget expired before screenshot" }
+            automation.waitForIdle(minOf(300L, remaining), remaining)
+            // Resolve the requested factory role after composition/configuration settles.
+            // A context is observed; no self-reported rendered colour becomes the oracle.
+            val context = if (activity is UxFixtureActivity) checkNotNull(activity.rootRenderingContext) {
+                "isolated fixture has no committed root rendering context"
+            } else activity
+            val expected = expectedRootSurface(configuration, context)
+            val windowPixels = if (attempts != null) {
+                val windowBitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+                UxEvidence.requireRendered(windowBitmap,
+                    UxBounds(0f, 0f, windowBitmap.width.toFloat(), windowBitmap.height.toFloat()), expected)
+            } else null
+            val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
+            val attemptPath = if (attempts == null) relative else relative.removeSuffix(".png") + "-root-attempt-${++attempt}.png"
+            try {
+                val file = File(output, attemptPath)
+                check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
+                file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $attemptPath" } }
+                latestFile = file
+                val pixels = UxEvidence.requireRendered(bitmap, safe, expected)
+                attempts?.add(buildJsonObject {
+                    put("attempt", attempt)
+                    put("artifact", attemptPath)
+                    put("expectedRootSurfaceRgb", "#%06X".format(expected and 0x00FFFFFF))
+                    put("activityRootSurfaceRgb", "#%06X".format(expectedRootSurface(configuration, activity) and 0x00FFFFFF))
+                    put("roleOwner", "requested theme factory background; native Scaffold default containerColor")
+                    put("contextClass", context.javaClass.name)
+                    put("sameContextAsActivity", context === activity)
+                    put("sameResourcesAsActivity", context.resources === activity.resources)
+                    put("contextUiMode", context.resources.configuration.uiMode)
+                    put("rootSurfaceMatches", pixels.rootSurfaceMatches)
+                    put("sampledPixels", pixels.sampledPixels)
+                    put("meanLuma", pixels.meanLuma)
+                    put("rootIdentityPassed", runCatching { UxEvidence.requireTheme(configuration.theme, pixels) }.isSuccess)
+                    windowPixels?.let {
+                        put("windowCopyRootMatches", it.rootSurfaceMatches)
+                        put("windowCopySampledPixels", it.sampledPixels)
+                        put("windowCopyRootIdentityPassed", runCatching { UxEvidence.requireTheme(configuration.theme, it) }.isSuccess)
+                        put("windowCopySource", "Compose captureToImage Android PixelCopy of the actual app window; diagnostic only, not a replacement for UiAutomation display pixels")
+                    }
+                })
+                return pixels
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        if (attempts == null) return sample()
         try {
-            val file = File(output, relative)
-            check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
-            file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $relative" } }
-            return UxEvidence.requireRendered(bitmap, safe)
+            return UxEvidence.requireStableTheme(configuration.theme, deadline, SystemClock::uptimeMillis, ::sample)
         } finally {
-            bitmap.recycle()
+            // A failed run still keeps its last diagnostic frame and every earlier attempt.
+            latestFile?.copyTo(File(output, relative), overwrite = true)
+        }
+    }
+
+    private fun expectedRootSurface(configuration: UxConfiguration, context: Context): Int {
+        val dark = configuration.theme == "dark"
+        val fallback = if (dark) Color(0xFF11161B) else Color(0xFFF5F7FA)
+        val palette = configuration.palette?.let(UxFoundationPalette::from)
+        return when {
+            palette == UxFoundationPalette.FocusStudio -> fallback.toArgb()
+            palette != null -> palette.scheme(dark, lightColorScheme()).background.toArgb()
+            Build.VERSION.SDK_INT >= 31 -> (if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)).background.toArgb()
+            else -> fallback.toArgb()
         }
     }
 
@@ -296,6 +404,7 @@ internal class UxCaptureRecorder(
             put("limitations", JsonArray(listOf(
                 "Scripted/injected effects; no real provider, microphone recording or hosted speech.",
                 "Isolated components are not evidence of a real voice run or permissions.",
+                "Supplemental simulated Material palettes are not actual wallpaper colours; the normal real-app path keeps actual system dynamic colour.",
                 "Emulator laboratory evidence, not physical-phone compatibility or usability.",
                 "labNavigationMs is a single local instrumentation observation, not INP or field Web Vitals.",
             ).map(::JsonPrimitive)))

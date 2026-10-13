@@ -3,18 +3,18 @@
 IdeaForge has two front ends: the web app (`src/ui/app.css`) and the native Android app
 (`android/app`, Jetpack Compose with Material 3). They share one information architecture
 and one intended visual language, and this page is where the two meet. The web foundation
-has moved to Focus Studio in [#189](https://github.com/jaypetez/ideaforge/issues/189);
-the native fallback values below are still the earlier scheme until
-[#190](https://github.com/jaypetez/ideaforge/issues/190). Corresponding role names are not
-a claim that both implementations already draw the same values.
+in [#189](https://github.com/jaypetez/ideaforge/issues/189) and native foundation in
+[#190](https://github.com/jaypetez/ideaforge/issues/190) use Focus Studio. The fallback
+roles agree; platform typography, measurements and native wallpaper colours deliberately
+differ.
 
 `src/ui/app.css` owns the web values. `test/browser/app.browser.mjs` checks that both themes
 resolve, and `test/browser/contrast.browser.mjs` checks every colour pair in light and in
 dark (see [Contrast and targets](#contrast-and-targets)).
 
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
-[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). Only the web
-colour/type/spacing/shape/state foundation is implemented here. The adaptive shell and
+[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). Only the web and native
+colour/type/spacing/shape/state foundations are implemented here. The adaptive shell and
 Start/Ideas/Interview/Voice/Result recompositions are **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
@@ -25,8 +25,8 @@ the new foundation and existing layouts, not the complete reference boards.
 ## Colour roles
 
 Web values are `light-dark(light, dark)` over an explicit `color-scheme`. The Compose column
-identifies the corresponding role, not its current native hex value. Android 12 and later
-still use wallpaper dynamic colour; the separate current fallback table follows this one.
+identifies the corresponding fallback role. Android 12 and later still use the platform's
+wallpaper dynamic scheme without recolouring it; the native fallback table follows this one.
 
 | Web token | Compose `ColorScheme` | Light | Dark | Used for |
 |---|---|---|---|---|
@@ -58,29 +58,40 @@ is an additional cue, not the only one.
 The v1 colour names (`--ground`, `--surface`, `--ink`, `--accent` and the rest) remain only
 where unchanged screen rules still consume them. Touched shared compositions use the roles.
 
-### Current native fallback (not yet migrated)
+### Current native fallback
 
-`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt` still owns these
-values. #189 changes no Android source or dynamic-colour behaviour; #190 owns its foundation.
+`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt` owns these
+`LightTokens`, `DarkTokens` and `ExtraColors` values. They apply below Android 12 and when
+dynamic colour is disabled by an explicit composition, not a new user preference.
 
 | Native role | Light | Dark |
 |---|---|---|
-| `surfaceContainerLow` / `background` / `surface` | `#F5F6F2` | `#15191A` |
-| `surfaceContainerLowest` | `#FDFEFB` | `#1D2324` |
-| `surfaceContainer` | `#E9EEEA` | `#293132` |
-| `surfaceContainerHigh` / `surfaceContainerHighest` | `#DFE6E1` | `#313A3B` |
-| `onSurface` | `#202C2B` | `#EEF0E9` |
-| `onSurfaceVariant` | `#566562` | `#ABBAB5` |
-| `outline` | `#73847D` | `#72867F` |
-| `outlineVariant` | `#D4DED8` | `#364140` |
-| `primary` | `#24665E` | `#9ECDC3` |
-| `onPrimary` | `#FFFFFF` | `#142E29` |
-| `error` | `#9E3E37` | `#E8A396` |
+| `surfaceContainerLow` / `background` / `surface` | `#F5F7FA` | `#11161B` |
+| `surfaceContainerLowest` | `#FFFFFF` | `#1B222A` |
+| `surfaceContainer` | `#E8EDF2` | `#27313B` |
+| `surfaceContainerHigh` / `surfaceContainerHighest` | `#DEE6EE` | `#313E49` |
+| `onSurface` | `#17212B` | `#EEF3F8` |
+| `onSurfaceVariant` | `#526171` | `#B4C0CB` |
+| `outline` | `#718091` | `#91A1B2` |
+| `outlineVariant` | ink at 16% over ground | ink at 16% over ground |
+| `primary` | `#0F6963` | `#7AD5C7` |
+| `onPrimary` | `#FFFFFF` | `#0A332E` |
+| `error` | `#983632` | `#F3AAA0` |
 | `ExtraColors.success` | `#306445` | `#A0C9A9` |
-| `ExtraColors.warning` | `#786120` | `#CFBD8A` |
+| `ExtraColors.warning` | `#765C20` | `#E7C882` |
 
-Native `primaryContainer` (10%) and `errorContainer` (12%) remain opaque composites over
-that native ground. Its fallback `secondary` and `tertiary` still follow `primary`.
+Native `primaryContainer` (10%), `errorContainer` (12%) and `outlineVariant` (ink at 16%)
+are opaque `Color.copy`/`compositeOver` results over the native ground. Keep Compose's
+alpha precision rather than substituting rounded hexes. `outlineVariant` is a separator,
+not an operative field edge. Fallback `secondary`, `tertiary` and `surfaceTint` follow
+`primary`; their container inks and `onErrorContainer` use `onSurface`. `onError` follows
+`onPrimary`. Inverse roles use the opposite theme's high surface, ink and primary.
+
+`Roles.kt` derives shared-control ink/edges from the actual `ColorScheme`, including
+cards, selected/error surfaces and the 2dp dock. A preferred ink that fails the composed
+state contrast uses a readable scheme ink or black/white; this does not mutate the
+wallpaper scheme. Success/warning ink follows the rendered background, not merely the
+system's dark-mode flag.
 
 ## Theme choice
 
@@ -99,12 +110,12 @@ agree with the CSS ground roles; wiring and before-paint tests hold that agreeme
 
 ## State, focus and elevation
 
-| Web token | Compose | Value |
+| Web token | Native treatment | Web value |
 |---|---|---|
 | `--state-hover` | state layer, hovered | 8% of the content colour |
-| `--state-focus` | state layer, focused | 9% |
-| `--state-pressed` | state layer, pressed | 9% |
-| `--focus-ring` / `--focus-offset` | focus indication | 2px `--primary`, 3px offset |
+| `--state-focus` | Material interaction and control outline | 9% |
+| `--state-pressed` | Material interaction/ripple | 9% |
+| `--focus-ring` / `--focus-offset` | contrast-checked native control outline | 2px `--primary`, 3px offset |
 | `--elev-0`, `--elev-2`, `--elev-3` | conceptual elevation roles | flat background/surfaces, docked composer, menus/dialogs/toasts |
 
 Primary, secondary (`ghost`), quiet, tonal and destructive buttons share foreground-mixed
@@ -124,6 +135,25 @@ foreground shadow. The shared `.callout`, `.hint`, `.section-head`, `.row`, `.id
 and HTML `dialog` compositions reuse the existing classes and browser primitives. Existing
 Delete/Forget confirmations remain `window.confirm`, with browser-owned appearance and
 behaviour; this slice does not replace them with a new modal flow.
+
+Native `ui/components/Controls.kt` supplies consumed Material button variants, fields,
+suggestion/filter chips and `IdeaForgeStatusText`, not a UI framework. Shapes, readable
+disabled ink/fills and minimum targets are shared; callbacks, native roles, selected/
+disabled semantics, input, ripple and system animation scaling remain Material's.
+Focused controls have a 2dp outline checked against the adjacent painted surface.
+Busy controls retain the operation label and add the localized `Working` state
+description. Warning/error status includes a localized textual prefix and a polite
+live region; the voice phase is polite and the question is a heading, not an announcement
+on every level sample.
+
+`IdeaForgeSnackbarHost` in `ui/components/NoticeHost.kt` keeps the native queue, timing,
+transitions and original full message. Its message viewport is scrollable and bounded
+by a quarter of available height, at most 128dp but never less than one body line.
+A localized 48dp Dismiss action closes the actual notice. Interview/voice notices take
+layout space rather than covering their controls. A short-height Result places the same
+actions in its document scroll container; its notice reserves viewport space outside
+that scroll, as in manual Interview, so a delayed failure cannot time out unseen after
+the reader scrolls away. Ordinary-height Result keeps its existing dock and action order.
 
 ## Contrast and targets
 
@@ -168,12 +198,22 @@ panel's summary is a heading there (`aria-disabled`), not a control.
 phone and desktop widths, with menus open. The same probe walks each panel with real Tab
 presses and checks the reading order.
 
+Native `FoundationThemeTest`, `FoundationControlsTest` and `FoundationPaletteTest` check
+the rendered fallback mapping, all type/shape roles, consumed control paint and semantics.
+Normal, disabled and busy text is checked at 4.5:1; operative edges/focus at 3:1.
+The native palette checks include the composed 12% Material state layer and elevated dock,
+not the web's measured 9% layer. Font-scale tests use reflow/scrolling and full painted
+labels; targets remain 48dp and voice actions 64dp. The device matrices below supplement
+those tests with actual rendered geometry. Representative simulated palettes are not
+proof of every wallpaper or a physical-device accessibility certification.
+
 ## Type
 
 IBM Plex Sans on the web. Weight 600 carries headline and title roles, and the screenshot
 harness checks the font has loaded before it captures anything. The Android app has no
 bundled or downloadable font yet, so it uses the platform default family with the same
-sizes, line heights and 600 weight.
+mapped sizes, line heights and 600 weight. Native body/supporting roles are completed
+explicitly rather than inheriting Material's smaller metadata defaults.
 
 | Web token | Compose `Typography` | Size / line height |
 |---|---|---|
@@ -183,6 +223,25 @@ sizes, line heights and 600 weight.
 | `--type-body-*` | `bodyLarge` | 1rem / 1.6 |
 | `--type-label-*` | `labelLarge` | .875rem / 1.35 |
 | `--type-meta-*` | web metadata | .875rem / 1.45 |
+
+All 15 native `IdeaForgeTypography` roles use `FontFamily.Default`:
+
+| Native roles | Size / line factor | Weight |
+|---|---|---|
+| `displayLarge` | 57sp / 1.2 | 600 |
+| `displayMedium` | 45sp / 1.2 | 600 |
+| `displaySmall` | 34sp / 1.2 | 600 |
+| `headlineLarge` | 32sp / 1.25 | 600 |
+| `headlineMedium`, `headlineSmall` | 28sp / 1.25 | 600 |
+| `titleLarge` | 22sp / 1.35 | 600 |
+| `titleMedium` | 18sp / 1.35 | 600 |
+| `titleSmall` | 16sp / 1.4 | 600 |
+| `bodyLarge`, `bodyMedium` | 16sp / 1.6 | 400 |
+| `bodySmall`, `labelMedium`, `labelSmall` | 14sp / 1.45 | 400 body, 500 label |
+| `labelLarge` | 14sp / 1.35 | 500 |
+
+The export renderer's explicit code monospace remains; no bundled/downloadable font or
+remote font provider is added to Android.
 
 ## Spacing and shape
 
@@ -199,10 +258,26 @@ reserves two complete label lines. Fractional line interpolation undercounted th
 label at 175% text. Scroll clearance adds an 8px gap for the 2px focus outline and its
 3px offset; shell probes check nearest scrolling at 150%, 175% and 200% in both themes.
 Existing form/work/settings widths are named tokens, not new adaptive-shell breakpoints.
-Compose has no spacing or shape tokens of its own yet: `IdeaForgeTheme` sets colour and type
-only, so
-`MaterialTheme.shapes` is Material's default and screens use `dp` values directly. A shared
-`Shapes` object is the place to start if the two drift visibly.
+Native `Roles.kt` owns `IdeaForgeSpacing`: `micro`, `tight`, `related`, `content`, `section`,
+`spacious`, `control` and `voice` are 4, 8, 12, 16, 24, 32, 48 and 64dp.
+`IdeaForgeShape` supplies 8dp controls, 12dp surfaces, 16dp dialogs and a status circle.
+`IdeaForgeShapes` maps Material's extraSmall/small to control, medium to surface and
+large/extraLarge to dialog. Buttons, fields and chips consume the control shape explicitly.
+
+`IdeaForgeWidths` bounds native form/reading to 720dp, work to 1120dp, Settings to 1000dp
+and answer bubbles to 520dp. These are content measures, not web breakpoint copies:
+onboarding, manual Interview, Settings and the shared export preview consume them using
+native layout constraints. Enlarged action groups wrap without changing order; the
+turn-status text and unreadable-key recovery can grow/scroll. This foundation does not
+replace the adaptive shell, library panes or the later screen recompositions.
+
+| Native width role | Maximum |
+|---|---|
+| `form` | 720dp |
+| `work` | 1120dp |
+| `settings` | 1000dp |
+| `reading` | 720dp |
+| `answer` | 520dp |
 
 ## Motion
 
@@ -292,7 +367,7 @@ These are new targets, not a repetition of the completed first pass (#60):
 | Tall connection/hero stack | Short lead, provider/required-fields/ready stages in the existing shared form |
 | Question, coverage and composer competing | Current question first, quiet history/progress, compact expanding composer |
 | Result inside a 60dvh card | Page-scrolling document and direct Copy/Download or Share/Copy |
-| Colour/type-only native theme | Explicit native spacing, shape, width and shared control roles |
+| Native shared foundation (implemented in #190) | Later adaptive shell and complete screen compositions |
 
 Long/enlarged content is allowed to grow. Reference density is not permission to shrink text,
 clip a caption or remove an action. The state matrix, source owners and actual browser/native
@@ -303,8 +378,8 @@ checks take precedence over a pleasant drawing.
 `design/focus-studio.css` owns only these reference values. Web and native implementation
 issues migrate their actual owners independently; Android dynamic colour remains supported.
 The current web table above records actual composed-contrast adjustments rather than
-pretending every reference hex can be used unchanged. The native fallback table still
-records its separate implementation.
+pretending every reference hex can be used unchanged. The native fallback table records
+the same roles with explicit Compose composites and dynamic-colour differences.
 
 | Role | Light | Dark | Intended use |
 |---|---|---|---|
@@ -323,8 +398,8 @@ records its separate implementation.
 Opaque-pair tests require body, secondary, primary, error and warning text to reach 4.5:1
 on every proposed surface, outline to reach 3:1, and on-primary text to reach 4.5:1.
 This is a baseline, not proof of blended component states or native dynamic palettes.
-The web foundation also uses computed/composited contrast probes; native migration needs its
-own component and dynamic-colour evidence.
+The web foundation also uses computed/composited contrast probes; the native foundation
+uses its own component, palette and device evidence described above and below.
 
 | Role | Reference value / rule |
 |---|---|
@@ -520,6 +595,59 @@ arguments. Its `ux-short-ime` artifacts are separate from the standard matrix. I
 is outside the composer height budget; short remaining panes scroll rather than collapsing
 the editor. Bitmap/control safe bounds exclude the real keyboard and manifests record its
 visibility/inset. This is emulator layout evidence, not physical-device input certification.
+
+The supplementary
+`requestedShortResultEvidenceKeepsTheFullDocumentAndActionsReachable` method adds
+`uxShortResultProbe=true`, `uxCapture=matrix`, `uxCaptureWindow=compact` and the same
+explicit SHA/source-state arguments. It records 12 real Result cases: actual 640dp-wide
+landscape at 320/400dp display heights, both themes and all three font scales. The parser's
+`compact` selector is not a claim that 640dp is a compact Material width class. Its
+`ux-short-result/manifest-compact.json` requires a nonzero document viewport, full export
+text accessible through scrolling and every original action reachable; device size,
+density and font settings are restored.
+
+The supplementary native foundation matrix selects
+`requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:connectedDebugAndroidTest `
+  '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxFoundationProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Its `ux-foundation` output has 36 base frames: compact/expanded, both themes, all three
+font scales and three explicitly identified palettes. `focus-studio` renders the real
+fallback through `IdeaForgeTheme(dynamicColor=false)`. `simulated-ocean` and
+`simulated-plum` are representative simulated Material schemes, **not actual wallpaper
+colours**. All are labelled isolated production-control compositions, not interviews or
+voice runs. Normal real-app captures still use the actual system dynamic scheme on
+Android 12+. The supplementary probe changes no wallpaper or permission.
+
+Native manifests distinguish raw/clipped paint bounds from raw/clipped native touch
+bounds. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
+the target assertion measures that native hit rectangle, while separate checks retain
+full painted labels and safe unclipped geometry. Root-theme evidence requires pixels
+matching the requested scheme's actual surface, including labelled fallback/simulations.
+Whole-image mean luma is diagnostic only: an inverse error notice can dominate it without
+changing the root theme. Negative swapped-theme/blank-render guards remain.
+Native root capture requires two consecutive requested-root samples within the existing
+30-second capture budget. Earlier unsettled display frames remain diagnostic PNGs and
+manifest attempts, not passes. The isolated fixture records its actual rendering context;
+the oracle remains the requested theme's factory background, never a self-reported
+rendered colour. Window PixelCopy is additional diagnostic evidence, not a substitute
+for the saved display pixels.
+
+The board checks actual controls, minimum targets and full painted labels through
+scrolling; base frames include disabled/busy/selected/destructive/error states and native
+menu/dialog launch controls, not additional open-popup screenshots. Selecting the method
+without its explicit opt-in fails. It uses the same clean-head/source-state rules and
+fail-closed recorder as the other matrices; absent or incomplete requested evidence is
+not a pass.
 
 `npm run test:docs` checks the local board inventory, links, primary actions, truthful
 recovery copy, absence of scripts/remote resources and opaque palette contrast. Open the

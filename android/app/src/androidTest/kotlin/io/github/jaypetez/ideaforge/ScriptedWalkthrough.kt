@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge
 
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasAnyAncestor
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.js.get
@@ -18,6 +20,7 @@ import io.github.jaypetez.ideaforge.core.js.toNumber
 import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ux.UxBounds
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
@@ -44,6 +47,16 @@ internal fun scriptedWalkthrough(
     fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
         .getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()
+    fun click(tag: String) {
+        val interaction = compose.onNodeWithTag(tag)
+        val node = interaction.fetchSemanticsNode()
+        val coordinates = node.layoutInfo.coordinates
+        val top = coordinates.localToWindow(Offset.Zero)
+        val raw = UxBounds(top.x, top.y, top.x + coordinates.size.width, top.y + coordinates.size.height)
+        val clipped = node.boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+        if (!clipped.contains(raw)) interaction.performScrollTo()
+        interaction.performClick()
+    }
 
     launch()
     compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), DEVICE_TIMEOUT)
@@ -57,17 +70,21 @@ internal fun scriptedWalkthrough(
         compose.onNodeWithTag("degraded").assertDoesNotExist()
         if (turn == 1) capture("seed")
         when {
-            truthy(step["skip"]) -> compose.onNodeWithTag("skip").performClick()
+            truthy(step["skip"]) -> click("skip")
             step["chip"] != null -> {
-                compose.onNodeWithTag("chip-${toNumber(step["chip"]).toInt()}").performClick()
+                val chipTag = "chip-${toNumber(step["chip"]).toInt()}"
+                val chipText = text(chipTag)
+                click(chipTag)
                 settleInput()
+                assertEquals("turn $turn chip was actually tapped and filled the real draft", chipText,
+                    compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
                 capture("chip")
-                compose.onNodeWithTag("send").performClick()
+                click("send")
             }
             else -> {
                 compose.onNodeWithTag("answer").performTextInput(stringOf(step["text"])!!)
                 settleInput()
-                compose.onNodeWithTag("send").performClick()
+                click("send")
             }
         }
         turn++
@@ -77,7 +94,7 @@ internal fun scriptedWalkthrough(
         if (exists("wrap-offer")) break
     }
     assertTrue("the run reached past the first few turns ($turn)", turn > 4)
-    compose.onNodeWithTag(if (exists("wrap-offer")) "wrap-accept" else "write-up").performClick()
+    click(if (exists("wrap-offer")) "wrap-accept" else "write-up")
 
     compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.SCREEN), DEVICE_TIMEOUT)
     compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), DEVICE_TIMEOUT)

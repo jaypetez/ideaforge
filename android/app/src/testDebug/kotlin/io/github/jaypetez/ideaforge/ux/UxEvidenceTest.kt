@@ -143,6 +143,15 @@ class UxEvidenceTest {
     }
 
     @Test
+    fun nativeComfortTargetsRejectTheOldFortyDpButtonAndASmallVoiceAction() {
+        UxEvidence.requireTarget("Send", 48f, 48f)
+        UxEvidence.requireTarget("Pause", 96f, 64f, minHeightDp = 64f)
+        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTarget("Send", 64f, 40f) }
+        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTarget("Voice start", 96f, 48f, minHeightDp = 64f) }
+        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTarget("narrow", 40f, 64f) }
+    }
+
+    @Test
     fun blackAtdAndBlankWhiteScreensFailEvenIfSystemBarsRender() {
         val bitmap = Bitmap.createBitmap(390, 844, Bitmap.Config.ARGB_8888)
         for (colour in listOf(Color.BLACK, Color.WHITE)) {
@@ -163,10 +172,69 @@ class UxEvidenceTest {
 
     @Test
     fun aThemePreferenceAloneIsNotEvidenceThatThePixelsChanged() {
-        UxEvidence.requireTheme("dark", UxPixels(20, 30.0, 0x101010))
-        UxEvidence.requireTheme("light", UxPixels(20, 220.0, 0xF0F0F0))
-        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("dark", UxPixels(20, 220.0, 0xF0F0F0)) }
-        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("light", UxPixels(20, 30.0, 0x101010)) }
+        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("dark", UxPixels(20, 30.0, 0x101010)) }
+        assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("light", UxPixels(20, 220.0, 0xF0F0F0)) }
+    }
+
+    @Test
+    fun actualRootPixelsProveTheThemeDespiteALargeInverseSnackbarAndRejectASwappedTheme() {
+        val light = Color.rgb(245, 247, 250)
+        val dark = Color.rgb(17, 22, 27)
+        val bitmap = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888)
+        val area = UxBounds(0f, 0f, 200f, 100f)
+        try {
+            for ((theme, root) in listOf("light" to light, "dark" to dark)) {
+                val inverse = if (theme == "light") Color.rgb(27, 34, 42) else Color.rgb(222, 230, 238)
+                val wrongRoot = if (theme == "light") dark else light
+                bitmap.eraseColor(root)
+                for (y in 20 until 100) for (x in 0 until 200) bitmap.setPixel(x, y, inverse)
+                for (i in 0 until 16) bitmap.setPixel(i, 0, Color.rgb(i * 16, 80, 140))
+                val pixels = UxEvidence.requireRendered(bitmap, area, root)
+                assertTrue("the inverse message reverses the old brightness proxy",
+                    if (theme == "light") pixels.meanLuma < 130 else pixels.meanLuma > 130)
+                UxEvidence.requireTheme(theme, pixels)
+                val swapped = UxEvidence.requireRendered(bitmap, area, wrongRoot)
+                assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme(if (theme == "light") "dark" else "light", swapped) }
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun anUnsettledWindowFrameIsDiagnosticUntilTwoConsecutiveRequestedRootSamplesMatch() {
+        var clock = 0L
+        val requested = 0x121316
+        val frames = listOf(
+            UxPixels(20, 40.0, 0x16171A, rootSurfaceRgb = requested, rootSurfaceMatches = 0, sampledPixels = 20_000),
+            UxPixels(20, 30.0, requested, rootSurfaceRgb = requested, rootSurfaceMatches = 4_000, sampledPixels = 20_000),
+            UxPixels(20, 30.0, requested, rootSurfaceRgb = requested, rootSurfaceMatches = 4_000, sampledPixels = 20_000),
+        )
+        val attempts = mutableListOf<UxPixels>()
+        val result = UxEvidence.requireStableTheme("dark", 100L, { clock }) {
+            clock += 10
+            frames[attempts.size].also(attempts::add)
+        }
+        assertEquals("the first mismatching frame remains an attempt, not a false failure/pass", frames, attempts)
+        assertSame(frames.last(), result)
+    }
+
+    @Test
+    fun oneCorrectFrameCannotBlessALaterWrongThemeAndAStableSwappedThemeTimesOut() {
+        for (briefMatch in listOf(false, true)) {
+            var clock = 0L
+            var attempts = 0
+            val requested = 0x121316
+            assertThrows(IllegalStateException::class.java) {
+                UxEvidence.requireStableTheme("dark", 40L, { clock }) {
+                    clock += 10
+                    attempts++
+                    UxPixels(20, 220.0, 0xFAF9FD, rootSurfaceRgb = requested,
+                        rootSurfaceMatches = if (briefMatch && attempts == 1) 4_000 else 0, sampledPixels = 20_000)
+                }
+            }
+            assertEquals("wrong-theme failure uses only the bounded existing budget", 4, attempts)
+        }
     }
 
     @Test

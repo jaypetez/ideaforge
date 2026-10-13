@@ -11,6 +11,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -89,6 +91,162 @@ class UxCaptureDeviceTest {
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
+
+    @Test
+    fun requestedShortResultEvidenceKeepsTheFullDocumentAndActionsReachable() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val optIn = bundle.getString("uxShortResultProbe")
+        if (optIn == null) {
+            require(bundle.getString("class")?.contains("#requestedShortResultEvidenceKeepsTheFullDocumentAndActionsReachable") != true) {
+                "the selected short Result capture requires uxShortResultProbe=true and capture provenance"
+            }
+            return
+        }
+        require(optIn == "true") { "uxShortResultProbe must be true when requested" }
+        val args = bundle.keySet().associateWith { bundle.get(it).toString() }
+        val request = requireNotNull(UxCaptureRequest.from(args)) { "short Result evidence requires explicit capture provenance" }
+        require(request.mode == "matrix" && request.states == null && request.window in setOf("all", "compact")) {
+            "short Result evidence requires its complete fixed landscape matrix, without state selectors"
+        }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val state = fixtures.state("result-long")
+        val matrix = listOf(320, 400).flatMap { height ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration("compact-landscape-h$height", theme, it,
+                    requestedWidthDp = 640, requestedHeightDp = height) }
+            }
+        }
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux-short-result"),
+            matrix.map { "${it.id}/${state.id}" }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure("compact-landscape", config.fontScale, resize = true,
+                        heightPx = requireNotNull(config.requestedHeightDp) * 3 / 2)
+                    try {
+                        prepare(state, config)
+                        navigate(state)
+                        val viewport = compose.onNodeWithTag(ResultTags.CONTENT).fetchSemanticsNode().boundsInWindow
+                        assertTrue("the actual Result document viewport is nonzero", viewport.height > 0f)
+                        val output = compose.onNodeWithTag(ResultTags.OUTPUT).fetchSemanticsNode()
+                        fun textNodes(node: androidx.compose.ui.semantics.SemanticsNode): List<androidx.compose.ui.semantics.SemanticsNode> =
+                            listOf(node).filter { it.config.contains(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) } +
+                                node.children.flatMap(::textNodes)
+                        val texts = textNodes(output)
+                        assertTrue("the full long export is present", texts.size > 10)
+                        for (text in texts) {
+                            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                            compose.runOnUiThread {
+                                text.config.getOrNull(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+                            }
+                            for (layout in layouts) {
+                                val lines = (0 until layout.lineCount).toList()
+                                UxEvidence.requireLabel("Result document",
+                                    lines.maxOfOrNull { layout.getLineRight(it) - layout.getLineLeft(it) } ?: 0f,
+                                    lines.maxOfOrNull(layout::getLineBottom) ?: 0f, layout.size.width, layout.size.height,
+                                    layout.multiParagraph.didExceedMaxLines || lines.any(layout::isLineEllipsized))
+                            }
+                        }
+                        for (text in listOf(texts.first(), texts.last())) {
+                            compose.onNode(SemanticsMatcher("document ${text.id}") { it.id == text.id }).performScrollTo().assertIsDisplayed()
+                        }
+                        recorder.capture(state, config, checkNotNull(activity), resultControls(),
+                            nativeMapping = "Real MainActivity Result at 640dp display width and ${config.requestedHeightDp}dp display height; height-constrained landscape, not the expanded-width fixture.",
+                            documentViewport = UxBounds(viewport.left, viewport.top, viewport.right, viewport.bottom))
+                    } catch (error: Throwable) {
+                        recorder.failed(state, config, error, activity)
+                    } finally {
+                        closeFixture()
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() },
+                { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    @Test
+    fun requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val optIn = bundle.getString("uxFoundationProbe")
+        if (optIn == null) {
+            require(bundle.getString("class")?.contains("#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper") != true) {
+                "the selected foundation capture method requires uxFoundationProbe=true and explicit capture provenance"
+            }
+            return
+        }
+        require(optIn == "true") { "uxFoundationProbe must be true when requested" }
+        val args = bundle.keySet().associateWith { bundle.get(it).toString() }
+        val request = requireNotNull(UxCaptureRequest.from(args)) { "foundation evidence requires explicit capture provenance" }
+        require(request.mode == "matrix" && request.states == null) { "foundation evidence has its own complete component matrix; no state selectors" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }) {
+            "requested foundation evidence needs Gradle's additionalTestOutputDir"
+        }
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).flatMap { scale ->
+                    UxFoundationPalette.entries.map { UxConfiguration(window, theme, scale, it.id) }
+                }
+            }
+        }
+        fun state(config: UxConfiguration) = UxState("foundation-${config.palette}", "shared-controls", "isolated-component", null, null, null)
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux-foundation"),
+            matrix.map { "${it.id}/${state(it).id}" }.toSet())
+        var primaryError: Throwable? = null
+        try {
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    val current = state(config)
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        val intent = Intent(target, UxFixtureActivity::class.java)
+                            .putExtra("theme", config.theme).putExtra("foundationPalette", config.palette)
+                        val launched = ActivityScenario.launch<UxFixtureActivity>(intent)
+                        scenario = launched
+                        launched.onActivity { activity = it }
+                        await("ux-isolated-label")
+                        assertTrue(nodeText("ux-isolated-label").contains(requireNotNull(config.palette)))
+                        val palette = UxFoundationPalette.from(requireNotNull(config.palette))
+                        assertTrue("synthetic provenance must be visible",
+                            nodeText("ux-foundation-provenance").contains(if (palette == UxFoundationPalette.FocusStudio) "dynamicColor=false" else "not actual wallpaper"))
+                        val controls = listOf("primary", "tonal", "outlined", "quiet", "field", "field-error", "suggestion",
+                            "selected", "disabled", "busy", "destructive", "menu", "dialog", "voice-pause", "voice-exit").map { tag("foundation-$it") } +
+                            listOf("warning", "error").map { UxControl("foundation-$it", hasTestTag("foundation-$it"), actionRequired = false) }
+                        recorder.capture(current, config, checkNotNull(activity), controls,
+                            nativeMapping = if (palette == UxFoundationPalette.FocusStudio)
+                                "Production shared controls composed through IdeaForgeTheme(dynamicColor=false). This component fixture invokes no app/provider/voice effects."
+                            else "Production shared controls on an explicitly simulated Material scheme, not actual wallpaper colours. This component fixture invokes no app/provider/voice effects.")
+                    } catch (error: Throwable) {
+                        recorder.failed(current, config, error, activity)
+                    } finally {
+                        closeFixture()
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf({ closeFixture() })) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
 
     @Test
     fun requestedShortImeEvidenceKeepsTheEditorAndActionsUsableAboveAnOpenKeyboard() {
@@ -353,8 +511,9 @@ class UxCaptureDeviceTest {
                 if (state.id == "bank") compose.onNodeWithTag("degraded").assertExists()
                 else assertEquals(fixtures.text("question"), nodeText("question"))
                 return interviewControls() + if (state.id == "interview-long") {
-                    (fixtures.text.getValue("chips") as kotlinx.serialization.json.JsonArray).indices.map { tag("chip-$it") }
-                } else emptyList()
+                    (fixtures.text.getValue("chips") as kotlinx.serialization.json.JsonArray).indices.map { tag("chip-$it") } +
+                        UxControl("turn-status", hasTestTag("turn-status"), actionRequired = false)
+                } else listOf(UxControl("turn-status", hasTestTag("turn-status"), actionRequired = false))
             }
             "result-long" -> {
                 selectSession(requireNotNull(state.sessionId))

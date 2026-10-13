@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.ui.theme
 
+import android.app.Application
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -21,7 +22,7 @@ import org.robolectric.annotation.Config
  * renders light here.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [35], application = Application::class)
 class PrefsThemeTest {
     @get:Rule
     val compose = createComposeRule()
@@ -30,16 +31,22 @@ class PrefsThemeTest {
     fun theStoredThemeDecidesTheSchemeAndFollowsChanges() {
         val prefs = MutableStateFlow(Prefs(theme = Prefs.THEME_LIGHT))
         var background: Color? = null
+        var warning: Color? = null
         val reported = mutableListOf<Boolean>()
         compose.setContent {
-            PrefsTheme(prefs, onDark = { reported += it }) { background = MaterialTheme.colorScheme.background }
+            PrefsTheme(prefs, onDark = { reported += it }) {
+                background = MaterialTheme.colorScheme.background
+                warning = MaterialTheme.statusColors.warning
+            }
         }
         compose.waitForIdle()
         assertTrue("light renders a light background", background!!.luminance() > 0.5f)
+        assertTrue("status text is readable on the actual dynamic light surface", contrastRatio(warning!!, background!!) >= 4.5f)
 
         prefs.value = Prefs(theme = Prefs.THEME_DARK)
         compose.waitForIdle()
         assertTrue("dark renders a dark background", background!!.luminance() < 0.5f)
+        assertTrue("status text follows the rendered dark surface, not the light system", contrastRatio(warning!!, background!!) >= 4.5f)
 
         prefs.value = Prefs(theme = Prefs.THEME_SYSTEM)
         compose.waitForIdle()

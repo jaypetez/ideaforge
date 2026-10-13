@@ -24,7 +24,7 @@ const boards = (html) => [...html.matchAll(/<article class="reference-board"([^>
     content: match[2],
   }));
 
-test('reference boards remain distinct from the delivered web foundation and pending screen work', () => {
+test('reference boards remain distinct from the delivered foundations and pending screen work', () => {
   assert.ok(existsSync(HTML), 'missing static Focus Studio reference boards');
   assert.ok(existsSync(CSS), 'missing local reference stylesheet');
   const design = read(join(ROOT, 'docs', 'DESIGN.md'));
@@ -32,13 +32,13 @@ test('reference boards remain distinct from the delivered web foundation and pen
   assert.match(design.replace(/\s+/g, ' '), /not (?:yet )?implemented/i);
   assert.match(design, /\(design\/focus-studio\.html/);
   assert.match(design, /Current shipped tokens/);
-  assert.match(design, /Current native fallback \(not yet migrated\)/);
-  assert.match(design, /#f5f6f2/i);
+  assert.match(design, /Current native fallback/);
+  assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
-  assert.match(design, /Only the web[\s\S]*foundation is implemented here/);
+  assert.match(design.replace(/\s+/g, ' '), /Only the web and native[\s\S]*foundations are implemented here/);
 });
 
-test('DESIGN records the owning web roles and the still-separate native fallback exactly', () => {
+test('DESIGN records owning web and native fallback roles and their composites exactly', () => {
   const design = read(join(ROOT, 'docs', 'DESIGN.md'));
   const web = design.slice(design.indexOf('## Colour roles'), design.indexOf('### Current native fallback'));
   const css = read(join(ROOT, 'src', 'ui', 'app.css'));
@@ -57,7 +57,7 @@ test('DESIGN records the owning web roles and the still-separate native fallback
     ['ground', 'surfaceContainerLow'], ['lowest', 'surfaceContainerLowest'],
     ['container', 'surfaceContainer'], ['high', 'surfaceContainerHigh'],
     ['onSurface', 'onSurface'], ['onSurfaceVariant', 'onSurfaceVariant'],
-    ['outline', 'outline'], ['outlineVariant', 'outlineVariant'],
+    ['outline', 'outline'],
     ['primary', 'primary'], ['onPrimary', 'onPrimary'], ['error', 'error'],
   ];
   for (const [name, role] of mappings) {
@@ -65,6 +65,52 @@ test('DESIGN records the owning web roles and the still-separate native fallback
     assert.equal(values.length, 2, `must read both native ${name} owners`);
     const row = nativeTable.split('\n').find((line) => line.startsWith(`| \`${role}\``));
     assert.ok(row && values.every((match) => row.includes(`#${match[1]}`)), `native ${role} table drift`);
+  }
+  for (const name of ['success', 'warning']) {
+    const values = ['Light', 'Dark'].map((theme) => {
+      const value = native.match(new RegExp(`val ${name}${theme} = Color\\(0xFF([\\dA-F]{6})\\)`))?.[1];
+      assert.ok(value, `must read native ${name}${theme}`);
+      return value;
+    });
+    const row = nativeTable.split('\n').find((line) => line.startsWith(`| \`ExtraColors.${name}\``));
+    assert.ok(row && values.every((value) => row.includes(`#${value}`)), `native ${name} table drift`);
+  }
+  assert.match(native, /val primaryContainer = primary\.copy\(alpha = 0\.10f\)\.compositeOver\(ground\)/);
+  assert.match(native, /val errorContainer = error\.copy\(alpha = 0\.12f\)\.compositeOver\(ground\)/);
+  const scheme = native.match(/return base\.copy\(([\s\S]*?)\n {4}\)/)?.[1];
+  assert.ok(scheme, 'must inspect the actual fallback ColorScheme mapping');
+  assert.match(scheme, /outlineVariant = onSurface\.copy\(alpha = 0\.16f\)\.compositeOver\(ground\)/);
+  assert.match(scheme, /surfaceTint = primary/);
+  assert.match(scheme, /onError = onPrimary/);
+  assert.match(scheme, /inverseSurface = if \(dark\) LightTokens\.high else DarkTokens\.high/);
+  assert.match(scheme, /inverseOnSurface = if \(dark\) LightTokens\.onSurface else DarkTokens\.onSurface/);
+  assert.match(scheme, /inversePrimary = if \(dark\) LightTokens\.primary else DarkTokens\.primary/);
+  assert.match(nativeTable, /\| `outlineVariant` \| ink at 16% over ground \| ink at 16% over ground \|/);
+  assert.match(nativeTable, /`primaryContainer` \(10%\), `errorContainer` \(12%\)/);
+  assert.match(nativeTable, /surfaceTint/);
+  assert.match(nativeTable, /Inverse roles/);
+});
+
+test('DESIGN records native content measures and all system-family typography roles', () => {
+  const design = read(join(ROOT, 'docs', 'DESIGN.md'));
+  const directory = join(ROOT, 'android', 'app', 'src', 'main', 'kotlin', 'io', 'github',
+    'jaypetez', 'ideaforge', 'ui', 'theme');
+  const roles = read(join(directory, 'Roles.kt'));
+  const widths = roles.match(/object IdeaForgeWidths \{([\s\S]*?)\n\}/)?.[1];
+  assert.ok(widths, 'native content-width owner is missing');
+  const values = [...widths.matchAll(/val (\w+) = (\d+)\.dp/g)];
+  assert.equal(values.length, 5, 'check every native content measure');
+  for (const [, name, value] of values) {
+    assert.ok(design.includes(`| \`${name}\` | ${value}dp |`), `native ${name} width drift`);
+  }
+  const native = read(join(directory, 'Theme.kt'));
+  const types = [...native.matchAll(/(\w+) = t\.\1\.role\(([\d.]+)f, ([\d.]+)f, FontWeight\.(\w+)\)/g)];
+  assert.equal(types.length, 15, 'all Material typography roles must be explicit');
+  assert.match(native, /private val AppFont = FontFamily\.Default/);
+  const typeTable = design.slice(design.indexOf('All 15 native'), design.indexOf('## Spacing and shape'));
+  for (const [, name, size, line] of types) {
+    const row = typeTable.split('\n').find((text) => text.startsWith('|') && text.includes(`\`${name}\``));
+    assert.ok(row && row.includes(`${size}sp / ${line}`), `native ${name} typography drift`);
   }
 });
 

@@ -9,6 +9,10 @@
     <string name="screen_settings">Settings</string>
     <string name="action_how_it_works">How it works</string>
     <string name="pref_hands_free">Hands-free</string>
+    <string name="control_busy">Working</string>
+    <string name="notice_dismiss">Dismiss</string>
+    <string name="status_warning_message">Warning: %1$s</string>
+    <string name="status_error_message">Error: %1$s</string>
     <!-- Settings. Wording follows index.html and src/ui/app.js where the web has it. -->
     <string name="settings_connection">Connection</string>
     <string name="settings_active">Answering now: %1$s</string>

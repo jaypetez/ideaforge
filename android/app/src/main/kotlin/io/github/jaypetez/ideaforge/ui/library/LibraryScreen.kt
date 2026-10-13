@@ -1,11 +1,12 @@
 package io.github.jaypetez.ideaforge.ui.library
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,24 +20,19 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
@@ -65,6 +61,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.BuildConfig
@@ -72,6 +70,14 @@ import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.core.buildExport
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeFilterChip as FilterChip
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSnackbarHost as SnackbarHost
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.controls
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -251,11 +257,12 @@ private fun LibraryList(
     LazyColumn(
         Modifier.fillMaxSize(),
         // Clear of the FAB, so the last card's menu stays reachable.
-        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = IdeaForgeSpacing.content, top = IdeaForgeSpacing.content, end = IdeaForgeSpacing.content,
+            bottom = IdeaForgeSpacing.control * 2),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Text(stringResource(R.string.library_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.library_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -265,7 +272,7 @@ private fun LibraryList(
             item {
                 Column(
                     Modifier.testTag(LibraryTags.UNAVAILABLE).semantics { liveRegion = LiveRegionMode.Polite },
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
                 ) {
                     Text(stringResource(R.string.library_unavailable), color = MaterialTheme.colorScheme.error)
                     Text(stringResource(R.string.library_unavailable_body))
@@ -279,7 +286,7 @@ private fun LibraryList(
             item { Text(stringResource(R.string.library_loading)) }
         } else if (state.noIdeasYet) {
             item {
-                Column(Modifier.testTag(LibraryTags.ZERO), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.testTag(LibraryTags.ZERO), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                     Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyLarge)
                     Text(stringResource(R.string.library_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = onboarding) { Text(stringResource(R.string.action_how_it_works)) }
@@ -309,7 +316,7 @@ private fun LibraryList(
 @Composable
 private fun Filters(state: LibraryState, vm: LibraryViewModel) {
     val keyboard = LocalSoftwareKeyboardController.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         OutlinedTextField(
             value = state.filters.query,
             onValueChange = vm::setQuery,
@@ -323,7 +330,7 @@ private fun Filters(state: LibraryState, vm: LibraryViewModel) {
         if (state.tags.isNotEmpty()) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
             ) {
                 for (tag in state.tags) {
                     FilterChip(
@@ -350,7 +357,7 @@ private fun Filters(state: LibraryState, vm: LibraryViewModel) {
             Switch(
                 checked = state.filters.showArchived,
                 onCheckedChange = vm::setShowArchived,
-                modifier = Modifier.padding(start = 8.dp).testTag(LibraryTags.ARCHIVED).semantics { contentDescription = archivedLabel },
+                modifier = Modifier.padding(start = IdeaForgeSpacing.tight).testTag(LibraryTags.ARCHIVED).semantics { contentDescription = archivedLabel },
             )
         }
     }
@@ -370,21 +377,23 @@ private fun metaLine(item: LibraryItem): String {
 @Composable
 private fun IdeaCard(item: LibraryItem, selected: Boolean, actions: IdeaActions) {
     Card(
-        Modifier
+        onClick = { actions.select(item.id) },
+        modifier = Modifier
             .fillMaxWidth()
             .testTag(LibraryTags.CARD)
-            .clickable(role = Role.Button) { actions.select(item.id) },
+            .semantics { role = Role.Button; this.selected = selected },
         colors = CardDefaults.cardColors(
             containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.controls.focus else MaterialTheme.controls.edge),
     ) {
-        Column(Modifier.padding(start = 16.dp, top = 8.dp, end = 4.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(start = IdeaForgeSpacing.content, top = IdeaForgeSpacing.tight, end = IdeaForgeSpacing.micro, bottom = IdeaForgeSpacing.content),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(item.title, Modifier.weight(1f).padding(top = 8.dp), style = MaterialTheme.typography.titleMedium)
+                Text(item.title, Modifier.weight(1f).padding(top = IdeaForgeSpacing.tight), style = MaterialTheme.typography.titleMedium)
                 IdeaMenu(item, actions)
             }
-            Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(end = IdeaForgeSpacing.related), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Text(metaLine(item), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TagRow(item)
             }
@@ -399,14 +408,14 @@ private fun TagRow(item: LibraryItem) {
         addAll(item.tags)
     }
     if (labels.isEmpty()) return
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         for ((i, label) in labels.withIndex()) {
             val isStatus = i == 0 && item.status != "active"
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = IdeaForgeShape.status,
                 color = if (isStatus) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
             ) {
-                Text(label, Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelMedium)
+                Text(label, Modifier.padding(horizontal = IdeaForgeSpacing.tight, vertical = IdeaForgeSpacing.micro), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -451,8 +460,8 @@ private fun IdeaDetail(
     editor: (@Composable () -> Unit)?,
 ) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         if (back != null) TextButton(onClick = back) { Text(stringResource(R.string.idea_all)) }
         if (item == null) {
@@ -474,7 +483,7 @@ private fun IdeaDetail(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                ExportPreview(markdown, Modifier.padding(16.dp))
+                ExportPreview(markdown, Modifier.padding(IdeaForgeSpacing.content))
             }
         } else {
             Text(stringResource(R.string.idea_no_preview), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -482,6 +491,7 @@ private fun IdeaDetail(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditForm(item: LibraryItem, dismiss: () -> Unit, save: (String, String) -> Unit) {
     var name by rememberSaveable(item.id) { mutableStateOf(item.name) }
@@ -490,7 +500,7 @@ private fun EditForm(item: LibraryItem, dismiss: () -> Unit, save: (String, Stri
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Text(stringResource(R.string.idea_edit), style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = name,
@@ -508,7 +518,7 @@ private fun EditForm(item: LibraryItem, dismiss: () -> Unit, save: (String, Stri
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag(LibraryTags.TAGS),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(onClick = { save(name, tags) }) { Text(stringResource(R.string.idea_save_details)) }
                 TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) }
             }

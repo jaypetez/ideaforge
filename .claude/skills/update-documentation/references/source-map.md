@@ -23,9 +23,8 @@ source wins over prose, and a generated artifact wins over a description of that
   documentation and skills.
 - **Design contract and reference-only boards.** Sources:
   [`docs/DESIGN.md`](../../../../docs/DESIGN.md) distinguishes current shipped values
-  from the remaining Focus Studio screen/layout targets. #189 implements only the web
-  foundation; native fallback values remain at the earlier scheme until #190, and guide
-  CSS migration belongs to #205;
+  from the remaining Focus Studio screen/layout targets. #189 and #190 implement the web
+  and native foundations, not the full screen redesign; guide CSS migration belongs to #205;
   [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
   [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
   references, not app/README/native screenshots or a production route.
@@ -52,6 +51,25 @@ source wins over prose, and a generated artifact wins over a description of that
   current web table in DESIGN, Appearance guidance and generated real screenshots.
   HTML dialog styling does not mean the existing browser-owned `window.confirm` flows
   have been replaced; later settings/recovery issues own those compositions.
+- **Native visual foundation.** Sources:
+  [`Theme.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt)
+  owns fallback `LightTokens`/`DarkTokens`, opaque composites, all 15 system-family type
+  roles, real wallpaper dynamic schemes and `PrefsTheme`'s before-render gate.
+  [`Roles.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Roles.kt)
+  owns spacing, shapes, content measures and composed readable control/status ink;
+  [`Controls.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/components/Controls.kt)
+  consumes them through Material buttons, fields, chips and localized status.
+  [`NoticeHost.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/components/NoticeHost.kt)
+  bounds the scrollable full native Snackbar message without replacing its host state.
+  [`ResultScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/result/ResultScreen.kt)
+  owns the font-aware short-height inline-action fallback; normal-height docking and
+  export/action routines stay unchanged.
+  [`FoundationThemeTest.kt`](../../../../android/app/src/test/kotlin/io/github/jaypetez/ideaforge/ui/theme/FoundationThemeTest.kt),
+  [`FoundationControlsTest.kt`](../../../../android/app/src/test/kotlin/io/github/jaypetez/ideaforge/ui/components/FoundationControlsTest.kt)
+  and [`FoundationPaletteTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ux/FoundationPaletteTest.kt)
+  own rendered-role, composed-state, target and paint checks. Re-check DESIGN's native
+  table and explicit platform differences, guide Appearance wording and actual device
+  evidence. A fallback table does not describe every dynamic wallpaper scheme.
 - **Development UX fixtures and evidence.** Sources:
   [`tools/fixtures/ux.mjs`](../../../../tools/fixtures/ux.mjs) and generated
   [`test/fixtures/ux.json`](../../../../test/fixtures/ux.json) own the shared deterministic
@@ -83,6 +101,15 @@ source wins over prose, and a generated artifact wins over a description of that
   and lab-versus-field timing claims. Fixture code/data must stay out of the assembled site
   and release APK. ATD semantic tests are not visual/system-bar evidence: drawing/SystemUI
   are disabled there. Preserve the canonical README screenshot/example inventory.
+  [`UxFoundation.kt`](../../../../android/app/src/debug/kotlin/io/github/jaypetez/ideaforge/ux/UxFoundation.kt)
+  and the opt-in `uxFoundationProbe` method on `UxCaptureDeviceTest` own isolated production
+  controls at real fallback and two labelled simulated schemes. Re-check palette provenance,
+  minimum targets/full painted labels and complete expected matrices; simulated schemes
+  are never actual wallpaper evidence.
+  Re-check native `touchBoundsInRoot` versus paint bounds, requested root RGB pixel matches
+  versus mean brightness, and the separate opt-in 12-case short-Result matrix. Target and
+  theme claims require the actual measured requirement, not an undersized painted glyph
+  or an inverse notice's average luma.
 - **Public guide shell and navigation.** Sources:
   [`guide/index.html`](../../../../guide/index.html) and
   [`guide/assets/guide.css`](../../../../guide/assets/guide.css). Re-check every guide page.

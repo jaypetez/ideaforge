@@ -1,6 +1,7 @@
 package io.github.jaypetez.ideaforge.ux
 
 import android.graphics.Color
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,15 +34,36 @@ import io.github.jaypetez.ideaforge.voice.VoiceStageState
  * No recogniser, speaker, service, timers or level samples are constructed by this activity.
  */
 class UxFixtureActivity : ComponentActivity() {
+    @Volatile
+    var rootRenderingContext: Context? = null
+        private set
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val dark = intent.getStringExtra("theme") == "dark"
         val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        intent.getStringExtra("foundationPalette")?.let { id ->
+            val palette = UxFoundationPalette.from(id)
+            setContent {
+                val context = LocalContext.current
+                SideEffect { rootRenderingContext = context }
+                IdeaForgeTheme(dark = dark, dynamicColor = false) {
+                    MaterialTheme(colorScheme = palette.scheme(dark, MaterialTheme.colorScheme)) {
+                        Scaffold { padding ->
+                            Box(Modifier.fillMaxSize().padding(padding)) { UxFoundationContent(palette) }
+                        }
+                    }
+                }
+            }
+            return
+        }
         val fixtures = UxFixtures.load(this)
         val state = fixtures.state(requireNotNull(intent.getStringExtra("state")))
         require(state.evidence == "isolated-component") { "${state.id} is not an isolated component fixture" }
         setContent {
+            val context = LocalContext.current
+            SideEffect { rootRenderingContext = context }
             IdeaForgeTheme(dark = dark) {
                 Scaffold { padding ->
                     Column(Modifier.fillMaxSize().padding(padding)) {

@@ -4,16 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +46,10 @@ import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.providers.STT_PRESETS
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.SpeakStatus
 import io.github.jaypetez.ideaforge.voice.SpeechBackend
@@ -396,7 +398,7 @@ fun HostedSpeechSection(vm: HostedSpeechViewModel = viewModel(factory = HostedSp
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth().testTag(HostedSpeechTags.KEY),
         )
-        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content)) {
             Choice(stringResource(R.string.speech_voice_marin), s.voice == "marin", HostedSpeechTags.VOICE_MARIN) { vm.setVoice("marin") }
             Choice(stringResource(R.string.speech_voice_cedar), s.voice == "cedar", HostedSpeechTags.VOICE_CEDAR) { vm.setVoice("cedar") }
         }
@@ -451,21 +453,21 @@ fun HostedSpeechSection(vm: HostedSpeechViewModel = viewModel(factory = HostedSp
 @Composable
 private fun Choice(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().selectable(selected, onClick = onClick, role = Role.RadioButton).testTag(tag),
+        Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control).selectable(selected, onClick = onClick, role = Role.RadioButton).testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
-        Text(label, Modifier.padding(start = 8.dp))
+        Text(label, Modifier.padding(start = IdeaForgeSpacing.tight))
     }
 }
 
 @Composable
 private fun Consent(label: String, checked: Boolean, tag: String, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().toggleable(checked, onValueChange = onChange, role = Role.Checkbox).testTag(tag),
+        Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control).toggleable(checked, onValueChange = onChange, role = Role.Checkbox).testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = checked, onCheckedChange = null)
-        Text(label, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(label, Modifier.padding(start = IdeaForgeSpacing.tight), style = MaterialTheme.typography.bodyMedium)
     }
 }

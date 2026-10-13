@@ -52,7 +52,7 @@ class ScriptedProviderIsDebugOnlyTest {
                 assertFalse("$where names the walkthrough script", text.contains(ScriptedProvider.ASSET))
                 assertFalse("$where names the UX data", text.contains(UxFixtures.ASSET))
                 assertFalse("$where names a UX fixture/capture hook", text.contains("ideaforge.ux") ||
-                    listOf("UxFixtures", "UxFixtureActivity", "UxEvidence", "UxCaptureRequest").any { it in text })
+                    listOf("UxFixtures", "UxFixtureActivity", "UxEvidence", "UxCaptureRequest", "UxFoundationPalette", "UxFoundationContent").any { it in text })
             }
         }
         // The release DebugProviders answers null for every launch name.
