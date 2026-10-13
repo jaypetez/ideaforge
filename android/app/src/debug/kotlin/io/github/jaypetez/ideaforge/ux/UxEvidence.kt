@@ -5,7 +5,9 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** A requested run is fail-closed; ordinary instrumented walkthroughs need no capture args. */
-data class UxCaptureRequest(val sha: String, val window: String, val states: List<String>?, val mode: String = "matrix") {
+data class UxCaptureRequest(
+    val sha: String, val window: String, val states: List<String>?, val mode: String = "matrix", val sourceState: String = "clean",
+) {
     companion object {
         fun from(args: Map<String, String>): UxCaptureRequest? {
             val captureArgs = args.keys.filter { it.startsWith("uxCapture") }
@@ -24,10 +26,12 @@ data class UxCaptureRequest(val sha: String, val window: String, val states: Lis
                 }
             }
             require(mode != "walkthrough" || states == null) { "walkthrough captures do not accept uxCaptureStates" }
-            require(captureArgs.all { it in setOf("uxCapture", "uxCaptureSha", "uxCaptureWindow", "uxCaptureStates") }) {
+            val sourceState = args["uxCaptureSourceState"] ?: "clean"
+            require(sourceState in setOf("clean", "development-dirty")) { "invalid uxCaptureSourceState: $sourceState" }
+            require(captureArgs.all { it in setOf("uxCapture", "uxCaptureSha", "uxCaptureWindow", "uxCaptureStates", "uxCaptureSourceState") }) {
                 "unknown UX capture arguments: $captureArgs"
             }
-            return UxCaptureRequest(sha.lowercase(), window, states, checkNotNull(mode))
+            return UxCaptureRequest(sha.lowercase(), window, states, checkNotNull(mode), sourceState)
         }
     }
 }

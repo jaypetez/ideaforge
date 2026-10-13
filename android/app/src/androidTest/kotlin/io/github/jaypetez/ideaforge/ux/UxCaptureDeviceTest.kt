@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.SystemClock
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -60,6 +61,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.IOException
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -87,6 +89,68 @@ class UxCaptureDeviceTest {
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
+
+    @Test
+    fun requestedShortImeEvidenceKeepsTheEditorAndActionsUsableAboveAnOpenKeyboard() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val optIn = bundle.getString("uxShortImeProbe") ?: return
+        require(optIn == "true") { "uxShortImeProbe must be true when requested" }
+        val args = bundle.keySet().associateWith { bundle.get(it).toString() }
+        val request = requireNotNull(UxCaptureRequest.from(args)) { "short IME evidence requires explicit capture provenance" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val state = fixtures.state("interview-long")
+        val matrix = listOf(900, 700).flatMap { height ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration("expanded-ime-h$height", theme, it) to height }
+            }
+        }
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux-short-ime"),
+            matrix.map { "${it.first.id}/${state.id}" }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for ((config, height) in matrix) {
+                    environment.configure("expanded", config.fontScale, resize = true, heightPx = height)
+                    try {
+                        prepare(state, config)
+                        navigate(state)
+                        revealControl("answer")
+                        compose.onNodeWithTag("answer").performClick()
+                        compose.waitUntil(DEVICE_TIMEOUT) { activity?.window?.decorView?.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true }
+                        revealControl("answer")
+                        val typed = "An editable answer while the landscape keyboard stays open"
+                        compose.onNodeWithTag("answer").performTextReplacement(typed)
+                        assertEquals(typed, compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                            .getOrNull(SemanticsProperties.EditableText)?.text)
+                        assertTrue("the editor retains real height", compose.onNodeWithTag("answer").fetchSemanticsNode().boundsInWindow.height > 0f)
+                        assertTrue("the actual keyboard remains open", activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime()))
+                        recorder.capture(state, config, checkNotNull(activity), interviewControls(),
+                            nativeMapping = "Real MainActivity long interview in a short landscape window with the actual IME open.")
+                        assertTrue("reachability scrolling must not close the keyboard", activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime()))
+                    } catch (error: Throwable) {
+                        recorder.failed(state, config, error, activity)
+                    } finally {
+                        closeFixture()
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() },
+                { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
 
     @Test
     fun requestedUxEvidenceIsRenderedCompleteAndReachable() {
@@ -129,9 +193,6 @@ class UxCaptureDeviceTest {
                                 nativeMapping = nativeMapping(state),
                                 labNavigationMs = if (state.id == "library-100") elapsed else null,
                             )
-                            if (state.id == "unavailable") {
-                                error("Native SessionStore has no storage-read-unavailable presentation; this is the observed empty library, not an unavailable-status pass")
-                            }
                         } catch (e: Throwable) {
                             recorder.failed(state, config, e, activity)
                         } finally {
@@ -142,10 +203,10 @@ class UxCaptureDeviceTest {
                         val state = UxState("walkthrough", "interview", "real-app", null, null, null)
                         try {
                             prepare(state, config)
-                            scriptedWalkthrough(compose, target, launch = ::launchMain) { frame ->
+                            scriptedWalkthrough(compose, target, launch = ::launchMain, capture = { frame ->
                                 val captured = state.copy(id = "walkthrough-$frame", surface = if (frame == "result") "result" else "interview")
                                 recorder.capture(captured, config, checkNotNull(activity), if (frame == "result") resultControls() else interviewControls())
-                            }
+                            }, settleInput = ::hideKeyboard)
                         } catch (e: Throwable) {
                             recorder.failedRun(e)
                             val keys = walkthrough.map { "${config.id}/walkthrough-$it" }.toSet()
@@ -191,12 +252,18 @@ class UxCaptureDeviceTest {
             ))))
         }
         graph.keyringStore.load()
-        if (state.id == "unavailable" || state.id == "save-failure") {
-            // The files are ours. A non-directory sessions path makes reads unavailable and
-            // a real atomic save throw, without touching any production store implementation.
+        if (state.id == "unavailable") {
+            File(context.filesDir, "sessions").writeText("owned UX storage fault")
+            val load = runCatching { graph.sessionStore.load() }
+            assertTrue("the real store rejects unavailable storage", load.exceptionOrNull() is IOException)
+            assertTrue("the real store reports the failed read", graph.sessionStore.loadState.value.problem != null)
+        } else {
+            graph.sessionStore.load()
+        }
+        if (state.id == "save-failure") {
+            // Read a fresh library successfully, then make the actual atomic write fail.
             File(context.filesDir, "sessions").writeText("owned UX storage fault")
         }
-        graph.sessionStore.load()
         for (session in fixtures.sessions(state)) check(graph.sessionStore.insert(session))
         if (state.phase == "complete") {
             for (session in fixtures.datasets.getValue("long")) check(graph.sessionStore.insert(session))
@@ -236,9 +303,16 @@ class UxCaptureDeviceTest {
         }
         await(BOTTOM_BAR)
         when (state.id) {
-            "ready", "empty", "unavailable" -> {
+            "ready", "empty" -> {
                 await(LibraryTags.ZERO)
                 return listOf(tag(LibraryTags.NEW)) + navigationControls()
+            }
+            "unavailable" -> {
+                await(LibraryTags.UNAVAILABLE)
+                compose.onNodeWithTag(LibraryTags.ZERO).assertDoesNotExist()
+                compose.onNodeWithTag(LibraryTags.EMPTY).assertDoesNotExist()
+                compose.onNode(hasText(target.getString(R.string.library_unavailable))).assertExists()
+                return listOf(tag(LibraryTags.RETRY), tag(LibraryTags.NEW)) + navigationControls()
             }
             "library", "library-100" -> {
                 await(LibraryTags.SEARCH)
@@ -383,6 +457,21 @@ class UxCaptureDeviceTest {
             current.currentFocus?.clearFocus()
         }
         compose.waitUntil(DEVICE_TIMEOUT) { activity?.window?.decorView?.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) != true }
+        compose.waitForIdle()
+        instrumentation.uiAutomation.waitForIdle(300, DEVICE_TIMEOUT)
+    }
+
+    private fun revealControl(tag: String) {
+        val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
+        val coordinates = node.layoutInfo.coordinates
+        val top = coordinates.localToWindow(Offset.Zero)
+        val raw = UxBounds(top.x, top.y, top.x + coordinates.size.width, top.y + coordinates.size.height)
+        val view = checkNotNull(activity).window.decorView
+        val insets = view.rootWindowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
+        val safe = UxBounds(insets.left.toFloat(), insets.top.toFloat(),
+            (view.width - insets.right).toFloat(), (view.height - insets.bottom).toFloat())
+        val clipped = node.boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+        if (!safe.intersect(clipped).contains(raw)) compose.onNodeWithTag(tag).performScrollTo()
     }
 
     private fun closeFixture() {
@@ -410,7 +499,6 @@ class UxCaptureDeviceTest {
         "fresh" -> "Native first run is provider onboarding, not the web Start screen."
         "ready" -> "Native with a ready provider starts at Ideas; it has no separate Start screen."
         "writing" -> "Native write-up stays in the interview with a Writing busy line until it settles."
-        "unavailable" -> "Native currently presents an unreadable/non-directory session store as an empty library; no unavailable status exists."
         else -> null
     }
 }

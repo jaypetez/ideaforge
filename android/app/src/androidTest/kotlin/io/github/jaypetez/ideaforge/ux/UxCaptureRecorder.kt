@@ -12,8 +12,10 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
 import io.github.jaypetez.ideaforge.DEVICE_TIMEOUT
@@ -70,7 +72,7 @@ internal class UxCaptureRecorder(
         val display = activity.resources.displayMetrics
         val config = activity.resources.configuration
         val view = activity.window.decorView
-        val insets = view.rootWindowInsets?.getInsets(WindowInsets.Type.systemBars())
+        val insets = view.rootWindowInsets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
         val safe = UxBounds(
             (insets?.left ?: 0).toFloat(), (insets?.top ?: 0).toFloat(),
             (view.width - (insets?.right ?: 0)).toFloat(), (view.height - (insets?.bottom ?: 0)).toFloat(),
@@ -84,12 +86,26 @@ internal class UxCaptureRecorder(
             }
             pixels = saveImage(relative, safe)
             UxEvidence.requireTheme(configuration.theme, pixels)
+            var currentImage = relative
             for (control in controls) {
+                var revealedFromLazyList = false
+                if (compose.onAllNodes(control.matcher).fetchSemanticsNodes().isEmpty()) {
+                    // A lazy list disposes off-screen controls. Reveal the real item before
+                    // fetching its geometry; a missing item still fails the normal checks.
+                    val lists = compose.onAllNodes(hasScrollToIndexAction())
+                    for (index in lists.fetchSemanticsNodes().indices) {
+                        runCatching { lists[index].performScrollToNode(control.matcher) }
+                        if (compose.onAllNodes(control.matcher).fetchSemanticsNodes().isNotEmpty()) {
+                            revealedFromLazyList = true
+                            break
+                        }
+                    }
+                }
                 val node = compose.onNode(control.matcher)
                 var raw = rawBounds(node.fetchSemanticsNode())
                 var clipped = clippedBounds(node.fetchSemanticsNode())
-                var reachedByScroll = false
-                val controlPath = if (!safe.intersect(clipped).contains(raw)) {
+                var reachedByScroll = revealedFromLazyList
+                if (!safe.intersect(clipped).contains(raw)) {
                     // An offscreen action is valid when a real scroll can reveal it.
                     // Unscrollable clipped controls still fail after the attempt.
                     runCatching { node.performScrollTo() }
@@ -97,9 +113,14 @@ internal class UxCaptureRecorder(
                     reachedByScroll = true
                     raw = rawBounds(node.fetchSemanticsNode())
                     clipped = clippedBounds(node.fetchSemanticsNode())
+                }
+                val controlPath = if (reachedByScroll) {
                     "${configuration.id}/${state.evidence}/${state.id}-reach-${control.name}.png"
-                } else relative
-                if (reachedByScroll) saveImage(controlPath, safe)
+                } else currentImage
+                if (reachedByScroll) {
+                    saveImage(controlPath, safe)
+                    currentImage = controlPath
+                }
                 val semantics = node.fetchSemanticsNode()
                 val label = semanticLabel(semantics)
                 val actionable = semantics.config.contains(SemanticsActions.OnClick) ||
@@ -158,10 +179,13 @@ internal class UxCaptureRecorder(
             put("nativeSurface", nativeSurface)
             put("evidence", state.evidence)
             put("testedSha", request.sha)
+            put("sourceState", request.sourceState)
             put("theme", configuration.theme)
             put("colourSource", if (Build.VERSION.SDK_INT >= 31) "dynamic-wallpaper" else "fallback")
             put("fallback", Build.VERSION.SDK_INT < 31)
             put("fontScale", config.fontScale)
+            put("imeVisible", view.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true)
+            put("imeBottomPx", view.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0)
             put("requestedFontScale", configuration.fontScale)
             put("window", configuration.window)
             put("configurationSource", "instrumentation wm size/density and system font_scale overrides")
@@ -264,6 +288,7 @@ internal class UxCaptureRecorder(
             put("platform", "android-emulator-or-device")
             put("testedSha", request.sha)
             put("mode", request.mode)
+            put("sourceState", request.sourceState)
             put("status", status)
             put("expected", JsonArray(expected.sorted().map(::JsonPrimitive)))
             put("captures", JsonArray(records.values.toList()))

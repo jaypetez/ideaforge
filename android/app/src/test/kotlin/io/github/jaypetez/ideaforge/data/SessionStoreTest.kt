@@ -23,6 +23,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.FileFilter
+import java.io.IOException
+import java.nio.file.AccessDeniedException
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -34,6 +39,122 @@ class SessionStoreTest {
     private fun store() = SessionStore(dir(), io = Dispatchers.Unconfined)
 
     private fun session(id: String, now: Long) = createSession(id = id, now = num(now))
+
+    @Test
+    fun aMissingSessionsDirectoryIsFreshButAMissingParentIsUnavailable() = runBlocking {
+        val fresh = store()
+        assertEquals(0, fresh.load())
+        assertTrue(fresh.loadState.value.ready)
+        assertNull(fresh.loadState.value.problem)
+        assertTrue(!dir().exists())
+        val absentParent = SessionStore(File(tmp.root, "absent/sessions"), io = Dispatchers.Unconfined)
+        assertThrows(IOException::class.java) { runBlocking { absentParent.load() } }
+        assertTrue(!absentParent.loadState.value.ready)
+        assertTrue(absentParent.loadState.value.problem != null)
+    }
+
+    @Test
+    fun aNonDirectoryStoragePathIsReportedAndRetryNeverRemovesIt() = runBlocking {
+        dir().writeText("not an ideas directory")
+        val s = store()
+        assertThrows(IOException::class.java) { runBlocking { s.load() } }
+        assertTrue(!s.loadState.value.ready)
+        assertTrue(s.loadState.value.problem != null)
+        assertEquals("not an ideas directory", dir().readText())
+        assertThrows(IOException::class.java) { runBlocking { s.save(session("s_new_00000001", 1)) } }
+        assertEquals("not an ideas directory", dir().readText())
+        assertTrue(dir().delete())
+        assertEquals(0, s.load())
+        assertTrue(s.loadState.value.ready)
+        assertNull(s.loadState.value.problem)
+    }
+
+    @Test
+    fun aFailedDirectoryReadCannotPublishEmptySuccessOrClobberSkippedRows() = runBlocking {
+        dir().mkdirs()
+        val valid = session("s_ok_00000001", 1)
+        File(dir(), "s_ok_00000001.json").writeBytes(SessionStore.encode(valid))
+        val newer = File(dir(), "s_newer_00000002.json")
+        val newerBytes = SessionStore.encode(JsonObject(session("s_newer_00000002", 2) + ("schema" to JsonPrimitive(99))))
+        newer.writeBytes(newerBytes)
+        val corrupt = File(dir(), "s_corrupt_00000003.json").apply { writeText("{broken") }
+        var readable = false
+        val blocked = object : File(dir().path) {
+            override fun listFiles(filter: FileFilter?): Array<File>? = if (readable) super.listFiles(filter) else null
+        }
+        val s = SessionStore(blocked, io = Dispatchers.Unconfined)
+        assertThrows(IOException::class.java) { runBlocking { s.load() } }
+        assertThrows(IOException::class.java) { runBlocking { s.insert(session("s_newer_00000002", 9)) } }
+        assertTrue(newerBytes.contentEquals(newer.readBytes()))
+        assertEquals("{broken", corrupt.readText())
+        readable = true
+        assertEquals(1, s.load())
+        assertEquals(valid, s.get("s_ok_00000001"))
+        assertEquals(setOf("s_newer_00000002", "s_corrupt_00000003"), s.skippedIds)
+        assertThrows(IllegalStateException::class.java) { runBlocking { s.save(session("s_newer_00000002", 9)) } }
+        assertTrue(newerBytes.contentEquals(newer.readBytes()))
+        assertEquals("{broken", corrupt.readText())
+    }
+
+    @Test
+    fun aRowLostDuringReadCannotPublishAPartialSuccessfulLibrary() = runBlocking {
+        dir().mkdirs()
+        val valid = session("s_ok_00000001", 1)
+        File(dir(), "s_ok_00000001.json").writeBytes(SessionStore.encode(valid))
+        var readable = false
+        val racing = object : File(dir().path) {
+            override fun listFiles(filter: FileFilter?): Array<File>? {
+                val files = super.listFiles(filter) ?: return null
+                return if (readable) files else files + File(this, "z_disappeared_00000002.json")
+            }
+        }
+        val s = SessionStore(racing, io = Dispatchers.Unconfined)
+        assertThrows(IOException::class.java) { runBlocking { s.load() } }
+        assertTrue(s.sessions.value.isEmpty())
+        assertTrue(!s.loadState.value.ready)
+        assertTrue(s.loadState.value.problem != null)
+        readable = true
+        assertEquals(1, s.load())
+        assertEquals(valid, s.get("s_ok_00000001"))
+        assertTrue(s.loadState.value.ready)
+        assertNull(s.loadState.value.problem)
+    }
+
+    @Test
+    fun anEnumerableDirectoryWithDeniedChildAttributesRemainsUnavailableAndRetryable() = runBlocking {
+        dir().mkdirs()
+        val first = session("s_first_00000001", 1)
+        val second = session("z_denied_00000002", 2)
+        val firstFile = File(dir(), "s_first_00000001.json").apply { writeBytes(SessionStore.encode(first)) }
+        val denied = object : File(dir(), "z_denied_00000002.json") {
+            override fun isFile() = false
+        }
+        denied.writeBytes(SessionStore.encode(second))
+        val listed = object : File(dir().path) {
+            override fun listFiles(filter: FileFilter?) = arrayOf(firstFile, denied)
+                .filter { filter?.accept(it) != false }.toTypedArray()
+        }
+        var searchable = false
+        val inspected = mutableListOf<String>()
+        val s = SessionStore(listed, io = Dispatchers.Unconfined, readAttributes = { file ->
+            inspected += file.name
+            if (file.name == denied.name && !searchable) throw AccessDeniedException(file.path)
+            Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+        })
+        assertThrows(AccessDeniedException::class.java) { runBlocking { s.load() } }
+        assertTrue("the first row was inspected before the denied child", inspected.indexOf(firstFile.name) < inspected.indexOf(denied.name))
+        assertTrue(!s.loadState.value.ready && s.loadState.value.problem != null)
+        assertTrue(s.sessions.value.isEmpty())
+        assertThrows(AccessDeniedException::class.java) { runBlocking { s.save(session("s_first_00000001", 9)) } }
+        assertTrue(SessionStore.encode(first).contentEquals(firstFile.readBytes()))
+        assertTrue(SessionStore.encode(second).contentEquals(denied.readBytes()))
+        searchable = true
+        assertEquals(2, s.load())
+        assertEquals(first, s.get("s_first_00000001"))
+        assertEquals(second, s.get("z_denied_00000002"))
+        assertTrue(s.loadState.value.ready)
+        assertNull(s.loadState.value.problem)
+    }
 
     @Test
     fun saveThenLoadReturnsTheSameDocument() = runBlocking {

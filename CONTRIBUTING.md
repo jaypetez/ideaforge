@@ -273,6 +273,8 @@ Add `'-Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=voice-listeni
 for a focused run; `+` avoids AGP's comma truncation. Final evidence needs a clean unchanged
 checkout, not merely a supplied SHA. `uxCapture=walkthrough` instead captures only the real
 scripted seed/chip/Result frames and rejects state selectors; it is not a full-matrix pass.
+Use `uxCaptureSourceState=development-dirty` for uncommitted iteration; its default `clean`
+does not replace checking that the supplied SHA and worktree are actually unchanged.
 PNGs, reachability shots, semantics and manifests land
 in `android/app/build/outputs/connected_android_test_additional_output/`; the managed-device
 equivalent is `managed_device_android_test_additional_output/`. The Android-device workflow
@@ -281,9 +283,9 @@ uploads both named evidence and reports even after failure.
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected
 by the web runner. [DESIGN](docs/DESIGN.md#development-fixtures-and-captures) documents native
-phase/route mappings and the current red baseline cases. A focused green run is not a green
-full matrix; inaccessible actions, missing unavailable-storage presentation and black PNGs
-must remain failures.
+phase/route mappings and the prerequisite fixes the matrix exposed. A focused green run
+is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
+and black PNGs must remain failures.
 
 ## The Android app
 

@@ -33,6 +33,7 @@ internal fun scriptedWalkthrough(
     target: Context,
     launch: () -> Unit,
     capture: (String) -> Unit = {},
+    settleInput: () -> Unit = {},
 ) {
     val vector = Json.parseToJsonElement(target.assets.open(ScriptedProvider.ASSET).bufferedReader().use { it.readText() })
     val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == "a chip answer" }
@@ -59,11 +60,13 @@ internal fun scriptedWalkthrough(
             truthy(step["skip"]) -> compose.onNodeWithTag("skip").performClick()
             step["chip"] != null -> {
                 compose.onNodeWithTag("chip-${toNumber(step["chip"]).toInt()}").performClick()
+                settleInput()
                 capture("chip")
                 compose.onNodeWithTag("send").performClick()
             }
             else -> {
                 compose.onNodeWithTag("answer").performTextInput(stringOf(step["text"])!!)
+                settleInput()
                 compose.onNodeWithTag("send").performClick()
             }
         }

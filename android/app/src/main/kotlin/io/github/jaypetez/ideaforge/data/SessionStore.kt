@@ -16,6 +16,12 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.attribute.BasicFileAttributes
+
+data class SessionLoadState(val ready: Boolean = false, val problem: String? = null)
 
 /**
  * Sessions on disk: one JSON file per session, `<dir>/<id>.json`, each written atomically
@@ -38,6 +44,9 @@ class SessionStore(
     // A seam for tests that need something to happen between the bytes landing and the
     // index catching up (a caller cancelled mid-save). Production always uses [write].
     private val writer: (File, ByteArray) -> Unit = ::write,
+    private val readAttributes: (File) -> BasicFileAttributes = {
+        Files.readAttributes(it.toPath(), BasicFileAttributes::class.java)
+    },
 ) {
     private val mutex = Mutex()
     private val byId = LinkedHashMap<String, Session>()
@@ -46,9 +55,11 @@ class SessionStore(
     private var loaded = false
 
     private val _sessions = MutableStateFlow<List<Session>>(emptyList())
+    private val _loadState = MutableStateFlow(SessionLoadState())
 
     /** Every loaded session, most recently updated first. */
     val sessions: StateFlow<List<Session>> = _sessions.asStateFlow()
+    val loadState: StateFlow<SessionLoadState> = _loadState.asStateFlow()
 
     /** File names (without `.json`) that were left alone because they could not be read. */
     val skippedIds: Set<String> get() = skipped.toSet()
@@ -61,25 +72,58 @@ class SessionStore(
     // asynchronously, so a save may well arrive first.
     private suspend fun loadLocked(): Int {
         if (loaded) return byId.size
-        withContext(io) {
-            val files = dir.listFiles { f -> f.isFile && f.name.endsWith(SUFFIX) }.orEmpty()
-            for (file in files.sortedBy { it.name }) {
-                val name = file.name.removeSuffix(SUFFIX)
-                val session = runCatching {
-                    // Only `<id>.json` is read; a `.json.new` is a write that never finished.
+        _loadState.value = SessionLoadState()
+        val found = LinkedHashMap<String, Session>()
+        val refused = LinkedHashSet<String>()
+        try {
+            withContext(io) {
+                val exists = try {
+                    if (!readAttributes(dir).isDirectory) {
+                        throw IOException("The ideas storage path is not a directory.")
+                    }
+                    true
+                } catch (_: NoSuchFileException) {
+                    // Only a missing sessions directory is a fresh library. A missing or
+                    // inaccessible parent is storage trouble, not proof that no ideas exist.
+                    val parent = dir.absoluteFile.parentFile ?: throw IOException("The ideas storage directory is unavailable.")
+                    if (!readAttributes(parent).isDirectory) {
+                        throw IOException("The ideas storage directory is unavailable.")
+                    }
+                    false
+                }
+                val files = if (exists) {
+                    dir.listFiles { f -> f.name.endsWith(SUFFIX) }
+                        ?: throw IOException("The ideas storage directory could not be read.")
+                } else emptyArray()
+                for (file in files.sortedBy { it.name }) {
+                    // File.isFile returns false for failed stat calls. An enumerable but
+                    // unsearchable directory must fail the read, not cache an empty library.
+                    if (!readAttributes(file).isRegularFile) continue
+                    val name = file.name.removeSuffix(SUFFIX)
+                    // I/O failure is not a corrupt/newer document: fail the read and allow a
+                    // retry rather than publishing an empty or partial successful library.
                     val text = file.readBytes().decodeToString()
-                    migrate(Json.parseToJsonElement(text))
-                }.getOrNull()
-                val id = (session?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content
-                if (session == null || id == null || id != name) {
-                    skipped += name
-                } else {
-                    byId[id] = session
+                    val session = runCatching { migrate(Json.parseToJsonElement(text)) }.getOrNull()
+                    val id = (session?.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.content
+                    if (session == null || id == null || id != name) {
+                        refused += name
+                    } else {
+                        found[id] = session
+                    }
                 }
             }
+        } catch (e: IOException) {
+            _loadState.value = SessionLoadState(problem = e.message ?: e.toString())
+            throw e
+        } catch (e: SecurityException) {
+            _loadState.value = SessionLoadState(problem = e.message ?: e.toString())
+            throw e
         }
+        byId.putAll(found)
+        skipped += refused
         loaded = true
         publish()
+        _loadState.value = SessionLoadState(ready = true)
         return byId.size
     }
 

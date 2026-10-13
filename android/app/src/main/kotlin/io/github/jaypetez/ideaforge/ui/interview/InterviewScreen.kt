@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import android.Manifest
@@ -49,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -220,15 +224,28 @@ fun InterviewScreen(
     }
 
     Box(modifier.fillMaxSize().testTag("interview")) {
-        Column(Modifier.fillMaxSize()) {
-            CoverageStrip(state)
-            if (state.busy != null) {
-                LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
-            } else {
-                Spacer(Modifier.height(4.dp))
+        BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
+            val composerMaxHeight = maxHeight * 0.6f
+            // An open IME can leave less than one editor plus wrapped action rows.
+            // Scroll the real content instead of weighting the editor down to zero.
+            val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
+            val threadHeight = maxHeight
+            val scroll = rememberScrollState()
+            Column(Modifier.fillMaxSize().let { if (shortWindow) it.verticalScroll(scroll) else it }) {
+                CoverageStrip(state)
+                if (state.busy != null) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
+                } else {
+                    Spacer(Modifier.height(4.dp))
+                }
+                Conversation(state, vm, if (shortWindow) Modifier.height(threadHeight) else Modifier.weight(1f))
+                // Wrapped actions and enlarged drafts must not consume the entire thread.
+                Composer(
+                    state, vm, onVoice = if (drive != null) askOrStart else null,
+                    modifier = if (shortWindow) Modifier else Modifier.heightIn(max = composerMaxHeight),
+                    shortWindow = shortWindow,
+                )
             }
-            Conversation(state, vm, Modifier.weight(1f))
-            Composer(state, vm, onVoice = if (drive != null) askOrStart else null)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
     }
@@ -443,6 +460,7 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WrapOffer(offer: String, vm: InterviewViewModel) {
     Card(
@@ -451,7 +469,7 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(offer, style = MaterialTheme.typography.bodyLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = vm::writeUp, modifier = Modifier.testTag("wrap-accept")) {
                     Text(stringResource(R.string.interview_wrap_accept))
                 }
@@ -463,9 +481,13 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Composer(state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null) {
-    Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth().imePadding()) {
+private fun Composer(
+    state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
+    shortWindow: Boolean = false,
+) {
+    Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = state.answer,
@@ -473,11 +495,11 @@ private fun Composer(state: InterviewState, vm: InterviewViewModel, onVoice: (()
                 label = { Text(stringResource(R.string.interview_answer_label)) },
                 placeholder = { Text(stringResource(R.string.interview_answer_placeholder)) },
                 enabled = state.canAnswer,
-                minLines = 2,
-                maxLines = 6,
-                modifier = Modifier.fillMaxWidth().testTag("answer"),
+                minLines = if (shortWindow) 1 else 2,
+                maxLines = if (shortWindow) 1 else 6,
+                modifier = Modifier.fillMaxWidth().let { if (shortWindow) it else it.weight(1f, fill = false) }.testTag("answer"),
             )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = vm::send,
                     enabled = state.canAnswer && state.answer.isNotBlank(),
@@ -486,7 +508,6 @@ private fun Composer(state: InterviewState, vm: InterviewViewModel, onVoice: (()
                 TextButton(onClick = vm::skip, enabled = state.canAnswer, modifier = Modifier.testTag("skip")) {
                     Text(stringResource(R.string.interview_skip))
                 }
-                Spacer(Modifier.weight(1f))
                 if (onVoice != null) {
                     FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, modifier = Modifier.testTag("voice-start")) {
                         Text(stringResource(R.string.voice_start))

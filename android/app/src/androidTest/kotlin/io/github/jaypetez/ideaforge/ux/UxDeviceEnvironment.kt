@@ -10,7 +10,7 @@ internal class UxDeviceEnvironment(private val automation: UiAutomation) : Close
     private val density = shell("wm density").lineSequence().firstOrNull { it.startsWith("Override density:") }?.substringAfter(":")?.trim()
     private val font = shell("settings get system font_scale").trim()
 
-    fun configure(window: String, fontScale: Float, resize: Boolean) {
+    fun configure(window: String, fontScale: Float, resize: Boolean, heightPx: Int? = null) {
         if (resize) {
             when (window) {
                 "compact" -> {
@@ -18,7 +18,7 @@ internal class UxDeviceEnvironment(private val automation: UiAutomation) : Close
                     shell("wm density 420")
                 }
                 "expanded" -> {
-                    shell("wm size 1920x1350")
+                    shell("wm size 1920x${heightPx ?: 1350}")
                     shell("wm density 240")
                 }
                 else -> error("unknown window $window")

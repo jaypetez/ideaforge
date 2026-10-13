@@ -44,6 +44,16 @@ class UxEvidenceTest {
     }
 
     @Test
+    fun developmentCapturesAreExplicitlyLabelledAndUnknownSourceStatesFail() {
+        val args = mapOf("uxCapture" to "matrix", "uxCaptureSha" to sha)
+        assertEquals("clean", UxCaptureRequest.from(args)!!.sourceState)
+        assertEquals("development-dirty", UxCaptureRequest.from(args + ("uxCaptureSourceState" to "development-dirty"))!!.sourceState)
+        assertThrows(IllegalArgumentException::class.java) {
+            UxCaptureRequest.from(args + ("uxCaptureSourceState" to "unknown"))
+        }
+    }
+
+    @Test
     fun teardownAttemptsEveryOperationAndFinalizesFailedEvidenceWithoutLosingTheOriginalError() {
         val original = IllegalStateException("capture failed")
         val close = IllegalStateException("activity close failed")

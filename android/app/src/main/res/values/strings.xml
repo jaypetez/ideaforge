@@ -89,6 +89,9 @@
     <!-- Library. Wording follows index.html and src/ui/library.js where the web has it. -->
     <string name="library_title">Your ideas</string>
     <string name="library_hint">Stored on this device.</string>
+    <string name="library_loading">Opening your ideas…</string>
+    <string name="library_unavailable">Ideas unavailable</string>
+    <string name="library_unavailable_body">The ideas on this device could not be read. Nothing was deleted or overwritten.</string>
     <!-- The web has no zero-ideas message of its own (it shows #library-empty for both). -->
     <string name="library_empty">No ideas yet. Start one with New idea.</string>
     <!-- #library-empty -->

@@ -416,6 +416,8 @@ runs light/dark at actual system font scales 1.0/1.3/2.0. The manifest records m
 pixels/dp/density, font scale, dynamic/fallback colour source, mappings, controls, PNG and
 semantics paths, and the explicitly supplied SHA. Use a clean unchanged checkout for final
 evidence; the caller-supplied SHA does not certify an uncommitted tree.
+`uxCaptureSourceState=development-dirty` explicitly labels iteration; its `clean` default
+is only valid for a genuinely committed, unchanged checkout.
 
 Evidence lands under `android/app/build/outputs/connected_android_test_additional_output/`
 or `managed_device_android_test_additional_output/`. Failed navigation retains an explicitly
@@ -427,13 +429,25 @@ the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
 
-The pre-foundation native matrix exposes missing New idea FAB semantics, compact enlarged
-long-composer clipping and a storage-read fault presented as an empty library. The
-`unavailable` request records that observed screen as a failure, not a fictional unavailable
-state. These unresolved baseline defects block a fully green matrix; focused passing cases
-must not be described as the full matrix passing. Keep actual app walkthroughs, isolated
-Compose phase fixtures, dynamic/fallback colours and physical-device results separately
-labelled.
+The native baseline exposed missing action labels, compact enlarged composer clipping and
+a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
+UI: labelled existing actions, wrapping composer actions and a bounded editor leave a real
+scrollable question/chip viewport. `SessionStore.loadState` and `LibraryViewModel` distinguish
+loading, fresh-empty, filtered-empty and unavailable. Failed reads publish no partial index;
+Try again retries the real read without deleting corrupt/newer rows or overwriting them.
+Capture tests assert that real unavailable screen, not a test-only substitute. Focused
+passing cases still must not be described as a full-matrix pass. Keep actual app walkthroughs,
+isolated Compose phase fixtures, dynamic/fallback colours and physical-device results
+separately labelled.
+
+The supplementary `requestedShortImeEvidenceKeepsTheEditorAndActionsUsableAboveAnOpenKeyboard`
+method in `UxCaptureDeviceTest` opens the actual emulator keyboard at two short landscape
+heights, both themes and all three font scales. Select that method with the instrumentation
+`class` argument and add `uxShortImeProbe=true` plus the same explicit capture SHA/source
+arguments. Its `ux-short-ime` artifacts are separate from the standard matrix. IME avoidance
+is outside the composer height budget; short remaining panes scroll rather than collapsing
+the editor. Bitmap/control safe bounds exclude the real keyboard and manifests record its
+visibility/inset. This is emulator layout evidence, not physical-device input certification.
 
 `npm run test:docs` checks the local board inventory, links, primary actions, truthful
 recovery copy, absence of scripts/remote resources and opaque palette contrast. Open the

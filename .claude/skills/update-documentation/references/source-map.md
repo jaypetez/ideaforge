@@ -52,6 +52,10 @@ source wins over prose, and a generated artifact wins over a description of that
   restores actual display/font settings. Re-check platform-specific phases, explicit caller
   SHA versus clean-tree evidence, focused versus complete matrix results, and known red
   baselines against those owners.
+  Native [`SessionStore.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/SessionStore.kt)
+  (`loadState`) and [`LibraryViewModel.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryViewModel.kt)
+  own real loading/empty/filtered/unavailable reads and retry; failed reads never publish a
+  partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) and
