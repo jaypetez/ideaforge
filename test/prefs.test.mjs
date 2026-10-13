@@ -98,11 +98,15 @@ test('a stored theme survives a round trip and garbage loads and saves as system
 // the real file against a fake page and hold it to the same rule.
 const BOOT = readFileSync(new URL('../src/ui/theme-boot.js', import.meta.url), 'utf8');
 
+test('the classic theme script is inert when the module graph imports it without a page', () => {
+  assert.doesNotThrow(() => runInNewContext(BOOT, {}));
+});
+
 function boot({ stored, storageThrows = false, preset } = {}) {
   const dataset = preset === undefined ? {} : { theme: preset };
   const metas = [
-    { media: '(prefers-color-scheme: light)', content: '#f5f6f2' },
-    { media: '(prefers-color-scheme: dark)', content: '#15191a' },
+    { media: '(prefers-color-scheme: light)', content: THEME_COLOURS.light },
+    { media: '(prefers-color-scheme: dark)', content: THEME_COLOURS.dark },
   ].map((m) => ({ ...m, setAttribute(name, value) { this[name] = value; } }));
   const reads = [];
   const localStorage = {
@@ -143,12 +147,17 @@ test('theme-boot leaves data-theme unset for system, garbage, nothing stored or 
   assert.equal(boot({ storageThrows: true }).theme, undefined);
 });
 
-test('theme-boot never overrides the theme the screenshot harness set, when nothing is stored', () => {
+test('theme-boot preserves a harness-set theme and matches its chrome even without readable prefs', () => {
   // tools/screenshots.mjs sets dataset.theme before any page script, in a fresh profile.
   for (const preset of ['light', 'dark']) {
     for (const stored of [undefined, JSON.stringify({ theme: 'system' }), JSON.stringify({ theme: 'x' })]) {
-      assert.equal(boot({ preset, stored }).theme, preset, `${preset} / ${stored}`);
+      const out = boot({ preset, stored });
+      assert.equal(out.theme, preset, `${preset} / ${stored}`);
+      assert.deepEqual(out.metas, [THEME_COLOURS[preset], THEME_COLOURS[preset]]);
     }
+    const out = boot({ preset, storageThrows: true });
+    assert.equal(out.theme, preset);
+    assert.deepEqual(out.metas, [THEME_COLOURS[preset], THEME_COLOURS[preset]]);
   }
 });
 

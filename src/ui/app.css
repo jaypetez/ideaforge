@@ -4,93 +4,101 @@
 :root {
   color-scheme: dark light;
 
-  /* ── Colour roles (v2). Named for what they do, after Material 3's roles, so docs/DESIGN.md
-     can map each one to the Android app's MaterialTheme colour of the same name. */
-  --surface-container-lowest:  light-dark(#fdfefb, #1d2324);
-  --surface-container-low:     light-dark(#f5f6f2, #15191a);
-  --surface-container:         light-dark(#e9eeea, #293132);
-  --surface-container-high:    light-dark(#dfe6e1, #313a3b);
-  --on-surface:                light-dark(#202c2b, #eef0e9);
-  --on-surface-variant:        light-dark(#566562, #abbab5);
-  --outline-variant:           light-dark(#d4ded8, #364140);
-  /* 3:1 against all four surfaces in both themes (WCAG non-text contrast). It was
-     #85968f / #6a7e79, which measured 2.86:1 on the light page ground and under 3:1 on
-     the raised surface in both themes. */
-  --outline:                   light-dark(#73847d, #72867f);
+  /* Focus Studio roles. The web foundation lands independently of the native fallback;
+     docs/DESIGN.md records both current owners until #190 migrates Android. */
+  --surface-container-lowest:  light-dark(#ffffff, #1b222a);
+  --surface-container-low:     light-dark(#f5f7fa, #11161b);
+  --surface-container:         light-dark(#e8edf2, #27313b);
+  --surface-container-high:    light-dark(#dee6ee, #313e49);
+  --on-surface:                light-dark(#17212b, #eef3f8);
+  --on-surface-variant:        light-dark(#526171, #b4c0cb);
+  --outline-variant:           color-mix(in srgb, var(--on-surface) 16%, transparent);
+  --outline:                   light-dark(#718091, #91a1b2);
 
-  --primary:            light-dark(#24665e, #9ecdc3);
-  --on-primary:         light-dark(#ffffff, #142e29);
+  --primary:            light-dark(#0f6963, #7ad5c7);
+  --on-primary:         light-dark(#ffffff, #0a332e);
   --primary-container:  color-mix(in srgb, var(--primary) 10%, transparent);
   --on-primary-container: var(--on-surface);
 
   --success: light-dark(#306445, #a0c9a9);
-  --error:   light-dark(#9e3e37, #e8a396);
+  /* Darker than the reference red: destructive text must also pass on a pressed,
+     translucent state layer over the raised menu surface, not only on white. */
+  --error:   light-dark(#983632, #f3aaa0);
   --error-container: color-mix(in srgb, var(--error) 12%, transparent);
-  --warning: light-dark(#786120, #cfbd8a);
+  --warning: light-dark(#765c20, #e7c882);
+  --warning-container: color-mix(in srgb, var(--warning) 12%, transparent);
+  --success-container: color-mix(in srgb, var(--success) 12%, transparent);
 
   /* State layers: how much of the content colour a hovered, focused or pressed control mixes
      into its own. One set of numbers, so every control responds alike. */
   --state-hover: 8%;
-  --state-focus: 10%;
-  --state-pressed: 10%;
+  /* 10% made petrol text 4.49:1 over the raised surface; 9% preserves the 4.5 floor.
+     Focus/pressed also have an outline/inset edge, so they are not colour-only states. */
+  --state-focus: 9%;
+  --state-pressed: 9%;
+  --state-edge-width: 3px;
   --focus-ring: 2px solid var(--primary);
   --focus-offset: 3px;
 
-  /* The v1 names, kept as aliases while the redesign migrates rule by rule. New rules use
-     the role names above. */
+  /* Compatibility aliases still consumed by the unchanged screen-specific rules. Touched
+     shared compositions use the roles above; remove an alias when its last consumer moves. */
   --ground:      var(--surface-container-low);
   --surface:     var(--surface-container-lowest);
   --surface-2:   var(--surface-container);
   --ink:         var(--on-surface);
   --ink-dim:     var(--on-surface-variant);
   --line:        var(--outline-variant);
-  --line-strong: var(--outline);
   --accent:      var(--primary);
   --accent-ink:  var(--on-primary);
   --accent-soft: var(--primary-container);
   --ok:   var(--success);
-  --fail: var(--error);
   --pend: var(--warning);
 
   /* Elevation. Mixed from a fixed near-black rather than from --ink, so the dark theme gets
      a real shadow instead of a pale glow. */
   --elev-0: none;
-  --elev-1: 0 1px 2px light-dark(rgb(28 37 35 / .04), rgb(0 0 0 / .16));
-  --elev-2: 0 8px 24px -14px light-dark(rgb(28 37 35 / .18), rgb(0 0 0 / .4));
-  --elev-3: 0 16px 40px -18px light-dark(rgb(28 37 35 / .24), rgb(0 0 0 / .5));
-  --shadow-1: var(--elev-1);
-  --shadow-2: var(--elev-2);
+  --elev-2: 0 8px 24px -14px light-dark(rgb(17 22 27 / .18), rgb(0 0 0 / .4));
+  --elev-3: 0 16px 40px -18px light-dark(rgb(17 22 27 / .24), rgb(0 0 0 / .5));
+  --scrim: rgb(17 22 27 / .36);
 
-  /* Type scale (v2), by role. IBM Plex Sans 600 carries headline and title. */
+  /* IBM Plex Sans 600 carries headline and title; metadata stays readable at 14px. */
   --type-display-size: 2.125rem;  --type-display-line: 1.2;
   --type-headline-size: 1.75rem;  --type-headline-line: 1.25;
   --type-title-size: 1.125rem;    --type-title-line: 1.35;
   --type-body-size: 1rem;         --type-body-line: 1.6;
   --type-label-size: .875rem;     --type-label-line: 1.35;
+  --type-meta-size: .875rem;      --type-meta-line: 1.45;
 
-  /* Motion, in Material 3's duration steps. prefers-reduced-motion sets them all to 0s, so
-     a rule that uses a token is reduced for free. */
-  --dur-short1: 50ms;  --dur-short2: 100ms; --dur-short3: 150ms; --dur-short4: 200ms;
-  --dur-medium1: 250ms; --dur-medium2: 300ms; --dur-medium3: 350ms; --dur-medium4: 400ms;
-  --dur-long2: 500ms;
+  /* Only consumed steps remain. Actions never wait for paint; the slower loading pulse
+     repeats an actual aria-busy state, and is not a transition or an input delay. */
+  --dur-short1: 100ms; --dur-short2: 120ms; --dur-short3: 150ms; --dur-short4: 180ms;
+  --dur-medium2: 180ms; --dur-medium3: 150ms; --dur-long2: 400ms;
   --ease-standard: cubic-bezier(.2, 0, 0, 1);
   --ease-emph-decel: cubic-bezier(.05, .7, .1, 1);
-  --ease-emph-accel: cubic-bezier(.3, 0, .8, .15);
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
   --s6: 32px; --s7: 48px; --s8: 64px;
-  --r-sm: 10px; --r-md: 16px; --r-lg: 24px; --r-pill: 999px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
 
-  --t-xs: .75rem; --t-sm: .8125rem; --t-md: .875rem; --t-base: 1rem;
-  --t-lg: 1.125rem; --t-xl: 1.375rem; --t-2xl: 1.75rem; --t-3xl: 2.125rem;
+  --t-xs: var(--type-meta-size); --t-sm: var(--type-meta-size);
+  --t-md: var(--type-label-size); --t-base: var(--type-body-size);
+  --t-lg: var(--type-title-size); --t-xl: 1.375rem;
+  --t-2xl: var(--type-headline-size); --t-3xl: var(--type-display-size);
   --control-height: 48px;
-  --voice-control-height: 52px;
+  --voice-control-height: 64px;
+  --voice-touch-height: 72px;
+  --page-gutter: calc(var(--s4) + var(--s1));
+  --width-form: 720px;
+  --width-work: 1120px;
+  --width-settings: 1000px;
+  --width-overlay: 560px;
+  --width-reading: 68ch;
   --toast-err-max: min(7.5rem, 22dvh);
 
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --ease: cubic-bezier(.2, 0, .2, 1);
+  --ease: var(--ease-standard);
 }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"]  { color-scheme: dark; }
@@ -105,19 +113,19 @@ html { -webkit-text-size-adjust: 100%; }
    any later rule, including ones not written yet. */
 [hidden] { display: none !important; }
 body {
-  margin: 0; background: var(--ground); color: var(--ink);
-  font-family: var(--sans); font-size: var(--t-base); line-height: 1.6;
+  margin: 0; background: var(--surface-container-low); color: var(--on-surface);
+  font-family: var(--sans); font-size: var(--type-body-size); line-height: var(--type-body-line);
   overflow-wrap: anywhere;
   -webkit-font-smoothing: antialiased;
 }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 a { color: var(--accent); text-underline-offset: .18em; }
 .wrap {
-  max-width: 720px; margin: 0 auto;
-  padding-inline: 20px; padding-block: 20px 72px;
-  padding-left: max(20px, env(safe-area-inset-left));
-  padding-right: max(20px, env(safe-area-inset-right));
-  padding-top: max(20px, env(safe-area-inset-top));
+  max-width: var(--width-form); margin: 0 auto;
+  padding-inline: var(--page-gutter); padding-block: var(--page-gutter) 72px;
+  padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--page-gutter), env(safe-area-inset-right));
+  padding-top: max(var(--page-gutter), env(safe-area-inset-top));
   /* 72px of thumb room on a phone. tools/screenshots.mjs crops all but 24px of it. */
   padding-bottom: max(72px, calc(env(safe-area-inset-bottom) + 24px));
   display: flex; flex-direction: column; gap: var(--s5);
@@ -161,9 +169,14 @@ a { color: var(--accent); text-underline-offset: .18em; }
   grid-column: 2; grid-row: 1;
   display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end;
 }
-.bar-right .ghost { background: transparent; border-color: var(--line); box-shadow: none; }
+.bar-right .ghost {
+  --button-fill: transparent;
+  background: transparent; border-color: transparent; box-shadow: none;
+}
 .bar-right .nav-item[aria-current="page"] {
+  --button-fill: var(--primary-container);
   background: var(--primary-container); border-color: var(--primary); color: var(--on-surface);
+  border-block-end-width: var(--state-edge-width);
 }
 
 /* The coverage ratchet is the product, so during an interview it is a full-width bar under
@@ -205,7 +218,7 @@ section { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
    and reads as a hole above the meta line under it. */
 section > h2 {
   margin: 0; font-size: var(--t-2xl); font-weight: 600;
-  letter-spacing: -.03em; line-height: 1.25;
+  letter-spacing: -.03em; line-height: var(--type-headline-line);
 }
 #resume h2 { margin: 0 0 var(--s3); font-size: var(--t-lg); }
 .lede {
@@ -217,8 +230,8 @@ section > h2 {
    only — no new panels, no routing, nothing for the WebKit microphone bug to catch on. */
 .group {
   display: flex; flex-direction: column; gap: var(--s5); min-width: 0;
-  padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-lg);
-  background: var(--surface); box-shadow: var(--shadow-1);
+  padding: var(--s5); border: 0; border-radius: var(--r-md);
+  background: var(--surface-container-lowest); box-shadow: var(--elev-0);
 }
 .group > h2 {
   margin: 0; font-size: var(--t-base); font-weight: 600;
@@ -242,7 +255,7 @@ section > h2 {
 .start-hero { display: flex; flex-direction: column; gap: var(--s2); }
 .start-hero h2 {
   margin: 0; max-width: 24ch; font-size: var(--t-2xl); font-weight: 600;
-  letter-spacing: -.03em; line-height: 1.25; text-wrap: balance;
+  letter-spacing: -.03em; line-height: var(--type-headline-line); text-wrap: balance;
 }
 .start-hero .lede { padding-block: 0; font-size: var(--t-base); }
 .connect-body { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
@@ -260,7 +273,9 @@ section > h2 {
 }
 .connect-summary-text::before { color: var(--success); flex: none; }
 .connect-summary button { flex: none; }
-.start-actions button { min-width: 10rem; }
+/* An intrinsic rem minimum used to become 320px at 200% text and overflow a 320px
+   viewport. Bound it to the available row; labels grow and wrap, never shrink or clip. */
+.start-actions button { min-width: min(10rem, 100%); min-height: var(--voice-control-height); }
 .start-note:empty { display: none; }
 /* On Start the About group is just the quiet footer line it always was. */
 #panel-setup[data-view="start"] .about {
@@ -269,16 +284,18 @@ section > h2 {
 .field { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 label { font-size: var(--t-md); font-weight: 600; }
 input, select, textarea {
-  font-family: var(--sans); font-size: var(--t-base); color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line-strong);
+  font-family: var(--sans); font-size: var(--type-body-size); color: var(--on-surface);
+  background: var(--surface-container-lowest); border: 1px solid var(--outline);
   border-radius: var(--r-sm); padding: var(--s3); width: 100%;
   min-width: 0; max-width: 100%; min-height: var(--control-height);
   transition: border-color var(--dur-short2) var(--ease), box-shadow var(--dur-short2) var(--ease);
 }
-.group input, .group select, .group textarea { background: var(--surface); }
-input:hover, select:hover, textarea:hover { border-color: var(--accent); }
-input::placeholder, textarea::placeholder { color: var(--ink-dim); opacity: 1; }
-input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+.group input, .group select, .group textarea { background: var(--surface-container-lowest); }
+input:not(:disabled):hover, select:not(:disabled):hover, textarea:not(:disabled):hover {
+  border-color: var(--primary);
+}
+input::placeholder, textarea::placeholder { color: var(--on-surface-variant); opacity: 1; }
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--primary); }
 input[type="range"] { padding-inline: 0; }
 select { text-overflow: ellipsis; }
 textarea { resize: vertical; min-height: 112px; line-height: 1.6; }
@@ -286,7 +303,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 button:focus-visible, summary:focus-visible, a:focus-visible {
   outline: var(--focus-ring); outline-offset: var(--focus-offset);
 }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+:is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--error); border-inline-start-width: var(--s1);
+}
+:is(input, select, textarea):disabled {
+  opacity: 1; background: var(--surface-container); color: var(--on-surface-variant);
+  border-color: var(--outline); border-style: dashed;
+}
 /* A labelled set of radios (the theme choice): the legend reads as a field label and the
    options sit in one row, each whole label a control-height target. */
 .choice {
@@ -297,67 +321,79 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 .choice-row { display: flex; flex-wrap: wrap; gap: 0 var(--s5); }
 .choice-row .toggle { align-items: center; min-height: var(--control-height); }
 .choice-row .toggle input { margin: 0; }
-.hint { margin: 0; font-size: var(--t-sm); color: var(--ink-dim); line-height: 1.6; }
+.hint {
+  margin: 0; font-size: var(--type-meta-size); color: var(--on-surface-variant);
+  line-height: var(--type-meta-line);
+}
 .hint a { color: var(--accent); }
 .version { padding-block: var(--s2); font-size: var(--t-xs); }
 .install-card {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
-  padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-md);
-  background: var(--surface); box-shadow: var(--shadow-1);
+  padding: var(--s5); border: 0; border-radius: var(--r-md);
+  background: var(--surface-container-lowest); box-shadow: var(--elev-0);
 }
 .install-card h2 { margin: 0 0 var(--s1); font-size: var(--t-base); }
 
 /* ───────────────────────────────────────────────────────────── buttons */
-/* Four levels, where there used to be two and no states at all. `button` is primary,
-   `.ghost` is the everyday secondary (a filled surface now, not an outline), `.quiet` is
-   text, and `.danger` makes a destructive action look like one — Delete and Share .md were
-   previously identical. `.danger` is declared after `.ghost` so `ghost small danger` lands
-   where you would expect. */
+/* Existing classes, one state-layer composition. A destructive action owns its fill as
+   well as its ink, so it never accidentally inherits a primary petrol background. */
 .btns { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; min-width: 0; }
 button {
+  --button-fill: var(--primary); --button-ink: var(--on-primary); --button-edge: var(--primary);
   font-family: var(--sans); font-size: var(--t-md); font-weight: 600;
-  color: var(--accent-ink); background: var(--accent);
+  color: var(--button-ink); background: var(--button-fill);
   border: 1px solid transparent; border-radius: var(--r-sm);
-  padding: var(--s3) var(--s4); min-height: var(--control-height); max-width: 100%;
+  padding: var(--s3) var(--s4); min-height: var(--control-height);
+  min-width: var(--control-height); max-width: 100%;
   line-height: 1.35; overflow-wrap: anywhere; cursor: pointer;
   transition: background-color var(--dur-short2) var(--ease), border-color var(--dur-short2) var(--ease),
               transform var(--dur-short1) var(--ease), box-shadow var(--dur-short2) var(--ease);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--elev-0);
 }
-button:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
-button:active { transform: translateY(1px); box-shadow: none; }
+button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--button-ink) var(--state-hover), var(--button-fill));
+}
+button:not(:disabled):focus-visible {
+  background: color-mix(in srgb, var(--button-ink) var(--state-focus), var(--button-fill));
+}
+button:not(:disabled):active {
+  background: color-mix(in srgb, var(--button-ink) var(--state-pressed), var(--button-fill));
+  transform: translateY(1px); box-shadow: inset 0 0 0 1px currentColor;
+}
 
 button.ghost {
-  background: var(--surface); color: var(--ink);
-  border-color: var(--line-strong); box-shadow: var(--shadow-1);
+  --button-fill: var(--surface-container-lowest); --button-ink: var(--on-surface); --button-edge: var(--outline);
+  background: var(--button-fill); color: var(--button-ink); border-color: var(--outline);
 }
-button.ghost:hover { background: var(--surface-2); border-color: var(--accent); color: var(--ink); }
 
 button.quiet {
-  background: transparent; color: var(--accent);
+  --button-fill: transparent; --button-ink: var(--primary);
+  background: var(--button-fill); color: var(--button-ink);
   border-color: transparent; box-shadow: none; padding-inline: var(--s2);
 }
-button.quiet:hover { background: var(--accent-soft); }
 
 /* Tonal: between filled and quiet, for the action that matters but is not the next step. */
 button.tonal {
-  background: var(--primary-container); color: var(--primary);
+  --button-fill: var(--primary-container); --button-ink: var(--on-primary-container);
+  background: var(--button-fill); color: var(--button-ink);
   border-color: transparent; box-shadow: none;
 }
-button.tonal:hover { background: color-mix(in srgb, var(--primary) 18%, transparent); }
 
-button.danger { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 35%, transparent); }
-button.danger:hover {
-  background: color-mix(in srgb, var(--fail) 12%, transparent);
-  border-color: var(--fail); color: var(--fail);
+button.danger {
+  --button-fill: transparent; --button-ink: var(--error); --button-edge: var(--error);
+  color: var(--button-ink); background: var(--button-fill); border-color: var(--error);
 }
 
 button.small { font-size: var(--t-sm); padding: var(--s2) var(--s3); min-height: 36px; }
 button:disabled {
   opacity: 1; cursor: default; transform: none; box-shadow: none;
-  background: var(--surface-2); color: var(--ink-dim); border-color: var(--line);
+  background: var(--surface-container); color: var(--on-surface-variant);
+  border-color: var(--outline); border-style: dashed;
 }
-button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
+button[aria-busy="true"] {
+  border-color: var(--button-edge); border-style: double; border-width: var(--state-edge-width);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
 
 /* ─────────────────────────────────────────────────────────── interview */
 /* A conversation: the settled pairs, the open question on a card with its suggestions, and
@@ -397,9 +433,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 
 .question-card {
   position: relative; display: flex; flex-direction: column; gap: var(--s3);
-  padding: var(--s5); border-radius: var(--r-lg);
-  background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
-  box-shadow: var(--elev-1);
+  padding: var(--s5); border-radius: var(--r-md);
+  background: var(--surface-container-lowest); border: 0; box-shadow: var(--elev-0);
 }
 .bridge { margin: 0; color: var(--ink-dim); font-size: var(--t-md); }
 .question {
@@ -437,7 +472,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    stands in for, so they shrink at a narrow width instead. */
 .question-skeleton .sk-chips { display: flex; gap: var(--s2); overflow: hidden; }
 .question-skeleton .sk-chip {
-  display: block; flex: 0 1 6rem; min-width: 0; height: 40px; border-radius: var(--r-pill);
+  display: block; flex: 0 1 6rem; min-width: 0; height: 40px; border-radius: var(--r-sm);
 }
 .question-skeleton .sk-chip:nth-child(2) { flex-basis: 7.5rem; }
 .question-skeleton .sk-chip:nth-child(3) { flex-basis: 4.5rem; }
@@ -446,16 +481,17 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .chips:empty { display: none; }
 /* Tonal: a suggestion is an offer, quieter than Send and louder than a link. */
 .chip {
+  --button-fill: var(--primary-container); --button-ink: var(--on-primary-container);
   font-family: var(--sans); font-size: var(--t-md); font-weight: 400;
   color: var(--on-primary-container); background: var(--primary-container);
   /* 70%, not the 30% it was: a chip is a control, so its edge holds 3:1 against the card in
      both themes (WCAG 1.4.11; contrast.browser.mjs). At 30% it measured 1.6:1 in light. */
   border: 1px solid color-mix(in srgb, var(--primary) 70%, transparent);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-sm);
   padding: var(--s2) var(--s3); min-height: 40px; cursor: pointer; text-align: left;
   box-shadow: none; transition: border-color var(--dur-short2) var(--ease), background-color var(--dur-short2) var(--ease);
 }
-.chip:hover {
+.chip:not(:disabled):hover {
   border-color: var(--primary); color: var(--on-primary-container);
   background: color-mix(in srgb, var(--primary) 18%, transparent);
 }
@@ -477,12 +513,11 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 /* The composer: the answer box and its actions in one raised card. Phones dock it (below). */
 .composer {
   display: flex; flex-direction: column; gap: var(--s3);
-  padding: var(--s3); border-radius: var(--r-lg);
-  background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
-  box-shadow: var(--elev-2);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-container-lowest); border: 0; box-shadow: var(--elev-0);
 }
 #answer {
-  padding: var(--s3) var(--s4); border-radius: var(--r-md); box-shadow: none;
+  padding: var(--s3) var(--s4); border-radius: var(--r-sm); box-shadow: none;
   min-height: 96px; background: var(--surface-container-low);
   /* Grows with the answer where supported, up to a cap, instead of scrolling inside four
      rows; resize stays available where it is not. */
@@ -530,12 +565,12 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .voice-bars {
   position: relative; display: flex; align-items: center; justify-content: center;
-  gap: 6px; height: var(--s8); opacity: 0;
+  gap: var(--s2); height: var(--s8); opacity: 0;
 }
 .voice-bars span {
   width: 5px; height: 100%; border-radius: var(--r-pill); background: currentColor;
   transform: scaleY(calc(.08 + var(--voice-sample, 0) * .92));
-  transition: transform .08s linear;
+  transition: transform var(--dur-short1) linear;
 }
 .voice-bars span:last-child { transform: scaleY(calc(.08 + var(--voice-level) * .92)); }
 .voice-stage[data-phase="listening"] {
@@ -589,7 +624,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .voice-question {
   width: 26ch; font-size: clamp(var(--t-xl), 1.1rem + 2vw, var(--t-3xl));
-  font-weight: 500; line-height: 1.35; letter-spacing: -.035em; text-wrap: balance;
+  font-weight: 500; line-height: var(--type-display-line); letter-spacing: -.035em; text-wrap: balance;
 }
 .voice-transcript {
   width: 42ch; color: var(--ink-dim); font-size: var(--t-lg); line-height: 1.6;
@@ -613,7 +648,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   --voice-ink: var(--on-surface);
   position: relative; isolation: isolate; flex: none;
   display: inline-flex; flex-direction: column; align-items: center;
-  min-width: calc(var(--voice-button) + var(--s5)); min-height: var(--control-height);
+  min-width: calc(var(--voice-button) + var(--s5)); min-height: var(--voice-control-height);
   padding: calc(var(--voice-button) + var(--s2)) var(--s2) var(--s1);
   border: 0; border-radius: var(--r-md); background: transparent; box-shadow: none;
   color: var(--on-surface); font-size: var(--t-md); font-weight: 600; line-height: 1.35;
@@ -646,9 +681,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   --voice-fill: var(--surface-container); --voice-ink: var(--on-surface-variant);
   background: transparent; color: var(--on-surface-variant);
 }
-/* A larger circle on touch screens: the 56px of a Material FAB. */
+/* The voice action is at least 64px even with a fine pointer; touch adds room to its circle. */
 @media (pointer: coarse) {
-  .voice-stage .voice-actions button { --voice-button: 56px; }
+  .voice-stage .voice-actions button { --voice-button: var(--voice-touch-height); }
 }
 .voice-backend { color: var(--ink-dim); font-size: var(--t-xs); }
 .voice-stage > :is(.voice-question, .voice-transcript, .voice-detail, .voice-backend):empty {
@@ -664,7 +699,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   width: 11px; height: 11px; border-radius: 50%; background: var(--accent); flex: none;
   /* Scaled from the live input level, so it is a real signal that the mic is hearing
      you and not a decorative animation that lies when the mic is muted. */
-  transform: scale(var(--level, .5)); transition: transform .08s linear;
+  transform: scale(var(--level, .5)); transition: transform var(--dur-short1) linear;
 }
 .toggle {
   display: flex; align-items: flex-start; gap: var(--s2);
@@ -704,7 +739,11 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .toggle input.switch:checked::before {
   left: 22px; width: 24px; height: 24px; background: var(--on-primary);
 }
-.toggle input.switch:disabled { opacity: .5; cursor: default; }
+.toggle input.switch:disabled {
+  opacity: 1; cursor: default; border-style: dashed;
+  background: var(--surface-container); border-color: var(--outline);
+}
+.toggle input.switch:disabled::before { background: var(--on-surface-variant); }
 .toggle input.switch:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
 .cov { border-top: 1px solid var(--line); padding-top: var(--s3); }
@@ -729,8 +768,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   text-transform: uppercase; padding: 3px var(--s2); border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--ink-dim); white-space: nowrap;
 }
-.lvl.partial { background: color-mix(in srgb, var(--pend) 18%, transparent); color: var(--pend); }
-.lvl.covered { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.lvl.partial { background: var(--warning-container); color: var(--warning); }
+.lvl.covered { background: var(--success-container); color: var(--success); }
 
 /* 1024px and wider: Coverage is a side panel beside the conversation instead of a fold
    under the question. Same element, same id-free `details.cov` selector the harness uses;
@@ -744,7 +783,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    Row gaps would also be paid for every empty row, so the column's spacing is margins. */
 @media (min-width: 1024px) {
   /* Not in voice mode: the voice stage keeps the single column it was designed in. */
-  body[data-panel="interview"]:not(.voice-active) .wrap { max-width: 1120px; }
+  body[data-panel="interview"]:not(.voice-active) .wrap { max-width: var(--width-work); }
   /* reading-flow: the side panel comes after the column it sits beside. In the DOM it sits
      between the question and the composer, which is the reading order of the single column
      below 1024px; here Tab went from the suggestions into the panel's rows and back to the
@@ -761,7 +800,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
     position: sticky; top: var(--s4);
     /* Stuck, it must fit the viewport, or a 768px laptop never sees its last rows. */
     max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
-    padding: var(--s4); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+    padding: var(--s4); border: 0; border-radius: var(--r-md);
     background: var(--surface-container-lowest);
   }
   .cov[data-side="true"] > summary {
@@ -785,11 +824,12 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .idea-list { display: flex; flex-direction: column; gap: var(--s4); }
 .idea-card {
   display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); min-width: 0;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
-  box-shadow: var(--shadow-1);
-  transition: border-color var(--dur-short3) var(--ease), box-shadow var(--dur-short3) var(--ease);
+  background: var(--surface-container-lowest); border: 1px solid transparent;
+  border-block-end-color: var(--outline-variant); border-radius: var(--r-md);
+  box-shadow: var(--elev-0);
+  transition: border-color var(--dur-short3) var(--ease-standard);
 }
-.idea-card:hover, .idea-card:focus-within { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
+.idea-card:hover, .idea-card:focus-within { border-color: var(--outline); }
 .idea-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
 .idea-head h3 {
   margin: 0; min-width: 0; font-size: var(--t-lg); font-weight: 600;
@@ -799,7 +839,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   flex: none; font-size: var(--t-xs); font-weight: 500; color: var(--ink-dim);
   background: var(--surface-2); border-radius: var(--r-pill); padding: 3px var(--s2);
 }
-.idea-status.completed { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.idea-status.completed { color: var(--success); background: var(--success-container); }
 .idea-status.archived { border: 1px solid var(--line); background: transparent; }
 .idea-meta { margin: 0; color: var(--ink-dim); font-size: var(--t-sm); }
 .idea-tags { display: flex; flex-wrap: wrap; gap: var(--s1); }
@@ -813,9 +853,10 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .idea-actions > button:first-child { flex: 0 1 auto; }
 /* Two classes, to outrank button.quiet's padding. */
 .idea-actions .idea-more {
+  --button-ink: var(--on-surface-variant);
   flex: none; display: grid; place-items: center; margin-inline-start: auto;
   width: var(--control-height); min-width: var(--control-height); padding: 0;
-  color: var(--on-surface-variant); border-radius: var(--r-pill);
+  color: var(--on-surface-variant); border-radius: var(--r-sm);
 }
 .idea-actions .idea-more:hover { color: var(--on-surface); background: var(--surface-container); }
 .idea-more::before { --icon-size: 24px; }
@@ -825,24 +866,42 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    each one under its trigger instead. */
 .idea-menu {
   position: absolute; inset: auto; margin: 0;
-  min-width: 12rem; max-width: calc(100vw - var(--s5));
+  min-width: min(12rem, calc(100vw - var(--s5))); max-width: calc(100vw - var(--s5));
   /* --outline, not --outline-variant: the menu floats over arbitrary content, and its edge is
      the only thing separating it at 3:1 (it measured 1.3:1 in light on the page ground). */
-  padding: var(--s1); border: 1px solid var(--outline); border-radius: var(--r-sm);
+  padding: var(--s1); border: 1px solid var(--outline); border-radius: var(--r-md);
   background: var(--surface-container-high); color: var(--on-surface);
   box-shadow: var(--elev-3);
 }
 .idea-menu:popover-open { display: flex; flex-direction: column; gap: 2px; }
 .idea-menu .idea-menu-item {
+  --button-fill: transparent; --button-ink: var(--on-surface); --button-edge: var(--outline);
   display: flex; align-items: center; width: 100%; justify-content: flex-start;
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   color: var(--on-surface); font-weight: 500; text-align: start;
 }
-.idea-menu .idea-menu-item:hover {
+.idea-menu .idea-menu-item:not(:disabled):hover {
   background: color-mix(in srgb, var(--on-surface) var(--state-hover), transparent);
 }
-.idea-menu .idea-menu-item.danger { color: var(--error); border-color: transparent; }
-.idea-menu .idea-menu-item.danger:hover { background: var(--error-container); border-color: transparent; }
+.idea-menu .idea-menu-item.danger {
+  --button-ink: var(--error); --button-edge: var(--error); color: var(--error); border-color: transparent;
+}
+.idea-menu .idea-menu-item.danger:not(:disabled):hover {
+  background: var(--error-container);
+}
+.idea-menu .idea-menu-item:not(:disabled):focus-visible {
+  background: color-mix(in srgb, var(--button-ink) var(--state-focus), transparent);
+}
+.idea-menu .idea-menu-item:not(:disabled):active {
+  background: color-mix(in srgb, var(--button-ink) var(--state-pressed), transparent);
+}
+.idea-menu .idea-menu-item:disabled {
+  color: var(--on-surface-variant); background: transparent;
+  border-color: var(--outline); border-style: dashed;
+}
+.idea-menu .idea-menu-item[aria-busy="true"] {
+  border: var(--state-edge-width) double var(--button-edge); box-shadow: inset 0 0 0 1px currentColor;
+}
 @media (prefers-reduced-motion: no-preference) {
   .idea-menu:popover-open { animation: menu-in var(--dur-short4) var(--ease-emph-decel); }
 }
@@ -858,21 +917,21 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 #panel-library[data-library-state="unavailable"] .library-summary { display: none; }
 .library-zero {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
-  padding: var(--s6) var(--s5); border: 1px dashed var(--outline); border-radius: var(--r-lg);
+  padding: var(--s6) var(--s5); border: 1px dashed var(--outline); border-radius: var(--r-md);
   background: var(--surface-container-lowest);
 }
 .library-zero h3 { margin: 0; font-size: var(--type-title-size); font-weight: 600; }
 .library-zero .hint { margin: 0; max-width: 40ch; }
 .library-empty {
   margin: 0; padding: var(--s5); text-align: center;
-  border: 1px dashed var(--outline-variant); border-radius: var(--r-lg);
+  border: 1px dashed var(--outline-variant); border-radius: var(--r-md);
 }
 
 /* Loading placeholders, the shape of a card. The shimmer is a duration token, so reduced
    motion stops it along with everything else. */
 .idea-skeleton {
   display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface-container-lowest); border: 0; border-radius: var(--r-md);
 }
 .idea-skeleton span {
   display: block; height: var(--s4); border-radius: var(--r-pill);
@@ -881,7 +940,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    write-up — so reduced motion (which zeroes the token and kills animations) stills them all. */
 .idea-skeleton span, .question-skeleton .sk-line::before, .question-skeleton .sk-chip,
 .output-skeleton span {
-  border-radius: var(--r-pill); background: var(--surface-container);
+  border-radius: var(--r-sm); background: var(--surface-container);
   animation: skeleton-pulse calc(var(--dur-long2) * 3) var(--ease-standard) infinite alternate;
 }
 .idea-skeleton .idea-skeleton-title { width: 55%; height: var(--s5); }
@@ -898,8 +957,36 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .idea-edit summary { cursor: pointer; color: var(--accent); font-size: var(--t-sm); font-weight: 600; }
 .idea-edit[open] { display: grid; gap: var(--s2); }
 .idea-edit[open] summary { margin-bottom: var(--s1); }
-.backup-warning {
-  border-left: 3px solid var(--line-strong); padding-left: var(--s3);
+.callout, .backup-warning {
+  margin: 0; padding: var(--s3) var(--s4);
+  border: 0; border-inline-start: var(--s1) solid var(--outline);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface-container); color: var(--on-surface);
+}
+.callout[data-status="error"] { background: var(--error-container); border-color: var(--error); }
+.callout[data-status="warning"] { background: var(--warning-container); border-color: var(--warning); }
+.callout[data-status="success"] { background: var(--success-container); border-color: var(--success); }
+.hint:not(.callout)[data-status="error"] { color: var(--error); }
+.hint:not(.callout)[data-status="success"] { color: var(--success); }
+.hint:not(.callout)[data-status="warning"] { color: var(--warning); }
+
+/* Reuse the platform's HTML dialog/top-layer primitive, not a custom modal controller.
+   Existing window.confirm prompts remain browser-owned and are not replaced here. */
+dialog {
+  width: min(calc(100% - var(--s6)), var(--width-overlay));
+  max-height: calc(100dvh - var(--s6)); overflow: auto;
+  padding: var(--s5); border: 1px solid var(--outline); border-radius: var(--r-lg);
+  background: var(--surface-container-lowest); color: var(--on-surface);
+  font: inherit; box-shadow: var(--elev-3);
+}
+dialog::backdrop { background: var(--scrim); }
+dialog > :first-child { margin-block-start: 0; }
+dialog > .btns { margin-block-start: var(--s5); }
+dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-line); font-weight: 600; }
+
+#panel-setup[data-view="settings"] > .group {
+  background: transparent; border-radius: 0;
+  border-block-start: 1px solid var(--outline-variant);
 }
 
 /* ──────────────────────────────────────────────── desktop layouts (#109) */
@@ -917,8 +1004,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    empty row too. */
 .library-detail, .settings-index, .idea-select { display: none; }
 @media (min-width: 1024px) {
-  body[data-panel="library"] .wrap { max-width: 1120px; }
-  body[data-panel="setup"]:has(#panel-setup[data-view="settings"]) .wrap { max-width: 1000px; }
+  body[data-panel="library"] .wrap { max-width: var(--width-work); }
+  body[data-panel="setup"]:has(#panel-setup[data-view="settings"]) .wrap { max-width: var(--width-settings); }
 
   /* Ideas: list | detail. Only once there are ideas (or their placeholders): the zero state
      and a failed first read stay the single column they were designed as. */
@@ -940,7 +1027,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
     position: sticky; top: var(--s4);
     /* Stuck, it must fit the viewport; the preview scrolls inside the pane, not the page. */
     max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
-    padding: var(--s5); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+    padding: var(--s5); border: 0; border-radius: var(--r-md);
     background: var(--surface-container-lowest);
   }
   /* An empty pane (loading, or filters matching nothing) is no card at all. The rule above
@@ -969,7 +1056,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   .idea-card summary { cursor: pointer; }
   .idea-select { display: inline-flex; flex: none; }
   .idea-card[aria-current="true"] {
-    border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow-1);
+    border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary);
   }
 
   /* Settings: index | groups. The index is sticky, so it stays beside a long Listen and
@@ -993,7 +1080,9 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   }
   .settings-index button:hover { color: var(--on-surface); }
   .settings-index button[aria-current="true"] {
+    --button-fill: var(--primary-container); --button-ink: var(--on-surface);
     background: var(--primary-container); color: var(--on-surface);
+    border-inline-start: var(--state-edge-width) solid var(--primary);
   }
   /* Scrolled to by the index, a group's top edge should not sit flush with the viewport. */
   #panel-setup[data-view="settings"] > .group { scroll-margin-top: var(--s4); }
@@ -1007,8 +1096,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
    The 60dvh cap stays: tools/screenshots.mjs measures the page and re-measures, and without
    a clamp here the export pane grows with the viewport and the shot runs away to its limit. */
 .output {
-  margin: 0; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-lg); padding: var(--s6); box-shadow: var(--shadow-1);
+  margin: 0; background: var(--surface-container-lowest); border: 0;
+  border-radius: var(--r-md); padding: var(--s6); box-shadow: var(--elev-0);
   max-height: 60vh; overflow: auto; max-height: 60dvh;
   overflow-wrap: anywhere; line-height: 1.7;
 }
@@ -1037,8 +1126,8 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 .output h3 { font-size: var(--t-base); }
 .output > h2 + *, .output > h3 + * { margin-top: var(--s2); }
 .output > * + :is(h1, h2, h3) { margin-top: var(--s5); }
-.output p { max-width: 68ch; }
-.output ul, .output ol { padding-left: 1.3em; max-width: 68ch; }
+.output p { max-width: var(--width-reading); }
+.output ul, .output ol { padding-left: 1.3em; max-width: var(--width-reading); }
 .output li + li { margin-top: var(--s1); }
 .output code { font-family: var(--mono); font-size: .92em; }
 .output pre {
@@ -1063,15 +1152,16 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 /* Two classes, to outrank button.quiet's padding. */
 .done-actions .done-more {
+  --button-ink: var(--on-surface-variant);
   flex: none; display: grid; place-items: center;
   width: var(--control-height); min-width: var(--control-height); padding: 0;
-  color: var(--on-surface-variant); border-radius: var(--r-pill);
+  color: var(--on-surface-variant); border-radius: var(--r-sm);
 }
 .done-actions .done-more:hover { color: var(--on-surface); background: var(--surface-container); }
 .done-more::before { --icon-size: 24px; }
 .done-menu .idea-menu-item:disabled,
 .done-menu .idea-menu-item:disabled:hover {
-  background: transparent; border-color: transparent; color: var(--on-surface-variant); opacity: .6;
+  background: transparent; border-color: var(--outline); color: var(--on-surface-variant);
 }
 
 /* ────────────────────────────────────────────────────────────── toasts */
@@ -1103,7 +1193,7 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
 }
 .toast {
   pointer-events: auto;
-  width: min(100%, 560px); margin: 0;
+  width: min(100%, var(--width-overlay)); margin: 0;
   font-size: var(--t-md); line-height: 1.5; color: var(--on-surface);
   background: var(--surface-container-high);
   /* A 3:1 edge for the same reason as the overflow menu: it floats over whatever is there. */
@@ -1125,23 +1215,23 @@ button:disabled:hover { background: var(--surface-2); color: var(--ink-dim); bor
   flex: 1; min-width: 0; margin: 0; padding-block: var(--s2);
   max-height: var(--toast-err-max); overflow-y: auto;
 }
-/* Done's actions are the last thing on the page, 72px above the bottom at full scroll, and
-   a multi-line error is taller than that. Room for the whole toast — its capped text, the
-   padding and border round it, and its offset — goes on body, not .wrap, whose 72px
-   tools/screenshots.mjs measures. Only while an error shows, so captures never see it. */
-body[data-panel="done"]:has(#err-toast:not([hidden])) {
+/* Error space belongs on body, never the screenshot fitter's 72px .wrap padding. The
+   manual interview needs it too: at 200% text a desktop save failure otherwise covers
+   Send when its column reaches the end of the page. Voice keeps its top toast instead. */
+body:is([data-panel="done"], [data-panel="interview"]):not(.voice-active):has(#err-toast:not([hidden])) {
   padding-bottom: calc(var(--toast-err-max) + var(--s7) + env(safe-area-inset-bottom));
 }
 /* Two classes, to outrank button.quiet's padding. */
 .toast-err .toast-dismiss {
+  --button-ink: var(--on-surface-variant);
   flex: none; display: grid; place-items: center;
   width: var(--control-height); min-width: var(--control-height); padding: 0;
-  color: var(--on-surface-variant); border-radius: var(--r-pill);
+  color: var(--on-surface-variant); border-radius: var(--r-sm);
 }
 .toast-dismiss::before { --icon-size: 20px; }
 .toast-err .toast-dismiss:hover { color: var(--on-surface); }
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(var(--s2)); }
+  from { opacity: 0; transform: translateY(var(--s1)); }
 }
 #main:focus { outline: none; }
 
@@ -1168,7 +1258,9 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
    purpose. Voice mode hides .bar-right and the meter with `hidden`, which beats all of this. */
 @media (max-width: 600px) {
   :root {
-    --nav-item-height: 64px;
+    /* Icon, gap, padding and edge total 48px. Reserve two complete label lines: a
+       fractional second-line budget clipped focus at the 175% wrapping threshold. */
+    --nav-item-height: max(var(--s8), calc(var(--s7) + 2.4 * var(--type-meta-size)));
     --nav-bar-height: calc(var(--s1) + var(--nav-item-height)
       + max(var(--s2), env(safe-area-inset-bottom)) + 1px);
   }
@@ -1176,7 +1268,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   /* Keyboard focus scrolls a control into view ignoring fixed boxes, so without this a
      tabbed-to control below the fold lands under the bar (WCAG 2.4.11, focus not obscured). */
   html:has(body:is([data-panel="setup"], [data-panel="library"])) {
-    scroll-padding-bottom: var(--nav-bar-height);
+    scroll-padding-bottom: calc(var(--nav-bar-height) + var(--s2));
   }
   body:is([data-panel="setup"], [data-panel="library"]) .bar-right {
     position: fixed; inset: auto 0 0 0; z-index: 5;
@@ -1185,12 +1277,13 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
       max(var(--s2), env(safe-area-inset-bottom)) max(var(--s2), env(safe-area-inset-left));
     background: var(--surface-container-lowest);
     border-top: 1px solid var(--outline-variant);
-    box-shadow: var(--elev-1);
+    box-shadow: var(--elev-0);
   }
   body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item {
+    --button-ink: var(--on-surface-variant);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: var(--s1); min-width: 0; min-height: var(--nav-item-height); margin: 0;
-    padding: var(--s2) var(--s1); border: 1px solid transparent; border-radius: var(--r-md);
+    padding: var(--s2) var(--s1); border: 1px solid transparent; border-radius: var(--r-sm);
     background: transparent; box-shadow: none; color: var(--on-surface-variant);
     font-size: var(--t-xs); font-weight: 600; line-height: 1.2; text-align: center;
   }
@@ -1201,7 +1294,9 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
     background: color-mix(in srgb, var(--on-surface) var(--state-hover), transparent);
   }
   body:is([data-panel="setup"], [data-panel="library"]) .bar-right .nav-item[aria-current="page"] {
+    --button-ink: var(--primary);
     background: var(--primary-container); color: var(--primary);
+    border-block-end: var(--state-edge-width) solid var(--primary);
   }
 
   body:is([data-panel="interview"], [data-panel="done"]) .bar {
@@ -1219,7 +1314,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item {
     grid-row: 1; width: var(--control-height); min-width: var(--control-height);
     min-height: var(--control-height); padding: 0; display: grid; place-items: center;
-    border-color: transparent; border-radius: var(--r-pill); background: transparent;
+    border-color: transparent; border-radius: var(--r-sm); background: transparent;
     box-shadow: none; color: var(--on-surface);
   }
   body:is([data-panel="interview"], [data-panel="done"]) .bar-right .nav-item:hover {
@@ -1253,8 +1348,8 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   body[data-panel="interview"] .toasts {
     top: max(var(--s4), env(safe-area-inset-top)); bottom: auto; flex-direction: column;
     padding-inline:
-      calc(max(20px, env(safe-area-inset-left)) + var(--control-height) + var(--s2))
-      calc(max(20px, env(safe-area-inset-right)) + var(--control-height) + var(--s2));
+      calc(max(var(--page-gutter), env(safe-area-inset-left)) + var(--control-height) + var(--s2))
+      calc(max(var(--page-gutter), env(safe-area-inset-right)) + var(--control-height) + var(--s2));
   }
 }
 
@@ -1272,7 +1367,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .composer {
     position: sticky; z-index: 2;
     bottom: calc(var(--keyboard-inset, 0px) + var(--composer-gap));
-    padding: var(--s2);
+    padding: var(--s2); box-shadow: var(--elev-2);
   }
   html:has(body[data-panel="interview"]) {
     scroll-padding-bottom: calc(var(--composer-block, 0px) + var(--keyboard-inset, 0px) + var(--composer-gap) + var(--s2));
@@ -1331,7 +1426,9 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
    44px or less here until #111; a11y-keyboard.probe.mjs measures every panel under a real
    coarse pointer. A radio or checkbox inside a .toggle label is sized by its label. */
 @media (pointer: coarse) {
-  button, input, select { min-height: var(--control-height); }
+  button, input, select, textarea { min-height: var(--control-height); }
+  button, select, textarea, summary, .toggle { min-width: var(--control-height); }
+  .toggle { min-height: var(--control-height); }
   .row button, button.small, .chip { min-height: var(--control-height); }
   .question-skeleton .sk-chip { height: var(--control-height); }
   .toggle input { min-height: 0; }
@@ -1351,7 +1448,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
 @media (prefers-reduced-motion: no-preference) {
   #main > section[data-enter] { animation: panel-in var(--dur-medium2) var(--ease-emph-decel); }
 }
-@keyframes panel-in { from { opacity: 0; transform: translateY(var(--s2)); } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(var(--s1)); } }
 
 /* The navigation bar's same-document View Transition (navigateTo in app.js): the default
    root crossfade, on the motion tokens. Short on purpose: while a transition is active the
@@ -1372,10 +1469,25 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   }
   :root {
     --dur-short1: 0s; --dur-short2: 0s; --dur-short3: 0s; --dur-short4: 0s;
-    --dur-medium1: 0s; --dur-medium2: 0s; --dur-medium3: 0s; --dur-medium4: 0s;
+    --dur-medium2: 0s; --dur-medium3: 0s;
     --dur-long2: 0s;
   }
-  * { transition: none !important; animation: none !important; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
   .voice-bars span, .voice-bars span:last-child { height: var(--s2); transform: none; }
   .pulse, button:active { transform: none; }
+}
+
+@media (forced-colors: active) {
+  [data-icon]::before { forced-color-adjust: none; background-color: CanvasText; }
+  button[data-icon]::before { background-color: ButtonText; }
+  :is(button, input, select, textarea, summary, a):focus-visible { outline-color: Highlight; }
+  :is(.bar-right .nav-item, .settings-index button)[aria-current] { border-color: Highlight; }
+  .idea-card[aria-current="true"] { border: var(--state-edge-width) double Highlight; box-shadow: none; }
+  .callout, .backup-warning, .toast-err { border-color: CanvasText; }
+  .toggle input.switch { forced-color-adjust: none; background: Canvas; border-color: ButtonText; }
+  .toggle input.switch::before { background: ButtonText; }
+  .toggle input.switch:checked { background: Highlight; border-color: Highlight; }
+  .toggle input.switch:checked::before { background: HighlightText; }
+  .toggle input.switch:disabled { background: Canvas; border-color: GrayText; }
+  .toggle input.switch:disabled::before { background: GrayText; }
 }

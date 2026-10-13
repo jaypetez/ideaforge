@@ -157,6 +157,20 @@ export default async function run(check, { subpath }) {
   // contrast.browser.mjs (#111).
   const probe = doc.createElement('div');
   doc.body.append(probe);
+  const style = (el) => win.getComputedStyle(el);
+  check('the app body retains 16px type and 1.6 leading',
+    parseFloat(style(doc.body).fontSize) === 16 && Math.abs(parseFloat(style(doc.body).lineHeight) - 25.6) < .1,
+    `${style(doc.body).fontSize} / ${style(doc.body).lineHeight}`);
+  check('shared fields and controls use 8px corners, and surfaces use 12px',
+    style($('apikey')).borderTopLeftRadius === '8px'
+      && style($('b-start')).borderTopLeftRadius === '8px'
+      && style($('connect')).borderTopLeftRadius === '12px');
+  check('settings and question surfaces are flat, not elevated cards',
+    style($('connect')).boxShadow === 'none' && style($('question-card')).boxShadow === 'none');
+  const dialog = doc.createElement('dialog');
+  probe.append(dialog);
+  check('the native HTML dialog composition reserves 16px corners and foreground elevation',
+    style(dialog).borderTopLeftRadius === '16px' && style(dialog).boxShadow !== 'none');
 
   // ── icons: a mask on ::before, never a text node ─────────────────────────
   //
@@ -202,6 +216,13 @@ export default async function run(check, { subpath }) {
     .find((rule) => rule.selectorText === ':root' && rule.style.getPropertyValue('--dur-medium2'));
   const durationTokens = topRoot ? [...topRoot.style].filter((name) => name.startsWith('--dur-')) : [];
   check('the stylesheet defines motion duration tokens', durationTokens.length >= 5, durationTokens.join(','));
+  const interactionTokens = durationTokens.filter((name) => name !== '--dur-long2');
+  check('interaction paint stays within 100–180ms without a transition delay',
+    interactionTokens.every((name) => {
+      const duration = parseFloat(topRoot.style.getPropertyValue(name));
+      return duration >= 100 && duration <= 180;
+    }) && style($('b-start')).transitionDelay.split(',').every((value) => parseFloat(value) === 0),
+    interactionTokens.map((name) => `${name}=${topRoot.style.getPropertyValue(name).trim()}`).join(' '));
   check('...and reduced motion sets every one of them to 0s', Boolean(reducedRoot)
     && durationTokens.every((name) => reducedRoot.style.getPropertyValue(name).trim() === '0s'),
     reducedRoot ? durationTokens.map((n) => `${n}=${reducedRoot.style.getPropertyValue(n).trim()}`).join(' ') : 'no :root rule');

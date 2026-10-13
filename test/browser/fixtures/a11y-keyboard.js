@@ -85,7 +85,10 @@
         if (el.matches('a') && el.closest('p')) exempt = 'inline link in text';
         // The desktop coverage panel's summary is its heading, not a toggle (aria-disabled).
         if (el.getAttribute('aria-disabled') === 'true') exempt = 'not operable (aria-disabled)';
-        out.push({ name: name(el), width: rect.width, height: rect.height, exempt });
+        out.push({
+          name: name(el), width: rect.width, height: rect.height, exempt,
+          minimumHeight: el.matches('button') && el.closest('.voice-actions, .start-actions') ? 64 : 48,
+        });
       }
       return out;
     },

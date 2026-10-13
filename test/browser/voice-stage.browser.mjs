@@ -748,8 +748,8 @@ async function checkMeterAndLayout(app, check) {
     const contentWidth = app.doc.documentElement.clientWidth;
     const pause = app.$('b-voice-pause').getBoundingClientRect();
     const exit = app.$('b-voice-exit').getBoundingClientRect();
-    check(`Pause and Exit remain at least 48 by 48 CSS pixels at ${width}px`,
-      [pause, exit].every((rect) => rect.height >= 48 && rect.width >= 48),
+    check(`Pause and Exit remain at least 48px wide and 64px high at ${width}px`,
+      [pause, exit].every((rect) => rect.height >= 64 && rect.width >= 48),
       `${pause.width}x${pause.height}, ${exit.width}x${exit.height}`);
     check(`the voice stage has no horizontal overflow at ${width}px`,
       app.doc.documentElement.scrollWidth <= app.doc.documentElement.clientWidth,
@@ -767,7 +767,7 @@ async function checkMeterAndLayout(app, check) {
   }
   // Pause and Exit are icon-over-label circles now; the label must still be the name, and
   // the coarse-pointer rule (activated in this frame only, as reduced motion is above) must
-  // leave both at least 48px.
+  // keep the circles at least 64px and the labels available.
   const circle = (id) => Number.parseFloat(app.win.getComputedStyle(app.$(id), '::after').width);
   const fineCircles = ['b-voice-pause', 'b-voice-exit'].map(circle);
   const coarse = coarsePointerRules(app);
@@ -794,10 +794,10 @@ async function checkMeterAndLayout(app, check) {
     // fine-pointer ones, so a pass here cannot come from the fine layout alone.
     const coarseCircles = ['b-voice-pause', 'b-voice-exit'].map(circle);
     check('the coarse-pointer rule enlarges the Pause and Exit circles',
-      coarseCircles.every((size, index) => size >= 48 && size > fineCircles[index]),
+      coarseCircles.every((size, index) => size >= 64 && size > fineCircles[index]),
       `fine=${fineCircles.join('/')} coarse=${coarseCircles.join('/')}`);
-    check('Pause and Exit are at least 48 by 48 CSS pixels on a coarse pointer',
-      controls.every(({ rect }) => rect.width >= 48 && rect.height >= 48),
+    check('Pause and Exit are at least 48px wide and 64px high on a coarse pointer',
+      controls.every(({ rect }) => rect.width >= 48 && rect.height >= 64),
       controls.map(({ id, rect }) => `${id} ${rect.width}x${rect.height}`).join(', '));
   } finally {
     coarse.restore();

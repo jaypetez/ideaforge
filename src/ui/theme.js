@@ -8,7 +8,7 @@
 import { themePreference } from '../store/prefs.js';
 
 /** The --surface-container-low ground in each theme, matching index.html's theme-color metas. */
-export const THEME_COLOURS = { light: '#f5f6f2', dark: '#15191a' };
+export const THEME_COLOURS = { light: '#f5f7fa', dark: '#11161b' };
 
 /**
  * Set or clear data-theme and point the browser-chrome colour at the same theme.

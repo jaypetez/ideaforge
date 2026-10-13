@@ -165,8 +165,8 @@ the full verbatim transcript.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/06-refined-prompt.dark.png">
     <img src="docs/screenshots/06-refined-prompt.light.png" width="760"
-         alt="The finished document on screen, titled ‘Conference name recall app’, showing
-              eight questions and 86% coverage, with a Share .md button and a More actions
+         alt="The finished document on a flat reading surface, titled ‘Conference name recall app’,
+              showing eight questions and 86% coverage, with a Share .md button and a More actions
               menu to copy or download the markdown, ask more questions, or start a new idea.">
   </picture>
 </p>
@@ -415,7 +415,7 @@ depends on whose resolver is asking.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/01-setup.dark.png">
     <img src="docs/screenshots/01-setup.light.png" width="760"
-         alt="The Start screen: a one-line introduction, a connection card with a
+         alt="The Start screen: a short introduction, a flat connection surface with a
               provider dropdown set to Anthropic, an API key field, a collapsed Model
               options section and a Check the key button, above separate Start with voice
               and Type instead buttons and the version footer.">
@@ -430,8 +430,8 @@ connection card to one line with a **Change** action. Everything else lives in *
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/10-settings.dark.png">
     <img src="docs/screenshots/10-settings.light.png" width="760"
-         alt="The Settings screen in five groups: Connection with the provider, API key,
-              Model options and Check the key; Listen and speak with Dictation, the
+         alt="The Settings screen in five separator-divided groups: Connection with the provider,
+              API key, Model options and Check the key; Listen and speak with Dictation, the
               hands-free finish word, Spoken replies and a collapsed Voice and speaking
               pace section; Appearance with a System, Light or Dark theme choice; Data with
               Back up ideas and Import backup; and About with the version and a Guide link.">

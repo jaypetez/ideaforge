@@ -59,6 +59,41 @@ export default async function run(check) {
     } finally {
       clip.remove();
     }
+    // A real save failure at enlarged text used to leave desktop Send under the fixed
+    // error. Reuse the same scene and strict geometry guard as development captures.
+    win.claude = { use: async () => async () => ({
+      text: JSON.stringify({
+        question: 'What would a useful first week with this notebook look like?',
+        move: 'concretize', chips: ['Keep the original notes'], coverage: {}, facts: [],
+      }), modelTierApplied: 'scripted-ux',
+    }) };
+    const failure = fixtures.states.find((state) => state.id === 'save-failure');
+    const originalPut = win.IDBObjectStore.prototype.put;
+    const originalFont = win.document.documentElement.style.fontSize;
+    const originalTheme = win.document.documentElement.dataset.theme;
+    try {
+      const failureControls = await presentUxState(win, failure, fixtures);
+      await awaitUx(() => !win.document.getElementById('b-send').disabled
+        && !win.document.getElementById('asking').getClientRects().length, 'settled failed save');
+      win.document.documentElement.style.fontSize = '200%';
+      for (const theme of ['light', 'dark']) {
+        win.document.documentElement.dataset.theme = theme;
+        for (const width of [320, 1280]) {
+          frame.width = width;
+          await new Promise((resolve) => win.requestAnimationFrame(resolve));
+          const geometry = measureUxState(win, `${theme} enlarged failed save`, failureControls);
+          check(`${theme}: the real failed-save scene keeps Send and Skip reachable at ${width}px and 200% text`,
+            geometry.controls.every((control) => control.visible && control.reachable)
+              && geometry.fontSize === 32);
+        }
+      }
+    } finally {
+      win.IDBObjectStore.prototype.put = originalPut;
+      win.document.documentElement.style.fontSize = originalFont;
+      if (originalTheme === undefined) delete win.document.documentElement.dataset.theme;
+      else win.document.documentElement.dataset.theme = originalTheme;
+      frame.width = 390;
+    }
     const voice = fixtures.states.find((s) => s.id === 'voice-listening');
     await presentUxState(win, voice, fixtures);
     check('an isolated voice fixture is labelled separately and reports unavailable samples',

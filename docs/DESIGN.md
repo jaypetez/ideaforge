@@ -2,56 +2,85 @@
 
 IdeaForge has two front ends: the web app (`src/ui/app.css`) and the native Android app
 (`android/app`, Jetpack Compose with Material 3). They share one information architecture
-and one visual language, and this page is where the two meet. Every web token below names
-the Material 3 role the Android theme uses for the same job. When you change a value on one
-side, change its twin, or the apps drift apart a shade at a time.
+and one intended visual language, and this page is where the two meet. The web foundation
+has moved to Focus Studio in [#189](https://github.com/jaypetez/ideaforge/issues/189);
+the native fallback values below are still the earlier scheme until
+[#190](https://github.com/jaypetez/ideaforge/issues/190). Corresponding role names are not
+a claim that both implementations already draw the same values.
 
 `src/ui/app.css` owns the web values. `test/browser/app.browser.mjs` checks that both themes
 resolve, and `test/browser/contrast.browser.mjs` checks every colour pair in light and in
 dark (see [Contrast and targets](#contrast-and-targets)).
 
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
-[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). It is **not yet
-implemented**. The current shipped tokens in the next section still describe the actual
-app; do not replace that evidence with the proposed reference palette before its owning
-implementation lands.
+[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). Only the web
+colour/type/spacing/shape/state foundation is implemented here. The adaptive shell and
+Start/Ideas/Interview/Voice/Result recompositions are **not yet implemented**. The guide's
+own stylesheet also keeps its earlier values until
+[#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
+the new foundation and existing layouts, not the complete reference boards.
 
 ## Current shipped tokens
 
 ## Colour roles
 
-Web values are `light-dark(light, dark)` over an explicit `color-scheme`. On Android 12 and
-later the app uses dynamic colour from the wallpaper, and these values are the fallback
-scheme.
+Web values are `light-dark(light, dark)` over an explicit `color-scheme`. The Compose column
+identifies the corresponding role, not its current native hex value. Android 12 and later
+still use wallpaper dynamic colour; the separate current fallback table follows this one.
 
 | Web token | Compose `ColorScheme` | Light | Dark | Used for |
 |---|---|---|---|---|
-| `--surface-container-low` | `surfaceContainerLow` / `background` / `surface` | `#f5f6f2` | `#15191a` | The page ground |
-| `--surface-container-lowest` | `surfaceContainerLowest` | `#fdfefb` | `#1d2324` | Cards, fields, grouped settings |
-| `--surface-container` | `surfaceContainer` | `#e9eeea` | `#293132` | Tracks, disabled fills, quiet hover |
-| `--surface-container-high` | `surfaceContainerHigh` / `surfaceContainerHighest` | `#dfe6e1` | `#313a3b` | Raised sheets and menus |
-| `--on-surface` | `onSurface` | `#202c2b` | `#eef0e9` | Body text and headings |
-| `--on-surface-variant` | `onSurfaceVariant` | `#566562` | `#abbab5` | Hints, metadata, secondary text |
-| `--outline` | `outline` | `#73847d` | `#72867f` | Field and chip borders (3:1 on every surface) |
-| `--outline-variant` | `outlineVariant` | `#d4ded8` | `#364140` | Dividers and card edges |
-| `--primary` | `primary` | `#24665e` | `#9ecdc3` | The one primary action, links, focus |
-| `--on-primary` | `onPrimary` | `#ffffff` | `#142e29` | Text on a primary fill |
+| `--surface-container-low` | `surfaceContainerLow` / `background` / `surface` | `#F5F7FA` | `#11161B` | The page ground |
+| `--surface-container-lowest` | `surfaceContainerLowest` | `#FFFFFF` | `#1B222A` | Foreground work and fields |
+| `--surface-container` | `surfaceContainer` | `#E8EDF2` | `#27313B` | Tracks, disabled fills, quiet grouping |
+| `--surface-container-high` | `surfaceContainerHigh` / `surfaceContainerHighest` | `#DEE6EE` | `#313E49` | Menus and floating status |
+| `--on-surface` | `onSurface` | `#17212B` | `#EEF3F8` | Body text and headings |
+| `--on-surface-variant` | `onSurfaceVariant` | `#526171` | `#B4C0CB` | Readable hints and metadata |
+| `--outline` | `outline` | `#718091` | `#91A1B2` | Operative field/control edges (3:1 on every surface) |
+| `--outline-variant` | `outlineVariant` | ink at 16% | ink at 16% | Restrained separators, not operative boundaries |
+| `--primary` | `primary` | `#0F6963` | `#7AD5C7` | Main action, links and focus |
+| `--on-primary` | `onPrimary` | `#FFFFFF` | `#0A332E` | Text on a primary fill |
 | `--primary-container` | `primaryContainer` | primary at 10% | primary at 10% | Selected and hovered tonal fills |
 | `--on-primary-container` | `onPrimaryContainer` | `--on-surface` | `--on-surface` | Text on a tonal fill |
-| `--error` | `error` | `#9e3e37` | `#e8a396` | Destructive actions and failures |
-| `--error-container` | `errorContainer` | error at 12% | error at 12% | Destructive hover |
-| `--success` | custom | `#306445` | `#a0c9a9` | Coverage reached, checks passed |
-| `--warning` | custom | `#786120` | `#cfbd8a` | Pending and partial states |
+| `--error` | `error` | `#983632` | `#F3AAA0` | Destructive text and failure markers |
+| `--error-container` | `errorContainer` | error at 12% | error at 12% | Destructive hover and error callouts |
+| `--success` | custom | `#306445` | `#A0C9A9` | Coverage reached, checks passed |
+| `--success-container` | custom | success at 12% | success at 12% | Success badges/callouts |
+| `--warning` | custom | `#765C20` | `#E7C882` | Pending and partial states |
+| `--warning-container` | custom | warning at 12% | warning at 12% | Partial badges and warning callouts |
 
-The web's containers are translucent; Compose wants opaque roles, so `Theme.kt`
-composites `primaryContainer` and `errorContainer` over the ground. The web has one accent,
-so the Compose scheme's `secondary` and `tertiary` roles (and their containers) follow
-`primary` rather than Material's baseline purple. The fallback scheme lives in
-`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt`, whose
-comment points back at this table.
+Translucent roles are composited over their actual ancestor surfaces. The darker web error
+red is intentional: the reference `#A83C3A` fails for destructive text on a translucent
+pressed/hover layer over a raised menu. Opaque token contrast alone cannot approve that
+component. Callout bodies use ordinary ink and an explicit explanation; their status edge
+is an additional cue, not the only one.
 
-The v1 names (`--ground`, `--surface`, `--ink`, `--accent` and the rest) are aliases of
-these roles while the redesign migrates rule by rule. New rules use the role names.
+The v1 colour names (`--ground`, `--surface`, `--ink`, `--accent` and the rest) remain only
+where unchanged screen rules still consume them. Touched shared compositions use the roles.
+
+### Current native fallback (not yet migrated)
+
+`android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt` still owns these
+values. #189 changes no Android source or dynamic-colour behaviour; #190 owns its foundation.
+
+| Native role | Light | Dark |
+|---|---|---|
+| `surfaceContainerLow` / `background` / `surface` | `#F5F6F2` | `#15191A` |
+| `surfaceContainerLowest` | `#FDFEFB` | `#1D2324` |
+| `surfaceContainer` | `#E9EEEA` | `#293132` |
+| `surfaceContainerHigh` / `surfaceContainerHighest` | `#DFE6E1` | `#313A3B` |
+| `onSurface` | `#202C2B` | `#EEF0E9` |
+| `onSurfaceVariant` | `#566562` | `#ABBAB5` |
+| `outline` | `#73847D` | `#72867F` |
+| `outlineVariant` | `#D4DED8` | `#364140` |
+| `primary` | `#24665E` | `#9ECDC3` |
+| `onPrimary` | `#FFFFFF` | `#142E29` |
+| `error` | `#9E3E37` | `#E8A396` |
+| `ExtraColors.success` | `#306445` | `#A0C9A9` |
+| `ExtraColors.warning` | `#786120` | `#CFBD8A` |
+
+Native `primaryContainer` (10%) and `errorContainer` (12%) remain opaque composites over
+that native ground. Its fallback `secondary` and `tertiary` still follow `primary`.
 
 ## Theme choice
 
@@ -63,15 +92,38 @@ on Android. System follows the device. On the web an explicit choice sets
 waits for the stored value before rendering, for the same reason: no flash of the other
 theme. Like every device preference, the choice is never in a backup.
 
+The web's classic boot script also retints the chrome for an explicit capture `data-theme`
+without changing or storing it, even if preference storage is blocked. `theme.js`,
+`theme-boot.js`, the two `index.html` meta tags and the manifest's dark install fallback
+agree with the CSS ground roles; wiring and before-paint tests hold that agreement.
+
 ## State, focus and elevation
 
 | Web token | Compose | Value |
 |---|---|---|
 | `--state-hover` | state layer, hovered | 8% of the content colour |
-| `--state-focus` | state layer, focused | 10% |
-| `--state-pressed` | state layer, pressed | 10% |
+| `--state-focus` | state layer, focused | 9% |
+| `--state-pressed` | state layer, pressed | 9% |
 | `--focus-ring` / `--focus-offset` | focus indication | 2px `--primary`, 3px offset |
-| `--elev-0` … `--elev-3` | `tonalElevation` / shadow levels 0–3 | none, card, raised, dialog |
+| `--elev-0`, `--elev-2`, `--elev-3` | conceptual elevation roles | flat background/surfaces, docked composer, menus/dialogs/toasts |
+
+Primary, secondary (`ghost`), quiet, tonal and destructive buttons share foreground-mixed
+state layers. Disabled controls remain opaque and readable, use dashed edges and the native
+disabled attribute; busy controls can use the native `aria-busy` attribute, a doubled edge
+and an operation label. Selected destinations have an edge as well as a tonal fill.
+The contrast probe rejects element/ancestor opacity rather than reporting unfaded token
+contrast; the actual disabled Done menu action is checked in its open popover too.
+The 9% focus/pressed mix is measured, not arbitrary: 10% took petrol quiet-button text
+to 4.49:1 on the raised surface. The outline/inset edge distinguishes those states.
+Fields retain visible labels/placeholders, an outline on keyboard focus and an applicable
+`aria-invalid` edge; they do not acquire a second JavaScript validation system.
+
+Settings groups use separators instead of repeated card chrome. Cards and document
+surfaces are flat; genuine floating menus and errors retain their operative edge and
+foreground shadow. The shared `.callout`, `.hint`, `.section-head`, `.row`, `.idea-menu`
+and HTML `dialog` compositions reuse the existing classes and browser primitives. Existing
+Delete/Forget confirmations remain `window.confirm`, with browser-owned appearance and
+behaviour; this slice does not replace them with a new modal flow.
 
 ## Contrast and targets
 
@@ -84,26 +136,31 @@ part.
 - **Text**: 4.5:1. Large text (24px, or 18.66px at weight 700) needs 3:1. This covers every
   text role on every surface, and the text of buttons, chips, badges, tags, coverage labels,
   thread bubbles, menus, toasts, placeholders, the skip link and every voice-stage line in
-  every phase.
+  every phase. Disabled text is voluntarily held to 4.5:1 as well.
 - **Non-text**: 3:1. This covers `--outline` on every surface, and the focus ring
   (`--primary`) on what sits behind each control. It also covers field, ghost-button and chip
   edges, the switch's track and thumb in both states, the overflow menu's and toasts' edges,
   the current navigation item, the selected library card, icons on their buttons, and the
   voice stage's phase glyph and button icons on their circles. The coverage meter's segments
   are measured by `coverage.browser.mjs`.
-- **Exempt**: disabled controls (WCAG exempts inactive components), and container edges that
-  identify nothing, such as cards, the question card and dividers. The voice stage's tonal
-  ring and the loading skeleton bars only repeat state that text already shows: the status
+- **Exempt**: container edges that identify nothing, such as cards, the question card and
+  dividers. WCAG exempts inactive components, but the web tests retain a readable disabled
+  text/edge contract. The voice stage's tonal ring and the loading skeleton bars only repeat
+  state that text already shows: the status
   line under the ring, the caption or title beside a skeleton, and "Loading ideas…" in the
   library count. The text is measured instead.
 
-Three edges were raised to meet 3:1. Chip borders are `--primary` at 70%; they were 30%,
-which measured 1.6:1 in light. The overflow menu and toast borders are `--outline`; they
-were `--outline-variant`, which measured 1.3:1. They float over arbitrary content, and the
-edge is what separates them.
+Chip borders stay primary at 70%, and menu/toast edges stay `--outline`: those controls
+need a boundary, whereas an ordinary surface does not. The trusted-input accessibility
+phase measures hover, pressed, keyboard focus, disabled, busy, field errors and textual
+error/success/warning callouts on all four surfaces, including native popovers. It also
+exercises an HTML dialog, 200% text/long labels at 320/360/600/840/1440, coarse targets and
+forced colours where Chromium supports them. These are component/regression checks, not a
+claim that new dialog workflows or the later screen compositions have been delivered.
 
 **Targets.** Under `pointer: coarse`, every control is at least 48 by 48 CSS pixels. That
-is Material's minimum and the Android app's. WCAG 2.5.8 asks for 24. Two exemptions apply.
+is the project's comfort target, not WCAG's minimum. Voice start/stage actions are at least
+64px high. WCAG 2.5.8 asks for 24. Two exemptions apply.
 A link inside a sentence is sized by its line, which is WCAG 2.5.8's inline exception: the
 key link in the API key hint, and the Guide link in the version line. The desktop coverage
 panel's summary is a heading there (`aria-disabled`), not a control.
@@ -125,32 +182,44 @@ sizes, line heights and 600 weight.
 | `--type-title-*` | `titleMedium` | 1.125rem / 1.35 |
 | `--type-body-*` | `bodyLarge` | 1rem / 1.6 |
 | `--type-label-*` | `labelLarge` | .875rem / 1.35 |
+| `--type-meta-*` | web metadata | .875rem / 1.45 |
 
 ## Spacing and shape
 
 The web's spacing steps are `--s1` … `--s8` (4, 8, 12, 16, 24, 32, 48 and 64px), its radii
-`--r-sm`, `--r-md`, `--r-lg` and `--r-pill` (10, 16, 24px and a full pill), and its control
-height `--control-height` (48px, the minimum target above). Compose has no spacing or
-shape tokens of its own yet: `IdeaForgeTheme` sets colour and type only, so
+`--r-sm`, `--r-md`, `--r-lg` and `--r-pill` (8px controls, 12px surfaces, 16px dialogs and a
+full pill for tags/status), and its control height `--control-height` (48px).
+`--voice-control-height` is 64px; `--voice-touch-height` adds room to the touch circle at
+72px. The existing voice presentation keeps its circles rather than being recomposed here.
+The Start buttons' intrinsic width is bounded by their available row, so doubling text
+does not turn a 10rem minimum into a 320px control inside a narrower gutter. Desktop manual
+errors reserve scroll space as Done already did, keeping Send clear of a long save failure.
+The existing fixed phone navigation shares one font-aware height with body clearance and
+reserves two complete label lines. Fractional line interpolation undercounted the wrapped
+label at 175% text. Scroll clearance adds an 8px gap for the 2px focus outline and its
+3px offset; shell probes check nearest scrolling at 150%, 175% and 200% in both themes.
+Existing form/work/settings widths are named tokens, not new adaptive-shell breakpoints.
+Compose has no spacing or shape tokens of its own yet: `IdeaForgeTheme` sets colour and type
+only, so
 `MaterialTheme.shapes` is Material's default and screens use `dp` values directly. A shared
 `Shapes` object is the place to start if the two drift visibly.
 
 ## Motion
 
-The durations are Material 3's steps. Under `prefers-reduced-motion: reduce` every
-`--dur-*` token becomes `0s`, so any rule that uses a token is reduced automatically. The
+Interaction paint uses only the consumed 100–180ms steps. Under
+`prefers-reduced-motion: reduce` every `--dur-*` token becomes `0s`, so any rule that uses a
+token is reduced automatically. The
 Android app follows the system's animator duration scale.
 
 | Web token | Compose | Value |
 |---|---|---|
-| `--dur-short1` … `--dur-short4` | `MotionTokens.DurationShort1…4` | 50, 100, 150, 200ms |
-| `--dur-medium1` … `--dur-medium4` | `MotionTokens.DurationMedium1…4` | 250, 300, 350, 400ms |
-| `--dur-long2` | `MotionTokens.DurationLong2` | 500ms |
+| `--dur-short1` … `--dur-short4` | web interaction steps | 100, 120, 150, 180ms |
+| `--dur-medium2`, `--dur-medium3` | web entry/state paint | 180, 150ms |
+| `--dur-long2` | actual loading, not dispatch | 400ms; the skeleton pulse lasts three steps |
 | `--ease-standard` | `EasingStandard` | `cubic-bezier(.2, 0, 0, 1)` |
 | `--ease-emph-decel` | `EasingEmphasizedDecelerate` | `cubic-bezier(.05, .7, .1, 1)` |
-| `--ease-emph-accel` | `EasingEmphasizedAccelerate` | `cubic-bezier(.3, 0, .8, .15)` |
 
-Panels enter with one keyframe, `panel-in` (opacity and a `--s2` rise over `--dur-medium2`
+Panels enter with one keyframe, `panel-in` (opacity and a `--s1` rise over `--dur-medium2`
 on `--ease-emph-decel`), keyed off the `data-enter` attribute that `show()` sets in the same
 task. The panel is displayed and focusable from the first frame, so focus, speech priming
 and `navigator.share` never wait for it. The rule exists only under `no-preference`.
@@ -233,7 +302,9 @@ checks take precedence over a pleasant drawing.
 
 `design/focus-studio.css` owns only these reference values. Web and native implementation
 issues migrate their actual owners independently; Android dynamic colour remains supported.
-The existing token table above stays current until that implementation changes it.
+The current web table above records actual composed-contrast adjustments rather than
+pretending every reference hex can be used unchanged. The native fallback table still
+records its separate implementation.
 
 | Role | Light | Dark | Intended use |
 |---|---|---|---|
@@ -252,7 +323,8 @@ The existing token table above stays current until that implementation changes i
 Opaque-pair tests require body, secondary, primary, error and warning text to reach 4.5:1
 on every proposed surface, outline to reach 3:1, and on-primary text to reach 4.5:1.
 This is a baseline, not proof of blended component states or native dynamic palettes.
-Future implementation still uses the computed/composited contrast probes.
+The web foundation also uses computed/composited contrast probes; native migration needs its
+own component and dynamic-colour evidence.
 
 | Role | Reference value / rule |
 |---|---|
