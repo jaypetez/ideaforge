@@ -35,6 +35,33 @@ source wins over prose, and a generated artifact wins over a description of that
   device/IME/permission behavior and running-app accessibility need separate evidence.
   `tools/assemble-site.mjs` excludes `docs/design/` from published assets. Do not refresh
   canonical README screenshots to make an unimplemented design appear shipped.
+- **Development UX fixtures and evidence.** Sources:
+  [`tools/fixtures/ux.mjs`](../../../../tools/fixtures/ux.mjs) and generated
+  [`test/fixtures/ux.json`](../../../../test/fixtures/ux.json) own the shared deterministic
+  state inventory and reducer-built sessions; [`tools/ux-fixtures.mjs`](../../../../tools/ux-fixtures.mjs)
+  and [`test/ux-fixtures.test.mjs`](../../../../test/ux-fixtures.test.mjs) reject drift.
+  [`tools/ux-captures.mjs`](../../../../tools/ux-captures.mjs) and
+  [`test/browser/fixtures/ux.js`](../../../../test/browser/fixtures/ux.js) use the existing
+  assembled-site/browser harness and fail on missing state, inaccessible controls or overflow.
+  Native [`UxFixtures.kt`](../../../../android/app/src/debug/kotlin/io/github/jaypetez/ideaforge/ux/UxFixtures.kt),
+  [`UxFixtureActivity.kt`](../../../../android/app/src/debug/kotlin/io/github/jaypetez/ideaforge/ux/UxFixtureActivity.kt)
+  and [`UxCaptureDeviceTest.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxCaptureDeviceTest.kt)
+  own shared-data loading, labelled isolated phases and real navigation.
+  [`UxCaptureRecorder.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxCaptureRecorder.kt)
+  owns PNG/semantics/manifests; [`UxDeviceEnvironment.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxDeviceEnvironment.kt)
+  restores actual display/font settings. Re-check platform-specific phases, explicit caller
+  SHA versus clean-tree evidence, focused versus complete matrix results, and known red
+  baselines against those owners.
+  [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
+  visual managed devices and always-upload evidence, not the required `ci` gate.
+  [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) and
+  [`ScriptedProviderIsDebugOnlyTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ScriptedProviderIsDebugOnlyTest.kt)
+  reject fixture JSON, activities and retained debug-only classes in release packaging.
+  Re-check DESIGN/contributor capture commands, manifests, actual font/text scaling,
+  clean tested SHA versus labelled dirty iteration, real-app versus isolated phase evidence
+  and lab-versus-field timing claims. Fixture code/data must stay out of the assembled site
+  and release APK. ATD semantic tests are not visual/system-bar evidence: drawing/SystemUI
+  are disabled there. Preserve the canonical README screenshot/example inventory.
 - **Public guide shell and navigation.** Sources:
   [`guide/index.html`](../../../../guide/index.html) and
   [`guide/assets/guide.css`](../../../../guide/assets/guide.css). Re-check every guide page.

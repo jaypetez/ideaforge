@@ -25,6 +25,12 @@
     </queries>
 
     <application>
+        <!-- Isolated UX presentation evidence, launched only by instrumentation. -->
+        <activity
+            android:name=".ux.UxFixtureActivity"
+            android:exported="false"
+            android:label="Isolated UX fixture" />
+
         <!-- Not exported: reached only through the "probe recognizer" launch extra on MainActivity. -->
         <activity
             android:name=".probe.RecognizerProbeActivity"

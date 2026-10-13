@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.github.jaypetez.ideaforge.ux.UxFixtures
 import java.io.File
 
 /**
@@ -49,6 +50,9 @@ class ScriptedProviderIsDebugOnlyTest {
                 val where = file.relativeTo(src).invariantSeparatorsPath
                 assertFalse("$where names ScriptedProvider", text.contains("ScriptedProvider"))
                 assertFalse("$where names the walkthrough script", text.contains(ScriptedProvider.ASSET))
+                assertFalse("$where names the UX data", text.contains(UxFixtures.ASSET))
+                assertFalse("$where names a UX fixture/capture hook", text.contains("ideaforge.ux") ||
+                    listOf("UxFixtures", "UxFixtureActivity", "UxEvidence", "UxCaptureRequest").any { it in text })
             }
         }
         // The release DebugProviders answers null for every launch name.
@@ -63,5 +67,12 @@ class ScriptedProviderIsDebugOnlyTest {
         assertTrue("the release assets were not built: $path", assets.isDirectory)
         val names = assets.walkTopDown().filter { it.isFile }.map { it.name }.toList()
         assertFalse("release packages ${ScriptedProvider.ASSET}: $names", ScriptedProvider.ASSET in names)
+        assertFalse("release packages ${UxFixtures.ASSET}: $names", UxFixtures.ASSET in names)
+    }
+
+    @Test
+    fun theReleaseManifestCarriesNoUxFixtureActivity() {
+        val path = System.getProperty("ideaforge.releaseManifest") ?: error("ideaforge.releaseManifest is not set")
+        assertFalse("release declares UxFixtureActivity", File(path).readText().contains("UxFixtureActivity"))
     }
 }

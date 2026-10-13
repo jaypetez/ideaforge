@@ -241,7 +241,9 @@ async function serve(probes, siteRoot, onResponse) {
     async before(req, res, url) {
       let path = decodeURIComponent(url.pathname);
 
-      if (path.startsWith('/test/browser/')) return { path, root: ROOT };
+      if (path.startsWith('/test/browser/') || path === '/test/fixtures/ux.json') {
+        return { path, root: ROOT };
+      }
 
       const onSubpath = path.startsWith(SUBPATH);
       if (onSubpath) path = path.slice(SUBPATH.length - 1);
