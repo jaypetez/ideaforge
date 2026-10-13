@@ -18,7 +18,7 @@
 //   the diff is never reviewable.
 //
 //   prefers-reduced-motion is emulated as `reduce`. app.css transitions each coverage-meter
-//   segment's colour over .35s, and a screenshot taken mid-transition catches a segment
+//   segment's colour, and a screenshot taken mid-transition catches a segment
 //   half-way between two levels.
 //   The app's own last CSS rule turns that off, so we ask for it rather than sleeping and
 //   hoping.
@@ -326,7 +326,7 @@ async function run(theme, chrome, port) {
       width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false,
     });
     // The app's own final CSS rule kills every transition under this, which is what makes the
-    // coverage meter's segments land on their level's colour instead of wherever .35s of
+    // coverage meter's segments land on their level's colour instead of wherever the
     // easing got to.
     await cdp.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],

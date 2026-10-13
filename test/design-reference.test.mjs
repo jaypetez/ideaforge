@@ -24,7 +24,7 @@ const boards = (html) => [...html.matchAll(/<article class="reference-board"([^>
     content: match[2],
   }));
 
-test('the proposed design has local reference assets and explicitly remains unshipped', () => {
+test('reference boards remain distinct from the delivered web foundation and pending screen work', () => {
   assert.ok(existsSync(HTML), 'missing static Focus Studio reference boards');
   assert.ok(existsSync(CSS), 'missing local reference stylesheet');
   const design = read(join(ROOT, 'docs', 'DESIGN.md'));
@@ -32,8 +32,40 @@ test('the proposed design has local reference assets and explicitly remains unsh
   assert.match(design.replace(/\s+/g, ' '), /not (?:yet )?implemented/i);
   assert.match(design, /\(design\/focus-studio\.html/);
   assert.match(design, /Current shipped tokens/);
-  assert.match(design, /#f5f6f2/);
+  assert.match(design, /Current native fallback \(not yet migrated\)/);
+  assert.match(design, /#f5f6f2/i);
   assert.match(design, /#F5F7FA/);
+  assert.match(design, /Only the web[\s\S]*foundation is implemented here/);
+});
+
+test('DESIGN records the owning web roles and the still-separate native fallback exactly', () => {
+  const design = read(join(ROOT, 'docs', 'DESIGN.md'));
+  const web = design.slice(design.indexOf('## Colour roles'), design.indexOf('### Current native fallback'));
+  const css = read(join(ROOT, 'src', 'ui', 'app.css'));
+  const roles = [...css.matchAll(/(--[\w-]+):\s*light-dark\((#[\da-f]{6}),\s*(#[\da-f]{6})\)/gi)];
+  assert.ok(roles.length >= 12, 'must check the full palette, not a single convenient role');
+  for (const [, name, light, dark] of roles) {
+    const row = web.split('\n').find((line) => line.startsWith(`| \`${name}\` |`));
+    assert.ok(row, `DESIGN omits ${name}`);
+    assert.ok(row.toLowerCase().includes(`\`${light.toLowerCase()}\``)
+      && row.toLowerCase().includes(`\`${dark.toLowerCase()}\``), `DESIGN drifts from ${name}`);
+  }
+  const nativeTable = design.slice(design.indexOf('### Current native fallback'), design.indexOf('## Theme choice'));
+  const native = read(join(ROOT, 'android', 'app', 'src', 'main', 'kotlin', 'io', 'github',
+    'jaypetez', 'ideaforge', 'ui', 'theme', 'Theme.kt'));
+  const mappings = [
+    ['ground', 'surfaceContainerLow'], ['lowest', 'surfaceContainerLowest'],
+    ['container', 'surfaceContainer'], ['high', 'surfaceContainerHigh'],
+    ['onSurface', 'onSurface'], ['onSurfaceVariant', 'onSurfaceVariant'],
+    ['outline', 'outline'], ['outlineVariant', 'outlineVariant'],
+    ['primary', 'primary'], ['onPrimary', 'onPrimary'], ['error', 'error'],
+  ];
+  for (const [name, role] of mappings) {
+    const values = [...native.matchAll(new RegExp(`${name} = Color\\(0xFF([\\dA-F]{6})\\)`, 'g'))];
+    assert.equal(values.length, 2, `must read both native ${name} owners`);
+    const row = nativeTable.split('\n').find((line) => line.startsWith(`| \`${role}\``));
+    assert.ok(row && values.every((match) => row.includes(`#${match[1]}`)), `native ${role} table drift`);
+  }
 });
 
 test('every main web reference has both themes at actual 390 and 1280 logical widths', () => {

@@ -225,8 +225,14 @@ npm run test:all</code></pre>
         real Tab, Enter and Escape keys through every panel at phone and desktop widths,
         checking the focus order, that every stop is visible and uncovered, and that menus
         return focus. It then emulates a touch screen and measures every control at 48 by 48
-        CSS pixels or more. <code>test/browser/contrast.browser.mjs</code> holds every colour
-        pair to WCAG AA in both themes. Automated checks are not a screen-reader audit.
+        CSS pixels or more, with voice actions at least 64 pixels high. Those are project
+        comfort targets, not WCAG&#8217;s 24-pixel minimum. Shared controls are exercised with
+        hover, press, keyboard focus, selected, disabled, busy and error/status states,
+        long labels, 200% text and forced colours where supported.
+        <code>test/browser/contrast.browser.mjs</code> measures the real stack of translucent
+        backgrounds, not only palette hex values, in both themes. The app&#8217;s new visual
+        foundation does not change its current layouts or output-action order; the guide&#8217;s
+        own colour migration is separate. Automated checks are not a screen-reader audit.
       </p>
       <p>
         No authorised live speech key or spending cap was supplied for this redesign.

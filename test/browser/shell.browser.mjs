@@ -156,9 +156,12 @@ export default async function run(check) {
       el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       const rect = el.getBoundingClientRect();
       const top = nav.getBoundingClientRect().top;
-      check(`${label}: a focused control below the fold is not hidden under the navigation`,
-        before > root.clientHeight && doc.activeElement === el && rect.bottom <= top + 0.5,
-        `started at ${Math.round(before)} of ${root.clientHeight}; focused bottom ${rect.bottom}, bar top ${top}`);
+      const style = win.getComputedStyle(el);
+      const ring = style.outlineStyle === 'none' ? 0
+        : parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+      check(`${label}: nearest scrolling keeps the focused control and its outline above navigation`,
+        before > root.clientHeight && doc.activeElement === el && rect.bottom + ring <= top + 0.5,
+        `started at ${Math.round(before)} of ${root.clientHeight}; focused edge ${rect.bottom + ring}, bar top ${top}`);
       win.scrollTo(0, 0);
     };
     focusClear('Start', $('b-start'));
@@ -180,6 +183,41 @@ export default async function run(check) {
     await settled();
     check('New idea returns to the start screen', !$('panel-setup').hidden
       && current() === 'b-nav-new', current());
+
+    // Shared typography must grow the fixed bar's clearance as well as its labels. An
+    // unchanged 64px token hid keyboard focus even at 100% (a selected item was 64.8px).
+    const originalTheme = root.dataset.theme;
+    const originalFont = root.style.fontSize;
+    try {
+      for (const theme of ['light', 'dark']) {
+        root.dataset.theme = theme;
+        for (const scale of [150, 175, 200]) {
+          root.style.fontSize = `${scale}%`;
+          for (const width of [320, 390]) {
+            frame.width = width;
+            await settled(100);
+            const label = `${theme} Start at ${width}px and ${scale}% text`;
+            bottomNav(label, 'b-nav-new');
+            if (width === 320 && scale === 175) {
+              const selected = $('b-nav-new');
+              const text = selected.querySelector('.nav-label').getBoundingClientRect();
+              const line = parseFloat(win.getComputedStyle(selected).lineHeight);
+              check(`${theme}: the 175% regression really wraps the selected label onto two lines`,
+                text.height > line * 1.5, `${text.height}px / ${line}px`);
+            }
+            focusClear(label, $('b-start'));
+            check(`${label}: no sideways scrolling`,
+              root.scrollWidth <= root.clientWidth, `${root.scrollWidth}/${root.clientWidth}`);
+          }
+        }
+      }
+    } finally {
+      root.style.fontSize = originalFont;
+      if (originalTheme === undefined) delete root.dataset.theme;
+      else root.dataset.theme = originalTheme;
+      frame.width = 390;
+      await settled(100);
+    }
 
     // Open the active idea: a detail screen, so a top app bar and no bottom navigation.
     $('b-library').click();

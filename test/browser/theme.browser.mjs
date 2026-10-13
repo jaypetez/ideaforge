@@ -82,6 +82,10 @@ async function harnessUntouched(check) {
       await settle(BOOT_MS);
       check(`with nothing stored, the app leaves a harness-set ${preset} theme alone through boot`,
         doc.documentElement.dataset.theme === preset, String(doc.documentElement.dataset.theme));
+      const { THEME_COLOURS } = await import('/src/ui/theme.js');
+      const colours = [...doc.querySelectorAll('meta[name="theme-color"]')].map((meta) => meta.content);
+      check(`…and the browser chrome agrees with that explicit ${preset} capture theme`,
+        colours.every((colour) => colour === THEME_COLOURS[preset]), colours.join());
 
       // And theme-boot itself, run again now the attribute is certainly set first.
       const other = preset === 'dark' ? 'light' : 'dark';
@@ -143,13 +147,13 @@ async function chooseInSettings(check) {
     check('…sets color-scheme to dark, so native controls follow', scheme() === 'dark', scheme());
     check('…changes what the page paints', ground() !== lightGround, `${lightGround} vs ${ground()}`);
     check('…stores it', storedTheme() === 'dark', String(storedTheme()));
-    check('…and retints the browser chrome', metaColours() === '#15191a,#15191a', metaColours());
+    check('…and retints the browser chrome', metaColours() === '#11161b,#11161b', metaColours());
 
     radio('system').click();
     check('choosing System removes data-theme', !('theme' in root.dataset), String(root.dataset.theme));
     check('…leaves color-scheme following the OS', scheme() === 'dark light', scheme());
     check('…stores system', storedTheme() === 'system', String(storedTheme()));
-    check('…and gives each theme-color meta its own colour back', metaColours() === '#f5f6f2,#15191a',
+    check('…and gives each theme-color meta its own colour back', metaColours() === '#f5f7fa,#11161b',
       metaColours());
   } finally {
     frame.remove();

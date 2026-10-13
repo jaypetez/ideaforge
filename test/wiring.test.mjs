@@ -28,6 +28,7 @@ import { STT_PRESETS } from '../src/voice/transcribe.js';
 import { TTS_PRESETS } from '../src/providers/tts.js';
 import { isLoopback } from '../src/providers/http.js';
 import { assembleSite, ROOT_DIRS, ROOT_FILES } from '../tools/assemble-site.mjs';
+import { THEME_COLOURS } from '../src/ui/theme.js';
 
 // fileURLToPath, not .pathname: on Windows the latter yields /C:/... and readdirSync then
 // resolves it to C:\C:\... and throws. The purity linter learned this the hard way.
@@ -35,6 +36,19 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SW = readFileSync(join(ROOT, 'sw.js'), 'utf8');
 const INDEX = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const DOCKERFILE = readFileSync(join(ROOT, 'docker', 'Dockerfile.app'), 'utf8');
+
+test('first paint, theme code and installed-app chrome use the CSS ground roles', () => {
+  const css = readFileSync(join(ROOT, 'src', 'ui', 'app.css'), 'utf8');
+  const ground = css.match(/--surface-container-low:\s*light-dark\((#[\da-f]{6}),\s*(#[\da-f]{6})\)/i);
+  assert.ok(ground, 'the CSS ground roles must have an explicit light/dark pair');
+  assert.deepEqual(THEME_COLOURS, { light: ground[1].toLowerCase(), dark: ground[2].toLowerCase() });
+  for (const theme of ['light', 'dark']) {
+    assert.ok(INDEX.includes(`<meta name="theme-color" content="${THEME_COLOURS[theme]}" media="(prefers-color-scheme: ${theme})">`));
+  }
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.webmanifest'), 'utf8'));
+  assert.equal(manifest.background_color, THEME_COLOURS.dark, 'the install fallback matches the dark ground');
+  assert.equal(manifest.theme_color, THEME_COLOURS.dark);
+});
 
 /** Every file under src/ the browser would actually load. */
 function sourceFiles(dir = 'src') {

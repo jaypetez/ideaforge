@@ -51,9 +51,9 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./src/ui/apple-touch-icon.png">
 <!-- Two, because one static value painted light teal chrome around the dark UI on an
-     installed phone. The colours match --ground in src/ui/app.css. -->
-<meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#15191a" media="(prefers-color-scheme: dark)">
+     installed phone. The colours match --surface-container-low in src/ui/app.css. -->
+<meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11161b" media="(prefers-color-scheme: dark)">
 <!-- A stored Light or Dark choice, applied before first paint. Classic and synchronous on
      purpose (a module would paint first, then flash), and a file rather than inline because
      the CSP allows no inline script. After the metas, which it retints; before the
@@ -365,7 +365,7 @@
         <button type="button" class="ghost small" id="b-import">Import backup</button>
         <input id="backup-file" type="file" accept=".json,application/json" hidden>
       </div>
-      <p class="hint backup-warning">
+      <p class="hint backup-warning callout" data-status="warning">
         A backup contains the full text of your interviews, unencrypted. It never contains
         API keys.
       </p>

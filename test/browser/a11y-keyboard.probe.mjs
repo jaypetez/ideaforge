@@ -25,7 +25,8 @@
 // any navigation focus lands on the destination's heading, so the next Tab is the content.
 //
 // Target sizes: every visible control at least 48 by 48 CSS pixels under a coarse pointer,
-// on every panel, at phone and desktop widths, including open menus and the voice stage.
+// on every panel, at phone and desktop widths, including open menus; voice actions are
+// at least 64px high.
 // Exempt, and listed in the output when applied: a link inside a sentence (WCAG 2.5.8's
 // inline exception), and the desktop coverage panel's summary, which is a heading there
 // (aria-disabled) rather than a control.
@@ -235,13 +236,15 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     const marked = await evaluate(`[...document.querySelectorAll('[aria-current="page"]')].map((el) => el.id).join(',')`);
     check(`${label}: aria-current="page" marks ${expected || 'no destination'}`, marked === expected,
       marked || 'none');
+    if (expected) check(`${label}: the selected destination has a visible edge, not only a colour fill`,
+      await evaluate(`parseFloat(getComputedStyle(document.getElementById(${JSON.stringify(expected)})).borderBottomWidth) >= 3`));
   }
 
   /** Every visible control at least 48 by 48 under the coarse pointer now emulated. */
   async function targets(label) {
     const found = await evaluate('window.__a11y.targets()');
-    const small = found.filter((t) => !t.exempt && !(t.width >= 47.5 && t.height >= 47.5));
-    check(`${label}: every control is at least 48 by 48 on a coarse pointer`, small.length === 0,
+    const small = found.filter((t) => !t.exempt && !(t.width >= 47.5 && t.height >= t.minimumHeight - .5));
+    check(`${label}: coarse targets are at least 48 by 48, and voice actions at least 64px high`, small.length === 0,
       small.map((t) => `${t.name} ${Math.round(t.width)}x${Math.round(t.height)}`).join(' | ')
         || `${found.length} controls`);
     return found.filter((t) => t.exempt).map((t) => `${t.name}: ${t.exempt}`);
@@ -397,4 +400,292 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
   check('the only target-size exemptions applied are the documented ones',
     [...exemptions].every((e) => /: (inline link in text|not operable \(aria-disabled\))$/.test(e)),
     [...exemptions].join(' | ') || 'none');
+  await foundationStates(cdp, { check, press, sleep, viewport, evaluate });
+}
+
+/** Shipped CSS/classes and browser primitives, with real pointer/keyboard state changes.
+ * These are component compositions, not a second implementation of app effects. */
+async function foundationStates(cdp, { check, press, sleep, viewport, evaluate }) {
+  await viewport(DESKTOP);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await evaluate(`(() => {
+    window.__foundationOriginal = {
+      theme: document.documentElement.dataset.theme,
+      font: document.documentElement.style.fontSize,
+    };
+    window.__foundationClicks = 0;
+    const host = document.createElement('div');
+    host.id = '__foundation';
+    document.getElementById('main').append(host);
+    const copy = (source, id, text, className) => {
+      const button = document.querySelector(source).cloneNode(false);
+      button.id = id; button.hidden = false; button.disabled = false;
+      button.removeAttribute('aria-current'); button.removeAttribute('aria-controls');
+      if (className) button.className = className;
+      button.textContent = text;
+      button.addEventListener('click', () => { window.__foundationClicks++; });
+      return button;
+    };
+    window.__foundationSamples = [];
+    const surfaces = ['lowest', 'low', 'container', 'high'];
+    const roles = ['--surface-container-lowest', '--surface-container-low',
+      '--surface-container', '--surface-container-high'];
+    for (let i = 0; i < surfaces.length; i++) {
+      const surface = document.createElement('div');
+      surface.className = 'group';
+      surface.style.backgroundColor = 'var(' + roles[i] + ')';
+      const row = document.createElement('div');
+      row.className = 'btns'; surface.append(row); host.append(surface);
+      row.append(copy('#b-start', '__f-stop-' + i, 'Component samples', 'quiet'));
+      for (const [kind, source] of [
+        ['primary', '#b-start-voice'], ['secondary', '#b-start'], ['quiet', '#b-connect-change'],
+        ['tonal', '#b-wrap'], ['destructive', '#b-forget'], ['chip', '#chips .chip']
+      ]) {
+        const id = '__f-' + i + '-' + kind;
+        row.append(copy(source, id, 'Continue this operation'));
+        window.__foundationSamples.push({id, surface: surfaces[i], kind});
+      }
+      const menu = document.createElement('div');
+      menu.id = '__f-menu-' + i; menu.className = 'idea-menu'; menu.popover = 'manual';
+      menu.style.left = '16px'; menu.style.top = '16px';
+      surface.append(menu);
+      menu.append(copy('#b-reopen', '__f-menu-stop-' + i, 'Menu samples', 'quiet idea-menu-item'));
+      for (const kind of ['menu', 'menu-destructive']) {
+        const id = '__f-' + i + '-' + kind;
+        menu.append(copy('#b-reopen', id, 'Continue this operation',
+          'quiet idea-menu-item' + (kind === 'menu-destructive' ? ' danger' : '')));
+        window.__foundationSamples.push({id, surface: surfaces[i], kind, menu: menu.id});
+      }
+      const field = document.createElement('div'); field.className = 'field'; surface.append(field);
+      field.append(copy('#b-start', '__f-field-stop-' + i, 'Field sample', 'quiet'));
+      const label = document.createElement('label');
+      label.htmlFor = '__f-field-' + i;
+      label.textContent = 'A clearly labelled field with a long, specific explanation';
+      const input = document.getElementById('library-search').cloneNode(false);
+      input.id = label.htmlFor; input.hidden = false; input.disabled = false;
+      input.removeAttribute('aria-controls');
+      field.append(label, input);
+      for (const status of ['error', 'success', 'warning']) {
+        const callout = document.createElement('p'); callout.className = 'hint callout';
+        callout.dataset.status = status;
+        callout.textContent = status + ': an explicit explanation with a next step.';
+        surface.append(callout);
+      }
+    }
+    const actions = document.createElement('div'); actions.className = 'btns start-actions';
+    actions.id = '__f-start-actions'; host.append(actions);
+    actions.append(copy('#b-start-voice', '__f-start-voice', 'Start with voice'),
+      copy('#b-start', '__f-start-type', 'Type instead'));
+    const dialog = document.createElement('dialog');
+    dialog.id = '__f-dialog'; dialog.setAttribute('aria-labelledby', '__f-dialog-title');
+    const title = document.createElement('h2'); title.id = '__f-dialog-title';
+    title.textContent = 'Confirm this operation';
+    const explanation = document.createElement('p');
+    explanation.textContent = 'This native HTML dialog keeps its consequence and both choices visible.';
+    const buttons = document.createElement('div'); buttons.className = 'btns';
+    buttons.append(copy('#b-start', '__f-cancel', 'Cancel', 'ghost'),
+      copy('#b-forget', '__f-confirm', 'Confirm the destructive action', 'ghost danger'));
+    dialog.append(title, explanation, buttons); host.append(dialog);
+  })()`);
+
+  const samples = await evaluate('window.__foundationSamples');
+  const inspect = (id, state) => evaluate(`(async () => {
+    const { computedContrast, backdrop } = await import('/test/browser/contrast.browser.mjs');
+    const el = document.getElementById(${JSON.stringify(id)});
+    const style = getComputedStyle(el);
+    const pairs = [computedContrast(el, {min: 4.5})];
+    if (el.dataset.icon) {
+      const icon = getComputedStyle(el, '::before');
+      pairs.push(computedContrast(el, {fg: icon.backgroundColor, min: 3}));
+      if (!(icon.maskImage || icon.webkitMaskImage).includes('data:')) pairs.push({ok:false,detail:'icon missing'});
+    }
+    if (${JSON.stringify(state)} === 'focus') {
+      pairs.push(computedContrast(el, {fg: style.outlineColor, bg: backdrop(el.parentElement), min:3}));
+      if (!el.matches(':focus-visible') || parseFloat(style.outlineWidth) < 2 || style.outlineStyle === 'none')
+        pairs.push({ok:false,detail:'no keyboard outline'});
+    }
+    if (['disabled','busy'].includes(${JSON.stringify(state)})) {
+      pairs.push(computedContrast(el, {fg: style.borderTopColor, bg: backdrop(el.parentElement), min:3}));
+      if (style.borderTopStyle !== (${JSON.stringify(state)} === 'disabled' ? 'dashed' : 'double'))
+        pairs.push({ok:false,detail:'state has no distinct edge'});
+    }
+    if (${JSON.stringify(state)} === 'hover' && !el.matches(':hover'))
+      pairs.push({ok:false,detail:'pointer did not hover the control'});
+    if (${JSON.stringify(state)} === 'pressed' && !el.matches(':active'))
+      pairs.push({ok:false,detail:'pointer did not press the control'});
+    return pairs;
+  })()`);
+  const pointer = (type, point, down = false) => cdp.send('Input.dispatchMouseEvent', {
+    type, ...point, button: type === 'mouseMoved' ? 'none' : 'left', buttons: down ? 1 : 0, clickCount: 1,
+  });
+  const point = (id) => evaluate(`(() => {
+    const el = document.getElementById(${JSON.stringify(id)});
+    el.scrollIntoView({block:'center', behavior:'instant'});
+    const box = el.getBoundingClientRect();
+    return {x:box.left + box.width / 2, y:box.top + box.height / 2};
+  })()`);
+  const keyboardFocus = async (id) => {
+    await evaluate(`(() => {
+      let previous = document.getElementById(${JSON.stringify(id)}).previousElementSibling;
+      while (previous && !previous.matches('button, input, select, textarea, [tabindex]'))
+        previous = previous.previousElementSibling;
+      previous.focus();
+    })()`);
+    await press('Tab');
+  };
+  try {
+    for (const theme of ['light', 'dark']) {
+      await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
+      const failures = [];
+      let measured = 0;
+      const record = (label, pairs) => {
+        measured += pairs.length;
+        failures.push(...pairs.filter((pair) => !pair.ok).map((pair) => label + ': ' + pair.detail));
+      };
+      for (const sample of samples) {
+        if (sample.menu) await evaluate(`document.getElementById(${JSON.stringify(sample.menu)}).showPopover()`);
+        const label = sample.surface + ' ' + sample.kind;
+        await pointer('mouseMoved', {x:0,y:0});
+        await evaluate(`document.activeElement?.blur()`);
+        record(label + ' base', await inspect(sample.id, 'base'));
+        const at = await point(sample.id);
+        await pointer('mouseMoved', at);
+        record(label + ' hover', await inspect(sample.id, 'hover'));
+        const clicks = await evaluate('window.__foundationClicks');
+        await pointer('mousePressed', at, true);
+        record(label + ' pressed', await inspect(sample.id, 'pressed'));
+        await pointer('mouseReleased', at);
+        if (await evaluate('window.__foundationClicks') !== clicks + 1) failures.push(label + ': click was delayed/lost');
+        await keyboardFocus(sample.id);
+        record(label + ' focus', await inspect(sample.id, 'focus'));
+        await evaluate(`document.getElementById(${JSON.stringify(sample.id)}).disabled = true`);
+        record(label + ' disabled', await inspect(sample.id, 'disabled'));
+        const disabledClicks = await evaluate('window.__foundationClicks');
+        await pointer('mousePressed', at, true); await pointer('mouseReleased', at);
+        if (await evaluate('window.__foundationClicks') !== disabledClicks) failures.push(label + ': disabled click fired');
+        await keyboardFocus(sample.id);
+        if (await evaluate(`document.activeElement.id === ${JSON.stringify(sample.id)}`))
+          failures.push(label + ': Tab reached a disabled control');
+        await evaluate(`(() => {
+          const el = document.getElementById(${JSON.stringify(sample.id)});
+          el.disabled = false; el.setAttribute('aria-busy','true'); el.textContent = 'Checking this operation…';
+        })()`);
+        record(label + ' busy', await inspect(sample.id, 'busy'));
+        await evaluate(`(() => {
+          const el = document.getElementById(${JSON.stringify(sample.id)});
+          el.removeAttribute('aria-busy'); el.textContent = 'Continue this operation';
+        })()`);
+        if (sample.menu) await evaluate(`document.getElementById(${JSON.stringify(sample.menu)}).hidePopover()`);
+      }
+      for (let i = 0; i < 4; i++) {
+        const id = '__f-field-' + i;
+        await point(id);
+        await keyboardFocus(id);
+        record('field ' + i + ' focus', await inspect(id, 'focus'));
+        record('field ' + i + ' placeholder/error and callouts', await evaluate(`(async () => {
+          const {computedContrast,backdrop} = await import('/test/browser/contrast.browser.mjs');
+          const el = document.getElementById(${JSON.stringify(id)});
+          const under = backdrop(el.parentElement);
+          const pairs = [computedContrast(el,{fg:getComputedStyle(el,'::placeholder').color,min:4.5})];
+          el.setAttribute('aria-invalid','true');
+          pairs.push(computedContrast(el,{fg:getComputedStyle(el).borderLeftColor,bg:under,min:3}));
+          for (const callout of el.closest('.group').querySelectorAll('.callout')) {
+            pairs.push(computedContrast(callout,{min:4.5}));
+            pairs.push(computedContrast(callout,{fg:getComputedStyle(callout).borderLeftColor,min:3}));
+          }
+          el.removeAttribute('aria-invalid');
+          return pairs;
+        })()`));
+      }
+      check(`${theme}: composed controls/popovers pass hover, pressed, keyboard focus, disabled, busy and status contrast on every surface`,
+        failures.length === 0, failures.join(' | ') || `${measured} real computed pairs; disabled controls remain readable`);
+
+      await evaluate(`document.getElementById('__f-start-type').focus(); document.getElementById('__f-dialog').showModal()`);
+      const dialog = await evaluate(`(async () => {
+        const {measureUxState}=await import('/test/browser/fixtures/ux.js');
+        const {computedContrast}=await import('/test/browser/contrast.browser.mjs');
+        const geometry=measureUxState(window,'native HTML dialog',['#__f-cancel','#__f-confirm']);
+        return {geometry, contrast:computedContrast(document.querySelector('#__f-dialog p'),{min:4.5}),
+          contained:document.getElementById('__f-dialog').contains(document.activeElement)};
+      })()`);
+      check(`${theme}: the shared native HTML dialog contains focus, both choices and readable text`,
+        dialog.contained && dialog.contrast.ok && dialog.geometry.controls.length === 2, dialog.contrast.detail);
+      await press('Escape');
+      check(`${theme}: native Escape dismisses the dialog and returns focus`,
+        await evaluate(`!document.getElementById('__f-dialog').open && document.activeElement.id === '__f-start-type'`));
+    }
+
+    await cdp.send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+    await pointer('mouseMoved', {x:0,y:0});
+    await sleep(180);
+    const at = await point(samples[0].id);
+    const clicks = await evaluate('window.__foundationClicks');
+    await pointer('mouseMoved', at);
+    await pointer('mousePressed', at, true); await pointer('mouseReleased', at);
+    const dispatched = await evaluate(`(() => {
+      const button=document.getElementById(${JSON.stringify(samples[0].id)});
+      return {clicks:window.__foundationClicks,
+        painting:button.getAnimations().some((animation) => animation.playState === 'running'),
+        delay:getComputedStyle(button).transitionDelay};
+    })()`);
+    check('trusted clicks dispatch while optional control paint is still transitioning',
+      dispatched.clicks === clicks + 1 && dispatched.painting
+        && dispatched.delay.split(',').every((value) => parseFloat(value) === 0), JSON.stringify(dispatched));
+    await cdp.send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+
+    await cdp.send('Emulation.setTouchEmulationEnabled', {enabled:true, maxTouchPoints:5});
+    for (const theme of ['light', 'dark']) {
+      await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)};
+        document.documentElement.style.fontSize = '200%';
+        document.querySelectorAll('#__foundation button').forEach((button) => {
+          if (!button.id.startsWith('__f-start-')) button.textContent = 'Continue this unusually long, specific operation without losing its label';
+        })`);
+      for (const width of [320, 360, 600, 840, 1440]) {
+        await viewport({width,height:width < 600 ? 640 : 900});
+        const geometry = await evaluate(`(async () => {
+          const {measureUxState}=await import('/test/browser/fixtures/ux.js');
+          return measureUxState(window,'foundation at 200% text',
+            ['#__f-start-voice','#__f-start-type','#__f-0-primary','#__f-0-secondary','#__f-field-0']);
+        })()`);
+        check(`${theme}: long labels and 200% text reflow at ${width}px without clipped or lost controls`,
+          geometry.pageWidth <= width + 1 && geometry.fontSize === 32, `${geometry.pageWidth}px; body ${geometry.fontSize}px`);
+      }
+      const targets = await evaluate('window.__a11y.targets()');
+      check(`${theme}: enlarged component controls retain 48px coarse-pointer hit areas`,
+        targets.filter((target) => !target.exempt).every((target) =>
+          target.width >= 47.5 && target.height >= target.minimumHeight - .5));
+    }
+    await evaluate(`document.documentElement.style.fontSize = window.__foundationOriginal.font`);
+    await viewport(PHONE);
+    await cdp.send('Emulation.setEmulatedMedia', {features:[
+      {name:'prefers-reduced-motion',value:'reduce'}, {name:'forced-colors',value:'active'},
+    ]});
+    const forced = await evaluate(`matchMedia('(forced-colors: active)').matches`);
+    if (forced) {
+      const sample = samples[0];
+      await point(sample.id); await keyboardFocus(sample.id);
+      const pairs = await inspect(sample.id, 'focus');
+      check('forced colours retain native control text, the local mask icon and an outline',
+        pairs.every((pair) => pair.ok), pairs.map((pair) => pair.detail).join('; '));
+      await evaluate(`document.getElementById('__f-menu-0').showPopover()`);
+      const geometry = await evaluate(`(async () => {
+        const {measureUxState}=await import('/test/browser/fixtures/ux.js');
+        return measureUxState(window,'forced-colour popover',['#__f-0-menu','#__f-0-menu-destructive']);
+      })()`);
+      check('forced colours preserve visible long-label native popover actions',
+        geometry.controls.length === 2);
+      await evaluate(`document.getElementById('__f-menu-0').hidePopover()`);
+    } else check('forced-colour evidence is limited to browser support', true, 'forced-colors emulation unavailable');
+  } finally {
+    await cdp.send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    await evaluate(`(() => {
+      document.getElementById('__foundation')?.remove();
+      const original=window.__foundationOriginal;
+      document.documentElement.style.fontSize=original.font;
+      if (original.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme=original.theme;
+    })()`);
+    await viewport(DESKTOP);
+    await sleep(20);
+  }
 }

@@ -15,7 +15,7 @@
 // parts a person needs to see to find or operate a control are held to 3:1 (WCAG 2.2
 // 1.4.3 and 1.4.11). What is exempt, and why, is listed where it is skipped:
 //
-// - disabled controls (1.4.3 and 1.4.11 exempt inactive components);
+// - disabled controls are exempt in WCAG, but the project still measures their text;
 // - the coverage meter's segments, measured by coverage.browser.mjs;
 // - container edges that identify nothing (cards, the question card, dividers): the text
 //   and controls inside are what is measured;
@@ -94,6 +94,29 @@ function isLarge(el, pseudo) {
   return size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
 }
 
+/** Composite translucent backgrounds; reject unsupported opacity groups instead of
+ * reporting the unfaded token's contrast as the painted result. */
+export function computedContrast(el, { fg, bg, min, pseudo } = {}) {
+  const win = el.ownerDocument.defaultView;
+  const need = min ?? (isLarge(el, pseudo) ? 3 : 4.5);
+  for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+    const opacity = Number(win.getComputedStyle(node).opacity);
+    if (opacity !== 1) return {
+      ok: false, minimum: need,
+      detail: `opacity ${opacity} on ${node.id || node.tagName} requires paint compositing`,
+    };
+  }
+  if (pseudo && Number(win.getComputedStyle(el, pseudo).opacity) !== 1) {
+    return { ok: false, minimum: need, detail: `${pseudo} opacity requires paint compositing` };
+  }
+  const under = bg || backdrop(el);
+  const colour = fg || win.getComputedStyle(el, pseudo).color;
+  const value = ratio(flatten([...under, colour]), flatten(under));
+  return { ok: value >= need, ratio: value, minimum: need, detail: `${value.toFixed(2)} (needs ${need})` };
+}
+
+export { backdrop };
+
 export default async function run(report) {
   const check = (label, ok, detail = '') => report(label, ok, detail);
   const frames = [];
@@ -147,16 +170,7 @@ export default async function run(report) {
        */
       const measure = (label, el, { fg, bg, min, pseudo } = {}) => {
         if (!el) { results.push({ label, ok: false, detail: 'element missing' }); return; }
-        // Disabled controls are exempt; measure the enabled look the app shows otherwise.
-        const wasDisabled = el.disabled === true;
-        if (wasDisabled) el.disabled = false;
-        const win = el.ownerDocument.defaultView;
-        const under = bg || backdrop(el);
-        const colour = fg || win.getComputedStyle(el, pseudo).color;
-        const need = min ?? (isLarge(el, pseudo) ? 3 : 4.5);
-        const value = ratio(flatten([...under, colour]), flatten(under));
-        if (wasDisabled) el.disabled = true;
-        results.push({ label, ok: value >= need, detail: `${value.toFixed(2)} (needs ${need})` });
+        results.push({ label, ...computedContrast(el, { fg, bg, min, pseudo }) });
       };
       /** A token's resolved colour under the current theme (a custom property reads back raw). */
       const token = (doc, name) => {
@@ -218,6 +232,7 @@ export default async function run(report) {
         measure(`${at}: a hint`, $('provider-note'));
         measure(`${at}: an inline link`, $('keylink'));
         measure(`${at}: the version footer`, $('version'));
+        measure(`${at}: the backup warning callout`, doc.querySelector('.backup-warning'));
         measure(`${at}: the skip link`, doc.querySelector('.skip-link'));
         // The focus ring is drawn outside the control, so it sits on the control's backdrop.
         for (const id of ['b-start-voice', 'b-start', 'apikey', 'b-connect-change']) {
@@ -262,6 +277,9 @@ export default async function run(report) {
         measure(`${at}: a menu item`, $('b-copy'));
         measure(`${at}: a menu item's icon`, $('b-copy'), { fg: css($('b-copy'), 'background-color', '::before'), min: 3 });
         measure(`${at}: a destructive menu item`, make(menu, 'button', 'quiet idea-menu-item danger', 'Delete'));
+        const inactive = make(menu, 'button', 'quiet idea-menu-item', 'Not available');
+        inactive.disabled = true;
+        measure(`${at}: a disabled menu item remains readable`, inactive, { min: 4.5 });
         measure(`${at}: the library count`, $('library-count'));
         if (at === 'desktop') {
           card.setAttribute('aria-current', 'true');
@@ -309,6 +327,14 @@ export default async function run(report) {
         }
         sw.checked = false;
         measure(`${at}: the wrap-up offer`, $('wrap-offer-text'));
+        for (const status of ['error', 'warning', 'success']) {
+          const callout = make($('question-card'), 'p', 'hint callout', `${status}: an explicit explanation`);
+          callout.dataset.status = status;
+          measure(`${at}: the ${status} callout text`, callout);
+          measure(`${at}: the ${status} callout marker`, callout, {
+            fg: css(callout, 'border-inline-start-color'), bg: backdrop(callout), min: 3,
+          });
+        }
         measure(`${at}: Write it up (tonal)`, $('b-wrap'));
         measure(`${at}: Keep going (quiet)`, $('b-wrap-keep'));
         measure(`${at}: the answer box`, $('answer'));
@@ -337,6 +363,39 @@ export default async function run(report) {
         measure(`${at}: Share .md`, $('b-share'));
         measure(`${at}: the More actions icon`, $('b-done-more'),
           { fg: css($('b-done-more'), 'background-color', '::before'), min: 3 });
+        const panels = ['panel-setup', 'panel-library', 'panel-interview', 'panel-done'].map($);
+        const hidden = panels.map((panel) => panel.hidden);
+        const download = $('b-download');
+        const disabled = download.disabled;
+        panels.forEach((panel) => { panel.hidden = panel.id !== 'panel-done'; });
+        download.disabled = true;
+        try {
+          menu.showPopover();
+          check(`${at}: the actual disabled Done action is visible and opaque in ${theme}`,
+            menu.matches(':popover-open') && download.getClientRects().length > 0
+              && css(download, 'opacity') === '1', css(download, 'opacity'));
+          measure(`${at}: actual Done disabled action text`, download, { min: 4.5 });
+          measure(`${at}: actual Done disabled action icon`, download,
+            { fg: css(download, 'background-color', '::before'), min: 3 });
+          const opacity = download.style.opacity;
+          const menuOpacity = menu.style.opacity;
+          try {
+            download.style.opacity = '.6';
+            check(`${at}: faded disabled paint cannot report an unfaded contrast pass in ${theme}`,
+              !computedContrast(download, { min: 4.5 }).ok);
+            download.style.opacity = '1';
+            menu.style.opacity = '.6';
+            check(`${at}: ancestor opacity cannot silently pass the Done contrast check in ${theme}`,
+              !computedContrast(download, { min: 4.5 }).ok);
+          } finally {
+            download.style.opacity = opacity;
+            menu.style.opacity = menuOpacity;
+          }
+        } finally {
+          menu.hidePopover();
+          download.disabled = disabled;
+          panels.forEach((panel, index) => { panel.hidden = hidden[index]; });
+        }
 
         // The voice stage, in every phase it can show.
         const stage = $('voice-stage');

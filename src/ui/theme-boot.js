@@ -20,18 +20,18 @@
 // src/ui/theme.js; a classic script cannot import either, so test/prefs.test.mjs runs this
 // file against both.
 (function () {
+  if (typeof document === 'undefined') return;
   var theme;
   try {
     var raw = localStorage.getItem('ideaforge.prefs');
     theme = raw ? JSON.parse(raw).theme : '';
-  } catch (e) {
-    return;
-  }
+  } catch (e) { /* A blocked store must not prevent a harness-set theme's chrome matching. */ }
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+  else theme = document.documentElement.dataset.theme;
   if (theme !== 'light' && theme !== 'dark') return;
-  document.documentElement.dataset.theme = theme;
   // The browser chrome on an installed phone follows these, not data-theme; without this a
   // dark choice on a light phone paints light bars around the dark page.
-  var colour = theme === 'dark' ? '#15191a' : '#f5f6f2';
+  var colour = theme === 'dark' ? '#11161b' : '#f5f7fa';
   var metas = document.querySelectorAll('meta[name="theme-color"]');
   for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', colour);
 })();

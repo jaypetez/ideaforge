@@ -23,7 +23,9 @@ source wins over prose, and a generated artifact wins over a description of that
   documentation and skills.
 - **Design contract and reference-only boards.** Sources:
   [`docs/DESIGN.md`](../../../../docs/DESIGN.md) distinguishes current shipped values
-  from the unimplemented Focus Studio target;
+  from the remaining Focus Studio screen/layout targets. #189 implements only the web
+  foundation; native fallback values remain at the earlier scheme until #190, and guide
+  CSS migration belongs to #205;
   [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
   [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
   references, not app/README/native screenshots or a production route.
@@ -34,7 +36,22 @@ source wins over prose, and a generated artifact wins over a description of that
   Native drawings use a system family and fallback colours; actual dynamic colour,
   device/IME/permission behavior and running-app accessibility need separate evidence.
   `tools/assemble-site.mjs` excludes `docs/design/` from published assets. Do not refresh
-  canonical README screenshots to make an unimplemented design appear shipped.
+  canonical README screenshots to make an unimplemented screen appear shipped.
+- **Web visual foundation and chrome.** Sources:
+  [`src/ui/app.css`](../../../../src/ui/app.css) owns semantic surfaces/text, composed
+  control states, type, spacing, shape, separators and reduced/forced-colour rules.
+  [`theme.js`](../../../../src/ui/theme.js), [`theme-boot.js`](../../../../src/ui/theme-boot.js),
+  [`index.html`](../../../../index.html) and
+  [`manifest.webmanifest`](../../../../manifest.webmanifest) own preference/first-paint
+  and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
+  holds those colours to the CSS ground roles.
+  [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and
+  [`a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs) measure
+  actual composited controls, trusted hover/press/focus, selected/disabled/busy/status
+  cues, native popover/HTML dialog primitives, 200% text and coarse targets. Re-check the
+  current web table in DESIGN, Appearance guidance and generated real screenshots.
+  HTML dialog styling does not mean the existing browser-owned `window.confirm` flows
+  have been replaced; later settings/recovery issues own those compositions.
 - **Development UX fixtures and evidence.** Sources:
   [`tools/fixtures/ux.mjs`](../../../../tools/fixtures/ux.mjs) and generated
   [`test/fixtures/ux.json`](../../../../test/fixtures/ux.json) own the shared deterministic
@@ -69,8 +86,9 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Public guide shell and navigation.** Sources:
   [`guide/index.html`](../../../../guide/index.html) and
   [`guide/assets/guide.css`](../../../../guide/assets/guide.css). Re-check every guide page.
-  Colours follow [`src/ui/app.css`](../../../../src/ui/app.css); guide fonts remain system
-  fonts, with no remote assets or guide JavaScript.
+  The guide keeps its earlier palette until #205; #189 changes only the app foundation in
+  [`src/ui/app.css`](../../../../src/ui/app.css). Guide fonts remain system fonts, with no
+  remote assets or guide JavaScript.
   Mobile navigation keeps the native disclosure with a bounded, focusable scrolling list;
   desktop keeps the full sidebar. The guide browser probe checks initial phone heading,
   introduction and action geometry before interacting with navigation.
