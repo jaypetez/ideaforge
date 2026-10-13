@@ -1,6 +1,8 @@
 package io.github.jaypetez.ideaforge.ux
 
 import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsNode
 import kotlin.math.max
 import kotlin.math.min
 
@@ -48,7 +50,10 @@ data class UxBounds(val left: Float, val top: Float, val right: Float, val botto
     )
 }
 
-data class UxPixels(val colours: Int, val meanLuma: Double, val dominantRgb: Int, val width: Int = 0, val height: Int = 0)
+data class UxPixels(
+    val colours: Int, val meanLuma: Double, val dominantRgb: Int, val width: Int = 0, val height: Int = 0,
+    val rootSurfaceRgb: Int? = null, val rootSurfaceMatches: Int = 0, val sampledPixels: Int = 0,
+)
 
 /** Shared assertions used by the device recorder and regression tests, not screenshot goldens. */
 object UxEvidence {
@@ -79,7 +84,20 @@ object UxEvidence {
         }
     }
 
-    fun requireRendered(bitmap: Bitmap, content: UxBounds): UxPixels {
+    fun requireTarget(label: String, widthDp: Float, heightDp: Float, minHeightDp: Float = 48f) {
+        check(widthDp >= 48f - 0.1f && heightDp >= minHeightDp - 0.1f) {
+            "required control $label has an undersized target: ${widthDp}x${heightDp}dp; requires 48x${minHeightDp}dp"
+        }
+    }
+
+    fun touchBounds(node: SemanticsNode): UxBounds {
+        val coordinates = node.layoutInfo.coordinates
+        val origin = coordinates.localToWindow(Offset.Zero) - coordinates.localToRoot(Offset.Zero)
+        val touch = node.touchBoundsInRoot.translate(origin)
+        return UxBounds(touch.left, touch.top, touch.right, touch.bottom)
+    }
+
+    fun requireRendered(bitmap: Bitmap, content: UxBounds, rootSurfaceRgb: Int? = null): UxPixels {
         check(UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()).contains(content)) {
             "screenshot pixels do not cover the measured app viewport"
         }
@@ -93,11 +111,13 @@ object UxEvidence {
         val colours = HashMap<Int, Int>()
         var luma = 0.0
         var count = 0
+        var rootMatches = 0
         val dx = max(1, (right - left) / 160)
         val dy = max(1, (bottom - top) / 160)
         for (y in top until bottom step dy) {
             for (x in left until right step dx) {
                 val pixel = bitmap.getPixel(x, y)
+                if (rootSurfaceRgb != null && (pixel and 0x00FFFFFF) == (rootSurfaceRgb and 0x00FFFFFF)) rootMatches++
                 val colour = pixel and 0x00F8F8F8
                 colours[colour] = (colours[colour] ?: 0) + 1
                 luma += ((pixel shr 16) and 255) * 0.2126 + ((pixel shr 8) and 255) * 0.7152 + (pixel and 255) * 0.0722
@@ -105,12 +125,15 @@ object UxEvidence {
             }
         }
         check(colours.size >= 8) { "blank/unrendered app screenshot (${colours.size} distinct sampled colours); ATD is not visual evidence" }
-        return UxPixels(colours.size, luma / count, colours.maxBy { it.value }.key, bitmap.width, bitmap.height)
+        return UxPixels(colours.size, luma / count, colours.maxBy { it.value }.key, bitmap.width, bitmap.height,
+            rootSurfaceRgb, rootMatches, count)
     }
 
     fun requireTheme(theme: String, pixels: UxPixels) {
-        check(if (theme == "dark") pixels.meanLuma < 130 else pixels.meanLuma > 130) {
-            "requested $theme theme did not reach the app pixels (mean luma ${pixels.meanLuma})"
+        // Inverse Snackbar surfaces can dominate the mean, particularly at enlarged text.
+        // Require the requested scheme's actual root colour, not a brightness proxy.
+        check(pixels.rootSurfaceRgb != null && pixels.rootSurfaceMatches >= max(16, pixels.sampledPixels / 100)) {
+            "requested $theme root surface did not reach the app pixels (matches ${pixels.rootSurfaceMatches}/${pixels.sampledPixels}, mean luma ${pixels.meanLuma})"
         }
     }
 

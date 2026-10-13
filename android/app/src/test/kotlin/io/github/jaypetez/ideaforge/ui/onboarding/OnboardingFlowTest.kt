@@ -1,6 +1,8 @@
 package io.github.jaypetez.ideaforge.ui.onboarding
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.FakeCheck
 import io.github.jaypetez.ideaforge.MainActivity
@@ -189,6 +192,17 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("keyring-retry").performClick()
         waitFor(library)
         assertEquals(KeyringState.Status.STORED, graph.keyringStore.state.value.status)
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h320dp-land", fontScale = 2f)
+    fun unreadableKeyRecoveryKeepsBothActionsReachableWithEnlargedTextInAShortWindow() {
+        installUnreadableGraph(usableRing())
+        launch()
+        waitFor(hasTestTag("keyring-problem"))
+        for (tag in listOf("keyring-retry", "keyring-setup")) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        }
     }
 
     @Test

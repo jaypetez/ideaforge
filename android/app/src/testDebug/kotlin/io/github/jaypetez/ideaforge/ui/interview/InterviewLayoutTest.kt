@@ -25,11 +25,14 @@ import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import io.github.jaypetez.ideaforge.usableRing
+import io.github.jaypetez.ideaforge.core.vectors.Vectors
+import kotlinx.serialization.json.JsonArray
 import io.github.jaypetez.ideaforge.ux.UxBounds
 import io.github.jaypetez.ideaforge.ux.UxEvidence
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,13 +68,42 @@ class InterviewLayoutTest {
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
                 requireReachable(tag)
             }
+
+            requireReachable("turn-status", actionRequired = false)
             compose.onNodeWithTag("write-up").performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
             compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
         }
     }
 
-    private fun requireReachable(tag: String) {
+    @Test
+    fun theEnlargedWalkthroughChipTapActuallyFillsTheRealDraftBeforeSend() {
+        val graph = installTestGraph(ring = usableRing())
+        graph.providerSource = ProviderSource { ScriptedModel() }
+        val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
+            for (step in steps.take(3)) {
+                val previous = compose.onNodeWithTag("question").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text
+                compose.onNodeWithTag("answer").performTextReplacement(stringOf(step["text"])!!)
+                compose.onNodeWithTag("send").performClick()
+                compose.waitUntil(5_000) {
+                    compose.onAllNodes(hasTestTag("question") and hasText(previous)).fetchSemanticsNodes().isEmpty() &&
+                        compose.onAllNodes(hasTestTag("question")).fetchSemanticsNodes().isNotEmpty() &&
+                        compose.onAllNodes(hasTestTag("interview-busy")).fetchSemanticsNodes().isEmpty()
+                }
+            }
+            val chip = compose.onNodeWithTag("chip-0")
+            val expected = chip.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text
+            chip.performScrollTo().performClick()
+            assertEquals("the turn-four chip must be reached and tapped, not just composed outside the thread viewport", expected,
+                compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+        }
+    }
+
+    private fun requireReachable(tag: String, actionRequired: Boolean = true) {
         val interaction = compose.onNodeWithTag(tag)
         var node = interaction.fetchSemanticsNode()
         fun raw(): UxBounds {
@@ -87,7 +119,7 @@ class InterviewLayoutTest {
         val label = node.config.getOrNull(SemanticsProperties.Text).orEmpty().joinToString(" ") { it.text } +
             node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().joinToString(" ")
         UxEvidence.requireControl(tag, raw(), clipped(), label,
-            node.config.contains(SemanticsActions.OnClick) || node.config.contains(SemanticsActions.SetText))
+            !actionRequired || node.config.contains(SemanticsActions.OnClick) || node.config.contains(SemanticsActions.SetText))
         val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
         node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
         for (layout in layouts) {

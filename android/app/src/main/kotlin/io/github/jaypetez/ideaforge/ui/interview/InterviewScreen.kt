@@ -3,7 +3,6 @@ package io.github.jaypetez.ideaforge.ui.interview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,20 +31,14 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,7 +73,18 @@ import io.github.jaypetez.ideaforge.core.getDimension
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
-import io.github.jaypetez.ideaforge.ui.theme.ExtraColors
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSuggestionChip as SuggestionChip
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSnackbarHost as SnackbarHost
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTonalButton as FilledTonalButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
+import io.github.jaypetez.ideaforge.ui.components.StatusTone
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
+import io.github.jaypetez.ideaforge.ui.theme.statusColors
 import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
 import io.github.jaypetez.ideaforge.ui.voice.hasPermission
@@ -208,7 +213,8 @@ fun InterviewScreen(
     }
 
     if (drive != null && voice != null && voiceHere && voice.attached) {
-        Box(modifier.fillMaxSize().testTag("interview")) {
+        Column(modifier.fillMaxSize().testTag("interview")) {
+            SnackbarHost(snackbar)
             VoiceStage(
                 voice,
                 onPause = drive::pause,
@@ -217,8 +223,8 @@ fun InterviewScreen(
                     if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
                 },
                 onExit = drive::exit,
+                modifier = Modifier.weight(1f),
             )
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
         }
         return
     }
@@ -231,23 +237,26 @@ fun InterviewScreen(
             val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
             val threadHeight = maxHeight
             val scroll = rememberScrollState()
-            Column(Modifier.fillMaxSize().let { if (shortWindow) it.verticalScroll(scroll) else it }) {
-                CoverageStrip(state)
-                if (state.busy != null) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
-                } else {
-                    Spacer(Modifier.height(4.dp))
+            Column(Modifier.fillMaxSize()) {
+                SnackbarHost(snackbar)
+                Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
+                    .let { if (shortWindow) it.verticalScroll(scroll) else it }) {
+                    CoverageStrip(state)
+                    if (state.busy != null) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
+                    } else {
+                        Spacer(Modifier.height(IdeaForgeSpacing.micro))
+                    }
+                    Conversation(state, vm, if (shortWindow) Modifier.height(threadHeight) else Modifier.weight(1f))
+                    // Wrapped actions and enlarged drafts must not consume the entire thread.
+                    Composer(
+                        state, vm, onVoice = if (drive != null) askOrStart else null,
+                        modifier = if (shortWindow) Modifier else Modifier.heightIn(max = composerMaxHeight),
+                        shortWindow = shortWindow,
+                    )
                 }
-                Conversation(state, vm, if (shortWindow) Modifier.height(threadHeight) else Modifier.weight(1f))
-                // Wrapped actions and enlarged drafts must not consume the entire thread.
-                Composer(
-                    state, vm, onVoice = if (drive != null) askOrStart else null,
-                    modifier = if (shortWindow) Modifier else Modifier.heightIn(max = composerMaxHeight),
-                    shortWindow = shortWindow,
-                )
             }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp))
     }
 }
 
@@ -262,9 +271,9 @@ private fun noticeText(n: InterviewNotice): String = when (n) {
 private fun CoverageStrip(state: InterviewState) {
     val pct = state.session?.let(::coveragePercent) ?: 0
     Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight)
             .testTag("coverage-strip"),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -279,8 +288,8 @@ private fun CoverageStrip(state: InterviewState) {
 
 @Composable
 private fun Pill(pill: CoveragePill) {
-    val dark = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val status = MaterialTheme.statusColors
     val probing = pill.status == "probing"
     val word = when {
         pill.status == "waived" -> stringResource(R.string.status_waived)
@@ -291,24 +300,24 @@ private fun Pill(pill: CoveragePill) {
     }
     val accent: Color = when {
         !probing -> scheme.onSurfaceVariant
-        pill.level == "covered" -> if (dark) ExtraColors.successDark else ExtraColors.successLight
-        pill.level == "partial" -> if (dark) ExtraColors.warningDark else ExtraColors.warningLight
+        pill.level == "covered" -> status.success
+        pill.level == "partial" -> status.warning
         else -> scheme.outline
     }
     val description = stringResource(R.string.interview_pill, pill.label, word)
     Row(
         Modifier
-            .border(1.dp, accent, CircleShape)
-            .background(if (probing && pill.level == "covered") accent.copy(alpha = 0.12f) else Color.Transparent, CircleShape)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .border(1.dp, accent, IdeaForgeShape.status)
+            .background(if (probing && pill.level == "covered") accent.copy(alpha = 0.12f) else Color.Transparent, IdeaForgeShape.status)
+            .padding(horizontal = IdeaForgeSpacing.related, vertical = IdeaForgeSpacing.tight)
             .testTag("pill-${pill.id}")
             .clearAndSetSemantics { contentDescription = description },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
     ) {
         // A filled dot for covered, a ring for partial, nothing louder than the outline for thin.
         Box(
-            Modifier.size(8.dp).let {
+            Modifier.size(IdeaForgeSpacing.tight).let {
                 when {
                     probing && pill.level == "covered" -> it.background(accent, CircleShape)
                     probing && pill.level == "partial" -> it.border(2.dp, accent, CircleShape)
@@ -338,8 +347,8 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
     LazyColumn(
         modifier.fillMaxWidth().testTag("thread"),
         state = list,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
         item(key = "open") {
@@ -358,15 +367,15 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
 
 @Composable
 private fun ThreadItem(e: ThreadEntry) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         Text(e.question, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp),
-                modifier = Modifier.widthIn(max = 520.dp),
+                shape = RoundedCornerShape(IdeaForgeSpacing.related, IdeaForgeSpacing.related, IdeaForgeSpacing.micro, IdeaForgeSpacing.related),
+                modifier = Modifier.widthIn(max = IdeaForgeWidths.answer),
             ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.related)) {
                     if (e.answer == null) {
                         Text(stringResource(R.string.interview_skipped), fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
@@ -392,7 +401,7 @@ private fun BusyLine(busy: Busy) {
         Busy.Resuming -> stringResource(R.string.interview_resuming)
         Busy.Writing -> stringResource(R.string.interview_writing)
     }
-    Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("busy-line"))
+    IdeaForgeStatusText(text, Modifier.testTag("busy-line"))
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -408,13 +417,13 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             else stringResource(R.string.interview_turnline_dimension, state.turnCount, HARD_TURN_CEILING, dim.lowercase()),
         )
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
         Card(
             Modifier.fillMaxWidth().testTag("question-card"),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 if (bridge.isNotEmpty()) {
                     Text(bridge, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("bridge"))
                 }
@@ -427,15 +436,14 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
                     },
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.testTag("turnline")) {
-                    Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth().testTag("turnline"), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
+                    Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().testTag("turn-status"))
                     if (state.degraded) {
-                        val warning = if (isSystemInDarkTheme()) ExtraColors.warningDark else ExtraColors.warningLight
-                        Text(
-                            " · " + stringResource(R.string.interview_from_checklist),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = warning,
-                            modifier = Modifier.testTag("degraded"),
+                        IdeaForgeStatusText(
+                            stringResource(R.string.interview_from_checklist),
+                            Modifier.testTag("degraded"),
+                            tone = StatusTone.Warning, style = MaterialTheme.typography.labelMedium,
                         )
                     }
                 }
@@ -445,7 +453,7 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             val label = stringResource(R.string.interview_suggestions)
             FlowRow(
                 Modifier.fillMaxWidth().testTag("chips").semantics { contentDescription = label },
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
             ) {
                 chips.forEachIndexed { i, chip ->
                     SuggestionChip(
@@ -467,9 +475,9 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
         Modifier.fillMaxWidth().testTag("wrap-offer"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Text(offer, style = MaterialTheme.typography.bodyLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(onClick = vm::writeUp, modifier = Modifier.testTag("wrap-accept")) {
                     Text(stringResource(R.string.interview_wrap_accept))
                 }
@@ -488,7 +496,7 @@ private fun Composer(
     shortWindow: Boolean = false,
 ) {
     Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedTextField(
                 value = state.answer,
                 onValueChange = vm::onAnswerChange,
@@ -499,17 +507,18 @@ private fun Composer(
                 maxLines = if (shortWindow) 1 else 6,
                 modifier = Modifier.fillMaxWidth().let { if (shortWindow) it else it.weight(1f, fill = false) }.testTag("answer"),
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(
                     onClick = vm::send,
                     enabled = state.canAnswer && state.answer.isNotBlank(),
+                    busy = state.busy != null,
                     modifier = Modifier.testTag("send"),
                 ) { Text(stringResource(R.string.interview_send)) }
-                TextButton(onClick = vm::skip, enabled = state.canAnswer, modifier = Modifier.testTag("skip")) {
+                TextButton(onClick = vm::skip, enabled = state.canAnswer, busy = state.busy != null, modifier = Modifier.testTag("skip")) {
                     Text(stringResource(R.string.interview_skip))
                 }
                 if (onVoice != null) {
-                    FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, modifier = Modifier.testTag("voice-start")) {
+                    FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, voice = true, busy = state.busy != null, modifier = Modifier.testTag("voice-start")) {
                         Text(stringResource(R.string.voice_start))
                     }
                 }

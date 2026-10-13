@@ -23,8 +23,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// The fallback scheme is docs/DESIGN.md's web token → ColorScheme map, used below Android 12
-// and wherever dynamic colour is turned off. Read the values from that table, not from here.
+// Focus Studio fallback. Wallpaper schemes remain the platform's schemes, not recoloured
+// copies of this palette.
 private data class Tokens(
     val ground: Color, // --surface-container-low
     val lowest: Color, // --surface-container-lowest
@@ -33,32 +33,31 @@ private data class Tokens(
     val onSurface: Color,
     val onSurfaceVariant: Color,
     val outline: Color,
-    val outlineVariant: Color,
     val primary: Color,
     val onPrimary: Color,
     val error: Color,
 )
 
 private val LightTokens = Tokens(
-    ground = Color(0xFFF5F6F2), lowest = Color(0xFFFDFEFB), container = Color(0xFFE9EEEA),
-    high = Color(0xFFDFE6E1), onSurface = Color(0xFF202C2B), onSurfaceVariant = Color(0xFF566562),
-    outline = Color(0xFF73847D), outlineVariant = Color(0xFFD4DED8), primary = Color(0xFF24665E),
-    onPrimary = Color(0xFFFFFFFF), error = Color(0xFF9E3E37),
+    ground = Color(0xFFF5F7FA), lowest = Color(0xFFFFFFFF), container = Color(0xFFE8EDF2),
+    high = Color(0xFFDEE6EE), onSurface = Color(0xFF17212B), onSurfaceVariant = Color(0xFF526171),
+    outline = Color(0xFF718091), primary = Color(0xFF0F6963),
+    onPrimary = Color(0xFFFFFFFF), error = Color(0xFF983632),
 )
 
 private val DarkTokens = Tokens(
-    ground = Color(0xFF15191A), lowest = Color(0xFF1D2324), container = Color(0xFF293132),
-    high = Color(0xFF313A3B), onSurface = Color(0xFFEEF0E9), onSurfaceVariant = Color(0xFFABBAB5),
-    outline = Color(0xFF72867F), outlineVariant = Color(0xFF364140), primary = Color(0xFF9ECDC3),
-    onPrimary = Color(0xFF142E29), error = Color(0xFFE8A396),
+    ground = Color(0xFF11161B), lowest = Color(0xFF1B222A), container = Color(0xFF27313B),
+    high = Color(0xFF313E49), onSurface = Color(0xFFEEF3F8), onSurfaceVariant = Color(0xFFB4C0CB),
+    outline = Color(0xFF91A1B2), primary = Color(0xFF7AD5C7),
+    onPrimary = Color(0xFF0A332E), error = Color(0xFFF3AAA0),
 )
 
 /** Custom roles the web has and Material 3 does not (DESIGN.md: `--success`, `--warning`). */
 object ExtraColors {
     val successLight = Color(0xFF306445)
     val successDark = Color(0xFFA0C9A9)
-    val warningLight = Color(0xFF786120)
-    val warningDark = Color(0xFFCFBD8A)
+    val warningLight = Color(0xFF765C20)
+    val warningDark = Color(0xFFE7C882)
 }
 
 private fun Tokens.scheme(dark: Boolean): ColorScheme {
@@ -82,15 +81,18 @@ private fun Tokens.scheme(dark: Boolean): ColorScheme {
         surfaceContainerLowest = lowest, surfaceContainerLow = ground,
         surfaceContainer = container, surfaceContainerHigh = high, surfaceContainerHighest = high,
         surfaceBright = lowest, surfaceDim = container,
-        outline = outline, outlineVariant = outlineVariant,
-        error = error, errorContainer = errorContainer, onErrorContainer = onSurface,
+        surfaceTint = primary,
+        inverseSurface = if (dark) LightTokens.high else DarkTokens.high,
+        inverseOnSurface = if (dark) LightTokens.onSurface else DarkTokens.onSurface,
+        inversePrimary = if (dark) LightTokens.primary else DarkTokens.primary,
+        outline = outline, outlineVariant = onSurface.copy(alpha = 0.16f).compositeOver(ground),
+        error = error, onError = onPrimary, errorContainer = errorContainer, onErrorContainer = onSurface,
     )
 }
 
 /**
- * DESIGN.md's type roles. IBM Plex Sans is the web face; the app uses the platform default
- * family for now (no downloadable-font provider or bundled font yet) and keeps the roles'
- * sizes, line heights and the 600 weight on headline and title.
+ * Every Material role uses the system family. Body copy is 16sp; supporting copy and
+ * metadata are at least 14sp, including Material's otherwise smaller default roles.
  */
 private val AppFont = FontFamily.Default
 
@@ -98,11 +100,21 @@ val IdeaForgeTypography: Typography = Typography().let { t ->
     fun TextStyle.role(size: Float, line: Float, weight: FontWeight) =
         copy(fontFamily = AppFont, fontSize = size.sp, lineHeight = (size * line).sp, fontWeight = weight)
     t.copy(
+        displayLarge = t.displayLarge.role(57f, 1.2f, FontWeight.SemiBold),
+        displayMedium = t.displayMedium.role(45f, 1.2f, FontWeight.SemiBold),
         displaySmall = t.displaySmall.role(34f, 1.2f, FontWeight.SemiBold),
+        headlineLarge = t.headlineLarge.role(32f, 1.25f, FontWeight.SemiBold),
+        headlineMedium = t.headlineMedium.role(28f, 1.25f, FontWeight.SemiBold),
         headlineSmall = t.headlineSmall.role(28f, 1.25f, FontWeight.SemiBold),
+        titleLarge = t.titleLarge.role(22f, 1.35f, FontWeight.SemiBold),
         titleMedium = t.titleMedium.role(18f, 1.35f, FontWeight.SemiBold),
+        titleSmall = t.titleSmall.role(16f, 1.4f, FontWeight.SemiBold),
         bodyLarge = t.bodyLarge.role(16f, 1.6f, FontWeight.Normal),
+        bodyMedium = t.bodyMedium.role(16f, 1.6f, FontWeight.Normal),
+        bodySmall = t.bodySmall.role(14f, 1.45f, FontWeight.Normal),
         labelLarge = t.labelLarge.role(14f, 1.35f, FontWeight.Medium),
+        labelMedium = t.labelMedium.role(14f, 1.45f, FontWeight.Medium),
+        labelSmall = t.labelSmall.role(14f, 1.45f, FontWeight.Medium),
     )
 }
 
@@ -121,7 +133,7 @@ fun IdeaForgeTheme(
         dark -> DarkTokens.scheme(dark = true)
         else -> LightTokens.scheme(dark = false)
     }
-    MaterialTheme(colorScheme = scheme, typography = IdeaForgeTypography, content = content)
+    MaterialTheme(colorScheme = scheme, typography = IdeaForgeTypography, shapes = IdeaForgeShapes, content = content)
 }
 
 /** Whether [theme] (a [Prefs.theme] value) renders dark, given what the system asks for. */

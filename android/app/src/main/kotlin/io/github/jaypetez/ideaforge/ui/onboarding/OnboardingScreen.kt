@@ -1,32 +1,31 @@
 package io.github.jaypetez.ideaforge.ui.onboarding
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +38,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -48,6 +49,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.hostOf
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSuggestionChip as SuggestionChip
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** First run: pick a provider, then a key (hosted) or an address and a model (local). */
@@ -58,8 +66,9 @@ fun OnboardingScreen(vm: OnboardingViewModel, onDone: () -> Unit) {
     BackHandler(enabled = state.step == 2) { vm.back() }
 
     Column(
-        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.form)
+            .imePadding().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         Text(
             stringResource(R.string.onboarding_step, state.step),
@@ -92,17 +101,18 @@ private fun PickProvider(choices: List<ProviderChoice>, pick: (String) -> Unit) 
 
 @Composable
 private fun Section(title: String) {
-    Spacer(Modifier.padding(top = 4.dp))
+    Spacer(Modifier.padding(top = IdeaForgeSpacing.micro))
     Text(title, style = MaterialTheme.typography.titleMedium)
 }
 
 @Composable
 private fun ProviderCard(c: ProviderChoice, pick: (String) -> Unit) {
     Card(
-        Modifier.fillMaxWidth().testTag("provider-${c.id}").clickable(role = Role.Button) { pick(c.id) },
+        onClick = { pick(c.id) },
+        modifier = Modifier.fillMaxWidth().testTag("provider-${c.id}").semantics { role = Role.Button },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
             Text(c.label, style = MaterialTheme.typography.titleMedium)
             describe(c)?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -169,7 +179,7 @@ private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewM
     Failure(s.failure)
     s.unreadable?.let { UnreadableKeyring(it, vm::replaceUnreadable) }
     Actions(vm::back) {
-        Button(onClick = vm::checkKey, enabled = !s.checking, modifier = Modifier.testTag("check-key")) {
+        Button(onClick = vm::checkKey, enabled = !s.checking, busy = s.checking, modifier = Modifier.testTag("check-key")) {
             Text(stringResource(if (s.checking) R.string.onboarding_checking else R.string.onboarding_check_key))
         }
     }
@@ -201,7 +211,7 @@ private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingVie
         SuggestionChip(onClick = { vm.setBaseUrl(swapped) }, label = { Text(stringResource(R.string.onboarding_use_emulator)) })
     }
 
-    OutlinedButton(onClick = vm::findModels, enabled = !s.checking, modifier = Modifier.testTag("find-models")) {
+    OutlinedButton(onClick = vm::findModels, enabled = !s.checking, busy = s.checking, modifier = Modifier.testTag("find-models")) {
         Text(stringResource(if (s.checking) R.string.onboarding_checking else R.string.onboarding_find_models))
     }
     s.models?.let { names ->
@@ -213,13 +223,13 @@ private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingVie
         Column(Modifier.selectableGroup()) {
             for (name in names) {
                 Row(
-                    Modifier.fillMaxWidth().testTag("model-$name")
+                    Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control).testTag("model-$name")
                         .selectable(selected = s.model == name, onClick = { vm.setModel(name) }, role = Role.RadioButton)
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = IdeaForgeSpacing.micro),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(selected = s.model == name, onClick = null)
-                    Text(name, Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyLarge)
+                    Text(name, Modifier.padding(start = IdeaForgeSpacing.related), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -260,7 +270,7 @@ private fun Failure(f: CheckFailure?) {
         Modifier.fillMaxWidth().testTag("check-failure"),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
             Text(f.lead, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
             if (f.detail.isNotEmpty()) {
                 Text(f.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
@@ -276,7 +286,7 @@ private fun UnreadableKeyring(problem: String, replace: () -> Unit) {
         Modifier.fillMaxWidth().testTag("unreadable-keyring"),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Text(stringResource(R.string.keyring_unreadable_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
             Text(stringResource(R.string.keyring_unreadable_replace_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
             if (problem.isNotEmpty()) {
@@ -289,9 +299,11 @@ private fun UnreadableKeyring(problem: String, replace: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Actions(back: () -> Unit, primary: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         TextButton(onClick = back) { Text(stringResource(R.string.onboarding_back)) }
         primary()
     }

@@ -13,14 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,12 +27,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.runtime.DrivePhase
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTonalButton as FilledTonalButton
+import io.github.jaypetez.ideaforge.ui.components.StatusTone
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.readableColor
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.RMS_FLOOR_DB
 import io.github.jaypetez.ideaforge.voice.VoiceMode
@@ -57,17 +63,17 @@ fun VoiceStage(
 ) {
     Column(modifier.fillMaxSize().testTag("voice-stage")) {
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = IdeaForgeSpacing.section, vertical = IdeaForgeSpacing.content),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content),
         ) {
             Text(
                 phaseLabel(state),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.testTag("voice-phase"),
+                color = MaterialTheme.colorScheme.readableColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.testTag("voice-phase").semantics { liveRegion = LiveRegionMode.Polite },
             )
             if (state.question.isNotEmpty()) {
-                Text(state.question, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("voice-question"))
+                Text(state.question, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("voice-question").semantics { heading() })
             }
             val caption = if (state.listening) state.caption else state.said
             if (caption.isNotEmpty()) {
@@ -82,35 +88,37 @@ fun VoiceStage(
                 LevelBars(state.levels)
             }
             if (state.deaf && state.mode == VoiceMode.ACTIVE) {
-                Text(
+                IdeaForgeStatusText(
                     stringResource(R.string.voice_deaf),
-                    color = MaterialTheme.colorScheme.error,
+                    tone = StatusTone.Warning,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.testTag("voice-deaf"),
                 )
             }
             if (state.detail.isNotEmpty()) {
-                Text(
+                IdeaForgeStatusText(
                     state.detail,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (state.mode == VoiceMode.BLOCKED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tone = if (state.mode == VoiceMode.BLOCKED) StatusTone.Error else StatusTone.Neutral,
                     modifier = Modifier.testTag("voice-detail"),
                 )
             }
         }
         Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
             Row(
-                Modifier.navigationBarsPadding().padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.navigationBarsPadding().padding(IdeaForgeSpacing.content),
+                horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
             ) {
                 val active = state.mode == VoiceMode.ACTIVE
                 FilledTonalButton(
                     onClick = if (active) onPause else onResume,
-                    modifier = Modifier.weight(1f).heightIn(min = 64.dp).testTag(if (active) "voice-pause" else "voice-resume"),
+                    voice = true,
+                    modifier = Modifier.weight(1f).testTag(if (active) "voice-pause" else "voice-resume"),
                 ) { Text(stringResource(if (active) R.string.voice_pause else R.string.voice_resume), style = MaterialTheme.typography.titleMedium) }
                 FilledTonalButton(
                     onClick = onExit,
-                    modifier = Modifier.weight(1f).heightIn(min = 64.dp).testTag("voice-exit"),
+                    voice = true,
+                    modifier = Modifier.weight(1f).testTag("voice-exit"),
                 ) { Text(stringResource(R.string.voice_exit), style = MaterialTheme.typography.titleMedium) }
             }
         }
@@ -149,12 +157,12 @@ private fun LevelBars(levels: List<Float>) {
     val description = stringResource(R.string.voice_levels, levels.size)
     val color = MaterialTheme.colorScheme.primary
     Row(
-        Modifier.height(64.dp).fillMaxWidth().testTag("voice-levels").semantics { contentDescription = description },
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Modifier.height(IdeaForgeSpacing.voice).fillMaxWidth().testTag("voice-levels").semantics { contentDescription = description },
+        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         for (db in levels) {
-            Box(Modifier.width(6.dp).height((64 * barFraction(db)).dp).background(color, RoundedCornerShape(3.dp)))
+            Box(Modifier.width(6.dp).height(IdeaForgeSpacing.voice * barFraction(db)).background(color, IdeaForgeShape.status))
         }
         Spacer(Modifier.weight(1f))
     }

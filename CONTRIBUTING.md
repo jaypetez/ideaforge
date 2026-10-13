@@ -287,6 +287,15 @@ phase/route mappings and the prerequisite fixes the matrix exposed. A focused gr
 is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
 and black PNGs must remain failures.
 
+For the native shared-control foundation, select
+`UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
+with the same provenance/window arguments and add `uxFoundationProbe=true`.
+Its separate `ux-foundation` manifest covers the real fallback plus two labelled simulated
+schemes at both windows/themes and font scales 1.0/1.3/2.0. These are isolated production
+controls; simulations do not certify actual wallpaper colours or microphone behavior.
+The normal real-app matrix continues to use system dynamic colours. See
+[DESIGN's exact command and evidence boundaries](docs/DESIGN.md#development-fixtures-and-captures).
+
 ## The Android app
 
 `android/` is a native Kotlin and Jetpack Compose app, and the one place in the repository

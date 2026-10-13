@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -24,13 +24,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.ui.LibraryRoute
 import io.github.jaypetez.ideaforge.ui.OnboardingRoute
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import kotlinx.coroutines.launch
 
 /** What the keyring says about where the app should open. */
@@ -104,18 +106,19 @@ fun startGate(keyring: KeyringStore): Any? {
 private fun KeyringProblem(problem: String, retrying: Boolean, retry: () -> Unit, setUp: () -> Unit) {
     Surface(Modifier.fillMaxSize()) {
         Column(
-            Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp).testTag("keyring-problem"),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.windowInsetsPadding(WindowInsets.safeDrawing).verticalScroll(rememberScrollState())
+                .padding(IdeaForgeSpacing.content).testTag("keyring-problem"),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
             Text(stringResource(R.string.keyring_unreadable_title), style = MaterialTheme.typography.headlineSmall)
             Text(stringResource(R.string.keyring_unreadable_body), style = MaterialTheme.typography.bodyLarge)
             if (problem.isNotEmpty()) {
                 Text(problem, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Button(onClick = retry, enabled = !retrying, modifier = Modifier.testTag("keyring-retry")) {
+            Button(onClick = retry, enabled = !retrying, busy = retrying, modifier = Modifier.testTag("keyring-retry")) {
                 Text(stringResource(R.string.keyring_retry))
             }
-            TextButton(onClick = setUp, enabled = !retrying, modifier = Modifier.testTag("keyring-setup")) {
+            TextButton(onClick = setUp, enabled = !retrying, busy = retrying, modifier = Modifier.testTag("keyring-setup")) {
                 Text(stringResource(R.string.keyring_set_up_again))
             }
         }

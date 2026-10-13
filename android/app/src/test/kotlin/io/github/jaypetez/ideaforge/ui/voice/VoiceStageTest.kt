@@ -1,5 +1,12 @@
 package io.github.jaypetez.ideaforge.ui.voice
 
+import android.app.Application
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
@@ -7,6 +14,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import io.github.jaypetez.ideaforge.core.runtime.DrivePhase
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeTheme
 import io.github.jaypetez.ideaforge.voice.VoiceMode
@@ -19,7 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [35], application = Application::class)
 class VoiceStageTest {
     @get:Rule
     val compose = createComposeRule()
@@ -30,7 +39,7 @@ class VoiceStageTest {
     )
 
     private fun show(state: VoiceStageState, onPause: () -> Unit = {}, onResume: () -> Unit = {}, onExit: () -> Unit = {}) =
-        compose.setContent { IdeaForgeTheme { VoiceStage(state, onPause, onResume, onExit) } }
+        compose.setContent { IdeaForgeTheme { Surface { VoiceStage(state, onPause, onResume, onExit) } } }
 
     @Test
     fun withNoLevelReadingThereAreNoBarsAndTheStageSaysSo() {
@@ -78,5 +87,26 @@ class VoiceStageTest {
         compose.onNodeWithTag("voice-no-level").assertDoesNotExist()
         compose.onNodeWithTag("voice-resume").performClick()
         assertEquals(1, resumed)
+    }
+
+    @Test
+    fun voiceActionsUseSixtyFourDpTargetsAndNativeButtonRoles() {
+        show(listening)
+        for (tag in listOf("voice-pause", "voice-exit")) {
+            compose.onNodeWithTag(tag).assertHeightIsAtLeast(64.dp).assertWidthIsAtLeast(48.dp)
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp", fontScale = 2f)
+    fun enlargedFullCaptionsScrollWhileResumeAndExitRemainReachable() {
+        show(listening.copy(mode = VoiceMode.PAUSED, listening = false,
+            question = "Who is this for, including the people whose accessibility needs and long descriptions must remain visible?",
+            said = "A full spoken caption with enough detail to require several lines on a compact screen. ".repeat(12)))
+        compose.onNodeWithTag("voice-caption").performScrollTo().assertIsDisplayed()
+        for (tag in listOf("voice-resume", "voice-exit")) {
+            compose.onNodeWithTag(tag).assertIsDisplayed().assertHeightIsAtLeast(64.dp).assertWidthIsAtLeast(48.dp)
+        }
     }
 }

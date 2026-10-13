@@ -219,7 +219,8 @@ sizes. Colour contrast for every token and component pair, in both themes, is th
 `test/browser/contrast.browser.mjs`. The trusted-input phase also composes the shared controls
 on every surface through hover/press/focus, selected/disabled/busy/status cues, enlarged text
 and forced colours. [DESIGN.md](DESIGN.md#contrast-and-targets) lists the measured contracts
-and their limits; the current native fallback mapping remains separate until #190.
+and their limits; the native foundation has separate composed-control and device evidence,
+not a claim that desktop browser tests prove Compose.
 
 ## The native Android app
 
@@ -236,6 +237,15 @@ android/app/        Compose UI, stores, keyring and native speech; the only Andr
 `android/core/src/test/kotlin/io/github/jaypetez/ideaforge/core/CorePurityTest.kt`, the twin of
 `tools/lint-purity.mjs`. Nothing in `android/` reaches the published site; `assembleSite`
 never copies it and `test/wiring.test.mjs` asserts so.
+
+**Native visual ownership.** `ui/theme/Theme.kt` owns the Focus Studio fallback scheme,
+all system-family typography, wallpaper dynamic-colour selection and the preferences-first
+render gate. `ui/theme/Roles.kt` owns named spacing, shapes, content widths and composed
+control/status ink; `ui/components/Controls.kt` consumes them through Material controls.
+Existing screens use these shared primitives without a second state/navigation framework.
+`MainActivity` still owns system bars and the app graph still owns effects. Theme/component
+unit checks and the debug-only UX capture seam provide native evidence; isolated simulated
+palettes are labelled separately from actual wallpaper colours.
 
 **The JavaScript is the reference, and parity is measured, not reviewed.** `tools/vectors.mjs`
 records real calls into the JS core and runtime as JSON files under `test/vectors/`. The Kotlin tests

@@ -4,11 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -16,20 +21,15 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +61,14 @@ import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.maskKey
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.ui.GUIDE_URL
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
+import io.github.jaypetez.ideaforge.ui.components.StatusTone
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import java.util.Locale
 
 object SettingsTags {
@@ -102,8 +110,9 @@ fun SettingsScreen(
     // Scrolls: in landscape or at a large font scale the sections are taller than the space
     // above the bottom bar, and the lower buttons would otherwise be out of reach.
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.settings)
+            .verticalScroll(rememberScrollState()).imePadding().padding(IdeaForgeSpacing.content),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.section),
     ) {
         Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall)
         Section(R.string.settings_connection) { Connection(state, vm) }
@@ -122,7 +131,7 @@ fun SettingsScreen(
 
 @Composable
 private fun Section(title: Int, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
         HorizontalDivider()
         Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         content()
@@ -134,6 +143,7 @@ private fun Hint(text: String, modifier: Modifier = Modifier) {
     Text(text, modifier, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Connection(state: SettingsState, vm: SettingsViewModel) {
     val active = state.active
@@ -155,7 +165,7 @@ private fun Connection(state: SettingsState, vm: SettingsViewModel) {
 
     var picking by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { picking = true }, enabled = !state.checking, modifier = Modifier.testTag(SettingsTags.PROVIDER)) {
+        OutlinedButton(onClick = { picking = true }, enabled = !state.checking, busy = state.checking, modifier = Modifier.testTag(SettingsTags.PROVIDER)) {
             Text(stringResource(R.string.settings_provider) + ": " + choice.label + "  ▾")
         }
         DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
@@ -223,11 +233,11 @@ private fun Connection(state: SettingsState, vm: SettingsViewModel) {
             tag = SettingsTags.WRAP_MODEL,
         )
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { vm.check() }, enabled = !state.checking, modifier = Modifier.testTag(SettingsTags.CHECK)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+        OutlinedButton(onClick = { vm.check() }, enabled = !state.checking, busy = state.checking, modifier = Modifier.testTag(SettingsTags.CHECK)) {
             Text(stringResource(if (choice.needsKey) R.string.settings_check_key else R.string.settings_check_connection))
         }
-        Button(onClick = { vm.save() }, enabled = !state.checking, modifier = Modifier.testTag(SettingsTags.SAVE)) {
+        Button(onClick = { vm.save() }, enabled = !state.checking, busy = state.checking, modifier = Modifier.testTag(SettingsTags.SAVE)) {
             Text(stringResource(R.string.settings_save))
         }
     }
@@ -252,9 +262,9 @@ private fun Status(state: SettingsState) {
         failure != null -> listOf(failure.lead, failure.detail).filter { it.isNotEmpty() }.joinToString(" ")
         else -> state.notice
     } ?: return
-    Text(
+    IdeaForgeStatusText(
         text,
-        color = if (failure != null && !state.checking) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        tone = if (failure != null && !state.checking) StatusTone.Error else StatusTone.Neutral,
         modifier = Modifier.testTag(SettingsTags.STATUS).semantics { liveRegion = LiveRegionMode.Polite },
     )
 }
@@ -300,12 +310,14 @@ private fun ModelField(
 @Composable
 private fun Listening(state: SettingsState, vm: SettingsViewModel) {
     val prefs = state.prefs ?: return
+    val handsFreeLabel = stringResource(R.string.pref_hands_free)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.pref_hands_free), style = MaterialTheme.typography.bodyLarge)
+            Text(handsFreeLabel, style = MaterialTheme.typography.bodyLarge)
             Hint(stringResource(R.string.settings_hands_free_hint))
         }
-        Switch(checked = prefs.handsFree, onCheckedChange = { vm.setHandsFree(it) }, modifier = Modifier.testTag(SettingsTags.HANDS_FREE))
+        Switch(checked = prefs.handsFree, onCheckedChange = { vm.setHandsFree(it) },
+            modifier = Modifier.testTag(SettingsTags.HANDS_FREE).semantics { contentDescription = handsFreeLabel })
     }
 
     val warning = state.triggerWarning
@@ -321,7 +333,7 @@ private fun Listening(state: SettingsState, vm: SettingsViewModel) {
         // just deserve to be told first (src/ui/app.js applyTrigger).
         supportingText = {
             if (warning != null) {
-                Text(warning, Modifier.testTag(SettingsTags.TRIGGER_WARNING))
+                IdeaForgeStatusText(warning, Modifier.testTag(SettingsTags.TRIGGER_WARNING), tone = StatusTone.Warning, style = MaterialTheme.typography.bodySmall)
             } else {
                 Text(stringResource(R.string.settings_trigger_hint), Modifier.testTag(SettingsTags.TRIGGER_NOTE))
             }
@@ -331,14 +343,15 @@ private fun Listening(state: SettingsState, vm: SettingsViewModel) {
 
     // Dragging updates the label; only the release is written, not every step of the drag.
     var pace by remember(prefs.speechRate) { mutableFloatStateOf(prefs.speechRate.toFloat()) }
-    Text(stringResource(R.string.settings_pace, String.format(Locale.ROOT, "%.2f", pace)), style = MaterialTheme.typography.bodyLarge)
+    val paceLabel = stringResource(R.string.settings_pace, String.format(Locale.ROOT, "%.2f", pace))
+    Text(paceLabel, style = MaterialTheme.typography.bodyLarge)
     Slider(
         value = pace,
         onValueChange = { pace = it },
         onValueChangeFinished = { vm.setSpeechRate(Math.round(pace * 20) / 20.0) },
         valueRange = Prefs.MIN_RATE.toFloat()..Prefs.MAX_RATE.toFloat(),
         steps = 9,
-        modifier = Modifier.testTag(SettingsTags.PACE),
+        modifier = Modifier.testTag(SettingsTags.PACE).semantics { contentDescription = paceLabel },
     )
 }
 
@@ -355,13 +368,14 @@ private fun Appearance(state: SettingsState, vm: SettingsViewModel) {
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .heightIn(min = IdeaForgeSpacing.control)
                     .selectable(selected = prefs.theme == theme, onClick = { vm.setTheme(theme) }, role = Role.RadioButton)
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = IdeaForgeSpacing.tight)
                     .testTag(SettingsTags.theme(theme)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RadioButton(selected = prefs.theme == theme, onClick = null)
-                Text(stringResource(labels.getValue(theme)), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(labels.getValue(theme)), Modifier.padding(start = IdeaForgeSpacing.related), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
@@ -369,11 +383,11 @@ private fun Appearance(state: SettingsState, vm: SettingsViewModel) {
 
 @Composable
 private fun Forget(state: SettingsState, vm: SettingsViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         OutlinedButton(
             onClick = vm::askForget,
             enabled = !state.checking,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            contentColor = MaterialTheme.colorScheme.error,
             modifier = Modifier.testTag(SettingsTags.FORGET),
         ) { Text(stringResource(R.string.settings_forget)) }
         Hint(stringResource(R.string.settings_forget_hint))

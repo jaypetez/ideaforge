@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ui.result
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,15 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,15 +31,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.ui.library.ExportPreview
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSnackbarHost as SnackbarHost
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.readableColor
 import kotlinx.coroutines.launch
 
 object ResultTags {
@@ -50,6 +57,8 @@ object ResultTags {
     const val META = "result-meta"
     const val SYNTHESIS_FAILED = "synthesis-failed"
     const val OUTPUT = "result-output"
+    const val CONTENT = "result-content"
+    const val ACTIONS = "result-actions"
     const val SHARE = "result-share"
     const val COPY = "result-copy"
     const val SAVE = "result-save"
@@ -110,90 +119,107 @@ fun ResultScreen(
     val copied = stringResource(R.string.result_copied)
     val ready = state.session != null
 
-    Scaffold(
-        modifier.fillMaxSize().testTag(ResultTags.SCREEN),
-        // The app shell's Scaffold has already applied the system-bar insets.
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag(ResultTags.TITLE)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag(ResultTags.BACK)) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.result_back))
-                    }
-                },
-                windowInsets = WindowInsets(0),
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            Surface(tonalElevation = 2.dp) {
-                Column {
-                    HorizontalDivider()
-                    FlowRow(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Button(
-                            onClick = {
-                                try {
-                                    context.startActivity(ResultActions.chooser(context, state.export, state.filename, title, chooserTitle, vm.now()))
-                                } catch (e: Exception) {
-                                    say(resources.getString(R.string.result_share_failed, e.message ?: e.toString()))
-                                }
-                            },
-                            enabled = ready,
-                            modifier = Modifier.testTag(ResultTags.SHARE),
-                        ) { Text(stringResource(R.string.result_share)) }
-                        OutlinedButton(
-                            onClick = { if (ResultActions.copy(context, state.export, clipLabel)) say(copied) },
-                            enabled = ready,
-                            modifier = Modifier.testTag(ResultTags.COPY),
-                        ) { Text(stringResource(R.string.result_copy)) }
-                        OutlinedButton(
-                            onClick = { save.launch(state.filename) },
-                            enabled = ready,
-                            modifier = Modifier.testTag(ResultTags.SAVE),
-                        ) { Text(stringResource(R.string.result_save)) }
-                        OutlinedButton(
-                            onClick = vm::askMore,
-                            enabled = ready && !state.reopening,
-                            modifier = Modifier.testTag(ResultTags.ASK_MORE),
-                        ) { Text(stringResource(R.string.result_ask_more)) }
-                    }
+    val actions: @Composable () -> Unit = {
+        Surface(tonalElevation = 2.dp, modifier = Modifier.testTag(ResultTags.ACTIONS)) {
+            Column {
+                HorizontalDivider()
+                FlowRow(
+                    Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+                    horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+                ) {
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(ResultActions.chooser(context, state.export, state.filename, title, chooserTitle, vm.now()))
+                            } catch (e: Exception) {
+                                say(resources.getString(R.string.result_share_failed, e.message ?: e.toString()))
+                            }
+                        },
+                        enabled = ready,
+                        modifier = Modifier.testTag(ResultTags.SHARE),
+                    ) { Text(stringResource(R.string.result_share)) }
+                    OutlinedButton(
+                        onClick = { if (ResultActions.copy(context, state.export, clipLabel)) say(copied) },
+                        enabled = ready,
+                        modifier = Modifier.testTag(ResultTags.COPY),
+                    ) { Text(stringResource(R.string.result_copy)) }
+                    OutlinedButton(
+                        onClick = { save.launch(state.filename) },
+                        enabled = ready,
+                        modifier = Modifier.testTag(ResultTags.SAVE),
+                    ) { Text(stringResource(R.string.result_save)) }
+                    OutlinedButton(
+                        onClick = vm::askMore,
+                        enabled = ready && !state.reopening,
+                        busy = state.reopening,
+                        modifier = Modifier.testTag(ResultTags.ASK_MORE),
+                    ) { Text(stringResource(R.string.result_ask_more)) }
                 }
             }
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (state.missing) {
-                Text(stringResource(R.string.result_missing), Modifier.testTag(ResultTags.MISSING))
-                return@Column
-            }
-            val meta = state.meta ?: return@Column
-            val line = stringResource(R.string.result_meta, meta.questions, meta.coverage)
-            Text(
-                if (meta.degraded) stringResource(R.string.result_meta_checklist, line) else line,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag(ResultTags.META),
-            )
-            if (synthesisFailed || state.synthesisFailed) {
-                Text(
-                    stringResource(R.string.result_synthesis_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.testTag(ResultTags.SYNTHESIS_FAILED),
+        }
+    }
+    BoxWithConstraints(modifier.fillMaxSize().testTag(ResultTags.SCREEN)) {
+        // A wrapped dock can leave no document viewport in a short, enlarged window.
+        val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
+        Scaffold(
+            Modifier.fillMaxSize(),
+            // The app shell's Scaffold has already applied the system-bar insets.
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
+                TopAppBar(
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag(ResultTags.TITLE)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag(ResultTags.BACK)) {
+                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.result_back))
+                        }
+                    },
+                    windowInsets = WindowInsets(0),
                 )
-            }
-            SelectionContainer {
-                ExportPreview(state.export, Modifier.fillMaxWidth().testTag(ResultTags.OUTPUT))
+            },
+            snackbarHost = { if (!shortWindow) SnackbarHost(snackbar) },
+            bottomBar = {
+                if (!shortWindow) actions()
+            },
+        ) { padding ->
+            Column(Modifier.padding(padding).fillMaxSize()) {
+                // A timed notice cannot follow the document offscreen.
+                if (shortWindow) SnackbarHost(snackbar)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .testTag(ResultTags.CONTENT)
+                        .verticalScroll(rememberScrollState())
+                        .padding(IdeaForgeSpacing.content),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+                ) document@{
+                    if (state.missing) {
+                        Text(stringResource(R.string.result_missing), Modifier.testTag(ResultTags.MISSING))
+                        if (shortWindow) actions()
+                        return@document
+                    }
+                    state.meta?.let { meta ->
+                        val line = stringResource(R.string.result_meta, meta.questions, meta.coverage)
+                        Text(
+                            if (meta.degraded) stringResource(R.string.result_meta_checklist, line) else line,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag(ResultTags.META),
+                        )
+                        if (synthesisFailed || state.synthesisFailed) {
+                            Text(
+                                stringResource(R.string.result_synthesis_failed),
+                                color = MaterialTheme.colorScheme.readableColor(MaterialTheme.colorScheme.error),
+                                modifier = Modifier.testTag(ResultTags.SYNTHESIS_FAILED).semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                        }
+                        SelectionContainer {
+                            ExportPreview(state.export, Modifier.fillMaxWidth().testTag(ResultTags.OUTPUT))
+                        }
+                    }
+                    if (shortWindow) actions()
+                }
             }
         }
     }

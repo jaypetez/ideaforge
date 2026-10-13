@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ui.library
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,6 +23,8 @@ import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.renderBlocks
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 
@@ -37,26 +40,26 @@ import kotlinx.serialization.json.JsonElement
 fun ExportPreview(markdown: String, modifier: Modifier = Modifier) {
     val blocks = remember(markdown) { renderBlocks(str(markdown)) }
     val type = MaterialTheme.typography
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.widthIn(max = IdeaForgeWidths.reading).then(modifier), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         for (block in blocks) {
             when (val kind = stringOf(block["type"])) {
                 "hr" -> HorizontalDivider()
                 "pre" -> Text(stringOf(block["text"]).orEmpty(), style = type.bodyMedium.copy(fontFamily = FontFamily.Monospace))
-                "list" -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                "list" -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                     val ordered = truthy(block["ordered"])
                     items(block["items"]).forEachIndexed { i, item ->
                         val marker = if (ordered) "${i + 1}. " else "• "
                         Text(spans(item, marker), style = type.bodyMedium)
                     }
                 }
-                "table" -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                "table" -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                     // Each cell is a span list; the preview keeps the words, not the emphasis.
                     Text(row(block["head"]), style = type.labelLarge)
                     for (cells in items(block["rows"])) Text(row(cells), style = type.bodyMedium)
                 }
                 "quote" -> Text(
                     spans(block["spans"]),
-                    Modifier.padding(start = 12.dp),
+                    Modifier.padding(start = IdeaForgeSpacing.related),
                     style = type.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

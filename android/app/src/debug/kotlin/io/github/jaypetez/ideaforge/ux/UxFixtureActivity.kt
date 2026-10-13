@@ -36,6 +36,19 @@ class UxFixtureActivity : ComponentActivity() {
         val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        intent.getStringExtra("foundationPalette")?.let { id ->
+            val palette = UxFoundationPalette.from(id)
+            setContent {
+                IdeaForgeTheme(dark = dark, dynamicColor = false) {
+                    MaterialTheme(colorScheme = palette.scheme(dark, MaterialTheme.colorScheme)) {
+                        Scaffold { padding ->
+                            Box(Modifier.fillMaxSize().padding(padding)) { UxFoundationContent(palette) }
+                        }
+                    }
+                }
+            }
+            return
+        }
         val fixtures = UxFixtures.load(this)
         val state = fixtures.state(requireNotNull(intent.getStringExtra("state")))
         require(state.evidence == "isolated-component") { "${state.id} is not an isolated component fixture" }
