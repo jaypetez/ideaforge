@@ -75,11 +75,11 @@
 
   <!--
     The app shell. One set of controls, laid out by body[data-panel] (set in show()):
-    - on a phone (600px or narrower), on Ideas and Start/Settings, .bar-right is a fixed
+    - below 600px, on Ideas and Start/Settings, .bar-right is a fixed
       bottom navigation bar of three destinations;
     - on Interview and Done it is a top app bar instead: Ideas becomes a back arrow, then
-      the title, the compact coverage meter (Interview only; Done hides it) and Settings;
-    - wider than that, it is an ordinary top bar.
+      the idea's title, the compact coverage meter (Interview only; Done hides it) and Settings;
+    - from 600px it is a labelled rail, compact below 1200px and expanded from 1200px.
     The ids stay put because the probes and tools/screenshots.mjs click them by id. The
     labels are spans so the icon (a ::before mask) adds no text to the accessible name.
   -->

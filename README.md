@@ -192,6 +192,12 @@ not throw it away.
 idea it is where IdeaForge opens. Search reaches names, tags, questions, answers and the
 refined prompt. An idea can be renamed, tagged, archived, restored or permanently deleted.
 
+Ideas, New idea and Settings sit in a labelled rail beside the work from 600px wide: compact
+until 1200px, then wider with labels beside their icons. Below 600px they sit along the
+bottom on Start, Settings and Ideas. Interview and Result use a compact back arrow, the
+idea's title and Settings instead; the voice stage hides unrelated navigation. Long titles
+may shorten on screen, but their complete text stays available to assistive technology.
+
 In a window 1024px or wider the library is a list beside a detail pane. Click a card, or
 its **Details** button, and the pane shows that idea's status and counts, its main action
 and the same More actions menu, above a rendered preview of its markdown. **Settings** gets
@@ -202,8 +208,9 @@ the width too: an index of its five groups sits beside them.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/11-library-wide.dark.png">
     <img src="docs/screenshots/11-library-wide.light.png" width="760"
-         alt="The Ideas library in a wide window: search, filters and a selected idea card
-              on the left, and on the right a detail pane with the idea's title, status,
+         alt="The Ideas library in a wide window: a labelled navigation rail, search,
+              filters and a selected idea card, beside a detail pane with the idea's title,
+              status,
               View result, a More actions button and a rendered preview of its refined
               prompt.">
   </picture>

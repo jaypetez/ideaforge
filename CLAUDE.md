@@ -210,15 +210,19 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   view still holds its value, and `readRingFromForm` must keep deciding from what the
   provider declares — `test/browser/start-settings.browser.mjs` pins it. The 01-setup capture
   must stay within 1100px.
-- **The phone shell is laid out from `body[data-panel]`, which `show()` sets.** At 600px and
-  narrower `.bar-right` is a fixed bottom navigation bar on `setup`/`library` and a top app
+- **The adaptive shell is laid out from `body[data-panel]`, which `show()` sets.** Below 600px
+  `.bar-right` is a fixed bottom navigation bar on `setup`/`library` and a top app
   bar on `interview`/`done` (back arrow, title, Settings, plus the meter on Interview only).
   `index.html` ships `<body data-panel="setup">` so the first paint already matches. The
   room under the fixed bar is `body`'s `padding-bottom: var(--nav-bar-height)`, never
   `.wrap`'s, because `screenshots.mjs` measures and crops `.wrap`'s 72px; `html` gets the
   same `scroll-padding-bottom` so keyboard focus never scrolls a control under the bar.
-  `test/browser/shell.browser.mjs` proves nothing sits under the bar at 390px, focus is not
-  obscured, and nothing scrolls sideways at 360px.
+  From 600px the same controls become a 96px labelled rail, expanding to 208px at 1200px.
+  Rail/safe-area clearance belongs to `body`'s inline padding and disappears in voice mode;
+  errors stay on the work side. `renderShell()` uses `sessionDisplayTitle` and `textContent`,
+  preserving the full contextual name even when it ellipsizes. `shell.browser.mjs` measures
+  these boundaries and enlarged labels, while its compact checks retain fixed-bar/focus
+  clearance and the lifecycle probe rejects a retired idea's title.
 - **`#answer` lives inside the docked `#composer`.** On phones the composer is sticky and
   lifted by `--keyboard-inset` (`trackComposer` in `src/ui/app.js`, from `visualViewport`);
   `--composer-block` feeds `scroll-padding-bottom`. Docking only `.interview-actions` again

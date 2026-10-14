@@ -91,6 +91,26 @@ test('every file the README links to or shows actually exists', () => {
   assert.deepEqual(missing, [], `README points at files that do not exist: ${missing.join(', ')}`);
 });
 
+test('adaptive web shell measurements stay tied to their CSS owner', () => {
+  const css = readFileSync(join(ROOT, 'src', 'ui', 'app.css'), 'utf8');
+  const design = readFileSync(join(ROOT, 'docs', 'DESIGN.md'), 'utf8');
+  const sourceMap = readFileSync(join(ROOT, '.claude', 'skills', 'update-documentation',
+    'references', 'source-map.md'), 'utf8');
+  for (const token of ['rail-compact', 'rail-expanded']) {
+    const width = css.match(new RegExp(`--${token}:\\s*(\\d+)px;`))?.[1];
+    assert.ok(width, `missing --${token} width`);
+    assert.ok(design.includes(`\`--${token}\` is ${width}px`), `DESIGN has a stale --${token} width`);
+    assert.match(sourceMap, token === 'rail-compact'
+      ? new RegExp(`from 600px a ${width}px labelled rail`)
+      : new RegExp(`expands to ${width}px at 1200px`));
+  }
+  for (const width of [600, 1200]) {
+    assert.ok(css.includes(`@media (min-width: ${width}px)`), `missing ${width}px rail query`);
+    assert.ok(design.includes(`${width}px`), `DESIGN has a stale ${width}px boundary`);
+    assert.match(guide('getting-started.html'), new RegExp(`\\b${width}\\b`));
+  }
+});
+
 test('the public Markdown surfaces have no broken local links', () => {
   const files = [
     'README.md',

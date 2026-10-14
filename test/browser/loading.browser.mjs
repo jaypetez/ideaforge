@@ -253,7 +253,8 @@ async function failurePaths(report) {
   await saveSession(seedSession(id));
   const frame = await loadFrame(900, 800);
   const win = frame.contentWindow;
-  const $ = (el) => frame.contentDocument.getElementById(el);
+  const doc = frame.contentDocument;
+  const $ = (el) => doc.getElementById(el);
   const errors = [];
   win.addEventListener('error', (event) => errors.push(String(event.message)));
   win.addEventListener('unhandledrejection', (event) => {
@@ -270,7 +271,7 @@ async function failurePaths(report) {
   const describe = () => JSON.stringify({
     card: cardState($), output: outputState(), question: $('question').textContent,
     turnline: $('turnline').textContent, err: $('err').textContent,
-    panel: frame.contentDocument.body.dataset.panel, calls: model.calls.map((c) => c.tier), errors,
+    panel: doc.body.dataset.panel, calls: model.calls.map((c) => c.tier), errors,
   });
   const nextCall = async (before) => until(() => model.calls.length > before && model.calls[model.calls.length - 1]);
   try {

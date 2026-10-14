@@ -88,11 +88,16 @@
   --voice-control-height: 64px;
   --voice-touch-height: 72px;
   --page-gutter: calc(var(--s4) + var(--s1));
+  --page-bottom: max(72px, calc(env(safe-area-inset-bottom) + var(--s5)));
   --width-form: 720px;
+  --width-conversation: 760px;
   --width-work: 1120px;
   --width-settings: 1000px;
   --width-overlay: 560px;
   --width-reading: 68ch;
+  --width-coverage: 20rem;
+  --rail-compact: 96px;
+  --rail-expanded: 208px;
   --toast-err-max: min(7.5rem, 22dvh);
 
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
@@ -127,10 +132,14 @@ a { color: var(--accent); text-underline-offset: .18em; }
   padding-right: max(var(--page-gutter), env(safe-area-inset-right));
   padding-top: max(var(--page-gutter), env(safe-area-inset-top));
   /* 72px of thumb room on a phone. tools/screenshots.mjs crops all but 24px of it. */
-  padding-bottom: max(72px, calc(env(safe-area-inset-bottom) + 24px));
+  padding-bottom: var(--page-bottom);
   display: flex; flex-direction: column; gap: var(--s5);
 }
 #main { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+body[data-panel="interview"]:not(.voice-active) .wrap { max-width: var(--width-conversation); }
+body[data-panel="done"] .wrap {
+  max-width: calc(var(--width-reading) + 2 * var(--s6) + 2 * var(--page-gutter));
+}
 #manual-interview { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
 .settings-details { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .settings-details > summary {
@@ -143,7 +152,9 @@ a { color: var(--accent); text-underline-offset: .18em; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .skip-link {
-  position: absolute; left: var(--s4); top: var(--s2); z-index: 10;
+  position: fixed; z-index: 10;
+  left: max(var(--s4), calc(env(safe-area-inset-left) + var(--s2)));
+  top: calc(env(safe-area-inset-top) + var(--s2));
   display: inline-flex; align-items: center; min-height: var(--control-height);
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   background: var(--accent); color: var(--accent-ink);
@@ -156,17 +167,18 @@ a { color: var(--accent); text-underline-offset: .18em; }
 .skip-link:focus { transform: translateY(0); }
 
 /* ───────────────────────────────────────────────────────────────── bar */
-/* The app shell. One header, laid out by body[data-panel], which show() in app.js sets:
-   wider than 600px it is a plain top bar (title, the three destinations, and the coverage
-   meter on a row of its own during an interview); 600px and narrower see the phone rules
-   further down. The meter lives inside the header so the phone's top app bar can hold it. */
+/* The header keeps context and coverage beside the work; its single navigation set moves
+   into a rail from 600px, or into bottom/contextual bars below that width. */
 .bar {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
-  column-gap: var(--s3); row-gap: var(--s5); min-width: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: center;
+  column-gap: var(--s3); row-gap: var(--s3); min-width: 0;
+  padding-bottom: var(--s3); border-bottom: 1px solid var(--outline-variant);
 }
-.bar h1 { font-size: var(--t-lg); font-weight: 600; margin: 0; letter-spacing: -.035em; }
+.bar h1 {
+  font-size: var(--t-lg); font-weight: 600; margin: 0; letter-spacing: -.035em;
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .bar-right {
-  grid-column: 2; grid-row: 1;
   display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end;
 }
 .bar-right .ghost {
@@ -789,17 +801,19 @@ button[aria-busy="true"] {
      below 1024px; here Tab went from the suggestions into the panel's rows and back to the
      switch (#111). Where reading-flow is unsupported the DOM order stands. */
   #manual-interview {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
-    grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) var(--width-coverage);
+    grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s5); row-gap: 0;
     reading-flow: grid-columns;
   }
   #manual-interview > * { grid-column: 1; min-width: 0; }
   #manual-interview > :not(.cov, :last-child) { margin-block-end: var(--s4); }
   #manual-interview > .cov {
     grid-column: 2; grid-row: 1 / -1; align-self: start;
-    position: sticky; top: var(--s4);
-    /* Stuck, it must fit the viewport, or a 768px laptop never sees its last rows. */
-    max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
+    position: sticky; top: max(var(--s4), env(safe-area-inset-top));
+    /* The grid ends above the thumb gap; a taller sticky panel rides above the viewport
+       at page end. Keep that same bottom reserve in its height budget. */
+    max-height: calc(100dvh - var(--page-bottom) - max(var(--s4), env(safe-area-inset-top)));
+    overflow-y: auto; overscroll-behavior: contain;
     padding: var(--s4); border: 0; border-radius: var(--r-md);
     background: var(--surface-container-lowest);
   }
@@ -1241,7 +1255,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
 }
 
 /* ─────────────────────────────────────────────────────── phone shell */
-/* 600px and narrower. Two layouts of the same header, chosen by body[data-panel]:
+/* Below 600px. Two layouts of the same header, chosen by body[data-panel]:
 
    Ideas and Start/Settings (data-panel library | setup): .bar-right is a fixed bottom
    navigation bar, three equal destinations with an icon over a label, aria-current on the
@@ -1256,7 +1270,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
    "Back to ideas"), then the title, the compact meter (Interview only: Done hides it) and Settings. No New idea there: these
    are detail screens, and starting another idea mid-interview is one tap further away on
    purpose. Voice mode hides .bar-right and the meter with `hidden`, which beats all of this. */
-@media (max-width: 600px) {
+@media (width < 600px) {
   :root {
     /* Icon, gap, padding and edge total 48px. Reserve two complete label lines: a
        fractional second-line budget clipped focus at the 175% wrapping threshold. */
@@ -1353,13 +1367,52 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   }
 }
 
+@media (min-width: 600px) {
+  :root { --rail-width: var(--rail-compact); }
+  body:not(.voice-active) {
+    padding-inline-start: calc(var(--rail-width) + env(safe-area-inset-left));
+  }
+  body:not(.voice-active) .wrap { padding-left: var(--page-gutter); }
+  .bar-right {
+    position: fixed; inset: 0 auto 0 0; z-index: 5;
+    width: calc(var(--rail-width) + env(safe-area-inset-left));
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+    flex-wrap: nowrap; gap: var(--s2);
+    padding: max(var(--s4), env(safe-area-inset-top)) var(--s2)
+      max(var(--s4), env(safe-area-inset-bottom)) max(var(--s2), env(safe-area-inset-left));
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--surface-container-lowest); border-right: 1px solid var(--outline-variant);
+  }
+  .bar-right .nav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: none; gap: var(--s2); min-width: 0; min-height: var(--control-height);
+    width: 100%; padding: var(--s3) var(--s1); border-radius: var(--r-sm);
+    font-size: var(--type-meta-size); line-height: 1.45; text-align: center;
+    color: var(--on-surface-variant);
+  }
+  .bar-right .nav-item::before { --icon-size: var(--s5); margin: 0; }
+  .bar-right .nav-label { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .bar-right .nav-item[aria-current="page"] { color: var(--on-surface); }
+  body:not(.voice-active) .toasts {
+    inset-inline-start: calc(var(--rail-width) + env(safe-area-inset-left));
+  }
+}
+@media (min-width: 1200px) {
+  :root { --rail-width: var(--rail-expanded); }
+  .bar-right { padding-inline: max(var(--s4), env(safe-area-inset-left)) var(--s4); }
+  .bar-right .nav-item {
+    flex-direction: row; justify-content: flex-start; padding-inline: var(--s3);
+    text-align: start;
+  }
+}
+
 /* The docked composer, at the same width the toasts move to the top for it. Sticky rather
    than fixed: it still takes its place in the flow, so at the end of the page it sits after
    everything instead of over it, and #answer is inside it, so the dock cannot cover the box
    being typed into. --keyboard-inset (trackComposer in app.js) lifts it above an on-screen
    keyboard that shrank only the visual viewport; scroll-padding keeps focus from scrolling
    anything else in underneath it. */
-@media (max-width: 600px) {
+@media (width < 600px) {
   /* One definition of the dock's gap above the screen edge, used by both rules: the scroll
      padding must clear the same offset the dock sits at, including a home-bar safe area
      (about 34px on a Face ID iPhone) that headless Chrome always reports as 0. */

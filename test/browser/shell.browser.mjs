@@ -1,5 +1,5 @@
-// The app shell on a phone: a fixed bottom navigation bar on Ideas and Start/Settings, a
-// top app bar on Interview and Done, and nothing that ever sits on top of the content.
+// One adaptive app shell: bottom/contextual bars below 600px, compact/expanded labelled
+// rails above it, and nothing that ever sits on top of the content.
 //
 // Layout claims, so they are measured off real boxes in a 390px frame (an iPhone 12-15
 // width) rather than read off class names. The one that matters most is "covers no
@@ -7,12 +7,15 @@
 // desktop screenshot and makes Start, Back up ideas or the version line untappable on the
 // device the bar exists for.
 
-import { createSession, setSynthesis, setTitle } from '../../src/core/session.js';
+import {
+  createSession, renameSession, sessionDisplayTitle, setSynthesis, setTitle,
+} from '../../src/core/session.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, saveSession } from '../../src/store/sessions.js';
 
 const BOOT_MS = 4000;
 const settle = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+const LONG_TITLE = '<img src=x onerror=window.__shellMarkup=1> A long idea title that remains literal across navigation';
 
 function loadFrame(src, width, { sandbox = null } = {}) {
   return new Promise((resolve, reject) => {
@@ -29,8 +32,9 @@ function loadFrame(src, width, { sandbox = null } = {}) {
   });
 }
 
-function activeSession(id, now) {
-  return seedTurn(createSession({ id, now }), { now });
+function activeSession(id, now, name = '') {
+  const session = seedTurn(createSession({ id, now }), { now });
+  return name ? renameSession(session, name, now + 1) : session;
 }
 
 function doneSession(id, now) {
@@ -43,7 +47,7 @@ function doneSession(id, now) {
 
 export default async function run(check) {
   const now = Date.now();
-  const sessions = [activeSession('s_shell_active', now), doneSession('s_shell_done', now + 10)];
+  const sessions = [activeSession('s_shell_active', now, LONG_TITLE), doneSession('s_shell_done', now + 10)];
   for (const session of sessions) await saveSession(session);
 
   const frames = [];
@@ -76,6 +80,16 @@ export default async function run(check) {
     const nav = doc.querySelector('.bar-right');
     const root = doc.documentElement;
     const items = ['b-library', 'b-nav-new', 'b-settings'].map($);
+    const captures = { media: 0, recognition: 0 };
+    win.navigator.mediaDevices.getUserMedia = async () => {
+      captures.media++;
+      throw new Error('Navigation must not request a microphone');
+    };
+    win.SpeechRecognition = win.webkitSpeechRecognition = class {
+      start() { captures.recognition++; }
+      stop() {}
+      abort() {}
+    };
     const shown = (el) => !!el && el.getClientRects().length > 0
       && win.getComputedStyle(el).visibility !== 'hidden';
     const current = () => items.filter((item) => item.getAttribute('aria-current') === 'page')
@@ -219,7 +233,56 @@ export default async function run(check) {
       await settled(100);
     }
 
-    // Open the active idea: a detail screen, so a top app bar and no bottom navigation.
+    const savedTheme = root.dataset.theme;
+    const savedFont = root.style.fontSize;
+    try {
+      for (const theme of ['light', 'dark']) {
+        root.dataset.theme = theme;
+        for (const scale of [100, 200]) {
+          root.style.fontSize = `${scale}%`;
+          for (const width of [599, 600, 840, 1199, 1200, 1440]) {
+            frame.width = width;
+            await settled(80);
+            const label = `${theme} Start at ${width}px and ${scale}% text`;
+            const rail = nav.getBoundingClientRect();
+            const main = $('main').getBoundingClientRect();
+            if (width < 600) {
+              bottomNav(label, 'b-nav-new');
+            } else {
+              check(`${label}: the labelled navigation rail owns the viewport's left edge`,
+                win.getComputedStyle(nav).position === 'fixed'
+                  && rail.left === 0 && rail.top === 0
+                  && Math.abs(rail.bottom - root.clientHeight) < 1
+                  && main.left >= rail.right,
+                `rail ${rail.left},${rail.top} to ${rail.right},${rail.bottom}; main ${main.left}`);
+              check(`${label}: compact and expanded rails have distinct widths`,
+                width < 1200 ? rail.width >= 80 && rail.width < 160
+                  : rail.width >= 200 && rail.width <= 224,
+                `${rail.width}px`);
+              check(`${label}: exactly one labelled, comfortable control per destination`,
+                items.every((item) => {
+                  const rect = item.getBoundingClientRect();
+                  const text = item.querySelector('.nav-label');
+                  return doc.querySelectorAll(`#${item.id}`).length === 1
+                    && shown(item) && shown(text) && rect.width >= 48 && rect.height >= 48
+                    && text.getBoundingClientRect().right <= rail.right;
+                }));
+              check(`${label}: Start remains current and the page reflows beside the rail`,
+                current() === 'b-nav-new' && root.scrollWidth <= root.clientWidth,
+                `${current()}; ${root.scrollWidth}/${root.clientWidth}`);
+            }
+          }
+        }
+      }
+    } finally {
+      root.style.fontSize = savedFont;
+      if (savedTheme === undefined) delete root.dataset.theme;
+      else root.dataset.theme = savedTheme;
+      frame.width = 390;
+      await settled(100);
+    }
+
+    // Compact detail screens use the contextual top bar instead of bottom destinations.
     $('b-library').click();
     await settled();
     const card = $('library-rows').querySelector('[data-session-id="s_shell_active"]');
@@ -227,6 +290,12 @@ export default async function run(check) {
     await settled(800);
     check('Continue opens the interview', !$('panel-interview').hidden
       && doc.body.dataset.panel === 'interview', doc.body.dataset.panel);
+    const title = doc.querySelector('.bar h1');
+    check('Interview: its complete, literal session title survives visual truncation',
+      title.textContent === sessionDisplayTitle(sessions[0])
+        && title.title === sessionDisplayTitle(sessions[0])
+        && !title.querySelector('img') && !win.__shellMarkup,
+      title.textContent);
     const bar = doc.querySelector('.bar').getBoundingClientRect();
     check('Interview: the navigation is not a fixed bottom bar',
       win.getComputedStyle(nav).position !== 'fixed' && !shown($('b-nav-new'))
@@ -285,6 +354,8 @@ export default async function run(check) {
     [...again.querySelectorAll('button')].find((b) => b.textContent === 'Continue').click();
     await settled(800);
     overflow('Interview');
+    check('navigation and manual resume never request microphone access',
+      captures.media === 0 && captures.recognition === 0, JSON.stringify(captures));
   } finally {
     for (const frame of frames) frame.remove();
     for (const session of sessions) await deleteSession(session.id);

@@ -24,7 +24,7 @@ const boards = (html) => [...html.matchAll(/<article class="reference-board"([^>
     content: match[2],
   }));
 
-test('reference boards remain distinct from the delivered foundations and pending screen work', () => {
+test('reference boards remain distinct from the delivered foundations, web shell and pending screens', () => {
   assert.ok(existsSync(HTML), 'missing static Focus Studio reference boards');
   assert.ok(existsSync(CSS), 'missing local reference stylesheet');
   const design = read(join(ROOT, 'docs', 'DESIGN.md'));
@@ -35,7 +35,9 @@ test('reference boards remain distinct from the delivered foundations and pendin
   assert.match(design, /Current native fallback/);
   assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
-  assert.match(design.replace(/\s+/g, ' '), /Only the web and native[\s\S]*foundations are implemented here/);
+  const status = design.replace(/\s+/g, ' ');
+  assert.match(status, /foundations and the web adaptive shell \(#191\) are implemented here/);
+  assert.match(status, /The native adaptive shell and Start\/Ideas\/Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {
