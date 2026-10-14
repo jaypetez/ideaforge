@@ -360,15 +360,15 @@ async function failurePaths(report) {
       errors.push(String(event.reason?.stack || event.reason));
       event.preventDefault();
     });
-    const $2 = (el) => frame2.contentDocument.getElementById(el);
+    const doc2 = frame2.contentDocument;
+    const $2 = (el) => doc2.getElementById(el);
+    const describe2 = () => JSON.stringify({
+      panel: doc2.body.dataset.panel, library: $2('panel-library').dataset.libraryState,
+      rows: [...$2('library-rows').querySelectorAll('.idea-card')].map((row) => row.dataset.sessionId),
+      err: $2('err').textContent, calls: model2.calls.length,
+    });
     try {
-      await until(() => /^IdeaForge v/.test($2('version').textContent) && $2('provider').options.length > 0);
-      $2('provider').value = 'artifact';
-      $2('provider').dispatchEvent(new win2.Event('change'));
-      $2('b-library').click();
-      const row = await until(() => $2('library-rows').querySelector('[data-session-id="s_loading_fail"]'));
-      [...row.querySelectorAll('button')].find((b) => b.textContent === 'Continue').click();
-      await until(() => visible($2('manual-interview')) && !$2('answer').disabled);
+      if (!(await openSeeded(win2, $2, 's_loading_fail', check, describe2))) return;
       $2('b-wrap').click();
       const failing = await until(() => model2.calls.length > 0 && model2.calls[0]);
       await settle(40);

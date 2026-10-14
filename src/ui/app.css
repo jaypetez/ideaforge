@@ -159,7 +159,8 @@ body[data-panel="done"] .wrap {
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   background: var(--accent); color: var(--accent-ink);
   font-size: var(--t-md); font-weight: 600; text-decoration: none;
-  transform: translateY(-200%); transition: transform var(--dur-short3) var(--ease);
+  transform: translateY(calc(-200% - env(safe-area-inset-top)));
+  transition: transform var(--dur-short3) var(--ease);
 }
 /* :focus, not :focus-visible. The link is off screen, so it is only ever focused from the
    keyboard or by assistive technology, and a screen reader moving focus does not always
@@ -1024,7 +1025,8 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
   /* Ideas: list | detail. Only once there are ideas (or their placeholders): the zero state
      and a failed first read stay the single column they were designed as. */
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) {
-    display: grid; grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    /* Enlarged rems must not consume the detail pane's post-rail workspace. */
+    display: grid; grid-template-columns: minmax(0, min(26rem, 40%)) minmax(0, 1fr);
     grid-template-rows: repeat(6, auto) 1fr; column-gap: var(--s6); row-gap: 0;
   }
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > * {
@@ -1038,9 +1040,10 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > .library-detail:not(:empty) {
     grid-column: 2; grid-row: 2 / -1; align-self: start;
     display: flex; flex-direction: column; gap: var(--s3);
-    position: sticky; top: var(--s4);
+    position: sticky; top: max(var(--s4), env(safe-area-inset-top));
     /* Stuck, it must fit the viewport; the preview scrolls inside the pane, not the page. */
-    max-height: calc(100dvh - 2 * var(--s4)); overflow-y: auto; overscroll-behavior: contain;
+    max-height: calc(100dvh - var(--page-bottom) - max(var(--s4), env(safe-area-inset-top)));
+    overflow-y: auto; overscroll-behavior: contain;
     padding: var(--s5); border: 0; border-radius: var(--r-md);
     background: var(--surface-container-lowest);
   }

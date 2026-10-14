@@ -460,6 +460,17 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     check('short expanded workspace: sticky Coverage stays inside the real safe-area insets',
       side.side === 'true' && side.top >= 20 && side.bottom <= side.height - 24,
       JSON.stringify(side));
+    for (const top of [47, 59]) {
+      await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+        insets: { top, left: 44, bottom: 24, right: 12 },
+      });
+      await go('b-nav-new', 'setup');
+      const hidden = await evaluate(`(() => {
+        const el = document.querySelector('.skip-link');
+        return !el.matches(':focus') && el.getBoundingClientRect().bottom <= 0;
+      })()`);
+      check(`${top}px top inset: the unfocused fixed skip link is entirely offscreen`, hidden);
+    }
   } finally {
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: {} });
   }

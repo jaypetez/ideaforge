@@ -123,8 +123,10 @@ padding contract and task-specific form/conversation/library/settings/document m
 Voice removes the rail clearance and hides the navigation through the existing `hidden`
 state. Rail overflow can scroll vertically in a short or enlarged-text window; labels
 and keyboard focus are not discarded. Error toasts stay on the work side, not over the rail.
-The coverage side panel's sticky height reserves the same bottom thumb gap as `.wrap`,
-so reading to the page end cannot push its top out of a short viewport.
+Coverage and the library detail pane reserve the same bottom thumb gap as `.wrap`,
+so reading to the page end cannot push their tops out of the viewport. The library list
+track is bounded by its actual remaining workspace, not enlarged rems alone, so the
+detail actions and prose retain room at 200% text.
 The existing Result height cap/action placement remain until #203; this is not the complete
 document makeover.
 
