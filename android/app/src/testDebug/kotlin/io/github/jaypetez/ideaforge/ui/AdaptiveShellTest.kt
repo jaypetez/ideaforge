@@ -67,6 +67,7 @@ class AdaptiveShellTest {
     }
 
     private fun await(tag: String) = compose.waitUntilAtLeastOneExists(hasTestTag(tag), 10_000)
+    private fun ids(graph: AppGraph) = runBlocking { graph.sessionStore.knownIds() }
 
     private fun nav(label: String) =
         compose.onNode(hasText(label) and hasAnyAncestor(
@@ -146,7 +147,7 @@ class AdaptiveShellTest {
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             await("interview-title")
             compose.onNodeWithTag("interview-title").assertTextEquals(sessionDisplayTitle(active))
-            assertEquals(setOf("ux-long-active", "ux-long-done"), graph.sessionStore.knownIds())
+            assertEquals(setOf("ux-long-active", "ux-long-done"), ids(graph))
         }
     }
 
@@ -167,7 +168,7 @@ class AdaptiveShellTest {
             compose.onNodeWithTag("interview-title").assertTextEquals(sessionDisplayTitle(active))
             assertEquals(draft, compose.onNodeWithTag("answer").fetchSemanticsNode().config
                 .getOrNull(SemanticsProperties.EditableText)?.text)
-            assertEquals(setOf("ux-long-active"), graph.sessionStore.knownIds())
+            assertEquals(setOf("ux-long-active"), ids(graph))
             assertEquals(draft, stringOf(graph.sessionStore.get("ux-long-active")!!["draftAnswer"]))
         }
     }
@@ -187,7 +188,7 @@ class AdaptiveShellTest {
             await("interview-title")
             await("answer")
             compose.onNodeWithTag("interview-title").assertTextEquals(sessionDisplayTitle(done))
-            assertEquals(setOf("ux-long-done"), graph.sessionStore.knownIds())
+            assertEquals(setOf("ux-long-done"), ids(graph))
             assertEquals("interviewing", stringOf(graph.sessionStore.get("ux-long-done")!!["status"]))
         }
     }
@@ -216,7 +217,7 @@ class AdaptiveShellTest {
             compose.onNodeWithTag("voice-exit").assertIsDisplayed().performClick()
             await("navigation-rail")
             await("answer")
-            assertEquals(setOf("ux-long-active"), graph.sessionStore.knownIds())
+            assertEquals(setOf("ux-long-active"), ids(graph))
             assertEquals(0, starts)
         }
     }
