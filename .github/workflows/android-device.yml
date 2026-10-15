@@ -80,6 +80,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
@@ -91,12 +92,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
+
+      - name: Locate native evidence outputs
+        if: always()
+        run: |
+          find app/build -type d -iname '*additional*' -print
+          find app/build -type f \( -name '*.png' -o -name 'manifest.json' \) -print | head -80
 
       - name: Upload named native UX screenshots and manifests
         if: always()

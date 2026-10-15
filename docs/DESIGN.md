@@ -176,6 +176,9 @@ and font scales 1.0/1.3/2.0, including an actual IME. Its paused stage uses the 
 app-scope controller with scripted speech and a recorded fake service: it is layout/
 identity evidence, not a microphone, permission UI or real-service certification.
 Complete PNGs/manifests at the exact clean SHA remain required acceptance evidence.
+Short/enlarged manual windows use one page scroller for thread and composer rather than
+nesting a lazy thread viewport inside it. This keeps a suggestion or turn-status label
+reachable above the contextual bar; ordinary-height interviews retain their lazy thread.
 
 ## State, focus and elevation
 

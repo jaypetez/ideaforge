@@ -258,7 +258,6 @@ fun InterviewScreen(
             // An open IME can leave less than one editor plus wrapped action rows.
             // Scroll the real content instead of weighting the editor down to zero.
             val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
-            val threadHeight = maxHeight
             val scroll = rememberScrollState()
             Column(Modifier.fillMaxSize()) {
                 SnackbarHost(snackbar)
@@ -270,7 +269,7 @@ fun InterviewScreen(
                     } else {
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
-                    Conversation(state, vm, if (shortWindow) Modifier.height(threadHeight) else Modifier.weight(1f))
+                    Conversation(state, vm, if (shortWindow) Modifier else Modifier.weight(1f), scrollWithComposer = shortWindow)
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
@@ -359,8 +358,22 @@ private fun Pill(pill: CoveragePill) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier: Modifier) {
+private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier: Modifier, scrollWithComposer: Boolean) {
     val thread = threadOf(state)
+    // A short window has one page scroller. A nested lazy viewport can scroll a chip
+    // into its own bounds while leaving it clipped behind the contextual bar.
+    if (scrollWithComposer) {
+        Column(
+            modifier.fillMaxWidth().testTag("thread")
+                .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+        ) {
+            for (entry in thread) ThreadItem(entry)
+            OpenQuestion(state, vm)
+            state.wrapOffer?.let { WrapOffer(it, vm) }
+        }
+        return
+    }
     val list = rememberLazyListState()
     // Keep the open question in view as the thread grows.
     LaunchedEffect(thread.size, state.busy, state.wrapOffer) {
@@ -374,17 +387,20 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
-        item(key = "open") {
-            val open = state.openTurn
-            when {
-                state.session == null -> Text(stringResource(R.string.interview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                state.busy != null -> BusyLine(state.busy)
-                open != null -> QuestionCard(state, open, vm)
-            }
-        }
+        item(key = "open") { OpenQuestion(state, vm) }
         state.wrapOffer?.let { offer ->
             item(key = "wrap") { WrapOffer(offer, vm) }
         }
+    }
+}
+
+@Composable
+private fun OpenQuestion(state: InterviewState, vm: InterviewViewModel) {
+    val open = state.openTurn
+    when {
+        state.session == null -> Text(stringResource(R.string.interview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.busy != null -> BusyLine(state.busy)
+        open != null -> QuestionCard(state, open, vm)
     }
 }
 

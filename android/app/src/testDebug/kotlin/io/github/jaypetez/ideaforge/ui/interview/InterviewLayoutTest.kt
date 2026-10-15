@@ -51,6 +51,22 @@ class InterviewLayoutTest {
 
     @Test
     fun anEnlargedCompactComposerLeavesReachableChipsAndWriteUpWithoutClippedLabels() {
+        requireLongInterviewReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 1.3f)
+    fun aShortLandscapeKeepsTheWholeSuggestionAndTurnStatusReachable() {
+        requireLongInterviewReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun anEnlargedShortLandscapeKeepsTheWholeSuggestionAndTurnStatusReachable() {
+        requireLongInterviewReachable()
+    }
+
+    private fun requireLongInterviewReachable() {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val graph = installTestGraph(ring = usableRing())
@@ -64,7 +80,7 @@ class InterviewLayoutTest {
             compose.onNode(card).performClick()
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("question"), 5_000)
-            assertTrue("the draft/actions leave real room for the thread", compose.onNodeWithTag("thread").fetchSemanticsNode().boundsInWindow.height > 0f)
+            assertTrue("the full thread remains composed", compose.onNodeWithTag("thread").fetchSemanticsNode().layoutInfo.coordinates.size.height > 0)
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
                 requireReachable(tag)
             }
