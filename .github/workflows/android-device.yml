@@ -104,7 +104,7 @@ jobs:
         if: always()
         run: |
           find app/build -type d -iname '*additional*' -print
-          find app/build -type f \( -name '*.png' -o -name 'manifest.json' \) -print | head -80
+          find app/build -type f \( -name '*.png' -o -name 'manifest*.json' \) -print | head -80
 
       - name: Upload named native UX screenshots and manifests
         if: always()

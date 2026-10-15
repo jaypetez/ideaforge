@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -66,7 +67,13 @@ class InterviewLayoutTest {
         requireLongInterviewReachable()
     }
 
-    private fun requireLongInterviewReachable() {
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun aShortWindowOpensOnItsCurrentTurnWithoutTestDrivenScrolling() {
+        requireLongInterviewReachable(requireCurrent = true)
+    }
+
+    private fun requireLongInterviewReachable(requireCurrent: Boolean = false) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val graph = installTestGraph(ring = usableRing())
@@ -80,13 +87,18 @@ class InterviewLayoutTest {
             compose.onNode(card).performClick()
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("question"), 5_000)
+            if (requireCurrent) {
+                compose.waitForIdle()
+                compose.onNodeWithTag("current-turn").assertIsDisplayed()
+                compose.onNodeWithTag("turn-status").assertIsDisplayed()
+            }
             assertTrue("the full thread remains composed", compose.onNodeWithTag("thread").fetchSemanticsNode().layoutInfo.coordinates.size.height > 0)
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
                 requireReachable(tag)
             }
 
             requireReachable("turn-status", actionRequired = false)
-            compose.onNodeWithTag("write-up").performClick()
+            compose.onNodeWithTag("write-up").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
             compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
         }

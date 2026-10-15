@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -363,14 +365,23 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
     // A short window has one page scroller. A nested lazy viewport can scroll a chip
     // into its own bounds while leaving it clipped behind the contextual bar.
     if (scrollWithComposer) {
+        val current = remember { BringIntoViewRequester() }
+        val wrap = remember { BringIntoViewRequester() }
+        LaunchedEffect(thread.size, state.busy, state.wrapOffer) {
+            if (state.wrapOffer != null) wrap.bringIntoView() else current.bringIntoView()
+        }
         Column(
             modifier.fillMaxWidth().testTag("thread")
                 .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
             for (entry in thread) ThreadItem(entry)
-            OpenQuestion(state, vm)
-            state.wrapOffer?.let { WrapOffer(it, vm) }
+            Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
+                OpenQuestion(state, vm)
+            }
+            state.wrapOffer?.let {
+                Box(Modifier.fillMaxWidth().bringIntoViewRequester(wrap)) { WrapOffer(it, vm) }
+            }
         }
         return
     }
