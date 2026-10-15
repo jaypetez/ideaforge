@@ -264,6 +264,61 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await click('#b-nav-new', 'setup', `${at} Start`);
     await current(`${at} Start`, 'b-nav-new');
     await walk(`${at} Start`, ['#main']);
+    if (at === 'phone') {
+      await evaluate(`(() => {
+        const field = document.getElementById('provider');
+        field.value = 'anthropic';
+        field.dispatchEvent(new Event('change'));
+      })()`);
+      await walk('phone Start connection fields', ['#main']);
+      await evaluate("document.getElementById('b-connect-back').focus()");
+      await press('Enter');
+      await until("document.getElementById('connect').dataset.step === 'provider'", 'provider Back');
+      check('trusted Back focuses the provider in the original shared form',
+        await evaluate("document.activeElement.id === 'provider'"));
+      await walk('phone Start provider choice', ['#main']);
+      await evaluate("document.getElementById('b-connect-next').focus()");
+      await press('Enter');
+      await until("document.getElementById('connect').dataset.step === 'fields'", 'provider Continue');
+      check('trusted Continue puts focus on the required key',
+        await evaluate("document.activeElement.id === 'apikey'"));
+      await cdp.send('Input.insertText', { text: 'sk-keyboard-probe-not-a-real-key' });
+      await evaluate("document.getElementById('b-connect-next').focus()");
+      await press('Enter');
+      await until("document.getElementById('connect').dataset.step === 'ready'", 'unchecked ready Start');
+      check('trusted Use this connection focuses Change without claiming a checked key',
+        await evaluate(`document.activeElement.id === 'b-connect-change'
+          && /not checked/i.test(document.getElementById('connect-status').textContent)`));
+      await walk('phone Start ready configuration', ['#main']);
+      await evaluate("document.getElementById('b-connect-change').focus()");
+      await press('Enter');
+      check('trusted Change connection preserves the typed key and restores provider focus',
+        await evaluate(`document.activeElement.id === 'provider'
+          && document.getElementById('apikey').value === 'sk-keyboard-probe-not-a-real-key'`));
+      // The rest of the journey uses the existing scripted model, never a hosted call.
+      await evaluate(`(() => {
+        const field = document.getElementById('provider');
+        field.value = 'artifact';
+        field.dispatchEvent(new Event('change'));
+      })()`);
+      await evaluate(`window.__startViewer = window.claude; window.claude = undefined;
+        document.getElementById('b-connect-next').focus()`);
+      try {
+        await press('Enter');
+        await until(`!document.getElementById('b-connect-next').disabled
+          && !document.getElementById('err').hidden`, 'viewer Continue failure');
+        const recovery = await focusInfo(['#main']);
+        check('trusted rejected viewer Continue returns focus to visible, unobscured Provider',
+          await evaluate("document.activeElement.id === 'provider'")
+            && recovery.shown && recovery.inView && !recovery.covered, JSON.stringify(recovery));
+        await press('Tab');
+        const next = await focusInfo(['#main']);
+        check('Tab after rejected viewer Continue continues through visible recovery controls',
+          !next.end && next.shown && next.inView && !next.covered, JSON.stringify(next));
+      } finally {
+        await evaluate('window.claude = window.__startViewer; delete window.__startViewer');
+      }
+    }
     // The skip link: Enter moves focus into the content without touching location.hash,
     // which re-prompts for the microphone in an installed iOS app (CLAUDE.md, no hash routing).
     await evaluate(`document.querySelector('.skip-link').focus()`);

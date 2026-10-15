@@ -123,10 +123,9 @@
   -->
   <section id="panel-setup" data-view="start">
     <div class="start-hero start-only">
-      <h2 tabindex="-1">Turn a half-formed idea into a prompt worth sending.</h2>
+      <h2 tabindex="-1">Start an idea</h2>
       <p class="lede">
-        IdeaForge asks one question at a time, each grounded in your last answer, then writes
-        the prompt you should have given an LLM in the first place.
+        Answer one question at a time, then take away a prompt you can use.
       </p>
     </div>
     <h2 class="settings-only" tabindex="-1">Settings</h2>
@@ -143,26 +142,17 @@
       <button type="button" class="quiet" data-target="settings-about">About</button>
     </nav>
 
-    <aside class="install-card start-only" id="install-card" hidden>
-      <div>
-        <h2 id="install-title">Use IdeaForge on this phone</h2>
-        <p class="hint" id="install-note"></p>
-      </div>
-      <button type="button" class="ghost" id="b-install" hidden>Install IdeaForge</button>
-    </aside>
-
     <!--
-      The connection card on Start, the Connection group in Settings: one set of fields.
-      On Start, once a key or provider is known to work (checked this visit, or saved), the
-      card folds to the one-row #connect-summary, and Change unfolds it. Settings always
-      shows the fields. data-collapsed is set by renderConnect() in app.js.
+      Start phases only change presentation of these same fields. A usable configuration
+      can be ready without a successful network check; the status says what was proved.
+      Settings always exposes the provider-declared fields.
     -->
-    <div class="group connect" id="connect">
-      <h2><span class="start-only">Where the questions come from</span><span class="settings-only">Connection</span></h2>
+    <div class="group connect" id="connect" data-step="provider">
+      <h2><span class="start-only" id="connect-heading">1. Choose a provider</span><span class="settings-only">Connection</span></h2>
 
       <div class="connect-summary" id="connect-summary">
-        <span class="connect-summary-text" id="connect-summary-text" data-icon="check"></span>
-        <button type="button" class="quiet small" id="b-connect-change" aria-controls="connect-body">Change</button>
+        <span class="connect-summary-text" id="connect-summary-text"></span>
+        <button type="button" class="quiet small" id="b-connect-change" aria-controls="connect-body">Change connection</button>
       </div>
 
       <div class="connect-body" id="connect-body">
@@ -173,19 +163,22 @@
       <p class="hint" id="provider-note"></p>
     </div>
 
+    <div class="connect-fields">
     <div class="field" id="field-key">
-      <label for="apikey">API key</label>
+      <label for="apikey">API key<span id="key-required"> (required)</span></label>
       <input type="password" id="apikey" autocomplete="off" spellcheck="false"
-             placeholder="paste your key">
-      <p class="hint">
-        Stored encrypted on this device and sent only to the provider you picked.
-        Use a scoped, expiring key — <a id="keylink" href="#" target="_blank" rel="noreferrer noopener">get one here</a>.
+             placeholder="paste your key" aria-describedby="key-hint key-error">
+      <p class="hint field-error" id="key-error"></p>
+      <p class="hint" id="key-hint">
+        Encrypted on this device; sent only to your provider.
+        <a id="keylink" href="#" target="_blank" rel="noreferrer noopener">Get a scoped, expiring key</a>.
       </p>
     </div>
 
     <div class="field" id="field-base" hidden>
-      <label for="baseurl">Server address</label>
-      <input type="url" id="baseurl" spellcheck="false" placeholder="http://localhost:11434/v1">
+      <label for="baseurl">Server address (required)</label>
+      <input type="url" id="baseurl" spellcheck="false" placeholder="http://localhost:11434/v1"
+             aria-describedby="base-note">
       <p class="hint" id="base-note"></p>
     </div>
 
@@ -206,9 +199,10 @@
       <summary>Model options</summary>
       <div class="settings-options">
     <div class="field" id="field-model" hidden>
-      <label for="model">Model for the questions</label>
+      <label for="model">Model for the questions<span id="model-required" hidden> (required)</span></label>
       <input id="model" list="model-list" spellcheck="false" autocomplete="off"
-             placeholder="press Check the connection to list what is available">
+             placeholder="press Check the connection to list what is available"
+             aria-describedby="model-note">
       <datalist id="model-list"></datalist>
       <p class="hint">
         One call per question, so nearly all of the cost is here. Leave it blank to use the
@@ -229,12 +223,16 @@
     </div>
       </div>
     </details>
+    </div><!-- /.connect-fields -->
 
-    <div class="btns">
-      <button type="button" class="ghost" id="b-check">Check the key</button>
-      <button type="button" class="ghost danger" id="b-forget" hidden>Forget my key</button>
+    <div class="btns connect-actions">
+      <button type="button" class="quiet start-only" id="b-connect-back">Back</button>
+      <button type="button" class="ghost connection-check" id="b-check">Check the key</button>
+      <button type="button" class="ghost danger connection-check" id="b-forget" hidden>Forget my key</button>
+      <button type="button" class="ghost start-only" id="b-connect-next">Continue</button>
     </div>
       </div><!-- /.connect-body -->
+      <p class="hint connect-status" id="connect-status" role="status" aria-live="polite" aria-atomic="true"></p>
     </div><!-- /.group.connect -->
 
     <div class="btns start-actions start-only">
@@ -242,6 +240,14 @@
       <button type="button" class="ghost" id="b-start">Type instead</button>
     </div>
     <p class="hint start-only start-note" id="start-note" role="status" aria-live="polite"></p>
+
+    <aside class="install-card start-only" id="install-card" hidden>
+      <div>
+        <h2 id="install-title">Use IdeaForge on this phone</h2>
+        <p class="hint" id="install-note"></p>
+      </div>
+      <button type="button" class="ghost" id="b-install" hidden>Install IdeaForge</button>
+    </aside>
 
     <div id="resume" class="start-only" hidden>
       <h2>Recent ideas</h2>

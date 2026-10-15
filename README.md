@@ -422,15 +422,18 @@ depends on whose resolver is asking.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/01-setup.dark.png">
     <img src="docs/screenshots/01-setup.light.png" width="760"
-         alt="The Start screen: a short introduction, a flat connection surface with a
-              provider dropdown set to Anthropic, an API key field, a collapsed Model
-              options section and a Check the key button, above separate Start with voice
-              and Type instead buttons and the version footer.">
+         alt="The concise Start screen: Choose a provider with Anthropic selected, its
+              data/key explanation and Continue, above separate Start with voice and
+              Type instead actions and the version and Guide footer.">
   </picture>
 </p>
 
-Pick a provider and paste a key on Start. Once a key is saved or checked, Start folds the
-connection card to one line with a **Change** action. Everything else lives in **Settings**:
+Start with a provider, continue to its required fields, then **Use this connection**.
+**Back** and **Change connection** keep what you typed; moving between steps does not save
+keys. The ready summary names the provider and its actual check state. A saved key is
+**not checked** on a new visit, and a delayed check cannot vouch for edited settings.
+Checking is optional, not an extra gate before **Start with voice** or **Type instead**.
+Both actions precede installation and recent ideas. Everything else lives in **Settings**:
 
 <p align="center">
   <picture>

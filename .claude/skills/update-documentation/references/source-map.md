@@ -194,10 +194,24 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Start and Settings views.** Sources: [`index.html`](../../../../index.html)
   (`#panel-setup` `data-view`, `.start-only`, `.settings-only`, `#connect`) and
   [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `connectionReady`, `renderConnect`).
-  Start holds the connection card, start actions and recent ideas; Settings holds the five
+  Start uses presentation-only provider/fields/ready phases over the same controls.
+  `advanceConnection` reuses `buildProvider` without persistence or a network request;
+  `connectionContext`/`ownsConnection` share configuration/presentation revisions,
+  navigation and credential-generation guards across construction, Start, Continue and
+  Check. Back/Change retire pending Start and its owned output as well as Check/Continue;
+  Start identity prevents an older completion clearing a newer run's duplicate guard.
+  `refreshModels` guards catalogue/field writes; failed Continue focuses only a visible
+  invalid field or Provider.
+  Speech withdrawal clears retired busy work without erasing completed unchanged
+  inference proof. Ready is field readiness, never a successful-request gate.
+  Saved keys are explicitly untested on a new visit; viewer availability is not a
+  network check. `sw.js`'s cache generation changes with the shared markup/handler shape;
+  `app.browser.mjs` proves the prior cache is retired and matching assets are precached.
+  Start actions precede installation/recent content. Settings holds the five
   groups named by `#settings-index`: Connection, Listen and speak, Appearance, Data (backup
   and import) and About. Re-check the getting-started, providers and library guides, the
-  README and the 01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
+  README, `progressive-start.browser.mjs`, trusted-input policy cases and the
+  01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
   and their count to the README and the getting-started guide.
 - **App shell, navigation and opening destination.** Sources:
   [`index.html`](../../../../index.html) (`.bar`, `#b-library`, `#b-nav-new`,

@@ -161,10 +161,10 @@ export default async function run(check, { subpath }) {
   check('the app body retains 16px type and 1.6 leading',
     parseFloat(style(doc.body).fontSize) === 16 && Math.abs(parseFloat(style(doc.body).lineHeight) - 25.6) < .1,
     `${style(doc.body).fontSize} / ${style(doc.body).lineHeight}`);
-  check('shared fields and controls use 8px corners, and surfaces use 12px',
+  check('shared fields and controls keep 8px corners; progressive connection is a flat separator',
     style($('apikey')).borderTopLeftRadius === '8px'
       && style($('b-start')).borderTopLeftRadius === '8px'
-      && style($('connect')).borderTopLeftRadius === '12px');
+      && style($('connect')).borderTopLeftRadius === '0px');
   check('settings and question surfaces are flat, not elevated cards',
     style($('connect')).boxShadow === 'none' && style($('question-card')).boxShadow === 'none');
   const dialog = doc.createElement('dialog');
@@ -351,6 +351,10 @@ export default async function run(check, { subpath }) {
   // — otherwise the two sets of entries are indistinguishable.
   for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
   for (const n of await caches.keys()) await caches.delete(n);
+  // The pre-progressive shell cannot supply the new shared-form controls or handlers.
+  const oldShell = await caches.open('ideaforge-v27');
+  await oldShell.put(subpath + 'index.html', new Response('<!doctype html><title>Old shell</title>'));
+  await oldShell.put(subpath + 'src/ui/app.js', new Response('/* old shared form */'));
 
   // ── boots identically on a Pages-style subpath ────────────────────────────
   const sub = await loadFrame(subpath + 'index.html');
@@ -401,12 +405,19 @@ export default async function run(check, { subpath }) {
 
   await settle(2500);
   const names = await caches.keys();
+  check('installing the progressive shell retires the pre-progressive mixed-graph cache',
+    !names.includes('ideaforge-v27'), names.join(', '));
   const cache = names.length ? await caches.open(names[0]) : null;
   const cached = cache ? (await cache.keys()).map((r) => new URL(r.url).pathname) : [];
   check('the service worker precached the shell', cached.length > 20, cached.length + ' entries');
   check('and cached it under the subpath, not the root',
     cached.length > 0 && cached.every((p) => p.startsWith(subpath)),
     cached.find((p) => !p.startsWith(subpath)) || 'all correct');
+  const shellHtml = await (await cache.match(subpath + 'index.html')).text();
+  const shellJs = await (await cache.match(subpath + 'src/ui/app.js')).text();
+  check('the installed offline shell contains matching progressive markup and handlers',
+    ['b-connect-next', 'b-connect-back', 'connect-status'].every((id) =>
+      shellHtml.includes(`id="${id}"`) && shellJs.includes(`'${id}'`)));
 
   await reg.unregister();
   await Promise.all(names.map((n) => caches.delete(n)));

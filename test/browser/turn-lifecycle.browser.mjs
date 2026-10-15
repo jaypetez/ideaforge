@@ -375,6 +375,68 @@ function terminalSeed() {
 
 export default async function run(check) {
   await import('./fixtures/fake-voice.js');
+  await withApp(check, 'configuration change during initial persistence', async (app) => {
+    const held = app.writes.holdNext(() => true);
+    const starting = click(app, 'b-start');
+    if (!(await expect(app, check, 'the initial session really commits before its completion is released',
+      () => held.committed))) return;
+    app.$('provider').value = 'openai';
+    app.$('provider').dispatchEvent(new app.win.Event('change'));
+    app.$('apikey').value = 'sk-lifecycle-replacement-not-a-real-key';
+    app.$('apikey').dispatchEvent(new app.win.Event('input'));
+    held.release();
+    if (!(await expect(app, check, 'the original Start completion settles after the configuration edit',
+      () => starting.done))) return;
+    check('a configuration edit during initial persistence cannot open the retired interview or microphone',
+      visible(app.$('panel-setup')) && !visible(app.$('panel-interview'))
+        && !visible(app.$('voice-stage')) && app.fake.recognition.startCount === 0, detail(app));
+    check('retiring presentation does not delete the already committed original idea',
+      !!(await loadSession(held.snapshot.id)));
+  });
+  await withApp(check, 'Back during initial persistence', async (app) => {
+    const held = app.writes.holdNext(() => true);
+    const starting = click(app, 'b-start');
+    if (!(await expect(app, check, 'Back waits until the original idea is genuinely committed',
+      () => held.committed))) return;
+    click(app, 'b-connect-back');
+    held.release();
+    if (!(await expect(app, check, 'the Start retired by Back settles',
+      () => starting.done))) return;
+    check('Back during initial persistence keeps provider selection, rather than reopening the retired interview',
+      visible(app.$('panel-setup')) && !visible(app.$('panel-interview'))
+        && app.$('connect').dataset.step === 'provider', detail(app));
+    check('Back preserves the original committed idea without another session write',
+      !!(await loadSession(held.snapshot.id)) && app.writes.committed.length === 1);
+  });
+  await withApp(check, 'overlapping initial persistence after Back', async (app) => {
+    const firstWrite = app.writes.holdNext(() => true);
+    const first = click(app, 'b-start');
+    if (!(await expect(app, check, 'the retired Start commits its own durable row',
+      () => firstWrite.committed))) return;
+    click(app, 'b-connect-back');
+    const secondWrite = app.writes.holdNext(() => true);
+    const second = click(app, 'b-start');
+    if (!(await expect(app, check, 'a fresh Start can commit while the retired completion is held',
+      () => secondWrite.committed))) return;
+    firstWrite.release();
+    if (!(await expect(app, check, 'the retired initial-save completion settles independently',
+      () => first.done))) return;
+    const duplicate = click(app, 'b-start');
+    if (!(await expect(app, check, 'a duplicate click returns while the newer Start is pending',
+      () => duplicate.done))) return;
+    check('retired initial-save completion cannot clear a newer Start guard or open its interview early',
+      !second.done && app.writes.committed.length === 2
+        && visible(app.$('panel-setup')) && !visible(app.$('panel-interview')), detail(app));
+    secondWrite.release();
+    if (!(await expect(app, check, 'only the current Start opens the interview after its own save',
+      () => second.done && visible(app.$('panel-interview'))))) return;
+    type(app, NEW_DRAFT);
+    await expect(app, check, 'the current Start, not the retired row, owns subsequent draft edits',
+      async () => (await loadSession(secondWrite.snapshot.id))?.draftAnswer === NEW_DRAFT);
+    check('Back preserves both deliberately started ideas without duplicating or editing the retired one',
+      firstWrite.snapshot.id !== secondWrite.snapshot.id && (await listSessions()).length === 2
+        && (await loadSession(firstWrite.snapshot.id))?.draftAnswer === '');
+  });
 
   await withApp(check, 'delayed turn after switching interviews', async (app) => {
     const old = await start(app, check, 'the originating interview starts');

@@ -252,12 +252,12 @@ section > h2 {
 }
 /* .connect-body too: Model options sits one level down now, inside the foldable card, and
    must keep looking like its sibling disclosure, Voice and speaking pace. */
-:is(.group, .connect-body) > details { border-top: 1px solid var(--line); padding-top: var(--s4); }
-:is(.group, .connect-body) > details > summary {
+:is(.group, .connect-fields) > details { border-top: 1px solid var(--line); padding-top: var(--s4); }
+:is(.group, .connect-fields) > details > summary {
   cursor: pointer; color: var(--ink-dim); font-size: var(--t-md); font-weight: 500;
 }
-:is(.group, .connect-body) > details > summary:hover { color: var(--accent); }
-:is(.group, .connect-body) > details[open] > :not(summary) { margin-top: var(--s4); }
+:is(.group, .connect-fields) > details > summary:hover { color: var(--accent); }
+:is(.group, .connect-fields) > details[open] > :not(summary) { margin-top: var(--s4); }
 
 /* Start and Settings: one section, two views (data-view, set by show() in app.js). The view
    alone decides what shows, so nothing in app.js toggles `hidden` per view and no field's
@@ -271,13 +271,25 @@ section > h2 {
   letter-spacing: -.03em; line-height: var(--type-headline-line); text-wrap: balance;
 }
 .start-hero .lede { padding-block: 0; font-size: var(--t-base); }
-.connect-body { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
-/* The one-row summary exists only on Start, and only once the connection is known to work. */
+.connect-body, .connect-fields {
+  display: flex; flex-direction: column; gap: var(--s5); min-width: 0;
+}
+#panel-setup[data-view="start"] .connect {
+  padding: var(--s4) 0; border-block: 1px solid var(--outline-variant);
+  border-radius: 0; background: transparent; gap: var(--s3);
+}
+#panel-setup[data-view="start"] :is(.connect-body, .connect-fields) { gap: var(--s4); }
+#panel-setup[data-view="start"] .connect[data-step="provider"] :is(.connect-fields, .connection-check, #b-connect-back) {
+  display: none;
+}
+.field-error { color: var(--error); }
+.field-error:empty, .connect-status:empty { display: none; }
+/* A summary means the fields are usable, never that a request succeeded. */
 .connect-summary { display: none; }
 #panel-setup[data-view="start"] .connect[data-collapsed] { padding-block: var(--s3); }
 #panel-setup[data-view="start"] .connect[data-collapsed] > :is(h2, .connect-body) { display: none; }
 #panel-setup[data-view="start"] .connect[data-collapsed] .connect-summary {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap;
   min-width: 0;
 }
 .connect-summary-text {
