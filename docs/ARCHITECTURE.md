@@ -254,6 +254,8 @@ navigation action. Interview and Result own their contextual title/Back presenta
 AppShell applies and consumes system-bar/display-cutout scaffold padding once before
 all children; rail and contextual bars use zero additional Material insets. Editing
 screens own only remaining IME, and Result actions remain inside the shell clearance.
+In a short Interview with the IME open, its contextual bar shares the page scroller
+instead of reducing the remaining viewport below one enlarged editor.
 An attached app-scope drive hides navigation only for its visible interview session;
 Voice stays in that destination and respects only remaining insets. Caption/level state
 is not a reason to rebuild the shell. Content measures stay in `ui/theme/Roles.kt`, and

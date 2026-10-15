@@ -275,10 +275,11 @@ checkout, not merely a supplied SHA. `uxCapture=walkthrough` instead captures on
 scripted seed/chip/Result frames and rejects state selectors; it is not a full-matrix pass.
 Use `uxCaptureSourceState=development-dirty` for uncommitted iteration; its default `clean`
 does not replace checking that the supplied SHA and worktree are actually unchanged.
-PNGs, reachability shots, semantics and manifests land
-in `android/app/build/outputs/connected_android_test_additional_output/`; the managed-device
-equivalent is `managed_device_android_test_additional_output/`. The Android-device workflow
-uploads both named evidence and reports even after failure.
+PNGs, reachability shots, semantics and manifests land in additional-output directories
+under `android/app/build/intermediates/` or `build/outputs/`, named
+`connected_android_test_additional_output/` or `managed_device_android_test_additional_output/`.
+The current managed runner uses variant/task directories under `intermediates/`.
+The Android-device workflow collects both locations, along with reports, even after failure.
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected

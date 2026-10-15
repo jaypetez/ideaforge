@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -46,6 +47,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -135,7 +137,7 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
  * The typed interview: a coverage strip, the thread so far, the open question with its
  * bridge and suggestion chips, and a composer docked above the keyboard.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun InterviewScreen(
     vm: InterviewViewModel,
@@ -242,29 +244,22 @@ fun InterviewScreen(
     }
 
     Column(modifier.fillMaxSize().testTag("interview")) {
-        if (onBack != null) {
-            val fallback = stringResource(R.string.nav_new_idea)
-            val title = state.session?.let { sessionDisplayTitle(it, fallback) } ?: fallback
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("interview-title")) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("interview-back")) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                windowInsets = WindowInsets(0),
-            )
-        }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().imePadding()) {
-            val composerMaxHeight = maxHeight * 0.6f
+            val barHeight = if (onBack != null) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp
+            val bodyHeight = (maxHeight - barHeight).coerceAtLeast(0.dp)
+            val composerMaxHeight = bodyHeight * 0.6f
             // An open IME can leave less than one editor plus wrapped action rows.
             // Scroll the real content instead of weighting the editor down to zero.
-            val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
+            val shortWindow = bodyHeight < 240.dp * LocalDensity.current.fontScale
+            // A fixed bar can leave less height than one enlarged editor above the IME.
+            val scrollHeader = shortWindow && WindowInsets.isImeVisible
             val scroll = rememberScrollState()
             Column(Modifier.fillMaxSize()) {
+                if (!scrollHeader) InterviewHeader(state, onBack)
                 SnackbarHost(snackbar)
                 Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
                     .let { if (shortWindow) it.verticalScroll(scroll) else it }) {
+                    if (scrollHeader) InterviewHeader(state, onBack)
                     CoverageStrip(state)
                     if (state.busy != null) {
                         LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
@@ -282,6 +277,23 @@ fun InterviewScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InterviewHeader(state: InterviewState, onBack: (() -> Unit)?) {
+    if (onBack == null) return
+    val fallback = stringResource(R.string.nav_new_idea)
+    val title = state.session?.let { sessionDisplayTitle(it, fallback) } ?: fallback
+    TopAppBar(
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("interview-title")) },
+        navigationIcon = {
+            IconButton(onClick = onBack, modifier = Modifier.testTag("interview-back")) {
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
+            }
+        },
+        windowInsets = WindowInsets(0),
+    )
 }
 
 @Composable
@@ -367,7 +379,8 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
     if (scrollWithComposer) {
         val current = remember { BringIntoViewRequester() }
         val wrap = remember { BringIntoViewRequester() }
-        LaunchedEffect(thread.size, state.busy, state.wrapOffer) {
+        LaunchedEffect(state.openTurn?.get("n"), state.wrapOffer) {
+            if (state.busy != null || state.notice != null) return@LaunchedEffect
             if (state.wrapOffer != null) wrap.bringIntoView() else current.bringIntoView()
         }
         Column(

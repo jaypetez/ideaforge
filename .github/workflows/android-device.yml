@@ -104,7 +104,7 @@ jobs:
         if: always()
         run: |
           find app/build -type d -iname '*additional*' -print
-          find app/build -type f \( -name '*.png' -o -name 'manifest*.json' \) -print | head -80
+          find app/build -type f \( -name '*.png' -o -name 'manifest*.json' \) -print | sed -n '1,80p'
 
       - name: Upload named native UX screenshots and manifests
         if: always()
@@ -112,6 +112,8 @@ jobs:
         with:
           name: android-ux-evidence-${{ github.sha }}
           path: |
+            android/app/build/intermediates/managed_device_android_test_additional_output/
+            android/app/build/intermediates/connected_android_test_additional_output/
             android/app/build/outputs/managed_device_android_test_additional_output/
             android/app/build/outputs/connected_android_test_additional_output/
           if-no-files-found: error

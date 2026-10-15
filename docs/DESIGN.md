@@ -179,6 +179,8 @@ Complete PNGs/manifests at the exact clean SHA remain required acceptance eviden
 Short/enlarged manual windows use one page scroller for thread and composer rather than
 nesting a lazy thread viewport inside it. This keeps a suggestion or turn-status label
 reachable above the contextual bar; ordinary-height interviews retain their lazy thread.
+With an open IME in a short window, the contextual bar joins that scroller so it cannot
+leave less height than an enlarged editor. Back and the complete title remain reachable.
 
 ## State, focus and elevation
 
@@ -639,8 +641,10 @@ evidence; the caller-supplied SHA does not certify an uncommitted tree.
 `uxCaptureSourceState=development-dirty` explicitly labels iteration; its `clean` default
 is only valid for a genuinely committed, unchanged checkout.
 
-Evidence lands under `android/app/build/outputs/connected_android_test_additional_output/`
-or `managed_device_android_test_additional_output/`. Failed navigation retains an explicitly
+Evidence lands in `connected_android_test_additional_output/` or
+`managed_device_android_test_additional_output/` beneath `android/app/build/intermediates/`
+or `build/outputs/`. The current managed runner uses variant/task directories under
+`intermediates/`; the workflow collects both locations. Failed navigation retains an explicitly
 unverified current-UI PNG; late walkthrough failures preserve earlier independent frame
 records. Finalization is attempted even after cleanup failures, which are recorded in the
 terminal failed manifest. Missing requested states, blank/black images, lost action labels

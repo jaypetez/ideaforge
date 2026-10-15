@@ -151,9 +151,19 @@ class NoticeVisibilityTest {
             compose.runOnIdle { release.complete(Unit) }
             assertVisibleTimedNotice("controlled delayed submission failure")
             assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
-            assertEquals("notice arrival must not jump back above the composer", before,
-                outer.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value(), 1f)
-            assertTrue("the interview retains a nonzero scroll viewport", outer.fetchSemanticsNode().boundsInWindow.height > 0f)
+            // A notice shrinks the viewport and a settled turn changes the page height.
+            // Protect the visible editor, not the old content-coordinate scroll offset.
+            val editor = compose.onNodeWithTag("answer")
+            editor.assertIsDisplayed()
+            val editorNode = editor.fetchSemanticsNode()
+            val coordinates = editorNode.layoutInfo.coordinates
+            val origin = coordinates.localToWindow(Offset.Zero)
+            val raw = UxBounds(origin.x, origin.y, origin.x + coordinates.size.width, origin.y + coordinates.size.height)
+            val clipped = editorNode.boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+            val viewport = outer.fetchSemanticsNode().boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+            assertTrue("notice arrival must leave the complete editor in the remaining viewport without test-driven scrolling",
+                viewport.intersect(clipped).contains(raw))
+            assertTrue("the interview retains a nonzero scroll viewport", viewport.height > 0f)
             compose.mainClock.autoAdvance = true
             compose.onNodeWithTag("answer").performScrollTo().assertIsDisplayed()
             assertTrue("the actual editor retains visible space", compose.onNodeWithTag("answer").fetchSemanticsNode().boundsInWindow.height > 0f)

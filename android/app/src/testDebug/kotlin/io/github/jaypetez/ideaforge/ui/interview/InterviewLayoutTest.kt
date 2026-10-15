@@ -90,7 +90,7 @@ class InterviewLayoutTest {
             if (requireCurrent) {
                 compose.waitForIdle()
                 compose.onNodeWithTag("current-turn").assertIsDisplayed()
-                compose.onNodeWithTag("turn-status").assertIsDisplayed()
+                compose.onNodeWithTag("question").assertIsDisplayed()
             }
             assertTrue("the full thread remains composed", compose.onNodeWithTag("thread").fetchSemanticsNode().layoutInfo.coordinates.size.height > 0)
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
@@ -98,7 +98,8 @@ class InterviewLayoutTest {
             }
 
             requireReachable("turn-status", actionRequired = false)
-            compose.onNodeWithTag("write-up").performScrollTo().assertIsDisplayed().performClick()
+            requireReachable("write-up")
+            compose.onNodeWithTag("write-up").assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
             compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
         }

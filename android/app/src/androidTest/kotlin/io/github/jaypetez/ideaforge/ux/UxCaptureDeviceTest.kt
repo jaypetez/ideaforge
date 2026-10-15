@@ -763,6 +763,7 @@ class UxCaptureDeviceTest {
     private fun interviewControls(): List<UxControl> = buildList {
         add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("voice-start"))
         if (exists("write-up")) add(tag("write-up"))
+        add(tag("interview-back"))
     }
 
     private fun resultControls() = listOf(

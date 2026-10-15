@@ -46,7 +46,9 @@ source wins over prose, and a generated artifact wins over a description of that
   own zero-extra-inset contextual bars with complete literal display titles.
   Editing screens and [`VoiceStage.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/voice/VoiceStage.kt)
   own only remaining keyboard/navigation clearance. `Roles.kt` owns the font-scaled rail
-  and task measures; Library retains its installed Material adaptive panes.
+  and task measures. In a short Interview with the IME open, its contextual bar shares the
+  page scroller rather than clipping the enlarged editor. Library retains its installed
+  Material adaptive panes.
   [`AdaptiveShellTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ui/AdaptiveShellTest.kt)
   and the opt-in shell method in `UxCaptureDeviceTest` own route/resize/voice/inset proof.
   Re-check DESIGN, the Android guide, architecture, full title semantics, no
