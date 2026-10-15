@@ -15,11 +15,12 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells are implemented here. The Start/Ideas/Interview/Voice/Result recompositions are
+shells and progressive web Start (#193) are implemented here. The native Start and
+Ideas/Interview/Voice/Result recompositions are
 **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the foundations and adaptive shells with existing screen compositions, not the complete reference boards.
+the foundations, adaptive shells and progressive web Start, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -138,6 +139,23 @@ The policy suite also supplies nonzero safe-area CSS insets through the browser 
 measures the skip link's full focus outline and the short sticky coverage panel, and
 enters/exits the real wide voice flow to prove rail clearance is removed/restored.
 These are controlled desktop-browser checks, not physical-phone safe-area evidence.
+
+## Current web Start
+
+Start keeps one shared Settings form, with labelled provider, required-fields and ready
+presentations instead of a tall introduction/card stack. Provider groups and visible
+fields follow the existing registry; local manual models remain editable if discovery
+fails. Back and Change connection preserve entered values. Continue reuses provider
+construction without persistence or network calls, while explicit Check/Start retain
+the existing encrypted-keyring path.
+
+Ready means field readiness, not a passed request. Saved/untested, checking, checked and
+failed states have distinct text; only a current successful check earns the checkmark.
+Viewer checks report runtime availability, not a network round trip. Relevant edits and
+navigation retire pending check effects before they can overwrite newer proof or model
+fields. Start with voice remains primary, Type instead stays visible, and both precede
+installation/recent content. Setup alone never requests the microphone; the initiating
+voice tap still primes output synchronously.
 
 ## Current native shell
 

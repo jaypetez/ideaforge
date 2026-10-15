@@ -171,7 +171,7 @@ async function lifecycle(check) {
     // A real note, then nothing: it hides itself.
     $('b-check').click();
     check('a note is shown as a toast', !!(await until(() => shown($('note'))
-      && /works/.test($('note').textContent))), $('note').textContent);
+      && /viewer is available/.test($('note').textContent))), $('note').textContent);
     check('a note hides itself after its interval',
       !!(await until(() => $('note').hidden, NOTE_MS * 5)), $('note').textContent);
 
@@ -188,7 +188,7 @@ async function lifecycle(check) {
     // A note on Start does not follow the user into the interview.
     $('toasts').dataset.noteMs = '60000';
     $('b-check').click();
-    await until(() => shown($('note')) && /works/.test($('note').textContent));
+    await until(() => shown($('note')) && /viewer is available/.test($('note').textContent));
     $('b-start').click();
     const started = await until(() => shown($('panel-interview')) && !$('answer').disabled);
     check('the interview opens', !!started);

@@ -176,7 +176,9 @@ export async function presentUxState(win, scene, fixtures) {
       : ['#done-title', '#output', '#done-actions > button:not(.done-more)'];
   }
   if (scene.surface === 'interview') return ['#question', '#answer', '#b-send', '#b-skip'];
-  return ['#panel-setup h2', '#provider', '#b-start-voice', '#b-start'];
+  return ['#panel-setup h2', ...($('connect').hasAttribute('data-collapsed')
+    ? ['#connect-summary-text', '#b-connect-change'] : ['#provider']),
+  '#b-start-voice', '#b-start'];
 }
 
 export function assertUxGeometry(measurement) {

@@ -194,10 +194,18 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Start and Settings views.** Sources: [`index.html`](../../../../index.html)
   (`#panel-setup` `data-view`, `.start-only`, `.settings-only`, `#connect`) and
   [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `connectionReady`, `renderConnect`).
-  Start holds the connection card, start actions and recent ideas; Settings holds the five
+  Start uses presentation-only provider/fields/ready phases over the same controls.
+  `advanceConnection` reuses `buildProvider` without persistence or a network request;
+  `connectRevision`/attempt identity reject stale checks, and `refreshModels` guards
+  catalogue/field writes. Ready is field readiness, never a successful-request gate.
+  Saved keys are explicitly untested on a new visit; viewer availability is not a
+  network check. `sw.js`'s cache generation changes with the shared markup/handler shape;
+  `app.browser.mjs` proves the prior cache is retired and matching assets are precached.
+  Start actions precede installation/recent content. Settings holds the five
   groups named by `#settings-index`: Connection, Listen and speak, Appearance, Data (backup
   and import) and About. Re-check the getting-started, providers and library guides, the
-  README and the 01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
+  README, `progressive-start.browser.mjs`, trusted-input policy cases and the
+  01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
   and their count to the README and the getting-started guide.
 - **App shell, navigation and opening destination.** Sources:
   [`index.html`](../../../../index.html) (`.bar`, `#b-library`, `#b-nav-new`,

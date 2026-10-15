@@ -63,7 +63,7 @@ async function views(check) {
 
     // ── a fresh profile opens on Start, with the connection card open ────────
     check('a fresh profile boots on the Start view', view() === 'start', String(view()));
-    check('Start shows its start controls, the version and the connection fields',
+    check('Start shows its start controls, the version and the provider step',
       [...startOnly, 'version', 'provider'].every(shown),
       [...startOnly, 'version', 'provider'].filter((id) => !shown(id)).join(', '));
     check('Start shows none of the Settings-only controls', settingsOnly.every((id) => !shown(id)),
@@ -140,7 +140,7 @@ async function views(check) {
     check('the start controls stay visible below the folded card', startOnly.every(shown));
     $('b-connect-change').click();
     await settle(50);
-    check('Change unfolds the connection fields',
+    check('Change connection unfolds the existing fields',
       shown('provider') && shown('apikey') && !shown('connect-summary'));
     check('…and puts focus on the provider', doc.activeElement === $('provider'),
       doc.activeElement && doc.activeElement.id);
@@ -186,7 +186,9 @@ async function views(check) {
 async function formBeatsKeyring(check) {
   const OLD_KEY = 'sk-ant-probe-old-key-000000';
   let ring = withCreds(emptyKeyring(), 'anthropic', { apiKey: OLD_KEY });
-  ring = withCreds(ring, 'custom', { baseUrl: 'http://127.0.0.1:11999/v1' });
+  ring = withCreds(ring, 'custom', {
+    baseUrl: 'http://127.0.0.1:11999/v1', model: 'known-local-model',
+  });
   await saveCredentials(ring);
   const before = new Set((await listSessions()).map((s) => s.id));
   const frame = await loadFrame('/index.html', 900);
@@ -231,6 +233,12 @@ async function formBeatsKeyring(check) {
     check('a good address folds it again', folded());
 
     // A start that fails: a local server with no model cannot build a provider.
+    await toSettings();
+    $('model').value = '';
+    $('model').dispatchEvent(new win.Event('input'));
+    await toStart();
+    check('removing a required model prevents a false ready summary',
+      !folded() && shown('model') && $('model').required);
     $('b-start').click();
     await until(() => !$('err').hidden && $('err').textContent.trim());
     check('a failed start reports its error and stays on Start',
@@ -245,7 +253,9 @@ async function formBeatsKeyring(check) {
     $('apikey').value = 'sk-ant-probe-new-key-111111';
     $('apikey').dispatchEvent(new win.Event('input'));
     await toStart();
-    check('a newly typed, unsaved key keeps Start unfolded', !folded() && shown('apikey'),
+    check('an unsaved key can be ready, without claiming the stored key or a check',
+      folded() && /not checked/i.test($('connect-summary-text').textContent)
+        && !/key saved/.test($('connect-summary-text').textContent),
       $('connect-summary-text').textContent);
     $('apikey').value = '';
     $('apikey').dispatchEvent(new win.Event('input'));

@@ -161,7 +161,7 @@ export default async function run(check) {
     bottomNav('Start', 'b-nav-new');
 
     /** Keyboard focus scrolls into view ignoring fixed boxes, so prove it lands above the bar. */
-    const focusClear = (label, el) => {
+    const focusClear = (label, el, mustScroll = true) => {
       win.scrollTo(0, 0);
       const before = el.getBoundingClientRect().top;
       // focus() alone centres the element, which no keyboard user gets; Tab scrolls the
@@ -174,11 +174,18 @@ export default async function run(check) {
       const ring = style.outlineStyle === 'none' ? 0
         : parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
       check(`${label}: nearest scrolling keeps the focused control and its outline above navigation`,
-        before > root.clientHeight && doc.activeElement === el && rect.bottom + ring <= top + 0.5,
+        (!mustScroll || before > root.clientHeight) && doc.activeElement === el
+          && rect.top - ring >= -0.5 && rect.bottom + ring <= top + 0.5,
         `started at ${Math.round(before)} of ${root.clientHeight}; focused edge ${rect.bottom + ring}, bar top ${top}`);
       win.scrollTo(0, 0);
     };
-    focusClear('Start', $('b-start'));
+    focusClear('concise Start', $('b-start'), false);
+    const originalProvider = $('provider').value;
+    $('provider').value = 'custom';
+    $('provider').dispatchEvent(new win.Event('change'));
+    focusClear('Start required local fields', $('b-start'));
+    $('provider').value = originalProvider;
+    $('provider').dispatchEvent(new win.Event('change'));
 
     $('b-library').click();
     await settled();

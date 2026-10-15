@@ -149,12 +149,14 @@
         accessible text even when shortened visually. Voice hides unrelated navigation.
       </p>
       <p>
-        <strong>New idea</strong> opens Start: a short introduction, the connection card,
+        <strong>New idea</strong> opens Start: a short introduction, a progressive connection,
         <strong>Start with voice</strong>, <strong>Type instead</strong> and your recent
-        ideas. Once a key has been saved or checked, the connection card folds to a single
-        line naming the provider; select <strong>Change</strong> to open it again. It stays
-        open while a newly typed key is unsaved, while the server address is refused, and
-        after a start that fails.
+        ideas. Choose a provider, continue to its required details, then select
+        <strong>Use this connection</strong>. A ready summary means the required fields
+        are usable, not that a network request passed. It explicitly distinguishes a saved
+        key, an untested configuration, a running check and a checked or failed connection.
+        <strong>Change connection</strong> and <strong>Back</strong> preserve the entered
+        values. A failed start reveals the fields that need attention.
       </p>
       <figure class="screenshot">
         <picture>
@@ -162,16 +164,15 @@
                   srcset="../docs/screenshots/01-setup.dark.png">
           <img class="hero-shot"
                src="../docs/screenshots/01-setup.light.png"
-               alt="The Start screen beside a compact labelled navigation rail: a short
-                    introduction, a flat connection surface with a
-                    provider list set to Anthropic, an API key field, a collapsed Model
-                    options section and a Check the key button, above Start with voice and
-                    Type instead."
+               alt="The concise Start screen beside a compact labelled navigation rail:
+                    Choose a provider with Anthropic selected, its data/key explanation and
+                    Continue, above separate Start with voice and Type instead actions and
+                    the version and Guide footer."
                loading="lazy">
         </picture>
         <figcaption>
-          Start on a first visit, before a key has been checked. Once one has, the card
-          folds to a single line.
+          The first provider step. Continue reveals its required fields; a ready summary
+          never presents an untested saved key as a successful check.
         </figcaption>
       </figure>
       <p>
@@ -215,7 +216,8 @@
       <ol class="steps">
         <li>
           <strong>Choose where the questions come from.</strong>
-          Pick an inference provider from the first list. The fields below change to match:
+          Pick from the hosted/viewer or local group and press <strong>Continue</strong>
+          for the current default, or choose another provider. Its fields change to match:
           hosted providers show an API-key field, local providers show a server address, and
           both offer two model fields under <strong>Model options</strong>. This section
           starts collapsed for hosted providers and opens automatically for local ones.
@@ -225,6 +227,7 @@
           Paste the provider key, or enter the local server and model. A local address must
           use <code>localhost</code> or <code>127.0.0.1</code>. On a phone, those names mean
           the phone itself, not a computer on the same network.
+          <strong>Back</strong> does not discard these values or save a key.
         </li>
         <li>
           <strong>Open Model options to change the defaults.</strong>
@@ -247,12 +250,16 @@
           check and speech key; it does not supply dictation.
         </li>
         <li>
-          <strong>Test the connection.</strong>
+          <strong>Optionally test the connection.</strong>
           Use <strong>Check the key</strong> for a hosted provider or
           <strong>Check the connection</strong> for a local one. Either makes a real request,
           and wherever the provider publishes a browser-reachable model list the same request
           fills the model suggestions. If that list is unavailable, you can still type a
-          known model name.
+          known model name. A saved key is untested on a new visit; relevant edits
+          invalidate check proof, and an older response cannot certify newer settings.
+          The Claude viewer check only reports runtime availability, not a network test.
+          You may use <strong>Use this connection</strong> and start without a successful
+          check. Selecting a provider, typing and checking never request the microphone.
         </li>
         <li>
           <strong>Start with voice, or Type instead.</strong>

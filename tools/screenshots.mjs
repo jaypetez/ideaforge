@@ -242,8 +242,12 @@ class App {
       throw new Error(`${name} reached its ${cap}px height cap and would be cropped`);
     }
     if (name === '01-setup') {
-      const bottom = await this.eval(`Math.max(...['b-start-voice', 'b-start', 'version']
-        .map((id) => document.getElementById(id).getBoundingClientRect().bottom))`);
+      const bottom = await this.eval(`Math.max(...['b-start-voice', 'b-start', 'b-connect-next', 'version']
+        .map((id) => {
+          const el = document.getElementById(id);
+          if (!el.getClientRects().length) throw new Error('Start capture hides required ' + id);
+          return el.getBoundingClientRect().bottom;
+        }))`);
       if (bottom > height) throw new Error('the setup screenshot would clip its start controls or footer');
       if (height > MAX_SETUP_HEIGHT) {
         throw new Error(`the Start screen is ${height}px tall; keep it within ${MAX_SETUP_HEIGHT}px`);
@@ -351,6 +355,7 @@ async function run(theme, chrome, port) {
       const p = document.getElementById('provider');
       p.value = 'anthropic';
       p.dispatchEvent(new Event('change'));
+      document.getElementById('b-connect-back').click();
     })()`);
     await app.shot('01-setup');
 

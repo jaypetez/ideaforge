@@ -201,8 +201,10 @@
       <ol class="steps">
         <li>
           <strong>Select the provider.</strong>
-          Use the connection card on Start, or <strong>Connection</strong> in
-          <strong>Settings</strong>; both edit the same fields. On a normal web page,
+          Use Start&rsquo;s labelled provider/connection/ready steps, or
+          <strong>Connection</strong> in <strong>Settings</strong>; both edit the same
+          fields. Continue shows the current provider&rsquo;s required details, and
+          Back or Change connection retains them. On a normal web page,
           Anthropic is the first-run default. Inside a compatible
           Claude viewer, the no-key viewer provider becomes the default.
         </li>
@@ -213,9 +215,12 @@
           <code>/chat/completions</code>.
         </li>
         <li>
-          <strong>Press Check the key or Check the connection.</strong>
+          <strong>Optionally press Check the key or Check the connection.</strong>
           The check makes a real request and fills the model suggestions from the provider's
           own list wherever one is readable, without replacing a model name you typed.
+          The Claude viewer is the exception: its check reports runtime availability,
+          not a network round trip. Saved credentials are not proof of a successful
+          check; editing the connection invalidates that visit&rsquo;s proof.
         </li>
         <li>
           <strong>Choose the models, or leave them blank.</strong>
@@ -225,8 +230,11 @@
         </li>
         <li>
           <strong>Start with voice, or Type instead.</strong>
+          Use this connection shows a ready summary without requiring a successful check.
+          Ready means the required fields are usable, not that the provider answered.
           The provider selection, credentials, local address, and both model choices are
-          saved on this device when the provider is built for a check or an interview.
+          saved on this device for an explicit check or an interview, not when typing or
+          moving between Start&rsquo;s steps.
         </li>
       </ol>
 

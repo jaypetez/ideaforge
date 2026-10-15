@@ -55,6 +55,8 @@ for (const id of [
   'field-base', 'baseurl', 'base-note', 'field-model', 'model', 'model-list', 'model-note',
   'field-wrapmodel', 'wrapmodel', 'model-settings',
   'start-note', 'connect', 'connect-summary', 'connect-summary-text', 'b-connect-change', 'connect-body',
+  'connect-heading', 'connect-status', 'b-connect-next', 'b-connect-back', 'key-error',
+  'key-required', 'model-required',
   'install-card', 'install-title', 'install-note', 'b-install',
   'b-start', 'b-start-voice', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
@@ -143,13 +145,9 @@ const state = {
   /** The idea the thread was last drawn for, and whether its older pairs are unfolded. */
   threadFor: null,
   threadExpanded: false,
-  /**
-   * The provider id whose Check succeeded on this visit, or null. One of the two things
-   * that let Start fold its connection card; a saved key is the other.
-   */
-  connectChecked: null,
-  /** Whether Start shows the one-row #connect-summary instead of the connection fields. */
-  connectCollapsed: false,
+  connectCheck: null,
+  connectRevision: 0,
+  connectStep: 'provider',
 };
 
 const now = () => Date.now();
@@ -191,9 +189,13 @@ function show(panel, destination) {
   if (name === 'setup') {
     // The view is the destination, never a separate toggle: one attribute, read by app.css.
     els['panel-setup'].dataset.view = current === 'settings' ? 'settings' : 'start';
-    // Arriving on Start decides the fold once. Re-deciding on every provider change would
-    // snap the card shut under someone who had just tapped Change to pick another one.
-    if (current === 'start' && view !== shownView) state.connectCollapsed = connectionReady();
+    if (current === 'start' && view !== shownView) {
+      state.connectStep = connectionReady() ? 'ready'
+        : state.creds?.byKind?.[currentChoice().id] || els.apikey.value.trim()
+          || currentChoice().local ? 'fields' : 'provider';
+    }
+    if (state.connectCheck?.status === 'checking'
+        && state.connectCheck.navigation !== state.navigation) state.connectCheck = null;
     renderConnect();
   }
   if (view !== shownView) {
@@ -700,11 +702,16 @@ async function shareSession(session) {
 
 function renderProviderChoices() {
   els.provider.innerHTML = '';
-  for (const c of PROVIDER_CHOICES) {
-    const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = c.label;
-    els.provider.append(o);
+  for (const local of [false, true]) {
+    const group = document.createElement('optgroup');
+    group.label = local ? 'Local on this device' : 'Hosted providers and Claude viewer';
+    for (const c of PROVIDER_CHOICES.filter((choice) => !!choice.local === local)) {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.label;
+      group.append(o);
+    }
+    els.provider.append(group);
   }
   els.provider.value = (state.creds && state.creds.active) || defaultProviderKind();
   onProviderChange();
@@ -715,6 +722,7 @@ function currentChoice() {
 }
 
 function onProviderChange() {
+  invalidateConnection();
   const c = currentChoice();
   const saved = credsFor(state.creds, c.id);
 
@@ -731,7 +739,9 @@ function onProviderChange() {
   els['model-settings'].hidden = !c.picksModel;
   els['model-settings'].open = !!c.local;
   const onPhone = state.install && ['android', 'ios'].includes(state.install.state().platform);
-  els['provider-note'].textContent = (c.note || '') + (c.local && onPhone
+  const transfer = c.local ? 'Answers go to this local server. '
+    : c.needsKey ? `Answers go directly to ${c.label}; a provider key is required. ` : '';
+  els['provider-note'].textContent = transfer + (c.note || '') + (c.local && onPhone
     ? ' On a phone, localhost means this phone, not a computer running Ollama.'
     : '');
   els.keylink.href = c.keyUrl || '#';
@@ -755,42 +765,125 @@ function onProviderChange() {
   els['model-note'].textContent = '';
 
   els.apikey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste your key';
-  els['b-check'].textContent = c.needsKey ? 'Check the key' : 'Check the connection';
   // Only offer to forget a key when there is one; an inert button is worse than none.
   els['b-forget'].hidden = !hasAnyKey(state.creds);
-  renderConnect();
   onBaseChange();
 }
 
-/**
- * Whether Start may fold the connection card: the chosen provider's Check passed on this
- * visit, or it has what it needs saved — a key, or for a keyless provider, being the one
- * last saved. Presentation only; nothing here is read back by readRingFromForm.
- *
- * The form beats the keyring. The saved record is what worked last time, not what Start is
- * about to use: a new key typed in Settings, a refused server address (Start disabled, the
- * reason in #base-note) — folding over either hid the very thing that needed attention
- * behind "key saved" or "ready".
- */
+/** Field readiness is presentation, not a new successful-network-request gate. */
 function connectionReady() {
   const c = currentChoice();
-  const typedKey = els.apikey.value.trim();
-  if (c.needsKey && typedKey && typedKey !== credsFor(state.creds, c.id).apiKey) return false;
-  if (els['b-start'].disabled || els['base-note'].textContent.trim()) return false;
-  if (state.connectChecked === c.id) return true;
-  if (c.needsKey) return !!credsFor(state.creds, c.id).apiKey;
-  return !!state.creds && state.creds.active === c.id;
+  if (els['base-note'].textContent.trim()) return false;
+  if (c.needsKey && !(els.apikey.value.trim() || credsFor(state.creds, c.id).apiKey)) return false;
+  if (c.local && !els.baseurl.value.trim()) return false;
+  return !c.picksModel || !!(els.model.value.trim() || c.models?.default);
+}
+
+function invalidateConnection() {
+  state.connectRevision++;
+  state.connectCheck = null;
+  els['key-error'].textContent = '';
+  els.apikey.removeAttribute('aria-invalid');
+  els.model.removeAttribute('aria-invalid');
+  renderConnect();
 }
 
 function renderConnect() {
   const c = currentChoice();
   const saved = credsFor(state.creds, c.id);
-  els.connect.toggleAttribute('data-collapsed', state.connectCollapsed);
-  const status = state.connectChecked === c.id
-    ? (c.needsKey ? 'key works' : 'connected')
-    : c.needsKey ? `key saved ${maskKey(saved.apiKey)}` : 'ready';
+  const current = state.connectCheck?.revision === state.connectRevision ? state.connectCheck : null;
+  const checked = current?.status === 'checked';
+  const checking = current?.status === 'checking';
+  els.connect.dataset.step = state.connectStep;
+  els.connect.toggleAttribute('data-collapsed', state.connectStep === 'ready');
+  els['connect-heading'].textContent = state.connectStep === 'provider'
+    ? '1. Choose a provider' : '2. Connection details';
+  const savedKey = saved.apiKey && (!els.apikey.value.trim() || els.apikey.value.trim() === saved.apiKey);
+  const viewer = !c.local && !c.needsKey;
+  const status = checked ? (viewer ? 'viewer available' : 'checked this visit')
+    : savedKey ? `key saved ${maskKey(saved.apiKey)}` : 'not checked';
   els['connect-summary-text'].textContent =
-    [c.label, status, c.picksModel && saved.model].filter(Boolean).join(' · ');
+    [c.label, status, c.picksModel && els.model.value.trim()].filter(Boolean).join(' · ');
+  if (checked) els['connect-summary-text'].dataset.icon = 'check';
+  else delete els['connect-summary-text'].dataset.icon;
+  els['connect-status'].textContent = checking ? `Checking ${c.label}…`
+    : checked ? (viewer ? 'Claude viewer available this visit; no network request was tested.'
+      : 'Connection checked this visit. Editing the connection needs a new check.')
+    : current?.status === 'failed' ? (current.action === 'check'
+      ? 'Check failed. Review the connection fields or try again. Checking is optional.'
+      : 'Connection needs attention. Review the fields and try again.')
+    : state.connectStep === 'provider' && els['panel-setup'].dataset.view === 'start' ? ''
+    : `${savedKey ? 'Key saved on this device; n' : 'N'}ot checked this visit. You can start without checking.`;
+  els['b-check'].disabled = checking || !!els['base-note'].textContent.trim();
+  els['b-check'].setAttribute('aria-busy', String(checking));
+  els['b-check'].textContent = checking ? 'Checking…'
+    : c.needsKey ? 'Check the key' : 'Check the connection';
+  els['b-connect-next'].textContent = state.connectStep === 'provider' ? 'Continue' : 'Use this connection';
+  els.apikey.required = !!c.needsKey && !saved.apiKey;
+  els['key-required'].hidden = !els.apikey.required;
+  els.baseurl.required = !!c.local;
+  els.model.required = !!c.picksModel && !c.models?.default;
+  els['model-required'].hidden = !els.model.required;
+}
+
+function connectionFailure(error, action) {
+  state.connectCheck = { revision: state.connectRevision, status: 'failed', action };
+  state.connectStep = 'fields';
+  const c = currentChoice();
+  if (c.needsKey && (error.code === 'auth'
+      || !(els.apikey.value.trim() || credsFor(state.creds, c.id).apiKey))) {
+    els['key-error'].textContent = error.code === 'auth'
+      ? 'This provider rejected the key. Replace it or check its access.'
+      : 'Paste an API key for this provider.';
+    els.apikey.setAttribute('aria-invalid', 'true');
+  } else if (c.local && (!els.baseurl.value.trim()
+      || els.baseurl.getAttribute('aria-invalid') === 'true')) {
+    if (!els.baseurl.value.trim()) {
+      els['base-note'].textContent = 'Enter the local server address, using localhost or 127.0.0.1.';
+    }
+    els.baseurl.setAttribute('aria-invalid', 'true');
+  } else if (c.picksModel && !(els.model.value.trim() || c.models?.default)) {
+    els['model-settings'].open = true;
+    els.model.setAttribute('aria-invalid', 'true');
+    if (action !== 'check' || !els['model-note'].textContent.trim()) {
+      els['model-note'].textContent = 'Enter a known model name, or use Check to read the model list.';
+    }
+  }
+  renderConnect();
+  fail(error);
+}
+
+function readyConnection() {
+  const moving = els['connect-body'].contains(document.activeElement);
+  state.connectStep = 'ready';
+  renderConnect();
+  if (moving) els['b-connect-change'].focus();
+}
+
+async function advanceConnection() {
+  if (state.connectStep === 'provider') {
+    state.connectStep = 'fields';
+    renderConnect();
+    const c = currentChoice();
+    els[c.needsKey ? 'apikey' : c.local ? 'baseurl' : 'b-connect-next'].focus();
+    return;
+  }
+  const revision = state.connectRevision;
+  const navigation = state.navigation;
+  try {
+    // Reuse the actual factory's validation, without saving or making a model request.
+    await buildProvider({ persist: false });
+    if (revision === state.connectRevision && navigation === state.navigation) {
+      fail(null);
+      readyConnection();
+    }
+  } catch (error) {
+    if (revision !== state.connectRevision || navigation !== state.navigation) return;
+    connectionFailure(error, 'continue');
+    (els.apikey.getAttribute('aria-invalid') ? els.apikey
+      : els.baseurl.getAttribute('aria-invalid') === 'true' ? els.baseurl
+      : els.model.getAttribute('aria-invalid') ? els.model : els.baseurl).focus();
+  }
 }
 
 /** The preset's own address, so the field starts usable rather than empty. */
@@ -809,10 +902,11 @@ function onBaseChange() {
   const typed = els.baseurl.value.trim();
   if (!c.local || !typed) {
     els['base-note'].textContent = '';
+    els.baseurl.removeAttribute('aria-invalid');
     els['b-start'].disabled = false;
     els['b-start-voice'].disabled = els.stt.value === 'off';
-    els['b-check'].disabled = false;
     renderStartNote();
+    renderConnect();
     return;
   }
 
@@ -828,10 +922,11 @@ function onBaseChange() {
     : ipv6
       ? 'This page cannot reach an IPv6 address in brackets — write it as 127.0.0.1 instead.'
       : '';
+  els.baseurl.setAttribute('aria-invalid', String(bad || ipv6));
   els['b-start'].disabled = bad || ipv6;
   els['b-start-voice'].disabled = bad || ipv6 || els.stt.value === 'off';
-  els['b-check'].disabled = bad || ipv6;
   renderStartNote();
+  renderConnect();
 }
 
 /**
@@ -853,13 +948,15 @@ function renderStartNote() {
  * Chrome's local-network permission prompt, and firing a permission prompt off a dropdown
  * change is how you teach someone to deny it.
  */
-async function refreshModels() {
+async function refreshModels(owns) {
   const c = currentChoice();
   if (!c.discoverModels) return;
   els['model-note'].textContent = 'Reading the model list…';
   try {
     const provider = await buildProvider({ requireModel: false });
+    if (!owns()) return;
     const names = await provider.listModels();
+    if (!owns()) return;
     fillModelList(names);
     // One installed model is not a choice, so make it for them. Only ever after a real
     // read: doing this from the seeded preset list would write a value into a box where
@@ -876,7 +973,7 @@ async function refreshModels() {
   } catch (err) {
     // Leave whatever they typed alone — it may well be right, and the server may simply
     // not answer /models.
-    els['model-note'].textContent = `${err && err.message ? err.message : err} ` +
+    if (owns()) els['model-note'].textContent = `${err && err.message ? err.message : err} ` +
       'You can still type the model name yourself.';
     // And rethrow. This used to be swallowed, so the caller went on to report "That server
     // answered." over the top of a server that had not answered at all — the reason sitting
@@ -916,8 +1013,7 @@ async function forgetKey() {
   els.model.value = '';
   els.wrapmodel.value = '';
   els['model-list'].innerHTML = '';
-  state.connectChecked = null;
-  state.connectCollapsed = false;
+  state.connectStep = 'provider';
   fail(null);
   onProviderChange();
   onSttChange();
@@ -1142,9 +1238,10 @@ function onSttChange() {
   onBaseChange();
 }
 
-async function buildProvider({ requireModel = true } = {}) {
+async function buildProvider({ requireModel = true, persist: write = true } = {}) {
   const navigation = state.navigation;
   const credentialEpoch = state.credentialEpoch;
+  const revision = state.connectRevision;
   const c = currentChoice();
   const ring = readRingFromForm();
   const creds = credsFor(ring, c.id);
@@ -1161,14 +1258,19 @@ async function buildProvider({ requireModel = true } = {}) {
     modelRequired: requireModel ? undefined : false,
   });
 
-  if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch) {
+  if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch
+      || revision !== state.connectRevision) {
     throw new Error('Provider setup was cancelled.');
   }
-  state.creds = ring;
-  state.provider = provider;
   // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
   // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
-  await saveCredentials(ring);
+  if (write) {
+    await saveCredentials(ring);
+    if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch
+        || revision !== state.connectRevision) throw new Error('Provider setup was cancelled.');
+    state.creds = ring;
+    state.provider = provider;
+  }
   return provider;
 }
 
@@ -2589,10 +2691,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
       teardownVoice();
       // Unfold: whatever refused to start lives in the card, and a folded summary with a
       // check mark would go on vouching for a connection that just failed.
-      state.connectChecked = null;
-      state.connectCollapsed = false;
-      renderConnect();
-      fail(e);
+      connectionFailure(e, 'start');
     }
     state.starting = false;
     return;
@@ -2825,7 +2924,11 @@ function bind() {
     event.preventDefault();
     els.main.focus();
   });
-  els.provider.onchange = () => { onProviderChange(); onSttChange(); };
+  els.provider.onchange = () => {
+    state.connectStep = 'fields';
+    onProviderChange();
+    onSttChange();
+  };
   els.stt.onchange = onSttChange;
   // On change, not on input: normalising every keystroke fights whoever is typing.
   els.stopword.onchange = () => applyTrigger(els.stopword.value);
@@ -2927,10 +3030,29 @@ function bind() {
       else setHandsFree(true);
     } catch (error) { fail(error); }
   };
-  els.baseurl.oninput = onBaseChange;
+  els.baseurl.oninput = () => { invalidateConnection(); onBaseChange(); };
+  for (const control of [els.apikey, els.model, els.wrapmodel]) {
+    control.addEventListener('input', invalidateConnection);
+  }
   els['b-check'].onclick = async () => {
+    if (state.connectCheck?.status === 'checking') return;
+    const focused = document.activeElement === els['b-check'];
+    const restoreFocus = () => {
+      if (focused && document.activeElement === document.body) {
+        els[state.connectStep === 'ready' && els['panel-setup'].dataset.view === 'start'
+          ? 'b-connect-change' : 'b-check'].focus();
+      }
+    };
     fail(null); say('Checking…');
     const c = currentChoice();
+    const attempt = {
+      revision: state.connectRevision, navigation: state.navigation, status: 'checking',
+    };
+    const credentialEpoch = state.credentialEpoch;
+    state.connectCheck = attempt;
+    const owns = () => state.connectCheck === attempt && attempt.revision === state.connectRevision
+      && attempt.navigation === state.navigation && credentialEpoch === state.credentialEpoch;
+    renderConnect();
     try {
       if (c.discoverModels) {
         // For a local server "does the key work" is the wrong question — it has no key.
@@ -2938,35 +3060,42 @@ function bind() {
         // hosted one the list read IS the key check: listModels and validateKey probe the
         // same /models endpoint, so one call answers both and the catalogue arrives in the
         // model boxes as a side effect of asking.
-        await refreshModels();
-        say(c.needsKey ? 'That key works.' : 'That server answered.');
+        await refreshModels(owns);
       } else {
+        if (c.id === 'artifact' && defaultProviderKind() !== 'artifact') {
+          throw new Error('The Claude viewer is unavailable here. Choose a hosted or local provider.');
+        }
         const p = await buildProvider();
+        if (!owns()) return;
         await p.validateKey();
-        say('That key works.');
       }
-      state.connectChecked = c.id;
+      if (!owns()) return;
+      attempt.status = 'checked';
+      say(c.needsKey ? 'That key works.' : c.local ? 'That server answered.' : 'The Claude viewer is available.');
       // A key check leaves nothing more to do in the card, so Start folds it. A check that
       // just read the model list stays open: that list is what the person is about to use.
       const folding = !c.discoverModels && els['panel-setup'].dataset.view === 'start';
-      if (folding) state.connectCollapsed = true;
-      renderConnect();
-      // Folding hides #b-check, which is where focus is; without this it drops to <body>.
-      if (folding && (document.activeElement === els['b-check']
-          || document.activeElement === document.body)) {
-        els['b-connect-change'].focus();
-      }
-    } catch (e) { say(''); fail(e); }
+      if (folding) readyConnection();
+      else renderConnect();
+      restoreFocus();
+    } catch (e) {
+      if (!owns()) return;
+      say('');
+      connectionFailure(e, 'check');
+      restoreFocus();
+    }
   };
   els['b-connect-change'].onclick = () => {
-    state.connectCollapsed = false;
+    state.connectStep = 'fields';
     renderConnect();
     els.provider.focus();
   };
-  // A new key is an unchecked key, whatever the old one proved.
-  els.apikey.addEventListener('input', () => {
-    if (state.connectChecked === currentChoice().id) state.connectChecked = null;
-  });
+  els['b-connect-next'].onclick = () => advanceConnection().catch(fail);
+  els['b-connect-back'].onclick = () => {
+    state.connectStep = 'provider';
+    renderConnect();
+    els.provider.focus();
+  };
   els['b-forget'].onclick = forgetKey;
   els['b-send'].onclick = () => send();
   els['b-skip'].onclick = async () => {
