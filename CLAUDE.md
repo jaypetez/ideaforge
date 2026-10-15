@@ -199,8 +199,20 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
   speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,
   spoken-replies choice, dictation, finish word and start actions stay outside them.
+  Required hosted-speech keys/consent and Preview also stay outside optional disclosures.
   `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
   app layout when that gate fails; do not hide required controls just for a capture.
+- **Settings recovery belongs to its operation.** The same form has five sections:
+  Connection, Voice, Appearance, Your data and About. Credential errors persist beside
+  Connection and data results beside Your data; screen toasts are not their only copy.
+  `confirmAction` uses a native dialog and returns an awaited boolean, with Cancel focused.
+  Confirmed Forget retires effects before storage; `secrets.js` serializes credential
+  operations so an older encrypted write cannot survive a completed clear. Failed
+  removal keeps an explicit retry, not the old in-memory provider. Clear fields
+  before awaiting removal so a late completion cannot erase new edits. A hosted
+  preview cancelled during persistence queues revocation, never successful verification.
+  Library's current `confirmDelete` is synchronous: its future dialog integration must
+  await the result, not treat a Promise as permission.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the
   destination passed to `show()`; app.css hides `.start-only` / `.settings-only` from that
   attribute alone. Every id stays in the one section. Start's provider/fields/ready phases

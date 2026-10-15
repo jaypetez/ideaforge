@@ -6,6 +6,7 @@ import { createSilenceGate, rmsOf } from '../../src/voice/vad.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { loadPrefs } from '../../src/store/prefs.js';
 import { createVoiceStage } from '../../src/ui/voice-stage.js';
+import { wav } from './speech-output.browser.mjs';
 import {
   clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withTts,
 } from '../../src/store/secrets.js';
@@ -1907,6 +1908,53 @@ export default async function run(check) {
       storage.setItem = setItem;
     }
   }, { credentials: verifiedSpeech, preferences: { hostedSpeechAllowed: true } });
+
+  await withApp(check, 'cancelled hosted preview cannot commit verification', async (app) => {
+    app.$('b-settings').click();
+    if (!(await expect(app, check, 'the cancellation probe opens Settings', () =>
+      app.$('panel-setup').dataset.view === 'settings'
+        && !app.doc.documentElement.matches(':active-view-transition')))) return;
+    app.$('tts-consent').checked = true;
+    app.$('tts-consent').dispatchEvent(new app.win.Event('change'));
+    app.win.fetch = async (input) => {
+      const url = String(input?.url || input);
+      app.requests.push(url);
+      if (url !== app.expectedRequestUrl) throw new Error('Unexpected synthetic speech destination');
+      return new app.win.Response(wav(app.win), { headers: { 'content-type': 'audio/wav' } });
+    };
+    const encrypt = app.win.crypto.subtle.encrypt;
+    let release;
+    let held = false;
+    app.win.crypto.subtle.encrypt = async function (...args) {
+      const bytes = await encrypt.apply(this, args);
+      if (!held) {
+        held = true;
+        await new Promise((resolve) => { release = resolve; });
+      }
+      return bytes;
+    };
+    try {
+      app.expectedRequests = 1;
+      app.$('b-speech-preview').click();
+      if (!(await expect(app, check, 'a played hosted sample reaches a held encrypted verification save',
+        () => held && app.$('b-speech-preview').textContent === 'Cancel preview'))) return;
+      app.$('b-speech-preview').click();
+      check('Cancel withdraws hosted permission before the old encrypted write resumes',
+        loadPrefs().hostedSpeechAllowed === false);
+      release();
+      if (!(await expect(app, check, 'the cancelled check settles as disabled, not enabled', () =>
+        /Preview cancelled/.test(app.$('speech-check').textContent)))) return;
+      const credentials = await within(loadCredentials(), 'reading cancelled preview verification');
+      check('a cancelled preview cannot authorize hosted output after reload',
+        !credentials.tts.verified && loadPrefs().hostedSpeechAllowed === false);
+      check('Settings preview cancellation never starts recognition or model work',
+        captureCount(app) === 0 && app.model.calls.length === 0);
+    } finally {
+      release?.();
+      app.win.crypto.subtle.encrypt = encrypt;
+    }
+  }, { credentials: withTts(verifiedSpeech, { ...verifiedSpeech.tts, verified: false }),
+    preferences: { hostedSpeechAllowed: true } });
 
   await withApp(check, 'hosted speech opt-in gate', async (app) => {
     check('hosted speech defaults off without consent or saved verification',

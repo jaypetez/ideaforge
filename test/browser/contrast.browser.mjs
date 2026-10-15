@@ -223,7 +223,7 @@ export default async function run(report) {
         measure(`${at}: a ghost button's outline`, $('b-start'),
           { fg: css($('b-start'), 'border-top-color'), bg: backdrop($('b-start').parentElement), min: 3 });
         measure(`${at}: a quiet button (Change)`, $('b-connect-change'));
-        measure(`${at}: a danger button (Forget my key)`, $('b-forget'));
+        measure(`${at}: a danger button (Forget keys)`, $('b-forget'));
         measure(`${at}: field text`, $('apikey'));
         measure(`${at}: field placeholder`, $('apikey'), { fg: css($('apikey'), 'color', '::placeholder') });
         measure(`${at}: a field's outline`, $('apikey'),

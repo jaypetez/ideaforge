@@ -332,7 +332,7 @@ export default async function run(check) {
     check('…with one entry per group, in order',
       [...index.querySelectorAll('button')].map((b) => b.dataset.target).join() === groups.join()
         && [...index.querySelectorAll('button')].map((b) => b.textContent).join('|')
-          === 'Connection|Listen and speak|Appearance|Data|About');
+          === 'Connection|Voice|Appearance|Your data|About');
     check('…and nothing scrolling sideways', noSideways(),
       `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
 

@@ -136,9 +136,9 @@
     -->
     <nav class="settings-index settings-only" id="settings-index" aria-label="Settings sections">
       <button type="button" class="quiet" data-target="connect">Connection</button>
-      <button type="button" class="quiet" data-target="settings-listen">Listen and speak</button>
+      <button type="button" class="quiet" data-target="settings-listen">Voice</button>
       <button type="button" class="quiet" data-target="settings-appearance">Appearance</button>
-      <button type="button" class="quiet" data-target="settings-data">Data</button>
+      <button type="button" class="quiet" data-target="settings-data">Your data</button>
       <button type="button" class="quiet" data-target="settings-about">About</button>
     </nav>
 
@@ -149,6 +149,7 @@
     -->
     <div class="group connect" id="connect" data-step="provider">
       <h2><span class="start-only" id="connect-heading">1. Choose a provider</span><span class="settings-only">Connection</span></h2>
+      <p class="hint settings-summary settings-only" id="settings-connection-summary"></p>
 
       <div class="connect-summary" id="connect-summary">
         <span class="connect-summary-text" id="connect-summary-text"></span>
@@ -159,7 +160,7 @@
 
     <div class="field">
       <label for="provider">Provider</label>
-      <select id="provider"></select>
+      <select id="provider" aria-describedby="provider-note connection-error credential-error"></select>
       <p class="hint" id="provider-note"></p>
     </div>
 
@@ -167,7 +168,7 @@
     <div class="field" id="field-key">
       <label for="apikey">API key<span id="key-required"> (required)</span></label>
       <input type="password" id="apikey" autocomplete="off" spellcheck="false"
-             placeholder="paste your key" aria-describedby="key-hint key-error">
+             placeholder="paste your key" aria-describedby="key-hint key-error credential-error">
       <p class="hint field-error" id="key-error"></p>
       <p class="hint" id="key-hint">
         Encrypted on this device; sent only to your provider.
@@ -228,11 +229,12 @@
     <div class="btns connect-actions">
       <button type="button" class="quiet start-only" id="b-connect-back">Back</button>
       <button type="button" class="ghost connection-check" id="b-check">Check the key</button>
-      <button type="button" class="ghost danger connection-check" id="b-forget" hidden>Forget my key</button>
       <button type="button" class="ghost start-only" id="b-connect-next">Continue</button>
     </div>
       </div><!-- /.connect-body -->
       <p class="hint connect-status" id="connect-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <p class="hint field-error" id="connection-error" role="alert"></p>
+      <p class="hint callout" id="credential-error" data-status="error" role="alert"></p>
     </div><!-- /.group.connect -->
 
     <div class="btns start-actions start-only">
@@ -256,7 +258,8 @@
     </div>
 
     <div class="group settings-only" id="settings-listen">
-      <h2>Listen and speak</h2>
+      <h2>Voice</h2>
+      <p class="hint settings-summary" id="settings-voice-summary"></p>
     <div class="field">
       <label for="stt">Dictation</label>
       <select id="stt">
@@ -271,7 +274,7 @@
     <div class="field" id="field-sttkey" hidden>
       <label for="sttkey">Transcription key</label>
       <input type="password" id="sttkey" autocomplete="off" spellcheck="false"
-             placeholder="paste your key">
+             placeholder="paste your key" aria-describedby="sttkey-note stt-note">
       <p class="hint" id="sttkey-note"></p>
     </div>
 
@@ -297,22 +300,11 @@
       </p>
     </div>
 
-    <details class="settings-details" id="speech-options">
-      <summary>Voice and speaking pace</summary>
-      <div class="settings-options">
-    <div class="field" id="field-browser-voice">
-      <label for="browser-voice">Browser voice</label>
-      <select id="browser-voice">
-        <option value="">Automatic — browser voice for English</option>
-      </select>
-      <p class="hint">The available voices come from this browser. Network voices may send text off this device.</p>
-    </div>
-
     <div id="field-tts" hidden>
       <div class="field">
         <label for="ttskey">Separate speech key</label>
         <input type="password" id="ttskey" autocomplete="off" spellcheck="false"
-               placeholder="paste a scoped OpenAI key">
+               placeholder="paste a scoped OpenAI key" aria-describedby="speech-check">
         <p class="hint">
           Only used for spoken replies. Your interview and transcription keys are not reused.
           Stored encrypted on this device, but a script running on this origin could still use it.
@@ -332,22 +324,35 @@
       </label>
     </div>
 
-    <div class="field">
-      <label for="speech-rate">Speaking pace <output id="speech-rate-value" for="speech-rate">1.00×</output></label>
-      <input type="range" id="speech-rate" min="0.75" max="1.25" step="0.05" value="1">
-    </div>
     <div class="btns">
       <button type="button" class="ghost small" id="b-speech-preview">Preview voice</button>
     </div>
     <p class="hint" id="speech-check" role="status" aria-live="polite" aria-atomic="true"></p>
+
+    <details class="settings-details" id="speech-options">
+      <summary>Voice and speaking pace</summary>
+      <div class="settings-options">
+    <div class="field" id="field-browser-voice">
+      <label for="browser-voice">Browser voice</label>
+      <select id="browser-voice">
+        <option value="">Automatic — browser voice for English</option>
+      </select>
+      <p class="hint" id="browser-voice-note">The available voices come from this browser. Network voices may send text off this device.</p>
+    </div>
+    <div class="field">
+      <label for="speech-rate">Speaking pace <output id="speech-rate-value" for="speech-rate">1.00×</output></label>
+      <input type="range" id="speech-rate" min="0.75" max="1.25" step="0.05" value="1">
+    </div>
       </div>
     </details>
+    <p class="hint" id="voice-preferences-status" role="status" aria-live="polite"></p>
     </div><!-- /.group listen -->
 
     <!-- Applied at once and stored in prefs ('system' | 'light' | 'dark', the Android app's
          key and values). theme-boot.js applies it before first paint on the next load. -->
     <div class="group settings-only" id="settings-appearance">
       <h2>Appearance</h2>
+      <p class="hint settings-summary" id="settings-appearance-summary"></p>
       <fieldset class="choice" id="theme-choice">
         <legend>Theme</legend>
         <div class="choice-row">
@@ -357,30 +362,41 @@
         </div>
         <p class="hint">System follows this device&#8217;s light or dark setting.</p>
       </fieldset>
+      <p class="hint" id="appearance-status" role="status" aria-live="polite"></p>
     </div>
 
     <!-- Backup and import moved here from the Library: they are about the device's data,
          not about any one idea. library.js still wires them, by element, not by place. -->
     <div class="group settings-only" id="settings-data">
-      <h2>Data</h2>
+      <h2>Your data</h2>
+      <p class="hint settings-summary" id="settings-data-summary">Reading the ideas saved on this device…</p>
       <p class="hint">
         Your ideas are stored on this device. Back up before clearing site data or moving phones.
       </p>
       <div class="btns">
-        <button type="button" class="ghost small" id="b-backup" data-icon="download">Back up ideas</button>
-        <button type="button" class="ghost small" id="b-import">Import backup</button>
+        <button type="button" class="ghost small" id="b-backup" data-icon="download">Backup ideas</button>
+        <button type="button" class="ghost small" id="b-import">Import ideas</button>
         <input id="backup-file" type="file" accept=".json,application/json" hidden>
       </div>
       <p class="hint backup-warning callout" data-status="warning">
         A backup contains the full text of your interviews, unencrypted. It never contains
-        API keys.
+        API keys or device preferences.
       </p>
+      <p class="hint">Imports add ideas. An id collision creates a named copy; your local idea is never replaced.</p>
+      <p class="hint" id="data-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="settings-danger">
+        <h3>Keys on this device</h3>
+        <p class="hint" id="keys-summary">No keys saved.</p>
+        <p class="hint">Forget removes all saved inference, transcription and speech keys from this device,
+          not your ideas. Revoke keys at the provider too when needed.</p>
+        <button type="button" class="ghost danger" id="b-forget" hidden>Forget keys</button>
+      </div>
     </div>
 
     <!-- The About group in Settings; on Start the same line is the quiet footer. -->
     <div class="group about" id="settings-about">
       <h2 class="settings-only">About</h2>
-      <p class="hint version">
+      <p class="hint version settings-summary">
         <span id="version"></span>
         · <a href="./guide/">Guide</a>
       </p>

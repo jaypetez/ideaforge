@@ -45,6 +45,7 @@ import { createInstallController } from './install.js';
 import { createLibraryView } from './library.js';
 import { canShareFile, canShareText, downloadText, shareTextFile } from './share.js';
 import { wireOverflowMenu } from './menu.js';
+import { confirmAction, cancelConfirmation } from './dialog.js';
 import { VERSION } from '../version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,6 +58,9 @@ for (const id of [
   'start-note', 'connect', 'connect-summary', 'connect-summary-text', 'b-connect-change', 'connect-body',
   'connect-heading', 'connect-status', 'b-connect-next', 'b-connect-back', 'key-error',
   'key-required', 'model-required',
+  'settings-connection-summary', 'connection-error', 'credential-error',
+  'settings-voice-summary', 'settings-appearance-summary', 'settings-data-summary',
+  'appearance-status', 'voice-preferences-status', 'data-status', 'keys-summary', 'browser-voice-note',
   'install-card', 'install-title', 'install-note', 'b-install',
   'b-start', 'b-start-voice', 'b-check', 'resume', 'resume-rows', 'b-view-all',
   'stt', 'stt-note', 'field-sttkey', 'sttkey', 'sttkey-note', 'b-forget', 'version',
@@ -131,6 +135,9 @@ const state = {
   /** The last failed save, `{ id, message, dismissed }`, until that idea saves again. */
   saveFailure: null,
   credentialEpoch: 0,
+  credentialError: '',
+  keysMayRemain: false,
+  forgetting: false,
   wakeLock: null,
   wakeLockRequest: null,
   speechRevoked: false,
@@ -200,6 +207,7 @@ function show(panel, destination) {
     renderConnect();
   }
   if (view !== shownView) {
+    cancelConfirmation();
     shownView = view;
     say('');
     fail(null);
@@ -701,6 +709,52 @@ async function shareSession(session) {
 
 // ────────────────────────────────────────────────────────────── settings
 
+function settingsFeedback(id, message = '', status = '') {
+  const element = els[id];
+  element.textContent = message;
+  if (status) element.dataset.status = status;
+  else delete element.dataset.status;
+}
+
+function credentialProblem(message) {
+  state.credentialError = message;
+  settingsFeedback('credential-error', message, 'error');
+}
+
+async function saveKeyring(ring, isCurrent) {
+  try {
+    await saveCredentials(ring, { isCurrent });
+    if (isCurrent()) {
+      state.keysMayRemain = false;
+      credentialProblem('');
+    }
+  } catch (error) {
+    if (isCurrent()) credentialProblem(`Key settings could not be saved. Try again: ${error.message}`);
+    throw error;
+  }
+}
+
+function renderSettingsSummaries() {
+  const preferences = loadPrefs();
+  const speech = els.speech.value === 'openai'
+    ? readSpeechFromForm().verified ? 'OpenAI speech checked' : 'OpenAI speech needs a check'
+    : els['browser-voice'].selectedOptions[0]?.textContent || 'Browser voice';
+  const dictation = STT_PRESETS[els.stt.value]?.label
+    || (els.stt.value === 'off' ? 'Dictation off' : 'Browser dictation');
+  els['settings-voice-summary'].textContent = `${speech} · ${dictation}`;
+  const selected = els['theme-choice'].querySelector('input:checked')?.value || preferences.theme;
+  els['settings-appearance-summary'].textContent = selected === 'system'
+    ? 'System · follows this device' : `${selected === 'dark' ? 'Dark' : 'Light'} appearance`;
+  els['keys-summary'].textContent = state.keysMayRemain
+    ? state.forgetting === 'clearing' ? 'Removing the previously saved keys…'
+      : 'Key removal was incomplete. Retry Forget keys to remove anything left on this device.'
+    : hasAnyKey(state.creds)
+      ? 'Keys saved encrypted on this device. Checks apply only to the operation that passed.'
+      : 'No keys saved on this device.';
+  els['b-forget'].hidden = !hasAnyKey(state.creds) && !state.keysMayRemain;
+  els['b-forget'].disabled = state.forgetting === 'clearing';
+}
+
 function renderProviderChoices() {
   els.provider.innerHTML = '';
   for (const local of [false, true]) {
@@ -766,8 +820,6 @@ function onProviderChange() {
   els['model-note'].textContent = '';
 
   els.apikey.placeholder = saved.apiKey ? `saved: ${maskKey(saved.apiKey)}` : 'paste your key';
-  // Only offer to forget a key when there is one; an inert button is worse than none.
-  els['b-forget'].hidden = !hasAnyKey(state.creds);
   onBaseChange();
 }
 
@@ -802,6 +854,7 @@ function invalidateConnection() {
   state.connectCheck = null;
   state.connectAdvance = null;
   els['key-error'].textContent = '';
+  settingsFeedback('connection-error');
   els.apikey.removeAttribute('aria-invalid');
   els.model.removeAttribute('aria-invalid');
   renderConnect();
@@ -828,6 +881,7 @@ function renderConnect() {
     : savedKey ? `key saved ${maskKey(saved.apiKey)}` : 'not checked';
   els['connect-summary-text'].textContent =
     [c.label, status, c.picksModel && els.model.value.trim()].filter(Boolean).join(' · ');
+  els['settings-connection-summary'].textContent = els['connect-summary-text'].textContent;
   if (checked) els['connect-summary-text'].dataset.icon = 'check';
   else delete els['connect-summary-text'].dataset.icon;
   els['connect-status'].textContent = checking ? `Checking ${c.label}…`
@@ -838,7 +892,7 @@ function renderConnect() {
       : 'Connection needs attention. Review the fields and try again.')
     : state.connectStep === 'provider' && els['panel-setup'].dataset.view === 'start' ? ''
     : `${savedKey ? 'Key saved on this device; n' : 'N'}ot checked this visit. You can start without checking.`;
-  els['b-check'].disabled = checking || !!els['base-note'].textContent.trim();
+  els['b-check'].disabled = checking || state.forgetting === 'clearing' || !!els['base-note'].textContent.trim();
   els['b-check'].setAttribute('aria-busy', String(checking));
   els['b-check'].textContent = checking ? 'Checking…'
     : c.needsKey ? 'Check the key' : 'Check the connection';
@@ -851,9 +905,11 @@ function renderConnect() {
   els.baseurl.required = !!c.local;
   els.model.required = !!c.picksModel && !c.models?.default;
   els['model-required'].hidden = !els.model.required;
+  renderSettingsSummaries();
 }
 
 function connectionFailure(error, action) {
+  settingsFeedback('connection-error', error.message || String(error), 'error');
   state.connectCheck = { revision: state.connectRevision, status: 'failed', action };
   state.connectStep = 'fields';
   const c = currentChoice();
@@ -944,8 +1000,8 @@ function onBaseChange() {
   if (!c.local || !typed) {
     els['base-note'].textContent = '';
     els.baseurl.removeAttribute('aria-invalid');
-    els['b-start'].disabled = false;
-    els['b-start-voice'].disabled = els.stt.value === 'off';
+    els['b-start'].disabled = state.forgetting === 'clearing';
+    els['b-start-voice'].disabled = state.forgetting === 'clearing' || els.stt.value === 'off';
     renderStartNote();
     renderConnect();
     return;
@@ -964,8 +1020,8 @@ function onBaseChange() {
       ? 'This page cannot reach an IPv6 address in brackets — write it as 127.0.0.1 instead.'
       : '';
   els.baseurl.setAttribute('aria-invalid', String(bad || ipv6));
-  els['b-start'].disabled = bad || ipv6;
-  els['b-start-voice'].disabled = bad || ipv6 || els.stt.value === 'off';
+  els['b-start'].disabled = bad || ipv6 || state.forgetting === 'clearing';
+  els['b-start-voice'].disabled = bad || ipv6 || state.forgetting === 'clearing' || els.stt.value === 'off';
   renderStartNote();
   renderConnect();
 }
@@ -975,7 +1031,9 @@ function onBaseChange() {
  * Settings now, so on Start a greyed-out Start with voice had no visible reason at all.
  */
 function renderStartNote() {
-  els['start-note'].textContent = els['base-note'].textContent.trim()
+  els['start-note'].textContent = state.forgetting === 'clearing'
+    ? 'Saved keys are being removed. Wait for that to finish before starting.'
+    : els['base-note'].textContent.trim()
     ? 'Fix the server address above before starting.'
     : els.stt.value === 'off'
       ? 'Dictation is off — turn it on in Settings to start with voice.'
@@ -1038,28 +1096,65 @@ function fillModelList(names) {
  * your device, which is only honest if there is a way to take it off again.
  */
 async function forgetKey() {
-  state.credentialEpoch++;
-  state.speechRevoked = true;
-  savePrefs({ hostedSpeechAllowed: false });
-  teardownVoice();
-  if (state.previewSpeech) state.previewSpeech.dispose();
-  state.previewSpeech = null;
-  for (const job of workBySession.values()) job.controller.abort();
-  await clearCredentials();
-  state.creds = emptyKeyring();
-  state.provider = null;
-  els.apikey.value = '';
-  els.sttkey.value = '';
-  els.ttskey.value = '';
-  els.model.value = '';
-  els.wrapmodel.value = '';
-  els['model-list'].innerHTML = '';
-  state.connectStep = 'provider';
-  fail(null);
-  onProviderChange();
-  onSttChange();
-  renderSpeechSettings();
-  say('Key deleted from this device.');
+  if (state.forgetting) return;
+  state.forgetting = 'confirming';
+  const navigation = state.navigation;
+  let confirmed = false;
+  try {
+    confirmed = await confirmAction({
+      title: 'Forget all saved keys?',
+      message: 'Remove the inference, transcription and speech keys saved on this device. '
+        + 'Your ideas and backups are kept. This does not revoke keys at the provider.',
+      action: 'Forget keys',
+    });
+    if (!confirmed || navigation !== state.navigation) return;
+    state.forgetting = 'clearing';
+    state.credentialEpoch++;
+    state.speechRevoked = true;
+    const allowedSaved = savePrefs({ hostedSpeechAllowed: false });
+    teardownVoice();
+    if (state.previewSpeech) state.previewSpeech.dispose();
+    state.previewSpeech = null;
+    for (const job of workBySession.values()) job.controller.abort();
+    state.keysMayRemain = true;
+    state.creds = emptyKeyring();
+    state.provider = null;
+    els.apikey.value = '';
+    els.sttkey.value = '';
+    els.ttskey.value = '';
+    els.model.value = '';
+    els.wrapmodel.value = '';
+    els['model-list'].innerHTML = '';
+    state.connectStep = 'provider';
+    onProviderChange();
+    onSttChange();
+    renderSpeechSettings();
+    settingsFeedback('data-status', 'Removing saved keys…');
+    await clearCredentials();
+    state.keysMayRemain = false;
+    credentialProblem('');
+    settingsFeedback('connection-error');
+    fail(null);
+    settingsFeedback('data-status', allowedSaved
+      ? 'All saved keys were removed from this device. Your ideas are unchanged.'
+      : 'All saved keys were removed. The speech preference could not be saved; no speech key remains.',
+    allowedSaved ? 'success' : 'warning');
+  } catch (error) {
+    credentialProblem(`Keys could not be removed completely. Try Forget keys again: ${error.message}`);
+    settingsFeedback('data-status', state.credentialError, 'error');
+    fail(error);
+  } finally {
+    state.forgetting = false;
+    onBaseChange();
+    onSpeechChange();
+    if (confirmed && navigation === state.navigation
+        && els['panel-setup'].dataset.view === 'settings' && !els['panel-setup'].hidden
+        && (document.activeElement === document.body || document.activeElement === els['b-forget'])) {
+      const heading = $('settings-data').querySelector('h2');
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+  }
 }
 
 /**
@@ -1091,7 +1186,8 @@ function readRingFromForm() {
     // Groq and OpenAI serve both chat and transcription, so when the inference provider
     // is one of them the same key covers dictation and there is nothing extra to paste.
     apiKey: sttKind === c.id ? apiKey
-      : (els.sttkey.value.trim() || (state.creds && state.creds.stt && state.creds.stt.apiKey) || ''),
+      : (els.sttkey.value.trim()
+        || (state.creds?.stt?.kind === sttKind ? state.creds.stt.apiKey : '') || ''),
   });
   ring = withTts(ring, readSpeechFromForm());
   return ring;
@@ -1114,8 +1210,12 @@ function saveSpeechPreferences() {
     speechVoice: els['browser-voice'].value,
     speechRate: Number(els['speech-rate'].value),
   });
-  savePrefs(preferences);
+  const saved = savePrefs(preferences);
+  settingsFeedback('voice-preferences-status', saved ? 'Voice preference saved on this device.'
+    : 'Voice preference could not be saved. It applies to this preview only; try again.',
+  saved ? 'success' : 'error');
   els['speech-rate-value'].value = `${preferences.speechRate.toFixed(2)}×`;
+  renderSettingsSummaries();
   return preferences;
 }
 
@@ -1140,6 +1240,12 @@ function renderSpeechVoices() {
     els['browser-voice'].append(unavailable);
   }
   els['browser-voice'].value = selected;
+  settingsFeedback('browser-voice-note',
+    selected && !voices.some((voice) => (voice.voiceURI || voice.name) === selected)
+      ? 'The saved browser voice is unavailable. Automatic voice will be used; choose another voice to replace it.'
+      : 'The available voices come from this browser. Network voices may send text off this device.',
+    selected && !voices.some((voice) => (voice.voiceURI || voice.name) === selected) ? 'warning' : '');
+  renderSettingsSummaries();
 }
 
 function onSpeechChange() {
@@ -1152,7 +1258,8 @@ function onSpeechChange() {
       + 'Until then, replies use the browser voice. This is separate from dictation.'
     : 'Choose and preview a voice from this browser. Voice quality and offline availability depend on the device.';
   els['b-speech-preview'].textContent = hosted ? 'Check and preview OpenAI voice' : 'Preview voice';
-  els['b-speech-preview'].disabled = hosted && !els['tts-consent'].checked;
+  els['b-speech-preview'].disabled = state.forgetting === 'clearing' || (hosted && !els['tts-consent'].checked);
+  renderSettingsSummaries();
 }
 
 function renderSpeechSettings() {
@@ -1169,16 +1276,24 @@ function renderSpeechSettings() {
 }
 
 async function previewSpeech() {
+  if (state.forgetting === 'clearing') {
+    settingsFeedback('speech-check', 'Wait for Forget keys to finish before checking speech.', 'warning');
+    return;
+  }
   if (state.previewSpeech) {
     state.previewSpeech.dispose();
     state.previewSpeech = null;
-    els['speech-check'].textContent = 'Preview cancelled.';
+    if (els.speech.value === 'openai') {
+      if (await revokeHostedSpeech()) {
+        settingsFeedback('speech-check', 'Preview cancelled. Hosted speech is disabled; check again to enable it.');
+      }
+    } else settingsFeedback('speech-check', 'Preview cancelled.');
     onSpeechChange();
     return;
   }
   const config = readSpeechFromForm();
   if (config.kind === 'openai' && (!config.apiKey || !els['tts-consent'].checked)) {
-    els['speech-check'].textContent = 'Enter a separate speech key and confirm metered text transfer first.';
+    settingsFeedback('speech-check', 'Enter a separate speech key and confirm metered text transfer first.', 'error');
     return;
   }
   const preferences = saveSpeechPreferences();
@@ -1187,6 +1302,8 @@ async function previewSpeech() {
     ...config, browserVoice: preferences.speechVoice, rate: preferences.speechRate,
   });
   state.previewSpeech = preview;
+  const owns = () => state.previewSpeech === preview && credentialEpoch === state.credentialEpoch;
+  settingsFeedback('speech-check');
   els['speech-check'].textContent = config.kind === 'openai'
     ? 'Checking one short, metered speech sample…' : 'Preparing the browser voice…';
   els['b-speech-preview'].textContent = 'Cancel preview';
@@ -1198,34 +1315,33 @@ async function previewSpeech() {
     );
     if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
     if (!result || result.status !== 'spoken') {
-      els['speech-check'].textContent = 'The preview did not finish. Speech has not been enabled.';
+      settingsFeedback('speech-check', 'The preview did not finish. Speech has not been enabled.', 'error');
       return;
     }
     const checked = withTts(state.creds || emptyKeyring(), {
       ...config, verified: config.kind === 'openai' ? true : config.verified,
     });
-    await saveCredentials(checked);
+    await saveKeyring(checked, owns);
     if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
     if (config.kind === 'openai') {
       if (!savePrefs({ hostedSpeechAllowed: true })) {
         state.speechRevoked = true;
         state.creds = withTts(checked, { ...checked.tts, verified: false });
-        await saveCredentials(state.creds);
-        els['speech-check'].textContent = 'The preview played, but permission could not be saved. Browser speech remains active.';
+        await saveKeyring(state.creds, owns);
+        settingsFeedback('speech-check', 'The preview played, but permission could not be saved. Browser speech remains active.', 'error');
         return;
       }
       state.speechRevoked = false;
     }
     state.creds = checked;
     els.ttskey.value = '';
-    els['speech-check'].textContent = config.kind === 'openai'
+    settingsFeedback('speech-check', config.kind === 'openai'
       ? 'OpenAI speech played successfully in this browser. Enhanced speech is enabled.'
-      : 'Browser voice preview complete.';
+      : 'Browser voice preview complete.', 'success');
     renderSpeechSettings();
-    els['b-forget'].hidden = !hasAnyKey(state.creds);
   } catch (error) {
     if (state.previewSpeech === preview) {
-      els['speech-check'].textContent = `The voice check failed: ${error.message}`;
+      settingsFeedback('speech-check', `The voice check failed: ${error.message}`, 'error');
     }
   } finally {
     preview.dispose();
@@ -1239,6 +1355,7 @@ async function previewSpeech() {
 async function revokeHostedSpeech() {
   state.speechRevoked = true;
   state.credentialEpoch++;
+  const epoch = state.credentialEpoch;
   renderConnect();
   if (state.voiceMode === 'active') {
     pauseVoice({ detail: 'Hosted speech is disabled. Resume to continue with the browser voice.' }).catch(fail);
@@ -1253,15 +1370,22 @@ async function revokeHostedSpeech() {
   onSpeechChange();
   els['speech-check'].textContent = 'Disabling hosted speech…';
   try {
-    await saveCredentials(state.creds);
-    els['speech-check'].textContent = allowedSaved
+    await saveKeyring(state.creds, () => epoch === state.credentialEpoch);
+    if (epoch !== state.credentialEpoch) return false;
+    settingsFeedback('speech-check', allowedSaved
       ? 'Hosted speech is disabled. A new check and preview is needed to enable it.'
-      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.';
+      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.',
+    allowedSaved ? '' : 'warning');
+    renderSettingsSummaries();
+    return allowedSaved;
   } catch (error) {
+    if (epoch !== state.credentialEpoch) return false;
     els['speech-check'].textContent = allowedSaved
       ? `Hosted speech is disabled, but its credential settings could not be updated: ${error.message}`
       : 'Hosted speech is stopped for this page, but the withdrawal could not be saved. Forget the speech key before closing.';
     fail(error);
+    els['speech-check'].dataset.status = 'error';
+    return false;
   }
 }
 
@@ -1271,16 +1395,22 @@ function onSttChange() {
   const sharesKey = kind === currentChoice().id;
   els['field-sttkey'].hidden = !preset || sharesKey;
   els['sttkey-note'].textContent = preset ? `Sent only to ${new URL(preset.baseUrl).host}.` : '';
+  const saved = state.creds?.stt?.kind === kind ? state.creds.stt.apiKey : '';
+  els.sttkey.placeholder = saved ? `saved: ${maskKey(saved)}` : 'paste your transcription key';
   els['stt-note'].textContent =
     kind === 'browser'
-      ? 'Free, and shows words as you speak — but it does not work in an installed iPhone app, ' +
-        'in Edge, or in Firefox. Pick Whisper below if you want dictation everywhere.'
+      ? 'Free live dictation where supported. Installed iPhone apps, Edge and Firefox may need hosted transcription instead.'
       : kind === 'off' ? ''
-      : `${preset.note}${sharesKey ? ' Uses the same key as above.' : ''}`;
+      : `${preset.label} receives recorded audio and question text; transcription is metered. ${preset.note}`
+        + (sharesKey ? ` Uses the ${currentChoice().label} inference key shown in Connection; no separate key is needed.`
+          : ' Enter a separate transcription key below.')
+        + ' Dictation choices save when you check the connection or start an idea; that does not test transcription.';
+  renderSettingsSummaries();
   onBaseChange();
 }
 
 async function buildProvider({ requireModel = true, persist: write = true } = {}) {
+  if (state.forgetting === 'clearing') throw new Error('Wait for Forget keys to finish before setting up a connection.');
   const context = connectionContext();
   const c = currentChoice();
   const ring = readRingFromForm();
@@ -1304,7 +1434,7 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
   // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
   // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
   if (write) {
-    await saveCredentials(ring);
+    await saveKeyring(ring, () => ownsConnection(context));
     if (!ownsConnection(context)) throw new Error('Provider setup was cancelled.');
     state.creds = ring;
     state.provider = provider;
@@ -2532,18 +2662,26 @@ async function removeLibrarySession(session) {
 }
 
 async function exportLibraryBackup() {
+  fail(null);
+  settingsFeedback('data-status', 'Preparing a backup of the saved ideas…');
   try {
     const sessions = await listSessions();
     downloadText(buildBackup(sessions, { now: now() }), backupFilename(now()), {
       type: 'application/json',
     });
     say(`Backed up ${sessions.length} idea${sessions.length === 1 ? '' : 's'}.`);
+    settingsFeedback('data-status',
+      `Backup download started for ${sessions.length} idea${sessions.length === 1 ? '' : 's'}.`,
+      'success');
   } catch (error) {
+    settingsFeedback('data-status', `Backup could not be prepared. Try again: ${error.message}`, 'error');
     fail(error);
   }
 }
 
 async function importLibraryBackup(file) {
+  fail(null);
+  settingsFeedback('data-status', 'Reading the ideas in this backup…');
   try {
     if (file.size > MAX_BACKUP_BYTES) {
       throw new Error(`The backup is larger than ${Math.round(MAX_BACKUP_BYTES / 1024 / 1024)} MB.`);
@@ -2558,9 +2696,11 @@ async function importLibraryBackup(file) {
     ];
     if (parsed.skipped) parts.push(`${parsed.skipped} invalid rows skipped`);
     say(parts.join(' · '));
+    settingsFeedback('data-status', parts.join(' · '), 'success');
     await refreshLibrary();
     await renderResumeList();
   } catch (error) {
+    settingsFeedback('data-status', `Import could not finish. Check the backup and try again: ${error.message}`, 'error');
     fail(error);
   }
 }
@@ -2643,7 +2783,11 @@ function setupTheme() {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
       // Applied even if the write fails (a private window): the page still honours it.
-      savePrefs({ theme: applyTheme(document, radio.value) });
+      const saved = savePrefs({ theme: applyTheme(document, radio.value) });
+      settingsFeedback('appearance-status', saved ? 'Appearance saved on this device.'
+        : 'Appearance could not be saved. This page still uses your choice; try again.',
+      saved ? 'success' : 'error');
+      renderSettingsSummaries();
     });
   }
 }
@@ -2867,8 +3011,14 @@ async function resumeInterview(id) {
 async function renderResumeList(stored) {
   let rows = stored;
   if (!rows) {
-    try { rows = await listSessions(); } catch { return; }
+    try { rows = await listSessions(); } catch (error) {
+      settingsFeedback('settings-data-summary',
+        `Saved ideas could not be read. Reopen Ideas to retry: ${error.message}`, 'error');
+      return;
+    }
   }
+  settingsFeedback('settings-data-summary',
+    `${rows.length} idea${rows.length === 1 ? '' : 's'} saved on this device · backups contain ideas only`);
   const open = rows.filter((s) => !s.archivedAt && s.turns.length > 0).slice(0, 3);
   els.resume.hidden = open.length === 0;
   els['resume-rows'].innerHTML = '';
@@ -2985,9 +3135,11 @@ function bind() {
     if (els.speech.value !== 'openai') revokeHostedSpeech().catch(fail);
   };
   const invalidatePreview = () => {
+    const hostedCheck = state.previewSpeech && els.speech.value === 'openai';
     if (state.previewSpeech) state.previewSpeech.dispose();
     state.previewSpeech = null;
     onSpeechChange();
+    if (hostedCheck) revokeHostedSpeech().catch(fail);
   };
   els['tts-consent'].onchange = () => {
     invalidatePreview();
@@ -2996,7 +3148,10 @@ function bind() {
   for (const control of [els.ttskey, els['tts-voice']]) {
     control.addEventListener('input', () => {
       invalidatePreview();
-      els['speech-check'].textContent = 'Check and preview these speech settings before using them.';
+      if (!state.speechRevoked && state.creds?.tts?.verified) revokeHostedSpeech().catch(fail);
+      if (els['speech-check'].dataset.status !== 'error') {
+        settingsFeedback('speech-check', 'Check and preview these speech settings before using them.');
+      }
     });
   }
   els['browser-voice'].onchange = () => { invalidatePreview(); saveSpeechPreferences(); };
@@ -3087,6 +3242,7 @@ function bind() {
       }
     };
     fail(null); say('Checking…');
+    settingsFeedback('connection-error');
     const c = currentChoice();
     const attempt = { ...connectionContext(), status: 'checking' };
     state.connectCheck = attempt;
@@ -3137,7 +3293,7 @@ function bind() {
     renderConnect();
     els.provider.focus();
   };
-  els['b-forget'].onclick = forgetKey;
+  els['b-forget'].onclick = () => forgetKey().catch(fail);
   els['b-send'].onclick = () => send();
   els['b-skip'].onclick = async () => {
     if (state.busy || !openTurn(state.session)) return;
@@ -3261,7 +3417,13 @@ function applyTrigger(raw, { persist: write = true } = {}) {
     || 'Say this when you have finished an answer, and the interview moves on by itself. '
     + 'You can also say “repeat that”, “skip this one”, '
     + '“scratch that”, “wrap it up”, “pause voice” or “exit voice”.';
-  if (write) savePrefs({ trigger: state.trigger });
+  if (write) {
+    const saved = savePrefs({ trigger: state.trigger });
+    settingsFeedback('voice-preferences-status', saved ? 'Finish word saved on this device.'
+      : 'Finish word could not be saved. It works on this page only; try again.',
+    saved ? 'success' : 'error');
+    renderSettingsSummaries();
+  }
 }
 
 async function boot() {
@@ -3287,7 +3449,20 @@ async function boot() {
   // index.html already paints Start, which a fresh profile keeps.
   const navigation = state.navigation;
   const stored = listSessions().then((rows) => ({ rows }), (error) => ({ error }));
-  try { state.creds = await loadCredentials(); } catch { /* first run, or storage blocked */ }
+  const credentialEpoch = state.credentialEpoch;
+  try {
+    const loaded = await loadCredentials({ onUnreadable() {
+      if (credentialEpoch === state.credentialEpoch) {
+        credentialProblem('Stored keys could not be read and were cleared. Paste your keys again. Your ideas were not changed.');
+      }
+    } });
+    if (credentialEpoch === state.credentialEpoch) state.creds = loaded;
+  } catch (error) {
+    if (credentialEpoch === state.credentialEpoch) {
+      credentialProblem(`Saved keys could not be read. Check site storage permissions and enter the keys again: ${error.message}`);
+      console.error(error);
+    }
+  }
   if (state.creds && state.creds.stt && state.creds.stt.kind) {
     els.stt.value = state.creds.stt.kind;
   }

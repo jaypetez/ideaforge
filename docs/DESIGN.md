@@ -160,6 +160,28 @@ Back/Change also retire pending Start/Continue effects without discarding entere
 completed unchanged connection proof or an already committed idea. A failed Continue
 returns focus to a visible field or provider choice.
 
+## Current web Settings
+
+The same form appears as Connection, Voice, Appearance, Your data and About, with
+current-state summaries and a quiet desktop section index. Required hosted-speech fields,
+consent and Preview stay outside optional voice/pace preferences. Matching Groq/OpenAI
+dictation names its inference-key reuse; another transcription service never inherits the
+previous service's saved key. Connection checking does not test transcription.
+
+Appearance applies immediately and reports a failed preference write beside the control.
+Credential-read/save recovery remains beside Connection; data-operation results remain
+beside Your data, independently of transient notices. Imports remain additive and
+copy-on-collision; backups exclude credentials and device preferences.
+
+Forget keys uses the native HTML dialog's focus containment and top layer, with Cancel
+initially focused, Escape, a labelled consequence and initiating-focus return. It changes
+nothing before confirmation. Confirmed removal retires pending credential effects before
+storage; serialized credential operations ensure an older encrypted write cannot restore
+the payload or wrapping key afterwards. In-memory access stops even if removal fails,
+with an explicit retry; field clearing happens before storage so later edits are not lost.
+Library Delete still uses its browser confirmation
+until its own redesign slice.
+
 ## Current native shell
 
 `ui/AppShell.kt` uses the installed Material adaptive window classes: compact width keeps

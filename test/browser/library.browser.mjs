@@ -287,15 +287,15 @@ export default async function run(check) {
     !$('panel-library').contains($('b-import')) && !$('panel-library').contains($('b-backup')));
   $('b-settings').click();
   await settle(300);
-  const importButton = findButton($('panel-setup'), 'Import backup');
-  check('Settings shows Back up ideas and Import backup in its Data group',
-    visible(findButton($('panel-setup'), 'Back up ideas')) && visible(importButton)
-      && importButton.closest('.group').querySelector('h2').textContent === 'Data');
+  const importButton = findButton($('panel-setup'), 'Import ideas');
+  check('Settings shows Backup ideas and Import ideas in its Your data group',
+    visible(findButton($('panel-setup'), 'Backup ideas')) && visible(importButton)
+      && importButton.closest('.group').querySelector('h2').textContent === 'Your data');
   let picked = false;
   $('backup-file').addEventListener('click', (event) => { picked = true; event.preventDefault(); },
     { once: true });
   importButton.click();
-  check('Import backup in Settings opens the backup file picker', picked);
+  check('Import ideas in Settings opens the backup file picker', picked);
   Object.defineProperty($('backup-file'), 'files', {
     configurable: true,
     value: transfer.files,

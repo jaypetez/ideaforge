@@ -4,7 +4,7 @@
 // just the obvious one:
 //
 //   Encryption buys nothing here — none of this is worth stealing.
-//   "Forget my key" calls clearCredentials(), which would silently reset the driver's
+//   "Forget keys" calls clearCredentials(), which would silently reset the driver's
 //     trigger word along with it. That is a confusing bug nobody would connect to the
 //     button they pressed.
 //   The keyring loads asynchronously at boot, and the driving loop wants the trigger word

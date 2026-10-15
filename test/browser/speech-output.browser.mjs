@@ -11,7 +11,7 @@ if (window.__loadSpeechOutputProbe) {
   }
 }
 
-function wav(win, seconds = 0.15) {
+export function wav(win, seconds = 0.15) {
   const samples = Math.round(24000 * seconds);
   const audio = new win.ArrayBuffer(44 + samples * 2);
   const view = new win.DataView(audio);

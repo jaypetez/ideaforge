@@ -265,11 +265,20 @@
           send bearer authorisation. Provider requests explicitly omit browser cookies.
         </li>
         <li>
-          <strong>Forget my key</strong> removes the whole stored credential payload and
-          its wrapping key, including inference, transcription and speech keys.
+          <strong>Settings &rarr; Your data &rarr; Forget keys</strong> asks before removing
+          the whole stored credential payload and its wrapping key, including inference,
+          transcription and speech keys. Cancel or Escape changes nothing; a delayed
+          check cannot restore keys after confirmed removal.
           It does not revoke a key at the provider; revoke it there as well when needed.
         </li>
       </ul>
+      <p>
+        Matching Groq or OpenAI dictation explicitly reuses that provider&rsquo;s inference
+        key. Another transcription provider needs its own key; a saved key for the previous
+        transcription service is not transferred to it. Dictation choices save when you
+        check the connection or start an idea, which does not test transcription.
+        Key/storage failures remain beside Connection; correct the problem and retry.
+      </p>
 
       <p>
         The encrypted-at-rest design and its limits are explained in

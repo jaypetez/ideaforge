@@ -71,6 +71,18 @@ source wins over prose, and a generated artifact wins over a description of that
   current web table in DESIGN, Appearance guidance and generated real screenshots.
   HTML dialog styling does not mean the existing browser-owned `window.confirm` flows
   have been replaced; later settings/recovery issues own those compositions.
+- **Web Settings and safe recovery.** Sources:
+  [`index.html`](../../../../index.html) and
+  [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state
+  summaries, operation-local errors, explicit matching-provider STT key reuse and
+  always-visible required hosted-speech fields.
+  [`dialog.js`](../../../../src/ui/dialog.js) owns the native awaited boolean confirmation;
+  [`secrets.js`](../../../../src/store/secrets.js) serializes encrypted credential work
+  against confirmed Forget and reports unreadable-key recovery to the UI.
+  [`settings.browser.mjs`](../../../../test/browser/settings.browser.mjs), the real-input
+  policy probe and voice-stage tests own cancellation/focus, storage failures, delayed
+  writes and hosted verification. Re-check README/guide section names, data-action labels,
+  backup/import semantics, canonical screenshots and Library's still-synchronous Delete.
 - **Native visual foundation.** Sources:
   [`Theme.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt)
   owns fallback `LightTokens`/`DarkTokens`, opaque composites, all 15 system-family type
@@ -208,8 +220,8 @@ source wins over prose, and a generated artifact wins over a description of that
   network check. `sw.js`'s cache generation changes with the shared markup/handler shape;
   `app.browser.mjs` proves the prior cache is retired and matching assets are precached.
   Start actions precede installation/recent content. Settings holds the five
-  groups named by `#settings-index`: Connection, Listen and speak, Appearance, Data (backup
-  and import) and About. Re-check the getting-started, providers and library guides, the
+  groups named by `#settings-index`: Connection, Voice, Appearance, Your data (backup,
+  import and Forget keys) and About. Re-check the getting-started, providers and library guides, the
   README, `progressive-start.browser.mjs`, trusted-input policy cases and the
   01-setup / 10-settings captures. `test/docs.test.mjs` ties the group names
   and their count to the README and the getting-started guide.
