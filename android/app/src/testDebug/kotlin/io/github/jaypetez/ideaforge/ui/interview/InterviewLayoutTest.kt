@@ -21,6 +21,7 @@ import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
@@ -73,11 +74,20 @@ class InterviewLayoutTest {
         requireLongInterviewReachable(requireCurrent = true)
     }
 
-    private fun requireLongInterviewReachable(requireCurrent: Boolean = false) {
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun aShortWindowWithAnUnavailableProviderStillOpensOnItsCurrentQuestion() {
+        requireLongInterviewReachable(requireCurrent = true, providerUnavailable = true)
+    }
+
+    private fun requireLongInterviewReachable(requireCurrent: Boolean = false, providerUnavailable: Boolean = false) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val graph = installTestGraph(ring = usableRing())
-        graph.providerSource = ProviderSource { ScriptedModel() }
+        graph.providerSource = ProviderSource {
+            if (providerUnavailable) throw ProviderException("config", "Controlled unavailable provider while opening.")
+            ScriptedModel()
+        }
         runBlocking { assertTrue(graph.sessionStore.insert(active)) }
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
@@ -101,7 +111,8 @@ class InterviewLayoutTest {
             requireReachable("write-up")
             compose.onNodeWithTag("write-up").assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
-            compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
+            if (providerUnavailable) compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertExists()
+            else compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
         }
     }
 
