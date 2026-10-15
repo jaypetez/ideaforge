@@ -62,6 +62,8 @@ async function visit(run, ring = null, prepare = async () => {}) {
       await until(() => !$('panel-setup').hidden, 'Start');
     }
     await doc.fonts.ready;
+    // A translated 64px rect can round below 64 mid-entry; measure the settled layout.
+    await Promise.all($('panel-setup').getAnimations().map((animation) => animation.finished));
     await run({ win, doc, $, change, shown, frame,
       microphones: () => microphones + recognitionStarts });
   } finally {
@@ -95,11 +97,13 @@ async function freshFlow(check) {
         && [...$('provider').options].map((o) => o.value).sort().join(',')
           === PROVIDER_CHOICES.map((c) => c.id).sort().join(','));
     const navTop = doc.querySelector('.bar-right').getBoundingClientRect().top;
+    const actions = ['b-start-voice', 'b-start'].map((id) => {
+      const { height, top, bottom } = $(id).getBoundingClientRect();
+      return { id, height, top, bottom };
+    });
     check('fresh390x844 shows both voice-primary and Type start actions above fixed navigation',
-      ['b-start-voice', 'b-start'].every((id) => {
-        const box = $(id).getBoundingClientRect();
-        return box.height >= 64 && box.top >= 0 && box.bottom <= navTop;
-      }));
+      actions.every((box) => box.height >= 64 && box.top >= 0 && box.bottom <= navTop),
+      JSON.stringify({ actions, navTop }));
     check('progressive connection controls exist in the one shared form',
       !!$('b-connect-next') && !!$('b-connect-back')
         && doc.querySelectorAll('#panel-setup').length === 1
