@@ -301,6 +301,23 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
         field.value = 'artifact';
         field.dispatchEvent(new Event('change'));
       })()`);
+      await evaluate(`window.__startViewer = window.claude; window.claude = undefined;
+        document.getElementById('b-connect-next').focus()`);
+      try {
+        await press('Enter');
+        await until(`!document.getElementById('b-connect-next').disabled
+          && !document.getElementById('err').hidden`, 'viewer Continue failure');
+        const recovery = await focusInfo(['#main']);
+        check('trusted rejected viewer Continue returns focus to visible, unobscured Provider',
+          await evaluate("document.activeElement.id === 'provider'")
+            && recovery.shown && recovery.inView && !recovery.covered, JSON.stringify(recovery));
+        await press('Tab');
+        const next = await focusInfo(['#main']);
+        check('Tab after rejected viewer Continue continues through visible recovery controls',
+          !next.end && next.shown && next.inView && !next.covered, JSON.stringify(next));
+      } finally {
+        await evaluate('window.claude = window.__startViewer; delete window.__startViewer');
+      }
     }
     // The skip link: Enter moves focus into the content without touching location.hash,
     // which re-prompts for the microphone in an installed iOS app (CLAUDE.md, no hash routing).

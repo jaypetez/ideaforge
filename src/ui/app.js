@@ -134,7 +134,8 @@ const state = {
   wakeLock: null,
   wakeLockRequest: null,
   speechRevoked: false,
-  starting: false,
+  /** The context owning Start; retired completion cannot clear a newer Start. */
+  starting: null,
   voiceWrapPending: null,
   /**
    * The wrap-up offer on screen: `{ id, text }` for the idea it was made to, or null.
@@ -148,6 +149,7 @@ const state = {
   connectCheck: null,
   connectAdvance: null,
   connectRevision: 0,
+  connectPresentation: 0,
   connectStep: 'provider',
 };
 
@@ -780,12 +782,19 @@ function connectionReady() {
 
 function connectionContext() {
   return { revision: state.connectRevision, navigation: state.navigation,
-    credentialEpoch: state.credentialEpoch };
+    credentialEpoch: state.credentialEpoch, presentation: state.connectPresentation };
 }
 
 function ownsConnection(context) {
   return context.revision === state.connectRevision && context.navigation === state.navigation
-    && context.credentialEpoch === state.credentialEpoch;
+    && context.credentialEpoch === state.credentialEpoch
+    && context.presentation === state.connectPresentation;
+}
+
+function retireStart(context) {
+  if (state.starting !== context) return;
+  state.starting = null;
+  if (context.navigation === state.navigation) teardownVoice();
 }
 
 function invalidateConnection() {
@@ -799,6 +808,7 @@ function invalidateConnection() {
 }
 
 function renderConnect() {
+  if (state.starting && !ownsConnection(state.starting)) retireStart(state.starting);
   if (state.connectCheck?.status === 'checking' && !ownsConnection(state.connectCheck)) {
     state.connectCheck = null;
   }
@@ -903,9 +913,12 @@ async function advanceConnection() {
   } catch (error) {
     if (!owns()) return;
     connectionFailure(error, 'continue');
-    (els.apikey.getAttribute('aria-invalid') ? els.apikey
-      : els.baseurl.getAttribute('aria-invalid') === 'true' ? els.baseurl
-      : els.model.getAttribute('aria-invalid') ? els.model : els.baseurl).focus();
+    if (focused && (document.activeElement === document.body
+        || document.activeElement === els['b-connect-next'])) {
+      const field = [els.apikey, els.baseurl, els.model].find((control) =>
+        control.getAttribute('aria-invalid') === 'true' && control.getClientRects().length > 0);
+      (field || els.provider).focus();
+    }
   } finally {
     if (state.connectAdvance === attempt) {
       state.connectAdvance = null;
@@ -2697,9 +2710,10 @@ function renderInstall(info = state.install && state.install.state()) {
 
 async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   if (state.starting) return;
-  state.starting = true;
-  const navigation = ++state.navigation;
+  state.navigation++;
   const context = connectionContext();
+  state.starting = context;
+  const owns = () => state.starting === context && ownsConnection(context);
   teardownVoice();
   state.wantHandsFree = handsFree;
   savePrefs({ handsFree });
@@ -2714,18 +2728,13 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   try {
     await buildProvider();
   } catch (e) {
-    if (navigation === state.navigation) {
-      teardownVoice();
-      // Unfold: whatever refused to start lives in the card, and a folded summary with a
-      // check mark would go on vouching for a connection that just failed.
-      if (ownsConnection(context)) connectionFailure(e, 'start');
-    }
-    state.starting = false;
+    const current = owns();
+    retireStart(context);
+    if (current) connectionFailure(e, 'start');
     return;
   }
-  if (!ownsConnection(context)) {
-    if (navigation === state.navigation) teardownVoice();
-    state.starting = false;
+  if (!owns()) {
+    retireStart(context);
     return;
   }
   const platform = state.install ? state.install.state().platform : 'other';
@@ -2739,11 +2748,11 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   state.answerSource = 'typed';
   state.capturePrefix = '';
   await persist();
-  state.starting = false;
-  if (!ownsConnection(context)) {
-    if (navigation === state.navigation) teardownVoice();
+  if (!owns()) {
+    retireStart(context);
     return;
   }
+  state.starting = null;
   show('panel-interview');
   render();
   await setupVoice({ defer: !handsFree, automatic: handsFree });
@@ -3116,16 +3125,14 @@ function bind() {
     }
   };
   els['b-connect-change'].onclick = () => {
-    state.connectAdvance = null;
-    if (state.connectCheck?.status === 'checking') state.connectCheck = null;
+    state.connectPresentation++;
     state.connectStep = 'fields';
     renderConnect();
     els.provider.focus();
   };
   els['b-connect-next'].onclick = () => advanceConnection().catch(fail);
   els['b-connect-back'].onclick = () => {
-    state.connectAdvance = null;
-    if (state.connectCheck?.status === 'checking') state.connectCheck = null;
+    state.connectPresentation++;
     state.connectStep = 'provider';
     renderConnect();
     els.provider.focus();

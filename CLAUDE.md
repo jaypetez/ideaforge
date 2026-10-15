@@ -207,9 +207,11 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   reuse those controls; `connectionReady()` follows actual fields and saved-key fallback,
   not network success. `advanceConnection` reuses the factory without saving or making
   requests. The ready summary distinguishes saved/unchecked/current checked/failed proof;
-  `connectionContext`/`ownsConnection` share revision, navigation and credential-generation
-  guards with Start/Continue construction. Attempt identity retires pending work on
-  Back/Change; speech withdrawal clears busy work, not completed unchanged inference proof.
+  `connectionContext`/`ownsConnection` share configuration/presentation revisions, navigation
+  and credential-generation guards with Start/Continue construction. Back/Change retire
+  pending Start/output as well as Check/Continue; Start identity protects a newer run's
+  duplicate guard. Speech withdrawal clears busy work, not completed unchanged inference
+  proof. Failed Continue focuses a visible invalid field or Provider, never a hidden input.
   A failed start reveals its fields; Settings never folds. A field hidden by the
   view still holds its value, and `readRingFromForm` must keep deciding from what the
   provider declares — `test/browser/start-settings.browser.mjs` pins it. The 01-setup capture

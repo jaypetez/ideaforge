@@ -156,6 +156,9 @@ navigation retire pending check effects before they can overwrite newer proof or
 fields. Start with voice remains primary, Type instead stays visible, and both precede
 installation/recent content. Setup alone never requests the microphone; the initiating
 voice tap still primes output synchronously.
+Back/Change also retire pending Start/Continue effects without discarding entered values,
+completed unchanged connection proof or an already committed idea. A failed Continue
+returns focus to a visible field or provider choice.
 
 ## Current native shell
 

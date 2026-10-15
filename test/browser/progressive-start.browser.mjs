@@ -81,6 +81,7 @@ export default async function run(check) {
   await staleCatalogues(check);
   await credentialRetirement(check);
   await delayedConstruction(check);
+  await startPresentationRetirement(check);
   await unreadableKeyring(check);
   await reflow(check);
 }
@@ -233,6 +234,11 @@ async function savedOverride(check) {
 async function viewerAndOpaqueFailure(check) {
   await visit(async ({ $, change, win, microphones }) => {
     change('provider', 'artifact', 'change');
+    $('b-connect-next').focus();
+    await $('b-connect-next').onclick();
+    check('failed viewer Continue restores focus to visible Provider, never its hidden server field',
+      win.document.activeElement === $('provider') && $('provider').getClientRects().length > 0
+        && $('field-base').hidden);
     $('b-check').click();
     await until(() => !$('err').hidden, 'unavailable viewer check');
     check('the viewer cannot earn successful check proof outside its runtime',
@@ -429,6 +435,60 @@ async function delayedConstruction(check) {
     await sleep(80);
     check('Back retires a pending check too, so it cannot fold the provider choice on completion',
       $('connect').dataset.step === 'provider' && !$('b-check').disabled);
+  });
+}
+
+async function startPresentationRetirement(check) {
+  for (const action of ['back', 'change']) {
+    await visit(async ({ $, change, win, microphones }) => {
+      win.claude = { use: async () => async () => ({ text: '{}' }) };
+      change('provider', 'artifact', 'change');
+      if (action === 'change') await $('b-connect-next').onclick();
+      let release;
+      win.claude.use = () => new Promise((resolve) => { release = resolve; });
+      const starting = $('b-start-voice').onclick();
+      await until(() => !!release, 'pending voice Start construction');
+      const control = $(action === 'back' ? 'b-connect-back' : 'b-connect-change');
+      check(`${action} is an actual visible action while voice Start is pending`,
+        control.getClientRects().length > 0);
+      control.click();
+      release(async () => ({ text: '{}' }));
+      await starting;
+      check(`${action} retires pending voice Start before it can open an interview or microphone`,
+        !$('panel-setup').hidden && $('panel-interview').hidden && microphones() === 0,
+        `panel=${win.document.body.dataset.panel}; captures=${microphones()}`);
+    });
+  }
+  await visit(async ({ $, change, win }) => {
+    const releases = [];
+    win.claude = { use: () => new Promise((resolve) => releases.push(resolve)) };
+    change('provider', 'artifact', 'change');
+    change('stt', 'off', 'change');
+    const first = $('b-start').onclick();
+    await until(() => releases.length === 1, 'first pending Start');
+    $('b-connect-back').click();
+    const second = $('b-start').onclick();
+    await sleep(80);
+    check('Back permits a new Start without waiting for a retired capability request',
+      releases.length === 2, `${releases.length} construction(s)`);
+    if (releases.length !== 2) {
+      for (const release of releases) release(async () => ({ text: '{}' }));
+      await Promise.all([first, second]);
+      return;
+    }
+    try {
+      releases[0](async () => ({ text: '{}' }));
+      await first;
+      const third = $('b-start').onclick();
+      await sleep(80);
+      check('retired Start completion cannot clear the newer Start duplicate guard',
+        releases.length === 2, `${releases.length} construction(s)`);
+      for (const release of releases) release(async () => ({ text: '{}' }));
+      await Promise.all([second, third]);
+    } finally {
+      for (const release of releases) release(async () => ({ text: '{}' }));
+      await Promise.all([first, second]);
+    }
   });
 }
 
