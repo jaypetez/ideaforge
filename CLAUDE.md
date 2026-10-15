@@ -189,7 +189,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   `#toasts`' `data-note-ms` (probes shorten it there) and take no pointer events; the error
   toast does, so `.toasts` is placed clear of Send (top on a phone's Interview), Pause/Exit
   (top on the voice stage) and the bottom navigation, and Done's body grows by the
-  error's maximum height while one shows (never `.wrap`'s 72px). A failed save is an
+  error's maximum height while one shows (never `.wrap`'s 72px). Setup reserves error
+  clearance in both its focus scrollport and page bottom, including the phone navigation,
+  so a keyboard retry at enlarged text cannot land under the persistent error. A failed save is an
   error, not a note, held in `state.saveFailure`: `fail(null)` shows it again on that
   idea's Interview and Done until it saves or is dismissed, so neither a turn nor the
   move to Done can drop it. `test/browser/toasts.browser.mjs` hit-tests those controls

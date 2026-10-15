@@ -1260,6 +1260,15 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
 body:is([data-panel="done"], [data-panel="interview"]):not(.voice-active):has(#err-toast:not([hidden])) {
   padding-bottom: calc(var(--toast-err-max) + var(--s7) + env(safe-area-inset-bottom));
 }
+/* Setup keyboard focus must clear the persistent error as well as the phone navigation. */
+html:has(body[data-panel="setup"] #err-toast:not([hidden])) {
+  --setup-error-clearance: calc(var(--nav-bar-height, 0px) + var(--toast-err-max)
+    + var(--s7) + env(safe-area-inset-bottom));
+  scroll-padding-bottom: var(--setup-error-clearance);
+}
+body[data-panel="setup"]:has(#err-toast:not([hidden])) {
+  padding-bottom: var(--setup-error-clearance);
+}
 /* Two classes, to outrank button.quiet's padding. */
 .toast-err .toast-dismiss {
   --button-ink: var(--on-surface-variant);

@@ -548,6 +548,43 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
       && getComputedStyle(document.querySelector('.bar-right')).position === 'fixed'
       && parseFloat(getComputedStyle(document.body).paddingLeft) === 208`));
 
+  for (const [size, scale] of [[PHONE, 1], [PHONE, 2], [{ width: 320, height: 640 }, 2],
+    [COMPACT_RAIL, 2], [DESKTOP, 2], [{ width: 844, height: 390 }, 2]]) {
+    await viewport(size);
+    await click('#b-settings', 'setup', 'connection error keyboard recovery');
+    await evaluate(`(() => {
+      document.documentElement.style.fontSize=${JSON.stringify(`${scale * 100}%`)};
+      const provider=document.getElementById('provider');
+      provider.value='anthropic';provider.dispatchEvent(new Event('change'));
+      const key=document.getElementById('apikey');
+      key.value='sk-keyboard-recovery-194-not-a-key';key.dispatchEvent(new Event('input'));
+      window.__recoveryFetch=window.fetch;
+      window.fetch=async()=>new Response(JSON.stringify({error:{message:'Scripted rejected recovery key'}}),
+        {status:401,headers:{'content-type':'application/json'}});
+    })()`);
+    try {
+      await click('#b-check', 'setup', 'failed connection check');
+      await until(`!document.getElementById('err').hidden && !document.getElementById('b-check').disabled`,
+        'persistent connection error');
+      await evaluate(`document.getElementById('apikey').focus()`);
+      const key = await focusInfo(['#connect']);
+      check(`${size.width}px text ${scale}: a rejected key stays visible above its persistent error`,
+        key.shown && key.inView && !key.covered, JSON.stringify(key));
+      for (let step = 0; step < 8
+        && !(await evaluate(`document.activeElement===document.getElementById('b-check')`)); step++) await press('Tab');
+      const recovery = await focusInfo(['#connect']);
+      check(`${size.width}px text ${scale}: trusted Tab reaches an unobscured connection retry`,
+        await evaluate(`document.activeElement===document.getElementById('b-check')`)
+          && recovery.shown && recovery.inView && !recovery.covered, JSON.stringify(recovery));
+    } finally {
+      await evaluate(`window.fetch=window.__recoveryFetch;delete window.__recoveryFetch;
+        document.getElementById('b-err-dismiss').click();
+        document.documentElement.style.fontSize='100%';
+        document.getElementById('provider').value='artifact';
+        document.getElementById('provider').dispatchEvent(new Event('change'));`);
+    }
+  }
+
   for (const [size, scale] of [[PHONE, 1], [DESKTOP, 2]]) {
     await viewport(size);
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });

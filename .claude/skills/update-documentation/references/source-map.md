@@ -254,7 +254,9 @@ source wins over prose, and a generated artifact wins over a description of that
   `dismissError` in [`src/ui/app.js`](../../../../src/ui/app.js). Notes hide themselves
   and errors stay until dismissed, retried or the screen changes (`show()` clears both). Both sit at the bottom of Start, Settings and Ideas but
   at the top of a phone's Interview and of the voice stage, so guide wording that names a
-  position must fit the screen it describes. Re-check
+  position must fit the screen it describes. `app.css` reserves Setup's persistent-error
+  clearance in the page bottom and focus scrollport; the real-input keyboard probe checks
+  rejected-key recovery at enlarged text, narrow widths and landscape. Re-check
   troubleshooting, interviews and the library guide's import steps.
 - **Library cards and the result screen.** Sources:
   [`src/ui/library.js`](../../../../src/ui/library.js) (`renderActions`, `renderCard`, the
