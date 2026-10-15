@@ -73,7 +73,8 @@ exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the rele
 ever handles a finished, verified APK.
 
 The Pages artifact has two static surfaces: the app at its root and the public guide under
-`guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests.
+`guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests,
+including another site prefix on the same origin before its own worker is installed.
 Without that boundary, a failed guide navigation could fall through to cached `index.html`
 and render the app where documentation was requested.
 

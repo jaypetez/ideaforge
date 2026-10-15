@@ -13,8 +13,8 @@
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
 const CACHE = 'ideaforge-v29';
-const GUIDE_PATH = new URL('./guide/', self.location.href).pathname;
-const GUIDE_SCREENSHOTS_PATH = new URL('./docs/screenshots/', self.location.href).pathname;
+const GUIDE_PATH = '/guide/';
+const GUIDE_SCREENSHOTS_PATH = '/docs/screenshots/';
 
 const SHELL = [
   './',
@@ -100,8 +100,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   // The public guide is a separate static surface under this worker's root scope. Let the
   // browser fetch it normally so a failed guide navigation can never turn into the app shell.
-  if (url.pathname.startsWith(GUIDE_PATH)
-      || url.pathname.startsWith(GUIDE_SCREENSHOTS_PATH)) return;
+  // Another site prefix on this origin can have its own guide without its own worker yet.
+  if (url.pathname.includes(GUIDE_PATH)
+      || url.pathname.includes(GUIDE_SCREENSHOTS_PATH)) return;
 
   const network = fetch(request).then((res) => {
     if (res && res.ok) {

@@ -147,8 +147,11 @@ test('provider, POST and guide traffic never starts an app cache operation', () 
     ['model', { method: 'POST' }],
     ['guide/privacy-policy.html', {}],
     ['docs/screenshots/10-settings.light.png', {}],
+    ['/guide/privacy-policy.html', {}],
+    ['nested-copy/guide/privacy-policy.html', {}],
+    ['nested-copy/docs/screenshots/10-settings.dark.png', {}],
   ]) {
-    const fixture = worker();
+    const fixture = worker({ fresh: Promise.resolve(new Response(null)) });
     assert.equal(fixture.request(path, options).response, undefined);
     assert.equal(fixture.fetches(), 0);
   }
