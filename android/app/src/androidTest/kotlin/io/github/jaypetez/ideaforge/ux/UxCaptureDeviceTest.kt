@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
@@ -182,7 +183,8 @@ class UxCaptureDeviceTest {
                                 environment.configure(config.window, config.fontScale, resize = true)
                             } else if (id == "result-long") {
                                 val ids = runBlocking { fixtureGraph!!.sessionStore.knownIds() }
-                                compose.onNodeWithTag(ResultTags.ASK_MORE).performScrollTo().performClick()
+                                revealControl(ResultTags.ASK_MORE)
+                                compose.onNodeWithTag(ResultTags.ASK_MORE).assertIsDisplayed().performClick()
                                 await("answer")
                                 assertEquals(ids, runBlocking { fixtureGraph!!.sessionStore.knownIds() })
                                 assertEquals("interviewing", stringOf(fixtureGraph!!.sessionStore.get(requireNotNull(state.sessionId))!!["status"]))
@@ -191,11 +193,12 @@ class UxCaptureDeviceTest {
                                 scenario!!.recreate()
                                 scenario!!.onActivity { activity = it }
                                 await(LibraryTags.DETAIL)
-                                compose.onNode(hasText(title) and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))).assertExists()
+                                compose.onNode(hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(title))).assertExists()
                             }
                         } catch (error: Throwable) {
                             recorder.failed(state, config, error, activity)
                         } finally {
+                            compose.runOnUiThread { fixtureGraph?.driveController?.exit() }
                             closeFixture()
                             environment.configure(config.window, config.fontScale, resize = true)
                         }

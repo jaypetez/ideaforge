@@ -287,6 +287,20 @@ phase/route mappings and the prerequisite fixes the matrix exposed. A focused gr
 is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
 and black PNGs must remain failures.
 
+For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=shell
+```
+
+This selects `UxCaptureDeviceTest#requestedShellEvidenceKeepsInsetsAndIdentity` with
+explicit SHA provenance on both standard visual managed devices. It covers compact,
+medium, expanded and compact-landscape windows, both themes and font scales 1.0/1.3/2.0,
+actual IME, resize/recreation, same-session Ask me more and in-place paused voice.
+The paused controller uses scripted speech and a fake service; it proves layout/identity,
+not real recognition, permission prompts or service behavior. The default `evidence=full`
+retains the shared full inventory; a focused shell pass is not a full-matrix pass.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

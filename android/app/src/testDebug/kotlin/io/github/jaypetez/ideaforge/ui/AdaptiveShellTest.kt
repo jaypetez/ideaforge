@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
@@ -34,6 +35,9 @@ import io.github.jaypetez.ideaforge.usableRing
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -52,6 +56,18 @@ import java.io.File
 class AdaptiveShellTest {
     @get:Rule
     val compose = createEmptyComposeRule()
+    private val graphs = mutableListOf<AppGraph>()
+
+    @After
+    fun closeScopes() {
+        runBlocking {
+            for (graph in graphs) {
+                graph.appScope.coroutineContext[Job]?.cancelAndJoin()
+                graph.mainScope.coroutineContext[Job]?.cancelAndJoin()
+            }
+        }
+        compose.waitForIdle()
+    }
 
     private val fixtures by lazy {
         UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
@@ -61,6 +77,7 @@ class AdaptiveShellTest {
 
     private fun graph(vararg sessions: Session): AppGraph {
         val graph = installTestGraph(ring = usableRing())
+        graphs += graph
         graph.providerSource = ProviderSource { ScriptedModel() }
         runBlocking { sessions.forEach { assertTrue(graph.sessionStore.insert(it)) } }
         return graph
@@ -138,7 +155,7 @@ class AdaptiveShellTest {
             await("navigation-rail")
             compose.onNodeWithTag(LibraryTags.SEARCH).assertIsNotFocused()
             select(active, open = false)
-            val selected = hasText(sessionDisplayTitle(active)) and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))
+            val selected = hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(sessionDisplayTitle(active)))
             compose.onNode(selected).assertExists()
             RuntimeEnvironment.setQualifiers("w411dp-h818dp")
             scenario.recreate()
@@ -184,7 +201,7 @@ class AdaptiveShellTest {
             await(ResultTags.OUTPUT)
             compose.onNodeWithTag(ResultTags.TITLE).assertTextEquals(sessionDisplayTitle(done))
             nav("Ideas").assertIsSelected()
-            compose.onNodeWithTag(ResultTags.ASK_MORE).performScrollTo().performClick()
+            compose.onNodeWithTag(ResultTags.ASK_MORE).assertIsDisplayed().performClick()
             await("interview-title")
             await("answer")
             compose.onNodeWithTag("interview-title").assertTextEquals(sessionDisplayTitle(done))
