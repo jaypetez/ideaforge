@@ -181,6 +181,8 @@ nesting a lazy thread viewport inside it. This keeps a suggestion or turn-status
 reachable above the contextual bar; ordinary-height interviews retain their lazy thread.
 With an open IME in a short window, the contextual bar joins that scroller so it cannot
 leave less height than an enlarged editor. Back and the complete title remain reachable.
+An opening provider failure still lands on the current question. A delayed submission
+failure preserves an already visible editor without pulling an older-history reader to it.
 
 ## State, focus and elevation
 

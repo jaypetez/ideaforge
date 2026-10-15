@@ -61,6 +61,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -380,7 +382,7 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
         val current = remember { BringIntoViewRequester() }
         val wrap = remember { BringIntoViewRequester() }
         LaunchedEffect(state.openTurn?.get("n"), state.wrapOffer) {
-            if (state.busy != null || state.notice != null) return@LaunchedEffect
+            if (state.busy != null || state.notice != null && state.notice !is InterviewNotice.NoProvider) return@LaunchedEffect
             if (state.wrapOffer != null) wrap.bringIntoView() else current.bringIntoView()
         }
         Column(
@@ -558,6 +560,16 @@ private fun Composer(
     state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
 ) {
+    val editor = remember { BringIntoViewRequester() }
+    var editorVisible by remember { mutableStateOf(false) }
+    val keepEditor = shortWindow && editorVisible
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(state.notice) {
+        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback)) {
+            // Notice consumption must not cancel preserving the previously visible editor.
+            scope.launch { editor.bringIntoView() }
+        }
+    }
     Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedTextField(
@@ -568,7 +580,11 @@ private fun Composer(
                 enabled = state.canAnswer,
                 minLines = if (shortWindow) 1 else 2,
                 maxLines = if (shortWindow) 1 else 6,
-                modifier = Modifier.fillMaxWidth().let { if (shortWindow) it else it.weight(1f, fill = false) }.testTag("answer"),
+                modifier = Modifier.fillMaxWidth().let {
+                    if (shortWindow) it.bringIntoViewRequester(editor).onGloballyPositioned { coordinates ->
+                        editorVisible = coordinates.boundsInWindow().height > 0f
+                    } else it.weight(1f, fill = false)
+                }.testTag("answer"),
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(
