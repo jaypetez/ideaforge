@@ -8,7 +8,7 @@ import { loadPrefs } from '../../src/store/prefs.js';
 import { createVoiceStage } from '../../src/ui/voice-stage.js';
 import { wav } from './speech-output.browser.mjs';
 import {
-  clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withTts,
+  clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withStt, withTts,
 } from '../../src/store/secrets.js';
 
 const PARTIAL = 'A guide explaining how to pause voice reminders and exit voice menus without losing my place';
@@ -2021,6 +2021,49 @@ export default async function run(check) {
     } finally { write.restore(); }
   }, { credentials: withTts(verifiedSpeech, { ...verifiedSpeech.tts, verified: false }),
     preferences: { hostedSpeechAllowed: true } });
+
+  await withApp(check, 'current Start owns dictation after a retired connection put', async (app) => {
+    app.$('b-settings').click();
+    if (!(await expect(app, check, 'the retired-STT case opens Settings', () =>
+      app.$('panel-setup').dataset.view === 'settings'
+        && !app.doc.documentElement.matches(':active-view-transition')))) return;
+    app.$('stt').value = 'groq';
+    app.$('stt').dispatchEvent(new app.win.Event('change'));
+    app.$('sttkey').value = 'gsk-retired-transcription-selection-194';
+    app.$('sttkey').dispatchEvent(new app.win.Event('input'));
+    const write = holdCredentialCommit(app.win);
+    const NativeRecorder = app.win.MediaRecorder;
+    let recordings = 0;
+    app.win.MediaRecorder = class extends NativeRecorder {
+      constructor(...args) {
+        super(...args);
+        this.addEventListener('start', () => { recordings++; }, { once: true });
+      }
+    };
+    try {
+      app.$('b-check').click();
+      if (!(await expect(app, check, 'the older Groq selection reaches an issued credential put',
+        write.held))) return;
+      app.$('stt').value = 'browser';
+      app.$('stt').dispatchEvent(new app.win.Event('change'));
+      app.$('b-nav-new').click();
+      if (!(await expect(app, check, 'new Start still presents the current Browser choice', () =>
+        app.$('panel-setup').dataset.view === 'start' && app.$('stt').value === 'browser'))) return;
+      write.release();
+      if (!(await startVoice(app, check))) return;
+      if (!(await expect(app, check, 'the current dictation backend actually begins listening', () =>
+        phase(app) === 'listening'))) return;
+      const stored = await within(loadCredentials(), 'reading the current Start dictation submission');
+      check('a retired connection save cannot override the next Start Browser dictation submission',
+        stored.stt.kind === 'browser' && app.$('stt').value === 'browser');
+      check('Browser-selected Start uses recognition, never a hosted recorder',
+        captureCount(app) > 0 && recordings === 0,
+        `recognition captures=${captureCount(app)}, recorder starts=${recordings}`);
+    } finally {
+      write.restore();
+      app.win.MediaRecorder = NativeRecorder;
+    }
+  }, { credentials: withStt(withCreds(emptyKeyring(), 'artifact', {}), { kind: 'browser', apiKey: '' }) });
 
   for (const first of ['connection', 'speech']) await withApp(
     check, `overlapping ${first}-first updates keep both credential records`, async (app) => {

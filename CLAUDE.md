@@ -213,7 +213,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   preview cancelled during persistence queues revocation, never successful verification.
   Teardown/navigation use the same cancellation path. `updateCredentials` merges an
   operation's owned branch against the latest durable ring inside the queue; serializing
-  stale whole-ring snapshots alone still loses independent inference/STT/TTS updates.
+  stale whole-ring snapshots alone still loses independent updates. Connection/Start owns
+  its submitted inference and STT branches; TTS verification has an independent writer.
+  A retired durable STT put must not override the next Start's explicit dictation choice.
   Library's current `confirmDelete` is synchronous: its future dialog integration must
   await the result, not treat a Promise as permission.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the

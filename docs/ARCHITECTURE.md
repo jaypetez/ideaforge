@@ -77,6 +77,11 @@ The Pages artifact has two static surfaces: the app at its root and the public g
 Without that boundary, a failed guide navigation could fall through to cached `index.html`
 and render the app where documentation was requested.
 
+For app assets, `sw.js` retains background network/cache refresh in the fetch event's
+lifetime and clones a response before its consumer can use the body. `test/sw.test.mjs`
+drives delayed cache storage, reported write failures and offline fallbacks; the browser
+suite covers the actual assembled shell.
+
 The app's Focus Studio foundation lives in `src/ui/app.css`; `guide/assets/guide.css` still
 has the earlier palette until the separate guide migration (#205). The guide uses system
 fonts and no remote assets. Its HTML stays script-free. `test/docs.test.mjs` checks page and

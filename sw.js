@@ -103,18 +103,25 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith(GUIDE_PATH)
       || url.pathname.startsWith(GUIDE_SCREENSHOTS_PATH)) return;
 
+  const network = fetch(request).then((res) => {
+    if (res && res.ok) {
+      // The client may consume res before cache storage opens.
+      const copy = res.clone();
+      event.waitUntil(caches.open(CACHE).then((c) => c.put(request, copy))
+        .catch((error) => console.warn('The app cache refresh could not be saved.', error)));
+    }
+    return res;
+  }).catch(() => null);
+  // Cached replies must not retire their still-running module refresh.
+  event.waitUntil(network);
+
   event.respondWith((async () => {
     const cached = await caches.match(request);
-    const network = fetch(request).then((res) => {
-      if (res && res.ok) caches.open(CACHE).then((c) => c.put(request, res.clone()));
-      return res;
-    }).catch(() => null);
-
     // Stale-while-revalidate, with a navigation falling back to the cached shell so a
     // cold offline launch still opens the app rather than the browser's error page.
     return cached
       || (await network)
-      || (request.mode === 'navigate' ? caches.match('./index.html') : undefined)
+      || (request.mode === 'navigate' ? await caches.match('./index.html') : undefined)
       || new Response('offline', { status: 503, statusText: 'offline' });
   })());
 });

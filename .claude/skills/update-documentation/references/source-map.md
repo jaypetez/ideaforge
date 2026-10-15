@@ -79,11 +79,15 @@ source wins over prose, and a generated artifact wins over a description of that
   [`dialog.js`](../../../../src/ui/dialog.js) owns the native awaited boolean confirmation;
   [`secrets.js`](../../../../src/store/secrets.js) serializes encrypted credential work
   against confirmed Forget, merges independently owned branches through `updateCredentials`
-  and reports unreadable/unknown-key recovery to the UI.
+  and reports unreadable/unknown-key recovery to the UI. Connection/Start owns its current
+  inference and STT submission; independent hosted-speech verification must survive it.
   [`settings.browser.mjs`](../../../../test/browser/settings.browser.mjs), the real-input
   policy probe and voice-stage tests own cancellation/focus, storage failures, delayed
   writes and hosted verification. Re-check README/guide section names, data-action labels,
   backup/import semantics, canonical screenshots and Library's still-synchronous Delete.
+  [`sw.js`](../../../../sw.js) and [`test/sw.test.mjs`](../../../../test/sw.test.mjs)
+  own response cloning before consumption, refresh-event lifetime, reported cache-write
+  failures and offline shell/module fallbacks. Keep guide/provider bypasses intact.
 - **Native visual foundation.** Sources:
   [`Theme.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt)
   owns fallback `LightTokens`/`DarkTokens`, opaque composites, all 15 system-family type

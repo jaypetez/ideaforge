@@ -1446,10 +1446,8 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
   // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
   if (write) {
     await updateKeyring((latest) => {
-      let next = withCreds(latest, c.id, creds);
-      if (['kind', 'apiKey'].every((key) => latest.stt[key] === before.stt[key])) {
-        next = withStt(next, ring.stt);
-      }
+      // This submission owns dictation too, even if a retired put changed it on disk.
+      let next = withStt(withCreds(latest, c.id, creds), ring.stt);
       if (['kind', 'apiKey', 'voice', 'verified'].every((key) => latest.tts[key] === before.tts[key])) {
         next = withTts(next, ring.tts);
       }
