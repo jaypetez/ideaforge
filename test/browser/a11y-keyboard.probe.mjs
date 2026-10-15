@@ -574,20 +574,25 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     check(`${label} starts on Cancel and keeps credentials`,
       await evaluate(`document.activeElement === document.querySelector('dialog [value="cancel"]')`)
         && await storedKey());
+    await evaluate(`document.getElementById('b-forget').focus()`);
+    check(`${label} is modal and rejects focus on its background trigger`,
+      await evaluate(`document.querySelector('dialog').matches(':modal')
+        && document.activeElement !== document.getElementById('b-forget')`));
     await press('Tab');
     check(`${label} Tab reaches only the destructive action`,
       await evaluate(`document.activeElement === document.querySelector('dialog [value="confirm"]')`));
-    await press('Tab');
-    const boundary = await evaluate(`(() => ({
-      inside:document.querySelector('dialog').contains(document.activeElement),
-      browserEdge:window.__a11y.focus(['dialog']).end,
-      active:document.activeElement?.outerHTML.slice(0,160)
-    }))()`);
-    check(`${label} forward Tab never reaches background controls (native browser edge allowed)`,
-      boundary.inside || boundary.browserEdge, JSON.stringify(boundary));
     await press('Tab', { shift: true });
-    check(`${label} reverse Tab wraps inside the native modal`,
-      await evaluate(`document.activeElement === document.querySelector('dialog [value="confirm"]')`));
+    check(`${label} reverse Tab from the destructive action returns to Cancel`,
+      await evaluate(`document.activeElement === document.querySelector('dialog [value="cancel"]')`));
+    await press('Tab');
+    await press('Tab');
+    const boundary = await focusInfo(['dialog']);
+    check(`${label} forward Tab never reaches background controls (native browser edge allowed)`,
+      boundary.region === 0 || boundary.end, JSON.stringify(boundary));
+    await press('Tab', { shift: true });
+    const reverse = await focusInfo(['dialog']);
+    check(`${label} reverse Tab never reaches background controls (native browser edge allowed)`,
+      reverse.region === 0 || reverse.end, JSON.stringify(reverse));
     const geometry = await evaluate(`(() => [...document.querySelectorAll('dialog button')].map(el=>{
       const r=el.getBoundingClientRect(); return {width:r.width,height:r.height};
     }))()`);
