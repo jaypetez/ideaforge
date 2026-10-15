@@ -27,6 +27,7 @@ object IdeaForgeSpacing {
 }
 
 object IdeaForgeWidths {
+    val rail = 80.dp
     val form = 720.dp
     val work = 1120.dp
     val settings = 1000.dp

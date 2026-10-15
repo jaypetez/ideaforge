@@ -18,7 +18,7 @@ import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.toNumber
 import io.github.jaypetez.ideaforge.core.js.truthy
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import io.github.jaypetez.ideaforge.ux.UxBounds
 import kotlinx.serialization.json.Json
@@ -59,8 +59,8 @@ internal fun scriptedWalkthrough(
     }
 
     launch()
-    compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), DEVICE_TIMEOUT)
-    compose.onNode(hasText(target.getString(R.string.nav_new_idea)) and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+    compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), DEVICE_TIMEOUT)
+    compose.onNode(hasText(target.getString(R.string.nav_new_idea)) and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
 
     var turn = 1
     for (step in steps) {

@@ -247,6 +247,18 @@ Existing screens use these shared primitives without a second state/navigation f
 unit checks and the debug-only UX capture seam provide native evidence; isolated simulated
 palettes are labelled separately from actual wallpaper colours.
 
+**Native shell and insets.** `ui/AppShell.kt` keeps one type-safe NavHost and chooses the
+installed Material bottom bar or rail from the native window class. New idea still mints
+an id and uses a fresh Interview back-stack entry; rotation/resize does not perform a
+navigation action. Interview and Result own their contextual title/Back presentation.
+AppShell applies and consumes system-bar/display-cutout scaffold padding once before
+all children; rail and contextual bars use zero additional Material insets. Editing
+screens own only remaining IME, and Result actions remain inside the shell clearance.
+An attached app-scope drive hides navigation only for its visible interview session;
+Voice stays in that destination and respects only remaining insets. Caption/level state
+is not a reason to rebuild the shell. Content measures stay in `ui/theme/Roles.kt`, and
+Library still uses `NavigableListDetailPaneScaffold` rather than a second breakpoint grid.
+
 **The JavaScript is the reference, and parity is measured, not reviewed.** `tools/vectors.mjs`
 records real calls into the JS core and runtime as JSON files under `test/vectors/`. The Kotlin tests
 replay them through the consumers registered in

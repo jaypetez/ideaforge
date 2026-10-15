@@ -15,6 +15,12 @@ on:
     # Nightly, so a drifting emulator image or AndroidX release is noticed without a push.
     - cron: '17 4 * * *'
   workflow_dispatch:
+    inputs:
+      evidence:
+        description: Full UX inventory or the focused adaptive-shell interaction matrix
+        type: choice
+        options: [full, shell]
+        default: full
 
 permissions:
   contents: read
@@ -75,7 +81,8 @@ jobs:
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
@@ -85,7 +92,8 @@ jobs:
         run: >-
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}

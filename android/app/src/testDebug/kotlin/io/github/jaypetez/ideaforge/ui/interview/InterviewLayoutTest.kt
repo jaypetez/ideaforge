@@ -21,7 +21,7 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.installTestGraph
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import io.github.jaypetez.ideaforge.usableRing
@@ -57,7 +57,7 @@ class InterviewLayoutTest {
         graph.providerSource = ProviderSource { ScriptedModel() }
         runBlocking { assertTrue(graph.sessionStore.insert(active)) }
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
             compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(active["name"])!!)
             val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(active["name"])!!)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
@@ -82,8 +82,8 @@ class InterviewLayoutTest {
         graph.providerSource = ProviderSource { ScriptedModel() }
         val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
-            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
             for (step in steps.take(3)) {
                 val previous = compose.onNodeWithTag("question").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text

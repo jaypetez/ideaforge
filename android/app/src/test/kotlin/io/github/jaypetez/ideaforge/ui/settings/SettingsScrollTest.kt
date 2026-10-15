@@ -18,7 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.installTestGraph
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.usableRing
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -48,7 +48,7 @@ class SettingsScrollTest {
     fun launch() {
         installTestGraph(ring = usableRing())
         scenario = ActivityScenario.launch(MainActivity::class.java)
-        compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), timeoutMillis = 10_000)
     }
 
     @After
@@ -56,7 +56,7 @@ class SettingsScrollTest {
 
     @Test
     fun theBackupButtonsCanBeScrolledIntoViewOnAShortWindow() {
-        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
         compose.onNodeWithTag(BackupTags.IMPORT).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(BackupTags.EXPORT).performScrollTo().assertIsDisplayed()
     }
@@ -64,7 +64,7 @@ class SettingsScrollTest {
     @Test
     @Config(qualifiers = "w360dp-h640dp", fontScale = 2f)
     fun enlargedConnectionAndBackupActionsReflowWithFullLabelsAndNativeTargets() {
-        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
         for (tag in listOf(SettingsTags.PROVIDER, SettingsTags.CHECK, SettingsTags.SAVE, BackupTags.EXPORT, BackupTags.IMPORT)) {
             val node = compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
                 .assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp).fetchSemanticsNode()

@@ -25,7 +25,7 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.installTestGraph
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.usableRing
 import io.github.jaypetez.ideaforge.ux.UxEvidence
@@ -65,7 +65,7 @@ class ResultLayoutTest {
         val graph = installTestGraph(ring = usableRing())
         runBlocking { assertTrue(graph.sessionStore.insert(done)) }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
             compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(done["name"])!!)
             val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(done["name"])!!)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)

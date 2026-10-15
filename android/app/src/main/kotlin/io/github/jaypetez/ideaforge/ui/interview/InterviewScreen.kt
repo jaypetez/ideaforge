@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,12 +34,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -61,6 +67,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -70,6 +77,7 @@ import io.github.jaypetez.ideaforge.core.DIMENSIONS
 import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
 import io.github.jaypetez.ideaforge.core.coveragePercent
 import io.github.jaypetez.ideaforge.core.getDimension
+import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
@@ -125,12 +133,14 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
  * The typed interview: a coverage strip, the thread so far, the open question with its
  * bridge and suggestion chips, and a composer docked above the keyboard.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InterviewScreen(
     vm: InterviewViewModel,
     onFinished: (synthesisFailed: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     drive: DriveController? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -229,8 +239,21 @@ fun InterviewScreen(
         return
     }
 
-    Box(modifier.fillMaxSize().testTag("interview")) {
-        BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
+    Column(modifier.fillMaxSize().testTag("interview")) {
+        if (onBack != null) {
+            val fallback = stringResource(R.string.nav_new_idea)
+            val title = state.session?.let { sessionDisplayTitle(it, fallback) } ?: fallback
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("interview-title")) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, modifier = Modifier.testTag("interview-back")) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
+                    }
+                },
+                windowInsets = WindowInsets(0),
+            )
+        }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().imePadding()) {
             val composerMaxHeight = maxHeight * 0.6f
             // An open IME can leave less than one editor plus wrapped action rows.
             // Scroll the real content instead of weighting the editor down to zero.

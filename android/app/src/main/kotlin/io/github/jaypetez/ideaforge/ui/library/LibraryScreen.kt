@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -77,6 +79,7 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextBut
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSnackbarHost as SnackbarHost
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.controls
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -155,6 +158,7 @@ fun LibraryScreen(
     )
 
     Scaffold(
+        modifier = Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work),
         // The app shell's Scaffold has already applied the system-bar insets.
         contentWindowInsets = WindowInsets(0),
         floatingActionButton = {

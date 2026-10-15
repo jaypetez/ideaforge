@@ -21,6 +21,10 @@ internal class UxDeviceEnvironment(private val automation: UiAutomation) : Close
                     shell("wm size 1920x${heightPx ?: 1350}")
                     shell("wm density 240")
                 }
+                "medium" -> {
+                    shell("wm size 1080x1440")
+                    shell("wm density 240")
+                }
                 "compact-landscape" -> {
                     shell("wm size 960x${heightPx ?: 600}")
                     shell("wm density 240")

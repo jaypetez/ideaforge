@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +44,7 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTonalButton as Filled
 import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.readableColor
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.RMS_FLOOR_DB
@@ -61,9 +65,11 @@ fun VoiceStage(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxSize().testTag("voice-stage")) {
+    Column(modifier.fillMaxSize().imePadding().testTag("voice-stage")) {
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = IdeaForgeSpacing.section, vertical = IdeaForgeSpacing.content),
+            Modifier.weight(1f).fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = IdeaForgeWidths.reading).verticalScroll(rememberScrollState())
+                .padding(horizontal = IdeaForgeSpacing.section, vertical = IdeaForgeSpacing.content),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content),
         ) {
             Text(
@@ -106,7 +112,8 @@ fun VoiceStage(
         }
         Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
             Row(
-                Modifier.navigationBarsPadding().padding(IdeaForgeSpacing.content),
+                Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.reading)
+                    .navigationBarsPadding().padding(IdeaForgeSpacing.content),
                 horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
             ) {
                 val active = state.mode == VoiceMode.ACTIVE

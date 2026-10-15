@@ -23,7 +23,7 @@ import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.installTestGraph
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -58,8 +58,8 @@ class SettingsScreenTest {
     private fun openSettings(ring: JsonObject, key: SoftwareKey = SoftwareKey()): AppGraph {
         val graph = installTestGraph(ring = ring, key = key)
         scenario = ActivityScenario.launch(MainActivity::class.java)
-        waitFor(hasTestTag(BOTTOM_BAR))
-        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+        waitFor(hasTestTag(NAVIGATION))
+        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
         waitFor(hasTestTag(SettingsTags.ACTIVE))
         return graph
     }
@@ -131,7 +131,7 @@ class SettingsScreenTest {
         compose.onNodeWithTag(SettingsTags.FORGET_CONFIRM).performClick()
 
         waitFor(hasTestTag("provider-groq"))
-        compose.onNodeWithTag(BOTTOM_BAR).assertDoesNotExist()
+        compose.onNodeWithTag(NAVIGATION).assertDoesNotExist()
         assertFalse("the keyring file is gone", graph.keyringStore.file.exists())
         assertNull(key.keys[0])
         assertNull(key.keys[1])

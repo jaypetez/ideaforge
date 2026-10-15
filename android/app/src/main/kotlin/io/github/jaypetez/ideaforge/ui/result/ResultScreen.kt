@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -48,6 +51,7 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSnackbarHost as SnackbarHost
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.readableColor
 import kotlinx.coroutines.launch
 
@@ -124,7 +128,8 @@ fun ResultScreen(
             Column {
                 HorizontalDivider()
                 FlowRow(
-                    Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+                    Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
+                        .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
                     horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
                     verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
                 ) {
@@ -189,6 +194,8 @@ fun ResultScreen(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = IdeaForgeWidths.reading)
                         .testTag(ResultTags.CONTENT)
                         .verticalScroll(rememberScrollState())
                         .padding(IdeaForgeSpacing.content),
