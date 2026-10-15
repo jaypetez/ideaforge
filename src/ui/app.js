@@ -146,6 +146,7 @@ const state = {
   threadFor: null,
   threadExpanded: false,
   connectCheck: null,
+  connectAdvance: null,
   connectRevision: 0,
   connectStep: 'provider',
 };
@@ -194,8 +195,6 @@ function show(panel, destination) {
         : state.creds?.byKind?.[currentChoice().id] || els.apikey.value.trim()
           || currentChoice().local ? 'fields' : 'provider';
     }
-    if (state.connectCheck?.status === 'checking'
-        && state.connectCheck.navigation !== state.navigation) state.connectCheck = null;
     renderConnect();
   }
   if (view !== shownView) {
@@ -779,9 +778,20 @@ function connectionReady() {
   return !c.picksModel || !!(els.model.value.trim() || c.models?.default);
 }
 
+function connectionContext() {
+  return { revision: state.connectRevision, navigation: state.navigation,
+    credentialEpoch: state.credentialEpoch };
+}
+
+function ownsConnection(context) {
+  return context.revision === state.connectRevision && context.navigation === state.navigation
+    && context.credentialEpoch === state.credentialEpoch;
+}
+
 function invalidateConnection() {
   state.connectRevision++;
   state.connectCheck = null;
+  state.connectAdvance = null;
   els['key-error'].textContent = '';
   els.apikey.removeAttribute('aria-invalid');
   els.model.removeAttribute('aria-invalid');
@@ -789,6 +799,10 @@ function invalidateConnection() {
 }
 
 function renderConnect() {
+  if (state.connectCheck?.status === 'checking' && !ownsConnection(state.connectCheck)) {
+    state.connectCheck = null;
+  }
+  if (state.connectAdvance && !ownsConnection(state.connectAdvance)) state.connectAdvance = null;
   const c = currentChoice();
   const saved = credsFor(state.creds, c.id);
   const current = state.connectCheck?.revision === state.connectRevision ? state.connectCheck : null;
@@ -818,7 +832,10 @@ function renderConnect() {
   els['b-check'].setAttribute('aria-busy', String(checking));
   els['b-check'].textContent = checking ? 'Checking…'
     : c.needsKey ? 'Check the key' : 'Check the connection';
-  els['b-connect-next'].textContent = state.connectStep === 'provider' ? 'Continue' : 'Use this connection';
+  els['b-connect-next'].disabled = !!state.connectAdvance;
+  els['b-connect-next'].setAttribute('aria-busy', String(!!state.connectAdvance));
+  els['b-connect-next'].textContent = state.connectAdvance ? 'Preparing connection…'
+    : state.connectStep === 'provider' ? 'Continue' : 'Use this connection';
   els.apikey.required = !!c.needsKey && !saved.apiKey;
   els['key-required'].hidden = !els.apikey.required;
   els.baseurl.required = !!c.local;
@@ -853,8 +870,10 @@ function connectionFailure(error, action) {
   fail(error);
 }
 
-function readyConnection() {
-  const moving = els['connect-body'].contains(document.activeElement);
+function readyConnection(restoreFocus = false) {
+  const moving = els['connect-body'].contains(document.activeElement)
+    || (restoreFocus && document.activeElement === document.body);
+  state.connectAdvance = null;
   state.connectStep = 'ready';
   renderConnect();
   if (moving) els['b-connect-change'].focus();
@@ -868,21 +887,30 @@ async function advanceConnection() {
     els[c.needsKey ? 'apikey' : c.local ? 'baseurl' : 'b-connect-next'].focus();
     return;
   }
-  const revision = state.connectRevision;
-  const navigation = state.navigation;
+  if (state.connectAdvance) return;
+  const focused = document.activeElement === els['b-connect-next'];
+  const attempt = connectionContext();
+  state.connectAdvance = attempt;
+  const owns = () => state.connectAdvance === attempt && ownsConnection(attempt);
+  renderConnect();
   try {
     // Reuse the actual factory's validation, without saving or making a model request.
     await buildProvider({ persist: false });
-    if (revision === state.connectRevision && navigation === state.navigation) {
+    if (owns()) {
       fail(null);
-      readyConnection();
+      readyConnection(focused);
     }
   } catch (error) {
-    if (revision !== state.connectRevision || navigation !== state.navigation) return;
+    if (!owns()) return;
     connectionFailure(error, 'continue');
     (els.apikey.getAttribute('aria-invalid') ? els.apikey
       : els.baseurl.getAttribute('aria-invalid') === 'true' ? els.baseurl
       : els.model.getAttribute('aria-invalid') ? els.model : els.baseurl).focus();
+  } finally {
+    if (state.connectAdvance === attempt) {
+      state.connectAdvance = null;
+      renderConnect();
+    }
   }
 }
 
@@ -1198,6 +1226,7 @@ async function previewSpeech() {
 async function revokeHostedSpeech() {
   state.speechRevoked = true;
   state.credentialEpoch++;
+  renderConnect();
   if (state.voiceMode === 'active') {
     pauseVoice({ detail: 'Hosted speech is disabled. Resume to continue with the browser voice.' }).catch(fail);
   }
@@ -1239,9 +1268,7 @@ function onSttChange() {
 }
 
 async function buildProvider({ requireModel = true, persist: write = true } = {}) {
-  const navigation = state.navigation;
-  const credentialEpoch = state.credentialEpoch;
-  const revision = state.connectRevision;
+  const context = connectionContext();
   const c = currentChoice();
   const ring = readRingFromForm();
   const creds = credsFor(ring, c.id);
@@ -1258,16 +1285,14 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
     modelRequired: requireModel ? undefined : false,
   });
 
-  if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch
-      || revision !== state.connectRevision) {
+  if (!ownsConnection(context)) {
     throw new Error('Provider setup was cancelled.');
   }
   // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
   // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
   if (write) {
     await saveCredentials(ring);
-    if (navigation !== state.navigation || credentialEpoch !== state.credentialEpoch
-        || revision !== state.connectRevision) throw new Error('Provider setup was cancelled.');
+    if (!ownsConnection(context)) throw new Error('Provider setup was cancelled.');
     state.creds = ring;
     state.provider = provider;
   }
@@ -2674,6 +2699,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   if (state.starting) return;
   state.starting = true;
   const navigation = ++state.navigation;
+  const context = connectionContext();
   teardownVoice();
   state.wantHandsFree = handsFree;
   savePrefs({ handsFree });
@@ -2682,6 +2708,7 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   state.voiceMode = handsFree ? 'active' : 'manual';
   state.voicePhase = 'starting';
   prepareSpeechOutput();
+  renderConnect();
   fail(null);
   requestPersistence();
   try {
@@ -2691,12 +2718,16 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
       teardownVoice();
       // Unfold: whatever refused to start lives in the card, and a folded summary with a
       // check mark would go on vouching for a connection that just failed.
-      connectionFailure(e, 'start');
+      if (ownsConnection(context)) connectionFailure(e, 'start');
     }
     state.starting = false;
     return;
   }
-  if (navigation !== state.navigation) { state.starting = false; return; }
+  if (!ownsConnection(context)) {
+    if (navigation === state.navigation) teardownVoice();
+    state.starting = false;
+    return;
+  }
   const platform = state.install ? state.install.state().platform : 'other';
   state.session = seedTurn(createSession({
     id: newSessionId(),
@@ -2709,7 +2740,10 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   state.capturePrefix = '';
   await persist();
   state.starting = false;
-  if (navigation !== state.navigation) return;
+  if (!ownsConnection(context)) {
+    if (navigation === state.navigation) teardownVoice();
+    return;
+  }
   show('panel-interview');
   render();
   await setupVoice({ defer: !handsFree, automatic: handsFree });
@@ -3045,13 +3079,9 @@ function bind() {
     };
     fail(null); say('Checking…');
     const c = currentChoice();
-    const attempt = {
-      revision: state.connectRevision, navigation: state.navigation, status: 'checking',
-    };
-    const credentialEpoch = state.credentialEpoch;
+    const attempt = { ...connectionContext(), status: 'checking' };
     state.connectCheck = attempt;
-    const owns = () => state.connectCheck === attempt && attempt.revision === state.connectRevision
-      && attempt.navigation === state.navigation && credentialEpoch === state.credentialEpoch;
+    const owns = () => state.connectCheck === attempt && ownsConnection(attempt);
     renderConnect();
     try {
       if (c.discoverModels) {
@@ -3075,7 +3105,7 @@ function bind() {
       // A key check leaves nothing more to do in the card, so Start folds it. A check that
       // just read the model list stays open: that list is what the person is about to use.
       const folding = !c.discoverModels && els['panel-setup'].dataset.view === 'start';
-      if (folding) readyConnection();
+      if (folding) readyConnection(focused);
       else renderConnect();
       restoreFocus();
     } catch (e) {
@@ -3086,12 +3116,16 @@ function bind() {
     }
   };
   els['b-connect-change'].onclick = () => {
+    state.connectAdvance = null;
+    if (state.connectCheck?.status === 'checking') state.connectCheck = null;
     state.connectStep = 'fields';
     renderConnect();
     els.provider.focus();
   };
   els['b-connect-next'].onclick = () => advanceConnection().catch(fail);
   els['b-connect-back'].onclick = () => {
+    state.connectAdvance = null;
+    if (state.connectCheck?.status === 'checking') state.connectCheck = null;
     state.connectStep = 'provider';
     renderConnect();
     els.provider.focus();

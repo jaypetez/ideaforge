@@ -79,6 +79,8 @@ export default async function run(check) {
   await savedOverride(check);
   await viewerAndOpaqueFailure(check);
   await staleCatalogues(check);
+  await credentialRetirement(check);
+  await delayedConstruction(check);
   await unreadableKeyring(check);
   await reflow(check);
 }
@@ -301,6 +303,132 @@ async function staleCatalogues(check) {
     } finally {
       for (const resolve of requests) resolve(new win.Response('{}', { status: 401 }));
     }
+  });
+}
+
+async function credentialRetirement(check) {
+  const ring = withCreds(emptyKeyring(), 'anthropic', { apiKey: 'sk-probe-epoch-193' });
+  await visit(async ({ $, win, change }) => {
+    $('b-settings').click();
+    await until(() => $('panel-setup').dataset.view === 'settings', 'credential retirement Settings');
+    const requests = [];
+    win.fetch = () => new Promise((resolve) => requests.push(resolve));
+    const reply = (index) => requests[index](new win.Response(JSON.stringify({
+      content: [{ type: 'text', text: 'ok' }], model: 'scripted',
+    }), { status: 200 }));
+    try {
+      $('b-check').click();
+      await until(() => requests.length === 1, 'check before speech withdrawal');
+      change('speech', 'browser', 'change');
+      await until(() => /Hosted speech is disabled/.test($('speech-check').textContent), 'saved withdrawal');
+      check('speech credential withdrawal retires a pending inference check without leaving busy UI',
+        !$('b-check').disabled && $('b-check').getAttribute('aria-busy') === 'false'
+          && !/^Checking\b/i.test($('connect-status').textContent),
+        `${$('connect-status').textContent}; disabled=${$('b-check').disabled}`);
+      if ($('b-check').disabled) { reply(0); return; }
+      $('b-check').click();
+      await until(() => requests.length === 2, 'check after credential retirement');
+      reply(0);
+      await sleep(80);
+      check('the retired check cannot clear a newer credential-generation attempt',
+        $('b-check').disabled && /checking/i.test($('connect-status').textContent));
+      reply(1);
+      await until(() => /Connection checked/.test($('connect-status').textContent), 'replacement check');
+      change('speech', 'browser', 'change');
+      await until(() => /Hosted speech is disabled/.test($('speech-check').textContent), 'second withdrawal');
+      check('withdrawing speech does not erase already completed unchanged inference proof',
+        /Connection checked/.test($('connect-status').textContent));
+    } finally {
+      for (const resolve of requests) resolve(new win.Response('{}', { status: 401 }));
+    }
+  }, ring);
+}
+
+async function delayedConstruction(check) {
+  for (const newer of ['checking', 'checked']) {
+    await visit(async ({ $, win, change }) => {
+      let release;
+      win.claude = { use: () => new Promise((resolve) => { release = resolve; }) };
+      change('provider', 'artifact', 'change');
+      change('stt', 'off', 'change');
+      const starting = $('b-start').onclick();
+      await until(() => !!release, 'delayed Start construction');
+      change('provider', 'openai', 'change');
+      change('apikey', 'sk-probe-new-construction-193');
+      let answer;
+      win.fetch = () => new Promise((resolve) => { answer = resolve; });
+      const respond = () => answer(new win.Response(
+        '{"data":[{"id":"newer-model"}]}', { status: 200 }));
+      try {
+        $('b-check').click();
+        await until(() => !!answer, 'newer configuration request');
+        if (newer === 'checked') {
+          respond();
+          await until(() => /Connection checked/.test($('connect-status').textContent), 'newer proof');
+        }
+        release(async () => ({ text: '{}' }));
+        await starting;
+        check(`a retired Start construction cannot overwrite newer ${newer} state`,
+          (newer === 'checking' ? /checking/i : /Connection checked/).test($('connect-status').textContent)
+            && $('err').hidden && !$('panel-setup').hidden, $('connect-status').textContent);
+        if (newer === 'checking') respond();
+        await sleep(80);
+        check(`after a retired Start, the newer ${newer} check still owns its result/catalogue`,
+          /Connection checked/.test($('connect-status').textContent)
+            && [...$('model-list').options].some((o) => o.value === 'newer-model'));
+      } finally {
+        release(async () => ({ text: '{}' }));
+        if (answer) answer(new win.Response('{}', { status: 401 }));
+        await starting;
+      }
+    });
+  }
+  for (const action of ['start', 'continue']) {
+    await visit(async ({ $, win, change }) => {
+      let release;
+      let calls = 0;
+      win.claude = { use: () => ++calls === 1
+        ? new Promise((resolve) => { release = resolve; })
+        : Promise.resolve(async () => ({ text: '{}' })) };
+      change('provider', 'artifact', 'change');
+      change('stt', 'off', 'change');
+      const operation = $(action === 'start' ? 'b-start' : 'b-connect-next').onclick();
+      await until(() => !!release, `delayed ${action} before withdrawal`);
+      change('speech', 'browser', 'change');
+      await until(() => /Hosted speech is disabled/.test($('speech-check').textContent), 'withdrawal during construction');
+      $('b-check').click();
+      await until(() => /viewer available/i.test($('connect-summary-text').textContent), 'new-generation viewer proof');
+      release(async () => ({ text: '{}' }));
+      await operation;
+      check(`credential-retired ${action} cannot replace newer same-provider proof with its cancellation`,
+        /viewer available/i.test($('connect-summary-text').textContent)
+          && $('err').hidden, $('connect-status').textContent);
+    });
+  }
+  await visit(async ({ $, win, change }) => {
+    let release;
+    win.claude = { use: () => new Promise((resolve) => { release = resolve; }) };
+    change('provider', 'artifact', 'change');
+    const advancing = $('b-connect-next').onclick();
+    await until(() => !!release, 'pending Use this connection');
+    $('b-connect-back').click();
+    release(async () => ({ text: '{}' }));
+    await advancing;
+    check('Back also retires delayed connection construction without undoing its presentation choice',
+      $('connect').dataset.step === 'provider' && $('provider').getClientRects().length > 0);
+  });
+  await visit(async ({ $, win, change }) => {
+    change('provider', 'anthropic', 'change');
+    change('apikey', 'sk-probe-back-during-check-193');
+    let reply;
+    win.fetch = () => new Promise((resolve) => { reply = resolve; });
+    $('b-check').click();
+    await until(() => !!reply, 'check before Back');
+    $('b-connect-back').click();
+    reply(new win.Response('{"content":[{"type":"text","text":"ok"}]}', { status: 200 }));
+    await sleep(80);
+    check('Back retires a pending check too, so it cannot fold the provider choice on completion',
+      $('connect').dataset.step === 'provider' && !$('b-check').disabled);
   });
 }
 

@@ -196,8 +196,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `connectionReady`, `renderConnect`).
   Start uses presentation-only provider/fields/ready phases over the same controls.
   `advanceConnection` reuses `buildProvider` without persistence or a network request;
-  `connectRevision`/attempt identity reject stale checks, and `refreshModels` guards
-  catalogue/field writes. Ready is field readiness, never a successful-request gate.
+  `connectionContext`/`ownsConnection` share revision/navigation/credential-generation
+  guards across construction, Start, Continue and Check. Attempt identity also retires
+  pending presentation work on Back/Change; `refreshModels` guards catalogue/field writes.
+  Speech withdrawal clears retired busy work without erasing completed unchanged
+  inference proof. Ready is field readiness, never a successful-request gate.
   Saved keys are explicitly untested on a new visit; viewer availability is not a
   network check. `sw.js`'s cache generation changes with the shared markup/handler shape;
   `app.browser.mjs` proves the prior cache is retired and matching assets are precached.

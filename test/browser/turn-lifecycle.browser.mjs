@@ -375,6 +375,24 @@ function terminalSeed() {
 
 export default async function run(check) {
   await import('./fixtures/fake-voice.js');
+  await withApp(check, 'configuration change during initial persistence', async (app) => {
+    const held = app.writes.holdNext(() => true);
+    const starting = click(app, 'b-start');
+    if (!(await expect(app, check, 'the initial session really commits before its completion is released',
+      () => held.committed))) return;
+    app.$('provider').value = 'openai';
+    app.$('provider').dispatchEvent(new app.win.Event('change'));
+    app.$('apikey').value = 'sk-lifecycle-replacement-not-a-real-key';
+    app.$('apikey').dispatchEvent(new app.win.Event('input'));
+    held.release();
+    if (!(await expect(app, check, 'the original Start completion settles after the configuration edit',
+      () => starting.done))) return;
+    check('a configuration edit during initial persistence cannot open the retired interview or microphone',
+      visible(app.$('panel-setup')) && !visible(app.$('panel-interview'))
+        && !visible(app.$('voice-stage')) && app.fake.recognition.startCount === 0, detail(app));
+    check('retiring presentation does not delete the already committed original idea',
+      !!(await loadSession(held.snapshot.id)));
+  });
 
   await withApp(check, 'delayed turn after switching interviews', async (app) => {
     const old = await start(app, check, 'the originating interview starts');

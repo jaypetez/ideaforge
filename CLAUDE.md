@@ -207,7 +207,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   reuse those controls; `connectionReady()` follows actual fields and saved-key fallback,
   not network success. `advanceConnection` reuses the factory without saving or making
   requests. The ready summary distinguishes saved/unchecked/current checked/failed proof;
-  `connectRevision` and attempt identity retire stale key/server/model check completions.
+  `connectionContext`/`ownsConnection` share revision, navigation and credential-generation
+  guards with Start/Continue construction. Attempt identity retires pending work on
+  Back/Change; speech withdrawal clears busy work, not completed unchanged inference proof.
   A failed start reveals its fields; Settings never folds. A field hidden by the
   view still holds its value, and `readRingFromForm` must keep deciding from what the
   provider declares — `test/browser/start-settings.browser.mjs` pins it. The 01-setup capture
