@@ -5,6 +5,9 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -17,13 +20,16 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
+import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.installTestGraph
-import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.usableRing
 import io.github.jaypetez.ideaforge.core.vectors.Vectors
 import kotlinx.serialization.json.JsonArray
@@ -31,6 +37,9 @@ import io.github.jaypetez.ideaforge.ux.UxBounds
 import io.github.jaypetez.ideaforge.ux.UxEvidence
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -48,42 +57,94 @@ import java.io.File
 class InterviewLayoutTest {
     @get:Rule
     val compose = createEmptyComposeRule()
+    private val graphs = mutableListOf<AppGraph>()
+
+    @After
+    fun closeScopes() {
+        runBlocking {
+            for (graph in graphs) {
+                graph.appScope.coroutineContext[Job]?.cancelAndJoin()
+                graph.mainScope.coroutineContext[Job]?.cancelAndJoin()
+            }
+        }
+        compose.waitForIdle()
+    }
 
     @Test
     fun anEnlargedCompactComposerLeavesReachableChipsAndWriteUpWithoutClippedLabels() {
+        requireLongInterviewReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 1.3f)
+    fun aShortLandscapeKeepsTheWholeSuggestionAndTurnStatusReachable() {
+        requireLongInterviewReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun anEnlargedShortLandscapeKeepsTheWholeSuggestionAndTurnStatusReachable() {
+        requireLongInterviewReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun aShortWindowOpensOnItsCurrentTurnWithoutTestDrivenScrolling() {
+        requireLongInterviewReachable(requireCurrent = true)
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    fun aShortWindowWithAnUnavailableProviderStillOpensOnItsCurrentQuestion() {
+        requireLongInterviewReachable(requireCurrent = true, providerUnavailable = true)
+    }
+
+    private fun requireLongInterviewReachable(requireCurrent: Boolean = false, providerUnavailable: Boolean = false) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
-        val graph = installTestGraph(ring = usableRing())
-        graph.providerSource = ProviderSource { ScriptedModel() }
+        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
+        graph.providerSource = ProviderSource {
+            if (providerUnavailable) throw ProviderException("config", "Controlled unavailable provider while opening.")
+            ScriptedModel()
+        }
         runBlocking { assertTrue(graph.sessionStore.insert(active)) }
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
             compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(active["name"])!!)
             val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(active["name"])!!)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
             compose.onNode(card).performClick()
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("question"), 5_000)
-            assertTrue("the draft/actions leave real room for the thread", compose.onNodeWithTag("thread").fetchSemanticsNode().boundsInWindow.height > 0f)
+            compose.onNodeWithTag("interview-back")
+                .assertHeightIsAtLeast(IdeaForgeSpacing.control).assertWidthIsAtLeast(IdeaForgeSpacing.control)
+            if (requireCurrent) {
+                compose.waitForIdle()
+                compose.onNodeWithTag("current-turn").assertIsDisplayed()
+                compose.onNodeWithTag("question").assertIsDisplayed()
+            }
+            assertTrue("the full thread remains composed", compose.onNodeWithTag("thread").fetchSemanticsNode().layoutInfo.coordinates.size.height > 0)
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
                 requireReachable(tag)
             }
 
             requireReachable("turn-status", actionRequired = false)
-            compose.onNodeWithTag("write-up").performClick()
+            requireReachable("write-up")
+            compose.onNodeWithTag("write-up").assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
-            compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
+            if (providerUnavailable) compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertExists()
+            else compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
         }
     }
 
     @Test
     fun theEnlargedWalkthroughChipTapActuallyFillsTheRealDraftBeforeSend() {
-        val graph = installTestGraph(ring = usableRing())
+        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
         graph.providerSource = ProviderSource { ScriptedModel() }
         val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 5_000)
-            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(BOTTOM_BAR))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
             for (step in steps.take(3)) {
                 val previous = compose.onNodeWithTag("question").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text

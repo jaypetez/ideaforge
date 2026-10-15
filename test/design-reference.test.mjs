@@ -24,7 +24,7 @@ const boards = (html) => [...html.matchAll(/<article class="reference-board"([^>
     content: match[2],
   }));
 
-test('reference boards remain distinct from the delivered foundations, web shell and pending screens', () => {
+test('reference boards remain distinct from the delivered foundations, adaptive shells and pending screens', () => {
   assert.ok(existsSync(HTML), 'missing static Focus Studio reference boards');
   assert.ok(existsSync(CSS), 'missing local reference stylesheet');
   const design = read(join(ROOT, 'docs', 'DESIGN.md'));
@@ -36,8 +36,8 @@ test('reference boards remain distinct from the delivered foundations, web shell
   assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
   const status = design.replace(/\s+/g, ' ');
-  assert.match(status, /foundations and the web adaptive shell \(#191\) are implemented here/);
-  assert.match(status, /The native adaptive shell and Start\/Ideas\/Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
+  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells are implemented here/);
+  assert.match(status, /The Start\/Ideas\/Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {
@@ -101,7 +101,7 @@ test('DESIGN records native content measures and all system-family typography ro
   const widths = roles.match(/object IdeaForgeWidths \{([\s\S]*?)\n\}/)?.[1];
   assert.ok(widths, 'native content-width owner is missing');
   const values = [...widths.matchAll(/val (\w+) = (\d+)\.dp/g)];
-  assert.equal(values.length, 5, 'check every native content measure');
+  assert.equal(values.length, 6, 'check every native content measure and the adaptive rail');
   for (const [, name, value] of values) {
     assert.ok(design.includes(`| \`${name}\` | ${value}dp |`), `native ${name} width drift`);
   }

@@ -24,7 +24,7 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Design contract and reference-only boards.** Sources:
   [`docs/DESIGN.md`](../../../../docs/DESIGN.md) distinguishes current shipped values
   from the remaining Focus Studio screen/layout targets. #189 and #190 implement the web
-  and native foundations, and #191 implements the web adaptive shell, not the full screen
+  and native foundations, and #191/#192 implement the adaptive web/native shells, not the full screen
   redesign; guide CSS migration belongs to #205;
   [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
   [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
@@ -37,6 +37,25 @@ source wins over prose, and a generated artifact wins over a description of that
   device/IME/permission behavior and running-app accessibility need separate evidence.
   `tools/assemble-site.mjs` excludes `docs/design/` from published assets. Do not refresh
   canonical README screenshots to make an unimplemented screen appear shipped.
+- **Native adaptive shell and inset ownership.** Sources:
+  [`AppShell.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/AppShell.kt)
+  uses installed Material window classes and one NavHost/destination descriptor set.
+  It owns system-bar/display-cutout padding and consumes it once for all children;
+  [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)
+  and [`ResultScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/result/ResultScreen.kt)
+  own zero-extra-inset contextual bars with complete literal display titles.
+  Editing screens and [`VoiceStage.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/voice/VoiceStage.kt)
+  own only remaining keyboard/navigation clearance. `Roles.kt` owns the font-scaled rail
+  and task measures. In a short Interview with the IME open, its contextual bar shares the
+  page scroller rather than clipping the enlarged editor. Library retains its installed
+  Material adaptive panes.
+  [`AdaptiveShellTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ui/AdaptiveShellTest.kt)
+  and the opt-in shell method in `UxCaptureDeviceTest` own route/resize/voice/inset proof,
+  including bounded enlarged-text cases for installed system-navigation modes.
+  Re-check DESIGN, the Android guide, architecture, full title semantics, no
+  navigation-triggered microphone/service and actual exact-SHA pixel manifests.
+  Scripted controller speech/service in paused-stage evidence is not physical input
+  or real foreground-service proof.
 - **Web visual foundation and chrome.** Sources:
   [`src/ui/app.css`](../../../../src/ui/app.css) owns semantic surfaces/text, composed
   control states, type, spacing, shape, separators and reduced/forced-colour rules.
@@ -85,7 +104,8 @@ source wins over prose, and a generated artifact wins over a description of that
   own shared-data loading, labelled isolated phases and real navigation.
   [`UxCaptureRecorder.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxCaptureRecorder.kt)
   owns PNG/semantics/manifests; [`UxDeviceEnvironment.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxDeviceEnvironment.kt)
-  restores actual display/font settings. Re-check platform-specific phases, explicit caller
+  restores actual display/font settings and changed system-navigation overlays.
+  Re-check platform-specific phases, explicit caller
   SHA versus clean-tree evidence, focused versus complete matrix results, and known red
   baselines against those owners.
   Native [`SessionStore.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/SessionStore.kt)

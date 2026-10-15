@@ -15,6 +15,12 @@ on:
     # Nightly, so a drifting emulator image or AndroidX release is noticed without a push.
     - cron: '17 4 * * *'
   workflow_dispatch:
+    inputs:
+      evidence:
+        description: Full UX inventory or the focused adaptive-shell interaction matrix
+        type: choice
+        options: [full, shell]
+        default: full
 
 permissions:
   contents: read
@@ -74,8 +80,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
@@ -84,11 +92,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
+
+      - name: Locate native evidence outputs
+        if: always()
+        run: |
+          find app/build -type d -iname '*additional*' -print
+          find app/build -type f \( -name '*.png' -o -name 'manifest*.json' \) -print | sed -n '1,80p'
 
       - name: Upload named native UX screenshots and manifests
         if: always()
@@ -96,6 +112,8 @@ jobs:
         with:
           name: android-ux-evidence-${{ github.sha }}
           path: |
+            android/app/build/intermediates/managed_device_android_test_additional_output/
+            android/app/build/intermediates/connected_android_test_additional_output/
             android/app/build/outputs/managed_device_android_test_additional_output/
             android/app/build/outputs/connected_android_test_additional_output/
           if-no-files-found: error

@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +52,7 @@ class UxFixtureActivity : ComponentActivity() {
                 IdeaForgeTheme(dark = dark, dynamicColor = false) {
                     MaterialTheme(colorScheme = palette.scheme(dark, MaterialTheme.colorScheme)) {
                         Scaffold { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding)) { UxFoundationContent(palette) }
+                            Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) { UxFoundationContent(palette) }
                         }
                     }
                 }
@@ -66,7 +67,7 @@ class UxFixtureActivity : ComponentActivity() {
             SideEffect { rootRenderingContext = context }
             IdeaForgeTheme(dark = dark) {
                 Scaffold { padding ->
-                    Column(Modifier.fillMaxSize().padding(padding)) {
+                    Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                         Text(
                             "Isolated component · ${state.id}",
                             style = MaterialTheme.typography.labelMedium,

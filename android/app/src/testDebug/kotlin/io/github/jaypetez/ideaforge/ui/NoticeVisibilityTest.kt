@@ -10,6 +10,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasAnyAncestor
@@ -117,6 +118,15 @@ class NoticeVisibilityTest {
 
     @Test
     fun aDelayedSubmissionFailureIsVisibleWhileTheShortInterviewIsScrolledToItsComposer() {
+        requireDelayedSubmissionNotice(atComposer = true)
+    }
+
+    @Test
+    fun aDelayedSubmissionFailureDoesNotPullAnOlderHistoryReaderBackToTheComposer() {
+        requireDelayedSubmissionNotice(atComposer = false)
+    }
+
+    private fun requireDelayedSubmissionNotice(atComposer: Boolean) {
         val active = fixtures.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val store = SessionStore(files.newFolder(), io = Dispatchers.Unconfined)
         runBlocking { store.save(active) }
@@ -147,13 +157,32 @@ class NoticeVisibilityTest {
                 !hasTestTag("answer") and !hasTestTag("notice-message"))
             val before = outer.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
             assertTrue("the coverage/old inline host is genuinely scrolled away", before > 0f)
+            if (!atComposer) {
+                outer.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, -before) }
+                compose.onNodeWithTag("coverage-strip").assertIsDisplayed()
+                compose.onNodeWithTag("answer").assertIsNotDisplayed()
+            }
             compose.mainClock.autoAdvance = false
             compose.runOnIdle { release.complete(Unit) }
             assertVisibleTimedNotice("controlled delayed submission failure")
             assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
-            assertEquals("notice arrival must not jump back above the composer", before,
-                outer.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value(), 1f)
-            assertTrue("the interview retains a nonzero scroll viewport", outer.fetchSemanticsNode().boundsInWindow.height > 0f)
+            val viewport = outer.fetchSemanticsNode().boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+            if (atComposer) {
+                // Protect the visible editor, not its old content-coordinate scroll offset.
+                val editor = compose.onNodeWithTag("answer")
+                editor.assertIsDisplayed()
+                val editorNode = editor.fetchSemanticsNode()
+                val coordinates = editorNode.layoutInfo.coordinates
+                val origin = coordinates.localToWindow(Offset.Zero)
+                val raw = UxBounds(origin.x, origin.y, origin.x + coordinates.size.width, origin.y + coordinates.size.height)
+                val clipped = editorNode.boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
+                assertTrue("notice arrival must keep the whole editor without test-driven scrolling: $raw inside ${viewport.intersect(clipped)}",
+                    viewport.intersect(clipped).contains(raw))
+            } else {
+                compose.onNodeWithTag("coverage-strip").assertIsDisplayed()
+                compose.onNodeWithTag("answer").assertIsNotDisplayed()
+            }
+            assertTrue("the interview retains a nonzero scroll viewport", viewport.height > 0f)
             compose.mainClock.autoAdvance = true
             compose.onNodeWithTag("answer").performScrollTo().assertIsDisplayed()
             assertTrue("the actual editor retains visible space", compose.onNodeWithTag("answer").fetchSemanticsNode().boundsInWindow.height > 0f)

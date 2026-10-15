@@ -460,6 +460,13 @@ Use the `add-provider` skill when changing an inference or transcription provide
 `./gradlew check :app:assembleDebug` from `android/`; the `android-verify` skill is the full
 ladder, including the emulator smoke run. Most of these rules fail silently too.
 
+- **Native chrome must not recreate the interview.** `AppShell.kt` adapts one NavHost
+  from installed window classes, never by minting a session on resize. Its Row applies
+  and consumes system/cutout Scaffold padding once for every child; rail/contextual
+  bars add no system insets, and editing/voice own only remaining IME. An attached
+  drive hides chrome only for its matching visible interview session. Keep the
+  entry-scoped ViewModels, library pane navigator and new-id/Ask-me-more distinction.
+
 - **The vectors are the contract, and the JavaScript is the reference.** Behaviour changes
   land in JS, `npm run vectors` regenerates `test/vectors/` in the same PR, and the Kotlin
   replays (`Consumers.kt`, with `VectorCoverageTest` failing on an unconsumed family) go red

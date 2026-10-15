@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
@@ -46,11 +47,17 @@ import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.KeyringKey
 import io.github.jaypetez.ideaforge.scriptedWalkthrough
+import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
+import io.github.jaypetez.ideaforge.ui.NAVIGATION_RAIL
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.voice.DriveServiceControl
+import io.github.jaypetez.ideaforge.voice.SpeakResult
+import io.github.jaypetez.ideaforge.voice.Speaker
+import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -91,6 +98,187 @@ class UxCaptureDeviceTest {
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
+
+    @Test
+    fun requestedShellEvidenceKeepsInsetsAndIdentity() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val optIn = bundle.getString("uxShellProbe")
+        if (optIn.isNullOrEmpty()) {
+            require(bundle.getString("class")?.contains("#requestedShellEvidenceKeepsInsetsAndIdentity") != true) {
+                "the selected shell probe requires uxShellProbe=true and capture provenance"
+            }
+            return
+        }
+        require(optIn == "true") { "uxShellProbe must be true when requested" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "shell evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = when (request.window) {
+            "compact" -> listOf("compact", "medium", "compact-landscape")
+            "expanded" -> listOf("expanded")
+            else -> listOf("compact", "medium", "compact-landscape", "expanded")
+        }
+        val sizes = mapOf("compact" to (411 to 914), "medium" to (720 to 960),
+            "compact-landscape" to (640 to 400), "expanded" to (1280 to 900))
+        val baseMatrix = windows.flatMap { window ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map {
+                    UxConfiguration(window, theme, it, requestedWidthDp = sizes.getValue(window).first,
+                        requestedHeightDp = sizes.getValue(window).second)
+                }
+            }
+        }
+        val states = listOf("fresh", "ready", "library-long", "interview-long", "result-long")
+        val frames = states + listOf("shell-interview-ime", "shell-voice-paused")
+        val environment = UxDeviceEnvironment(instrumentation.uiAutomation)
+        check(environment.navigationModes.isNotEmpty()) { "no supported system-navigation overlay is installed" }
+        val navigationFrames = listOf("interview-long", "result-long", "shell-interview-ime", "shell-voice-paused")
+        val matrix = baseMatrix + baseMatrix.filter { it.theme == "light" && it.fontScale == 2f }.flatMap { config ->
+            environment.navigationModes.map { config.copy(navigationMode = it) }
+        }
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux-shell"),
+            matrix.flatMap { config ->
+                (if (config.navigationMode == null) frames else navigationFrames).map { "${config.id}/$it" }
+            }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            environment.use {
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    config.navigationMode?.let { mode ->
+                        environment.selectNavigationMode(mode)
+                        compose.waitUntil(DEVICE_TIMEOUT) { environment.navigationModeApplied(mode) }
+                    }
+                    for (id in if (config.navigationMode == null) states else listOf("interview-long", "result-long")) {
+                        val state = fixtures.state(id)
+                        try {
+                            prepare(state, config)
+                            val controls = navigate(state)
+                            if (id == "fresh") {
+                                compose.onNodeWithTag(NAVIGATION).assertDoesNotExist()
+                            } else {
+                                requireNavigation(config)
+                                if (id == "interview-long" || id == "result-long") {
+                                    val session = checkNotNull(fixtureGraph!!.sessionStore.get(requireNotNull(state.sessionId)))
+                                    assertEquals(sessionDisplayTitle(session),
+                                        nodeText(if (id == "interview-long") "interview-title" else ResultTags.TITLE))
+                                }
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeMapping = "Real MainActivity adaptive shell; actual system dynamic colour and requested display/font configuration.")
+                            if (id == "interview-long") {
+                                revealControl("answer")
+                                compose.onNodeWithTag("answer").performClick()
+                                compose.waitUntil(DEVICE_TIMEOUT) {
+                                    activity?.window?.decorView?.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true
+                                }
+                                val draft = "The same editable draft survives the shell resize and recreation."
+                                compose.onNodeWithTag("answer").performTextReplacement(draft)
+                                recorder.capture(state.copy(id = "shell-interview-ime"), config, checkNotNull(activity), interviewControls(),
+                                    nativeMapping = "Real MainActivity with actual IME; the composer consumes only keyboard clearance beyond the shell.")
+                                hideKeyboard()
+                                val ids = runBlocking { fixtureGraph!!.sessionStore.knownIds() }
+                                val other = if (config.window == "compact") "expanded" else "compact"
+                                environment.configure(other, config.fontScale, resize = true)
+                                scenario!!.recreate()
+                                scenario!!.onActivity { activity = it }
+                                await("answer")
+                                assertEquals(draft, compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                                    .getOrNull(SemanticsProperties.EditableText)?.text)
+                                assertEquals(ids, runBlocking { fixtureGraph!!.sessionStore.knownIds() })
+                                assertEquals(sessionDisplayTitle(checkNotNull(fixtureGraph!!.sessionStore.get(requireNotNull(state.sessionId)))),
+                                    nodeText("interview-title"))
+                                environment.configure(config.window, config.fontScale, resize = true)
+                            } else if (id == "result-long") {
+                                val ids = runBlocking { fixtureGraph!!.sessionStore.knownIds() }
+                                revealControl(ResultTags.ASK_MORE)
+                                compose.onNodeWithTag(ResultTags.ASK_MORE).assertIsDisplayed().performClick()
+                                await("answer")
+                                assertEquals(ids, runBlocking { fixtureGraph!!.sessionStore.knownIds() })
+                                assertEquals("interviewing", stringOf(fixtureGraph!!.sessionStore.get(requireNotNull(state.sessionId))!!["status"]))
+                            } else if (id == "library-long") {
+                                val title = sessionDisplayTitle(checkNotNull(fixtureGraph!!.sessionStore.get("ux-long-active")))
+                                scenario!!.recreate()
+                                scenario!!.onActivity { activity = it }
+                                await(LibraryTags.DETAIL)
+                                compose.onNode(hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(title))).assertExists()
+                            }
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            compose.runOnUiThread { fixtureGraph?.driveController?.exit() }
+                            closeFixture()
+                            environment.configure(config.window, config.fontScale, resize = true)
+                        }
+                    }
+                    val base = fixtures.state("interview-long")
+                    val paused = base.copy(id = "shell-voice-paused", surface = "voice", phase = "paused")
+                    try {
+                        prepare(base, config)
+                        navigate(base)
+                        val graph = checkNotNull(fixtureGraph)
+                        graph.driveSpeaker = object : Speaker {
+                            override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+                            override fun cancel() {}
+                            override fun shutdown() {}
+                        }
+                        var serviceStarts = 0
+                        graph.driveService = object : DriveServiceControl {
+                            override fun start() { serviceStarts++ }
+                            override fun stop() {}
+                        }
+                        val session = checkNotNull(graph.sessionStore.get("ux-long-active"))
+                        compose.runOnUiThread {
+                            graph.driveController.start(session, "typed")
+                            graph.driveController.pause()
+                        }
+                        await("voice-stage")
+                        assertEquals(VoiceMode.PAUSED, graph.driveController.state.value.mode)
+                        assertEquals(1, serviceStarts)
+                        compose.onNodeWithTag(NAVIGATION).assertDoesNotExist()
+                        compose.onNodeWithTag("interview-back").assertDoesNotExist()
+                        val view = checkNotNull(activity).window.decorView
+                        val insets = view.rootWindowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                        val stage = compose.onNodeWithTag("voice-stage").fetchSemanticsNode().boundsInWindow
+                        assertEquals("voice receives status clearance once", insets.top.toFloat(), stage.top, 1f)
+                        assertEquals("voice receives navigation clearance once", (view.height - insets.bottom).toFloat(), stage.bottom, 1f)
+                        recorder.capture(paused, config, checkNotNull(activity), listOf(tag("voice-resume"), tag("voice-exit")),
+                            nativeMapping = "Real MainActivity and app-scope DriveController paused with scripted speech and a recorded fake service; no microphone, permission UI or actual service behavior is proved.")
+                        compose.onNodeWithTag("voice-exit").performClick()
+                        await(NAVIGATION)
+                        requireNavigation(config)
+                    } catch (error: Throwable) {
+                        recorder.failed(paused, config, error, activity)
+                    } finally {
+                        closeFixture()
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() },
+                { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    private fun requireNavigation(config: UxConfiguration) {
+        val rail = config.window != "compact"
+        await(if (rail) NAVIGATION_RAIL else BOTTOM_BAR)
+        compose.onNodeWithTag(if (rail) BOTTOM_BAR else NAVIGATION_RAIL).assertDoesNotExist()
+        val bounds = compose.onNodeWithTag(if (rail) NAVIGATION_RAIL else BOTTOM_BAR).fetchSemanticsNode().boundsInWindow
+        assertTrue("navigation orientation follows the actual window class", if (rail) bounds.height > bounds.width else bounds.width > bounds.height)
+    }
 
     @Test
     fun requestedShortResultEvidenceKeepsTheFullDocumentAndActionsReachable() {
@@ -459,7 +647,7 @@ class UxCaptureDeviceTest {
             await("provider-groq")
             return listOf(tag("provider-groq"), tag("provider-ollama"))
         }
-        await(BOTTOM_BAR)
+        await(NAVIGATION)
         when (state.id) {
             "ready", "empty" -> {
                 await(LibraryTags.ZERO)
@@ -587,6 +775,7 @@ class UxCaptureDeviceTest {
     private fun interviewControls(): List<UxControl> = buildList {
         add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("voice-start"))
         if (exists("write-up")) add(tag("write-up"))
+        add(tag("interview-back"))
     }
 
     private fun resultControls() = listOf(
@@ -600,7 +789,7 @@ class UxCaptureDeviceTest {
     )
 
     private fun navigationMatcher(label: Int) =
-        hasText(target.getString(label)) and hasAnyAncestor(hasTestTag(BOTTOM_BAR)) and hasClickAction()
+        hasText(target.getString(label)) and hasAnyAncestor(hasTestTag(NAVIGATION)) and hasClickAction()
 
     private fun textControl(name: String, label: Int) = UxControl(name, hasText(target.getString(label)) and hasClickAction())
     private fun tag(name: String) = UxControl(name, hasTestTag(name))

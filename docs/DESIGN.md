@@ -14,12 +14,12 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
-colour/type/spacing/shape/state foundations and the web adaptive shell (#191) are implemented
-here. The native adaptive shell and Start/Ideas/Interview/Voice/Result recompositions are
+colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
+shells are implemented here. The Start/Ideas/Interview/Voice/Result recompositions are
 **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the foundations and web shell with existing screen compositions, not the complete reference boards.
+the foundations and adaptive shells with existing screen compositions, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -138,6 +138,57 @@ The policy suite also supplies nonzero safe-area CSS insets through the browser 
 measures the skip link's full focus outline and the short sticky coverage panel, and
 enters/exits the real wide voice flow to prove rail clearance is removed/restored.
 These are controlled desktop-browser checks, not physical-phone safe-area evidence.
+
+## Current native shell
+
+`ui/AppShell.kt` uses the installed Material adaptive window classes: compact width keeps
+one `NavigationBar`; medium and wider widths use one labelled `NavigationRail`. Both use
+the same destination descriptors and callbacks around the same `NavHost`. The native
+`rail` token is 80dp, enlarged with font scale, and the rail can scroll in a short window.
+These are native window classes, not copies of the web's CSS breakpoint/rail table.
+
+The Interview and Result contextual bars retain full literal `sessionDisplayTitle` text
+in semantics while allowing a visual ellipsis. Back uses the existing navigation stack.
+Completed ideas select Ideas; New idea still mints a new id and back-stack ViewModel entry.
+The existing Material adaptive Library panes and their saved selection are retained.
+Onboarding still removes itself from the stack and prevents navigation before a usable
+keyring is available; opening Library does not focus its search field automatically.
+
+| Inset | Owning layer |
+|---|---|
+| System bars and display cutout | AppShell's outer Scaffold. Its Row applies and consumes the returned padding once for every child. |
+| Compact navigation | The shell's NavigationBar owns its bottom/horizontal system clearance; Scaffold includes the actual bar height in child padding. |
+| Rail and contextual bars | Inside consumed shell space; their Material `windowInsets` are zero, so they do not reserve system bars again. |
+| Keyboard | Interview, Settings and onboarding consume remaining IME beyond shell clearance. Voice also respects any remaining keyboard/nav inset; Result's existing action dock stays within shell space. |
+
+When the app-scope drive is attached to the visible interview's session, the shell hides
+both navigation presentations and the manual contextual bar. Voice gains the released
+workspace without adding a route or changing controller/service ownership. Exit restores
+the actual manual navigation; caption/level updates do not rebuild shell chrome.
+Form, work, Settings, reading and answer measures remain owned by `IdeaForgeWidths`;
+Library, document metadata and voice also consume those bounds. This is shell/inset work,
+not the later Library, composer, voice or Result action-order makeover.
+
+`AdaptiveShellTest` exercises real activity routes, native window shapes, draft/selection
+recreation, same-session Ask me more and attached voice. The managed-device shell matrix
+uses MainActivity at compact, medium, expanded and compact-landscape sizes, both themes
+and font scales 1.0/1.3/2.0, including an actual IME. Its paused stage uses the real
+app-scope controller with scripted speech and a recorded fake service: it is layout/
+identity evidence, not a microphone, permission UI or real-service certification.
+Complete PNGs/manifests at the exact clean SHA remain required acceptance evidence.
+Additional light/font-2 cases switch each installed three-button/gestural system-navigation
+overlay and repeat Interview, actual IME, Result and paused Voice in every requested window.
+Mode selection is verified against the system resource and SystemUI setting; the original
+overlay enablement is restored. These are inset/layout checks, not physical gesture usability.
+Short/enlarged manual windows use one page scroller for thread and composer rather than
+nesting a lazy thread viewport inside it. This keeps a suggestion or turn-status label
+reachable above the contextual bar; ordinary-height interviews retain their lazy thread.
+With an open IME in a short window, the contextual bar joins that scroller so it cannot
+leave less height than an enlarged editor. Back and the complete title remain reachable.
+Back reserves the full 48dp control layout, not only an expanded hit area that could
+extend above the safe viewport when the bar scrolls into view.
+An opening provider failure still lands on the current question. A delayed submission
+failure preserves an already visible editor without pulling an older-history reader to it.
 
 ## State, focus and elevation
 
@@ -297,13 +348,14 @@ large/extraLarge to dialog. Buttons, fields and chips consume the control shape 
 
 `IdeaForgeWidths` bounds native form/reading to 720dp, work to 1120dp, Settings to 1000dp
 and answer bubbles to 520dp. These are content measures, not web breakpoint copies:
-onboarding, manual Interview, Settings and the shared export preview consume them using
+onboarding, Library, manual Interview, Settings, voice and Result consume them using
 native layout constraints. Enlarged action groups wrap without changing order; the
 turn-status text and unreadable-key recovery can grow/scroll. This foundation does not
-replace the adaptive shell, library panes or the later screen recompositions.
+replace the adaptive library panes or the later screen recompositions.
 
-| Native width role | Maximum |
+| Native width role | Default bound |
 |---|---|
+| `rail` | 80dp |
 | `form` | 720dp |
 | `work` | 1120dp |
 | `settings` | 1000dp |
@@ -597,8 +649,10 @@ evidence; the caller-supplied SHA does not certify an uncommitted tree.
 `uxCaptureSourceState=development-dirty` explicitly labels iteration; its `clean` default
 is only valid for a genuinely committed, unchanged checkout.
 
-Evidence lands under `android/app/build/outputs/connected_android_test_additional_output/`
-or `managed_device_android_test_additional_output/`. Failed navigation retains an explicitly
+Evidence lands in `connected_android_test_additional_output/` or
+`managed_device_android_test_additional_output/` beneath `android/app/build/intermediates/`
+or `build/outputs/`. The current managed runner uses variant/task directories under
+`intermediates/`; the workflow collects both locations. Failed navigation retains an explicitly
 unverified current-UI PNG; late walkthrough failures preserve earlier independent frame
 records. Finalization is attempted even after cleanup failures, which are recorded in the
 terminal failed manifest. Missing requested states, blank/black images, lost action labels

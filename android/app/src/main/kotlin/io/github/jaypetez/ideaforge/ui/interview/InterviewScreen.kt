@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -24,6 +26,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,12 +37,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,8 +61,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -61,6 +73,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -70,6 +83,7 @@ import io.github.jaypetez.ideaforge.core.DIMENSIONS
 import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
 import io.github.jaypetez.ideaforge.core.coveragePercent
 import io.github.jaypetez.ideaforge.core.getDimension
+import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
@@ -125,12 +139,14 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
  * The typed interview: a coverage strip, the thread so far, the open question with its
  * bridge and suggestion chips, and a composer docked above the keyboard.
  */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun InterviewScreen(
     vm: InterviewViewModel,
     onFinished: (synthesisFailed: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     drive: DriveController? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -229,25 +245,30 @@ fun InterviewScreen(
         return
     }
 
-    Box(modifier.fillMaxSize().testTag("interview")) {
-        BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
-            val composerMaxHeight = maxHeight * 0.6f
+    Column(modifier.fillMaxSize().testTag("interview")) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().imePadding()) {
+            val barHeight = if (onBack != null) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp
+            val bodyHeight = (maxHeight - barHeight).coerceAtLeast(0.dp)
+            val composerMaxHeight = bodyHeight * 0.6f
             // An open IME can leave less than one editor plus wrapped action rows.
             // Scroll the real content instead of weighting the editor down to zero.
-            val shortWindow = maxHeight < 240.dp * LocalDensity.current.fontScale
-            val threadHeight = maxHeight
+            val shortWindow = bodyHeight < 240.dp * LocalDensity.current.fontScale
+            // A fixed bar can leave less height than one enlarged editor above the IME.
+            val scrollHeader = shortWindow && WindowInsets.isImeVisible
             val scroll = rememberScrollState()
             Column(Modifier.fillMaxSize()) {
+                if (!scrollHeader) InterviewHeader(state, onBack)
                 SnackbarHost(snackbar)
                 Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
                     .let { if (shortWindow) it.verticalScroll(scroll) else it }) {
+                    if (scrollHeader) InterviewHeader(state, onBack)
                     CoverageStrip(state)
                     if (state.busy != null) {
                         LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
                     } else {
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
-                    Conversation(state, vm, if (shortWindow) Modifier.height(threadHeight) else Modifier.weight(1f))
+                    Conversation(state, vm, if (shortWindow) Modifier else Modifier.weight(1f), scrollWithComposer = shortWindow)
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
@@ -258,6 +279,23 @@ fun InterviewScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InterviewHeader(state: InterviewState, onBack: (() -> Unit)?) {
+    if (onBack == null) return
+    val fallback = stringResource(R.string.nav_new_idea)
+    val title = state.session?.let { sessionDisplayTitle(it, fallback) } ?: fallback
+    TopAppBar(
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("interview-title")) },
+        navigationIcon = {
+            IconButton(onClick = onBack, modifier = Modifier.size(IdeaForgeSpacing.control).testTag("interview-back")) {
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
+            }
+        },
+        windowInsets = WindowInsets(0),
+    )
 }
 
 @Composable
@@ -336,8 +374,32 @@ private fun Pill(pill: CoveragePill) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier: Modifier) {
+private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier: Modifier, scrollWithComposer: Boolean) {
     val thread = threadOf(state)
+    // A short window has one page scroller. A nested lazy viewport can scroll a chip
+    // into its own bounds while leaving it clipped behind the contextual bar.
+    if (scrollWithComposer) {
+        val current = remember { BringIntoViewRequester() }
+        val wrap = remember { BringIntoViewRequester() }
+        LaunchedEffect(state.openTurn?.get("n"), state.wrapOffer) {
+            if (state.busy != null || state.notice != null && state.notice !is InterviewNotice.NoProvider) return@LaunchedEffect
+            if (state.wrapOffer != null) wrap.bringIntoView() else current.bringIntoView()
+        }
+        Column(
+            modifier.fillMaxWidth().testTag("thread")
+                .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+        ) {
+            for (entry in thread) ThreadItem(entry)
+            Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
+                OpenQuestion(state, vm)
+            }
+            state.wrapOffer?.let {
+                Box(Modifier.fillMaxWidth().bringIntoViewRequester(wrap)) { WrapOffer(it, vm) }
+            }
+        }
+        return
+    }
     val list = rememberLazyListState()
     // Keep the open question in view as the thread grows.
     LaunchedEffect(thread.size, state.busy, state.wrapOffer) {
@@ -351,17 +413,20 @@ private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
-        item(key = "open") {
-            val open = state.openTurn
-            when {
-                state.session == null -> Text(stringResource(R.string.interview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                state.busy != null -> BusyLine(state.busy)
-                open != null -> QuestionCard(state, open, vm)
-            }
-        }
+        item(key = "open") { OpenQuestion(state, vm) }
         state.wrapOffer?.let { offer ->
             item(key = "wrap") { WrapOffer(offer, vm) }
         }
+    }
+}
+
+@Composable
+private fun OpenQuestion(state: InterviewState, vm: InterviewViewModel) {
+    val open = state.openTurn
+    when {
+        state.session == null -> Text(stringResource(R.string.interview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.busy != null -> BusyLine(state.busy)
+        open != null -> QuestionCard(state, open, vm)
     }
 }
 
@@ -495,6 +560,16 @@ private fun Composer(
     state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
 ) {
+    val editor = remember { BringIntoViewRequester() }
+    var editorVisible by remember { mutableStateOf(false) }
+    val keepEditor = shortWindow && editorVisible
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(state.notice) {
+        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback)) {
+            // Notice consumption must not cancel preserving the previously visible editor.
+            scope.launch { editor.bringIntoView() }
+        }
+    }
     Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedTextField(
@@ -505,7 +580,11 @@ private fun Composer(
                 enabled = state.canAnswer,
                 minLines = if (shortWindow) 1 else 2,
                 maxLines = if (shortWindow) 1 else 6,
-                modifier = Modifier.fillMaxWidth().let { if (shortWindow) it else it.weight(1f, fill = false) }.testTag("answer"),
+                modifier = Modifier.fillMaxWidth().let {
+                    if (shortWindow) it.bringIntoViewRequester(editor).onGloballyPositioned { coordinates ->
+                        editorVisible = coordinates.boundsInWindow().height > 0f
+                    } else it.weight(1f, fill = false)
+                }.testTag("answer"),
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(
