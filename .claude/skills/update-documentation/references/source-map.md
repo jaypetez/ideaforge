@@ -78,7 +78,8 @@ source wins over prose, and a generated artifact wins over a description of that
   always-visible required hosted-speech fields.
   [`dialog.js`](../../../../src/ui/dialog.js) owns the native awaited boolean confirmation;
   [`secrets.js`](../../../../src/store/secrets.js) serializes encrypted credential work
-  against confirmed Forget and reports unreadable-key recovery to the UI.
+  against confirmed Forget, merges independently owned branches through `updateCredentials`
+  and reports unreadable/unknown-key recovery to the UI.
   [`settings.browser.mjs`](../../../../test/browser/settings.browser.mjs), the real-input
   policy probe and voice-stage tests own cancellation/focus, storage failures, delayed
   writes and hosted verification. Re-check README/guide section names, data-action labels,

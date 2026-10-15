@@ -20,7 +20,9 @@ const savedRing = () => withTts(withStt(withCreds(emptyKeyring(), 'anthropic',
   { apiKey: KEY }), { kind: 'groq', apiKey: 'gsk-settings-transcription-194' }),
 { kind: 'openai', apiKey: 'sk-settings-separate-speech-194', verified: false });
 
-async function visit(path, run, { ring = savedRing(), prepare = async () => {} } = {}) {
+async function visit(path, run, {
+  ring = savedRing(), prepare = async () => {}, beforeBoot = null,
+} = {}) {
   for (const worker of await navigator.serviceWorker.getRegistrations()) await worker.unregister();
   for (const name of await caches.keys()) await caches.delete(name);
   await clearCredentials();
@@ -38,7 +40,12 @@ async function visit(path, run, { ring = savedRing(), prepare = async () => {} }
     frame.onload = resolve;
     frame.onerror = () => reject(new Error('Settings probe iframe failed'));
   });
-  frame.src = `${path}index.html`;
+  if (beforeBoot) {
+    const markup = await (await fetch(`${path}index.html`)).text();
+    const app = markup.match(/<script type="module" src="\.\/src\/ui\/app\.js"><\/script>/);
+    if (!app) throw new Error('The owning app module tag could not be deferred for the read-failure fixture');
+    frame.srcdoc = markup.replace(app[0], '');
+  } else frame.src = `${path}index.html`;
   document.body.append(frame);
   await loaded;
   const win = frame.contentWindow;
@@ -46,6 +53,7 @@ async function visit(path, run, { ring = savedRing(), prepare = async () => {} }
   const $ = (id) => doc.getElementById(id);
   const shown = (el) => Boolean(el && el.getClientRects().length);
   const errors = [];
+  let restoreBoot;
   let microphones = 0;
   win.addEventListener('unhandledrejection', (event) => errors.push(String(event.reason)));
   win.addEventListener('error', (event) => errors.push(event.message));
@@ -65,6 +73,13 @@ async function visit(path, run, { ring = savedRing(), prepare = async () => {} }
     await Promise.all($('panel-setup').getAnimations().map((animation) => animation.finished));
   };
   try {
+    if (beforeBoot) {
+      restoreBoot = beforeBoot(win);
+      const module = doc.createElement('script');
+      module.type = 'module';
+      module.src = new URL(`${path}src/ui/app.js`, location.origin).href;
+      doc.body.append(module);
+    }
     try {
       await until(() => $('version')?.textContent, 'boot');
     } catch (error) {
@@ -80,6 +95,7 @@ async function visit(path, run, { ring = savedRing(), prepare = async () => {} }
     if (errors.length) throw new Error(errors.join('; '));
     if (microphones) throw new Error('Settings requested a microphone');
   } finally {
+    restoreBoot?.();
     frame.remove();
     await clearCredentials();
     await deleteSession(idea);
@@ -97,7 +113,49 @@ export default async function run(check, { subpath }) {
     await delayedForget(check, path);
     await failedForget(check, path);
     await unreadable(check, path);
+    await typedTranscriptionKey(check, path);
   }
+  await unreadableRetained(check);
+}
+
+async function typedTranscriptionKey(check, path) {
+  await visit(path, async ({ win, $, change }) => {
+    change('stt', 'groq');
+    change('sttkey', 'gsk-typed-then-saved-transcription-194', 'input');
+    win.fetch = async () => new win.Response(JSON.stringify({
+      error: { message: 'Scripted refusal after saving the typed transcription key' },
+    }), { status: 401 });
+    $('b-check').click();
+    await until(() => !$('err').hidden, 'form-entered transcription key saved');
+    const first = await loadCredentials();
+    check(`${path} the first transcription key really passed through the form and encrypted save`,
+      first.stt.kind === 'groq' && first.stt.apiKey === 'gsk-typed-then-saved-transcription-194');
+    change('stt', 'openai');
+    $('b-check').click();
+    await until(() => $('b-check').getAttribute('aria-busy') === 'false', 'next transcription selection saved');
+    const next = await loadCredentials();
+    check(`${path} a typed-and-saved transcription key cannot cross services without a reload`,
+      next.stt.kind === 'openai' && next.stt.apiKey === '' && $('sttkey').value === '');
+  });
+}
+
+async function unreadableRetained(check) {
+  await visit('/', async ({ $, shown }) => {
+    check('a failed credential read leaves the original encrypted payload intact',
+      Boolean(await get(SECRETS, 'credentials')));
+    check('failed reads report unknown saved keys, not an empty credential store',
+      !/No keys saved/.test($('keys-summary').textContent)
+        && /could not be read|may remain|unknown/i.test($('keys-summary').textContent));
+    check('possibly retained keys keep an explicit Forget path available',
+      shown($('b-forget')) && shown($('credential-error')));
+  }, { beforeBoot(win) {
+    const read = win.IDBObjectStore.prototype.get;
+    win.IDBObjectStore.prototype.get = function (key) {
+      if (this.name === SECRETS && key === 'credentials') throw new Error('Scripted retained-key read failure');
+      return read.call(this, key);
+    };
+    return () => { win.IDBObjectStore.prototype.get = read; };
+  } });
 }
 
 async function hierarchy(check, path) {

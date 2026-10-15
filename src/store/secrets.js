@@ -44,12 +44,26 @@ async function wrappingKey() {
  * @param {object} ring a keyring, or a v1 blob, which is migrated on the way in so an old
  *                      call site cannot write a shape the loader would have to guess at.
  */
-export function saveCredentials(ring, { isCurrent = () => true } = {}) {
+export function saveCredentials(ring, options) {
+  return writeCredentials(() => ring, options);
+}
+
+/** Merge only the operation's owned fields against the latest durable ring in the queue. */
+export function updateCredentials(update, options) {
+  return writeCredentials(async () => {
+    const blob = await get(SECRETS, PAYLOAD);
+    return update(blob ? await decryptCredentials(blob) : emptyKeyring());
+  }, options);
+}
+
+function writeCredentials(makeRing, { isCurrent = () => true } = {}) {
   const started = generation;
   return credentialOperation(async () => {
     const current = () => {
       if (started !== generation || !isCurrent()) throw new Error('Credential save was cancelled.');
     };
+    current();
+    const ring = await makeRing();
     current();
     const key = await wrappingKey();
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -58,7 +72,16 @@ export function saveCredentials(ring, { isCurrent = () => true } = {}) {
     const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
     current();
     await put(SECRETS, { iv, ciphertext }, PAYLOAD);
+    return payload;
   });
+}
+
+async function decryptCredentials(blob) {
+  const key = await wrappingKey();
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: blob.iv }, key, blob.ciphertext
+  );
+  return migrateCredentials(JSON.parse(new TextDecoder().decode(plaintext)));
 }
 
 /** @returns {Promise<object|null>} null when nothing is stored or it cannot be read. */
@@ -67,11 +90,7 @@ export function loadCredentials({ onUnreadable } = {}) {
     const blob = await get(SECRETS, PAYLOAD);
     if (!blob) return null;
     try {
-      const key = await wrappingKey();
-      const plaintext = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: blob.iv }, key, blob.ciphertext
-      );
-      return migrateCredentials(JSON.parse(new TextDecoder().decode(plaintext)));
+      return await decryptCredentials(blob);
     } catch (error) {
       // Preserve the existing re-entry recovery, but let the UI explain it.
       await del(SECRETS, PAYLOAD);

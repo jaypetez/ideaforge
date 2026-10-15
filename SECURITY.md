@@ -64,7 +64,8 @@ Sessions are stored in IndexedDB on the device. They are not encrypted: the tran
 to be available to the app for search, resume and export, and there is no account password
 or server-held key in this browser-only design.
 
-**Back up ideas** writes the full active and archived library to an unencrypted JSON file.
+**Settings → Your data → Backup ideas** writes the full active and archived library to an
+unencrypted JSON file.
 It deliberately excludes inference, transcription and speech keys, device preferences and
 audio. Anyone who can read the backup can read the interviews, so store and share it like
 any other personal document.
@@ -103,7 +104,7 @@ The mitigations that actually matter here are structural:
 - **Do not paste an API key into a shared Claude artifact.** Anyone the artifact is shared
   with can read the page source. Inside a Claude viewer, use the built-in provider, which
   needs no key at all.
-- Use **Forget my key** in Settings when you are done on a shared or borrowed device.
+- Confirm **Settings → Your data → Forget keys** when you are done on a shared or borrowed device.
   It removes all saved inference, transcription and speech credentials, including the
   wrapping key. It does not revoke them at their providers or delete your interviews.
 - Never paste a key into a GitHub issue. If you do, revoke it immediately.

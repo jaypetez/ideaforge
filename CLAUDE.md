@@ -211,6 +211,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   removal keeps an explicit retry, not the old in-memory provider. Clear fields
   before awaiting removal so a late completion cannot erase new edits. A hosted
   preview cancelled during persistence queues revocation, never successful verification.
+  Teardown/navigation use the same cancellation path. `updateCredentials` merges an
+  operation's owned branch against the latest durable ring inside the queue; serializing
+  stale whole-ring snapshots alone still loses independent inference/STT/TTS updates.
   Library's current `confirmDelete` is synchronous: its future dialog integration must
   await the result, not treat a Promise as permission.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the

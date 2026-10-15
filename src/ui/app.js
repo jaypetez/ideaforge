@@ -28,7 +28,7 @@ import {
   deleteSession, importSessions, saveSession, loadSession, listSessions, newSessionId,
 } from '../store/sessions.js';
 import {
-  saveCredentials, loadCredentials, clearCredentials, maskKey,
+  updateCredentials, loadCredentials, clearCredentials, maskKey,
   emptyKeyring, credsFor, withCreds, withStt, withTts, hasAnyKey,
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
@@ -721,13 +721,15 @@ function credentialProblem(message) {
   settingsFeedback('credential-error', message, 'error');
 }
 
-async function saveKeyring(ring, isCurrent) {
+async function updateKeyring(update, isCurrent) {
   try {
-    await saveCredentials(ring, { isCurrent });
+    const ring = await updateCredentials(update, { isCurrent });
     if (isCurrent()) {
+      state.creds = ring;
       state.keysMayRemain = false;
       credentialProblem('');
     }
+    return ring;
   } catch (error) {
     if (isCurrent()) credentialProblem(`Key settings could not be saved. Try again: ${error.message}`);
     throw error;
@@ -747,7 +749,7 @@ function renderSettingsSummaries() {
     ? 'System · follows this device' : `${selected === 'dark' ? 'Dark' : 'Light'} appearance`;
   els['keys-summary'].textContent = state.keysMayRemain
     ? state.forgetting === 'clearing' ? 'Removing the previously saved keys…'
-      : 'Key removal was incomplete. Retry Forget keys to remove anything left on this device.'
+      : state.credentialError || 'Saved keys may remain on this device. Use Forget keys to remove them.'
     : hasAnyKey(state.creds)
       ? 'Keys saved encrypted on this device. Checks apply only to the operation that passed.'
       : 'No keys saved on this device.';
@@ -1112,9 +1114,9 @@ async function forgetKey() {
     state.credentialEpoch++;
     state.speechRevoked = true;
     const allowedSaved = savePrefs({ hostedSpeechAllowed: false });
-    teardownVoice();
-    if (state.previewSpeech) state.previewSpeech.dispose();
+    if (state.previewSpeech) state.previewSpeech.output.dispose();
     state.previewSpeech = null;
+    teardownVoice();
     for (const job of workBySession.values()) job.controller.abort();
     state.keysMayRemain = true;
     state.creds = emptyKeyring();
@@ -1186,7 +1188,7 @@ function readRingFromForm() {
     // Groq and OpenAI serve both chat and transcription, so when the inference provider
     // is one of them the same key covers dictation and there is nothing extra to paste.
     apiKey: sttKind === c.id ? apiKey
-      : (els.sttkey.value.trim()
+      : ((els.sttkey.dataset.kind === sttKind ? els.sttkey.value.trim() : '')
         || (state.creds?.stt?.kind === sttKind ? state.creds.stt.apiKey : '') || ''),
   });
   ring = withTts(ring, readSpeechFromForm());
@@ -1281,14 +1283,7 @@ async function previewSpeech() {
     return;
   }
   if (state.previewSpeech) {
-    state.previewSpeech.dispose();
-    state.previewSpeech = null;
-    if (els.speech.value === 'openai') {
-      if (await revokeHostedSpeech()) {
-        settingsFeedback('speech-check', 'Preview cancelled. Hosted speech is disabled; check again to enable it.');
-      }
-    } else settingsFeedback('speech-check', 'Preview cancelled.');
-    onSpeechChange();
+    await cancelSpeechPreview();
     return;
   }
   const config = readSpeechFromForm();
@@ -1301,8 +1296,9 @@ async function previewSpeech() {
   const preview = createSpeechOutput({
     ...config, browserVoice: preferences.speechVoice, rate: preferences.speechRate,
   });
-  state.previewSpeech = preview;
-  const owns = () => state.previewSpeech === preview && credentialEpoch === state.credentialEpoch;
+  const attempt = { output: preview, kind: config.kind };
+  state.previewSpeech = attempt;
+  const owns = () => state.previewSpeech === attempt && credentialEpoch === state.credentialEpoch;
   settingsFeedback('speech-check');
   els['speech-check'].textContent = config.kind === 'openai'
     ? 'Checking one short, metered speech sample…' : 'Preparing the browser voice…';
@@ -1313,46 +1309,56 @@ async function previewSpeech() {
     const result = await preview.check(
       'IdeaForge is ready. Tell me what you have in mind, and we will take it one question at a time.',
     );
-    if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
+    if (!owns()) return;
     if (!result || result.status !== 'spoken') {
       settingsFeedback('speech-check', 'The preview did not finish. Speech has not been enabled.', 'error');
       return;
     }
-    const checked = withTts(state.creds || emptyKeyring(), {
+    settingsFeedback('speech-check', 'Preview played. Saving the speech check…');
+    const checked = await updateKeyring((ring) => withTts(ring, {
       ...config, verified: config.kind === 'openai' ? true : config.verified,
-    });
-    await saveKeyring(checked, owns);
-    if (state.previewSpeech !== preview || credentialEpoch !== state.credentialEpoch) return;
+    }), owns);
+    if (!owns()) return;
     if (config.kind === 'openai') {
       if (!savePrefs({ hostedSpeechAllowed: true })) {
         state.speechRevoked = true;
         state.creds = withTts(checked, { ...checked.tts, verified: false });
-        await saveKeyring(state.creds, owns);
+        await updateKeyring((ring) => withTts(ring, { ...ring.tts, verified: false }), owns);
         settingsFeedback('speech-check', 'The preview played, but permission could not be saved. Browser speech remains active.', 'error');
         return;
       }
       state.speechRevoked = false;
     }
-    state.creds = checked;
     els.ttskey.value = '';
     settingsFeedback('speech-check', config.kind === 'openai'
       ? 'OpenAI speech played successfully in this browser. Enhanced speech is enabled.'
       : 'Browser voice preview complete.', 'success');
     renderSpeechSettings();
   } catch (error) {
-    if (state.previewSpeech === preview) {
+    if (state.previewSpeech === attempt) {
       settingsFeedback('speech-check', `The voice check failed: ${error.message}`, 'error');
     }
   } finally {
     preview.dispose();
-    if (state.previewSpeech === preview) {
+    if (state.previewSpeech === attempt) {
       state.previewSpeech = null;
       onSpeechChange();
     }
   }
 }
 
-async function revokeHostedSpeech() {
+function cancelSpeechPreview() {
+  const attempt = state.previewSpeech;
+  if (!attempt) return Promise.resolve(false);
+  state.previewSpeech = null;
+  attempt.output.dispose();
+  if (attempt.kind === 'openai') return revokeHostedSpeech({ notice: 'Preview cancelled. ' });
+  settingsFeedback('speech-check', 'Preview cancelled.');
+  onSpeechChange();
+  return Promise.resolve(true);
+}
+
+async function revokeHostedSpeech({ notice = '' } = {}) {
   state.speechRevoked = true;
   state.credentialEpoch++;
   const epoch = state.credentialEpoch;
@@ -1360,7 +1366,7 @@ async function revokeHostedSpeech() {
   if (state.voiceMode === 'active') {
     pauseVoice({ detail: 'Hosted speech is disabled. Resume to continue with the browser voice.' }).catch(fail);
   }
-  if (state.previewSpeech) state.previewSpeech.dispose();
+  if (state.previewSpeech) state.previewSpeech.output.dispose();
   state.previewSpeech = null;
   const saved = (state.creds && state.creds.tts) || emptyKeyring().tts;
   const allowedSaved = savePrefs({ hostedSpeechAllowed: false });
@@ -1368,13 +1374,15 @@ async function revokeHostedSpeech() {
     ...saved, kind: els.speech.value === 'openai' ? 'openai' : 'browser', verified: false,
   });
   onSpeechChange();
-  els['speech-check'].textContent = 'Disabling hosted speech…';
+  els['speech-check'].textContent = `${notice}Disabling hosted speech…`;
   try {
-    await saveKeyring(state.creds, () => epoch === state.credentialEpoch);
+    const kind = els.speech.value === 'openai' ? 'openai' : 'browser';
+    await updateKeyring((ring) => withTts(ring, { ...ring.tts, kind, verified: false }),
+      () => epoch === state.credentialEpoch);
     if (epoch !== state.credentialEpoch) return false;
-    settingsFeedback('speech-check', allowedSaved
+    settingsFeedback('speech-check', notice + (allowedSaved
       ? 'Hosted speech is disabled. A new check and preview is needed to enable it.'
-      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.',
+      : 'Hosted speech is disabled in the saved keyring, but its permission preference could not be updated. A new check is required.'),
     allowedSaved ? '' : 'warning');
     renderSettingsSummaries();
     return allowedSaved;
@@ -1391,6 +1399,8 @@ async function revokeHostedSpeech() {
 
 function onSttChange() {
   const kind = els.stt.value;
+  if (els.sttkey.dataset.kind && els.sttkey.dataset.kind !== kind) els.sttkey.value = '';
+  els.sttkey.dataset.kind = kind;
   const preset = STT_PRESETS[kind];
   const sharesKey = kind === currentChoice().id;
   els['field-sttkey'].hidden = !preset || sharesKey;
@@ -1414,6 +1424,7 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
   const context = connectionContext();
   const c = currentChoice();
   const ring = readRingFromForm();
+  const before = state.creds || emptyKeyring();
   const creds = credsFor(ring, c.id);
   if (c.needsKey && !creds.apiKey) throw new Error('This provider needs an API key.');
 
@@ -1434,9 +1445,17 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
   // Always, not only when there is a key. Guarding this on `apiKey` meant choosing a local
   // provider was never persisted at all: pick Ollama, reload, and the choice was gone.
   if (write) {
-    await saveKeyring(ring, () => ownsConnection(context));
+    await updateKeyring((latest) => {
+      let next = withCreds(latest, c.id, creds);
+      if (['kind', 'apiKey'].every((key) => latest.stt[key] === before.stt[key])) {
+        next = withStt(next, ring.stt);
+      }
+      if (['kind', 'apiKey', 'voice', 'verified'].every((key) => latest.tts[key] === before.tts[key])) {
+        next = withTts(next, ring.tts);
+      }
+      return next;
+    }, () => ownsConnection(context));
     if (!ownsConnection(context)) throw new Error('Provider setup was cancelled.');
-    state.creds = ring;
     state.provider = provider;
   }
   return provider;
@@ -2176,12 +2195,7 @@ function currentQuestion() {
 function teardownVoice() {
   if (state.voiceSetup) state.voiceSetup.abort();
   state.voiceSetup = null;
-  if (state.previewSpeech) {
-    state.previewSpeech.dispose();
-    state.previewSpeech = null;
-    els['speech-check'].textContent = 'Preview cancelled.';
-    onSpeechChange();
-  }
+  cancelSpeechPreview().catch(fail);
   setHandsFree(false);
   if (state.voice) state.voice.dispose();
   if (state.speech) state.speech.dispose();
@@ -2855,10 +2869,10 @@ function renderInstall(info = state.install && state.install.state()) {
 async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   if (state.starting) return;
   state.navigation++;
+  teardownVoice();
   const context = connectionContext();
   state.starting = context;
   const owns = () => state.starting === context && ownsConnection(context);
-  teardownVoice();
   state.wantHandsFree = handsFree;
   savePrefs({ handsFree });
   state.voiceWrapPending = null;
@@ -3128,18 +3142,15 @@ function bind() {
   els['b-start'].onclick = () => startInterview({ handsFree: false }).catch(fail);
   els['b-start-voice'].onclick = () => startInterview({ handsFree: true }).catch(fail);
   els.speech.onchange = () => {
-    if (state.previewSpeech) state.previewSpeech.dispose();
-    state.previewSpeech = null;
+    const cancellingHosted = state.previewSpeech?.kind === 'openai';
+    cancelSpeechPreview().catch(fail);
     els['speech-check'].textContent = '';
     onSpeechChange();
-    if (els.speech.value !== 'openai') revokeHostedSpeech().catch(fail);
+    if (els.speech.value !== 'openai' && !cancellingHosted) revokeHostedSpeech().catch(fail);
   };
   const invalidatePreview = () => {
-    const hostedCheck = state.previewSpeech && els.speech.value === 'openai';
-    if (state.previewSpeech) state.previewSpeech.dispose();
-    state.previewSpeech = null;
+    cancelSpeechPreview().catch(fail);
     onSpeechChange();
-    if (hostedCheck) revokeHostedSpeech().catch(fail);
   };
   els['tts-consent'].onchange = () => {
     invalidatePreview();
@@ -3459,7 +3470,8 @@ async function boot() {
     if (credentialEpoch === state.credentialEpoch) state.creds = loaded;
   } catch (error) {
     if (credentialEpoch === state.credentialEpoch) {
-      credentialProblem(`Saved keys could not be read. Check site storage permissions and enter the keys again: ${error.message}`);
+      state.keysMayRemain = true;
+      credentialProblem(`Saved keys could not be read and may remain on this device. Check site storage permissions and reload to retry, or use Your data → Forget keys: ${error.message}`);
       console.error(error);
     }
   }

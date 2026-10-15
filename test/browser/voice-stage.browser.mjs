@@ -19,6 +19,39 @@ const PHASES = new Set([
   'paused', 'recovering', 'blocked', 'complete',
 ]);
 
+function holdCredentialCommit(win) {
+  const original = win.IDBObjectStore.prototype.put;
+  const complete = Object.getOwnPropertyDescriptor(win.IDBTransaction.prototype, 'oncomplete');
+  let intercepted = false;
+  let held = false;
+  let release;
+  win.IDBObjectStore.prototype.put = function (value, key) {
+    const request = original.call(this, value, key);
+    if (this.name === 'secrets' && key === 'credentials' && !intercepted) {
+      intercepted = true;
+      const transaction = this.transaction;
+      let listener;
+      Object.defineProperty(transaction, 'oncomplete', {
+        configurable: true,
+        get: () => listener,
+        set(next) {
+          listener = next;
+          complete.set.call(transaction, (event) => {
+            held = true;
+            release = () => { held = false; listener.call(transaction, event); };
+          });
+        },
+      });
+    }
+    return request;
+  };
+  return {
+    held: () => held,
+    release() { const finish = release; release = null; finish?.(); },
+    restore() { win.IDBObjectStore.prototype.put = original; this.release(); },
+  };
+}
+
 async function within(promise, describe, ms = 5000) {
   let timer;
   try {
@@ -452,7 +485,7 @@ async function withApp(check, label, scenario, {
     check(label + ': no uncaught async error', errors.length === 0, errors.join('\n'));
     check(label + ': no unexpected provider request',
       requests.length === app.expectedRequests
-        && requests.every((url) => url === app.expectedRequestUrl),
+        && requests.every((url) => (app.expectedRequestUrls || [app.expectedRequestUrl]).includes(url)),
       requests.join('\n'));
     check(label + ': no CSP violation', violations.length === 0, violations.join('\n'));
   } catch (error) {
@@ -1955,6 +1988,95 @@ export default async function run(check) {
     }
   }, { credentials: withTts(verifiedSpeech, { ...verifiedSpeech.tts, verified: false }),
     preferences: { hostedSpeechAllowed: true } });
+
+  await withApp(check, 'navigation cancels already-issued hosted verification', async (app) => {
+    app.$('b-settings').click();
+    if (!(await expect(app, check, 'navigation cancellation opens Settings', () =>
+      app.$('panel-setup').dataset.view === 'settings'
+        && !app.doc.documentElement.matches(':active-view-transition')))) return;
+    app.$('tts-consent').checked = true;
+    app.$('tts-consent').dispatchEvent(new app.win.Event('change'));
+    app.win.fetch = async (input) => {
+      const url = String(input?.url || input);
+      app.requests.push(url);
+      if (url !== app.expectedRequestUrl) throw new Error('Unexpected fake speech destination');
+      return new app.win.Response(wav(app.win), { headers: { 'content-type': 'audio/wav' } });
+    };
+    const write = holdCredentialCommit(app.win);
+    try {
+      app.expectedRequests = 1;
+      app.$('b-speech-preview').click();
+      if (!(await expect(app, check, 'the hosted verification put really issued before navigation',
+        write.held))) return;
+      app.$('b-library').click();
+      if (!(await expect(app, check, 'navigation reports preview cancellation on its old operation', () =>
+        /Preview cancelled/.test(app.$('speech-check').textContent)))) return;
+      check('navigation withdraws permission before the issued put completion returns',
+        loadPrefs().hostedSpeechAllowed === false);
+      write.release();
+      if (!(await expect(app, check, 'navigation cancellation persists unverified speech', async () => {
+        const stored = await within(loadCredentials(), 'reading navigation-cancelled verification');
+        return stored?.tts.verified === false && loadPrefs().hostedSpeechAllowed === false;
+      }))) return;
+    } finally { write.restore(); }
+  }, { credentials: withTts(verifiedSpeech, { ...verifiedSpeech.tts, verified: false }),
+    preferences: { hostedSpeechAllowed: true } });
+
+  for (const first of ['connection', 'speech']) await withApp(
+    check, `overlapping ${first}-first updates keep both credential records`, async (app) => {
+    app.$('b-settings').click();
+    if (!(await expect(app, check, 'overlapping credential setup opens Settings', () =>
+      app.$('panel-setup').dataset.view === 'settings'
+        && !app.doc.documentElement.matches(':active-view-transition')))) return;
+    app.$('provider').value = 'anthropic';
+    app.$('provider').dispatchEvent(new app.win.Event('change'));
+    app.$('apikey').value = 'sk-new-independent-inference-key-194';
+    app.$('apikey').dispatchEvent(new app.win.Event('input'));
+    app.$('tts-consent').checked = true;
+    app.$('tts-consent').dispatchEvent(new app.win.Event('change'));
+    app.expectedRequests = 2;
+    app.expectedRequestUrls = ['https://api.openai.com/v1/audio/speech', 'https://api.anthropic.com/v1/messages'];
+    app.win.fetch = async (input) => {
+      const url = String(input?.url || input);
+      app.requests.push(url);
+      if (url === app.expectedRequestUrl) {
+        return new app.win.Response(wav(app.win), { headers: { 'content-type': 'audio/wav' } });
+      }
+      if (url === 'https://api.anthropic.com/v1/messages') {
+        return new app.win.Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), { status: 200 });
+      }
+      throw new Error(`Unexpected concurrent synthetic request: ${url}`);
+    };
+    const write = holdCredentialCommit(app.win);
+    try {
+      if (first === 'connection') {
+        app.$('b-check').click();
+        if (!(await expect(app, check, 'the replacement inference key reaches an issued encrypted put',
+          write.held))) return;
+        app.$('b-speech-preview').click();
+        if (!(await expect(app, check, 'a successful independent speech sample queues behind that put', () =>
+          /Saving the speech check/.test(app.$('speech-check').textContent)))) return;
+      } else {
+        app.$('b-speech-preview').click();
+        if (!(await expect(app, check, 'speech verification reaches an issued encrypted put',
+          write.held))) return;
+        app.$('b-check').click();
+        if (!(await expect(app, check, 'the connection check takes its snapshot before speech commits', () =>
+          app.$('b-check').getAttribute('aria-busy') === 'true'))) return;
+      }
+      write.release();
+      if (!(await expect(app, check, 'both independent operations settle', () =>
+        app.$('b-check').getAttribute('aria-busy') === 'false'
+          && /enabled/.test(app.$('speech-check').textContent)))) return;
+      const stored = await within(loadCredentials(), 'reading independently merged credential branches');
+      check('speech verification cannot roll back a newly saved inference key',
+        stored.active === 'anthropic'
+          && stored.byKind.anthropic.apiKey === 'sk-new-independent-inference-key-194'
+          && stored.tts.apiKey === verifiedSpeech.tts.apiKey && stored.tts.verified);
+    } finally { write.restore(); }
+  }, { credentials: withTts(withCreds(emptyKeyring(), 'anthropic',
+    { apiKey: 'sk-old-independent-inference-key-194' }), { ...verifiedSpeech.tts, verified: false }),
+  preferences: { hostedSpeechAllowed: true } });
 
   await withApp(check, 'hosted speech opt-in gate', async (app) => {
     check('hosted speech defaults off without consent or saved verification',

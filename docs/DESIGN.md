@@ -167,6 +167,8 @@ current-state summaries and a quiet desktop section index. Required hosted-speec
 consent and Preview stay outside optional voice/pace preferences. Matching Groq/OpenAI
 dictation names its inference-key reuse; another transcription service never inherits the
 previous service's saved key. Connection checking does not test transcription.
+The transcription input is bound to its selected service and clears on a service change,
+including after a key was saved without reloading.
 
 Appearance applies immediately and reports a failed preference write beside the control.
 Credential-read/save recovery remains beside Connection; data-operation results remain
@@ -179,6 +181,9 @@ nothing before confirmation. Confirmed removal retires pending credential effect
 storage; serialized credential operations ensure an older encrypted write cannot restore
 the payload or wrapping key afterwards. In-memory access stops even if removal fails,
 with an explicit retry; field clearing happens before storage so later edits are not lost.
+Unknown credential reads never become a claim that no keys exist. Independent keyring
+updates merge their owned branches inside serialization; navigation cancellation also
+withdraws a pending hosted check, including after its payload write has issued.
 Library Delete still uses its browser confirmation
 until its own redesign slice.
 
