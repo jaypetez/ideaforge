@@ -290,7 +290,7 @@ private fun InterviewHeader(state: InterviewState, onBack: (() -> Unit)?) {
     TopAppBar(
         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("interview-title")) },
         navigationIcon = {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("interview-back")) {
+            IconButton(onClick = onBack, modifier = Modifier.size(IdeaForgeSpacing.control).testTag("interview-back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
             }
         },

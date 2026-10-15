@@ -6,6 +6,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -27,6 +29,7 @@ import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.usableRing
 import io.github.jaypetez.ideaforge.core.vectors.Vectors
 import kotlinx.serialization.json.JsonArray
@@ -113,6 +116,8 @@ class InterviewLayoutTest {
             compose.onNode(card).performClick()
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("question"), 5_000)
+            compose.onNodeWithTag("interview-back")
+                .assertHeightIsAtLeast(IdeaForgeSpacing.control).assertWidthIsAtLeast(IdeaForgeSpacing.control)
             if (requireCurrent) {
                 compose.waitForIdle()
                 compose.onNodeWithTag("current-turn").assertIsDisplayed()
