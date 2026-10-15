@@ -24,7 +24,8 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Design contract and reference-only boards.** Sources:
   [`docs/DESIGN.md`](../../../../docs/DESIGN.md) distinguishes current shipped values
   from the remaining Focus Studio screen/layout targets. #189 and #190 implement the web
-  and native foundations, not the full screen redesign; guide CSS migration belongs to #205;
+  and native foundations, and #191 implements the web adaptive shell, not the full screen
+  redesign; guide CSS migration belongs to #205;
   [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
   [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
   references, not app/README/native screenshots or a production route.
@@ -181,9 +182,12 @@ source wins over prose, and a generated artifact wins over a description of that
 - **App shell, navigation and opening destination.** Sources:
   [`index.html`](../../../../index.html) (`.bar`, `#b-library`, `#b-nav-new`,
   `#b-settings`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`show`, `navigateTo`,
-  `boot`). The three destinations are a top bar on a wide screen, a bottom bar on a phone,
-  and a back arrow on Interview and Done. The app opens on Ideas once any idea is stored,
-  otherwise on Start. Re-check getting started, the library guide and the README.
+  `boot`, `renderShell`) with the rail tokens/queries in `app.css`. Below 600px destinations
+  use bottom navigation or a contextual detail bar; from 600px a 96px labelled rail
+  expands to 208px at 1200px. The title is complete literal `sessionDisplayTitle` text,
+  allowed to ellipsize visually; voice hides the rail and clears its body padding.
+  The app opens on Ideas once any idea is stored, otherwise on Start. Re-check getting
+  started, the library guide, DESIGN, the README and actual shell/lifecycle evidence.
 - **Theme choice.** Sources: [`src/store/prefs.js`](../../../../src/store/prefs.js)
   (`themePreference`), [`src/ui/theme.js`](../../../../src/ui/theme.js) and
   [`src/ui/theme-boot.js`](../../../../src/ui/theme-boot.js). System, Light or Dark under

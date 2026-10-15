@@ -1,4 +1,4 @@
-import { askQuestion, createSession } from '../../src/core/session.js';
+import { askQuestion, createSession, sessionDisplayTitle } from '../../src/core/session.js';
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { HARD_TURN_CEILING } from '../../src/core/engine.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
@@ -337,6 +337,10 @@ async function assertActiveIdea(app, check, active, label) {
     saved && saved.turns.length === 1 && !saved.turns[0].answer && !saved.title
       && !saved.synthesis.text && saved.draftAnswer === NEW_DRAFT,
     JSON.stringify(saved));
+  const title = app.win.document.querySelector('.bar h1');
+  check(label + ': the contextual title still belongs to the new idea',
+    saved && title.textContent === sessionDisplayTitle(saved)
+      && title.title === sessionDisplayTitle(saved), title.textContent);
   const after = NEW_DRAFT + ' The wheel should be usable with clay-covered hands.';
   type(app, after);
   await expect(app, check, label + ': later edits still persist to the new session', async () =>

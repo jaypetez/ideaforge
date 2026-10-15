@@ -20,7 +20,7 @@
 // ratchet lets two dimensions rise one level per turn, so the levels — and the percentage —
 // move by a known, mixed amount each turn: thin, partial and covered side by side.
 
-import { askQuestion, createSession } from '../../src/core/session.js';
+import { askQuestion, createSession, sessionDisplayTitle } from '../../src/core/session.js';
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { coveragePercent } from '../../src/core/markdown.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
@@ -285,7 +285,9 @@ export default async function run(report) {
       `panel ${Math.round(shortPanel.top)}–${Math.round(shortPanel.bottom)} of ${win.innerHeight}`);
     check('…because it is capped at the viewport and scrolls inside itself',
       win.getComputedStyle(cov).overflowY === 'auto'
-        && Math.abs(parseFloat(win.getComputedStyle(cov).maxHeight) - (win.innerHeight - 32)) < 1,
+        && Math.abs(parseFloat(win.getComputedStyle(cov).maxHeight)
+          - (win.innerHeight - parseFloat(win.getComputedStyle(doc.querySelector('.wrap')).paddingBottom)
+            - parseFloat(win.getComputedStyle(cov).top))) < 1,
       `${win.getComputedStyle(cov).maxHeight} / ${win.getComputedStyle(cov).overflowY}`);
     // Seven rows do not overflow 700px on their own, so shorten the window until they must.
     // Scrolled just past the panel's own top, so it is stuck. (At the very end of the page a
@@ -342,14 +344,15 @@ export default async function run(report) {
       doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
       `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
     const title = doc.querySelector('.bar h1');
+    const titleSession = await loadSession(ID);
     const titleLine = parseFloat(win.getComputedStyle(title).lineHeight);
     const titleBox = title.getBoundingClientRect();
-    check('…and the title stays on one line beside it, never wrapping mid-word',
+    check('…and the complete idea title remains accessible while its one-line display can truncate',
       title.getClientRects().length === 1 && titleBox.height <= titleLine * 1.2
         && titleBox.width > 0 && titleBox.right <= meter.left + 0.5
-        // …and whole: the one-line rule truncates with an ellipsis as a last resort, and a
-        // header reading "IdeaF…" at the commonest Android width is its own bug.
-        && title.scrollWidth <= title.clientWidth,
+        && title.textContent === sessionDisplayTitle(titleSession)
+        && title.title === sessionDisplayTitle(titleSession)
+        && win.getComputedStyle(title).textOverflow === 'ellipsis',
       `h1 ${Math.round(titleBox.width)}x${Math.round(titleBox.height)} (needs ${title.scrollWidth}), line ${titleLine}, meter left ${Math.round(meter.left)}`);
 
     // ── Done hides it ────────────────────────────────────────────────────────

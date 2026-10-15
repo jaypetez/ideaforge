@@ -21,18 +21,22 @@
 // order: the skip link, then the navigation, then the panel's regions in the order they
 // are read (a side column after the column it sits beside), and within a region top to
 // bottom and, along a row, left to right. The phone's bottom navigation comes before the
-// content in that order on purpose: it is the same <nav> as the desktop top bar, and after
+// content in that order on purpose: it is the same <nav> as the wider rail, and after
 // any navigation focus lands on the destination's heading, so the next Tab is the content.
 //
 // Target sizes: every visible control at least 48 by 48 CSS pixels under a coarse pointer,
-// on every panel, at phone and desktop widths, including open menus; voice actions are
-// at least 64px high.
+// on every panel, at phone, compact/medium rail and desktop widths, including open menus;
+// voice actions are at least 64px high.
 // Exempt, and listed in the output when applied: a link inside a sentence (WCAG 2.5.8's
 // inline exception), and the desktop coverage panel's summary, which is a heading there
 // (aria-disabled) rather than a control.
 
 const PHONE = { width: 390, height: 800 };
+const COMPACT_RAIL = { width: 600, height: 800 };
+const MEDIUM_RAIL = { width: 840, height: 900 };
 const DESKTOP = { width: 1280, height: 900 };
+const SHELL_VIEWPORTS = [[PHONE, 'phone'], [COMPACT_RAIL, '600px rail'],
+  [MEDIUM_RAIL, '840px rail'], [DESKTOP, 'desktop']];
 const NAV = ['.skip-link', 'nav.bar-right'];
 
 export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
@@ -251,7 +255,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
   }
 
   const exemptions = new Set();
-  for (const [size, at] of [[PHONE, 'phone'], [DESKTOP, 'desktop']]) {
+  for (const [size, at] of SHELL_VIEWPORTS) {
     await viewport(size);
     await sleep(200);
     const wide = at === 'desktop';
@@ -361,7 +365,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await evaluate(`document.getElementById(${JSON.stringify(id)}).click()`);
     await settled(panel, id);
   };
-  for (const [size, at] of [[PHONE, 'phone'], [DESKTOP, 'desktop']]) {
+  for (const [size, at] of SHELL_VIEWPORTS) {
     await viewport(size);
     await sleep(200);
     await go('b-nav-new', 'setup');
@@ -400,7 +404,94 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
   check('the only target-size exemptions applied are the documented ones',
     [...exemptions].every((e) => /: (inline link in text|not operable \(aria-disabled\))$/.test(e)),
     [...exemptions].join(' | ') || 'none');
+
+  await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+    insets: { top: 20, left: 44, bottom: 24, right: 12 },
+  });
+  try {
+    for (const [size, at] of SHELL_VIEWPORTS) {
+      await viewport(size);
+      await go('b-nav-new', 'setup');
+      const geometry = await evaluate(`(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        const nav = document.querySelector('.bar-right').getBoundingClientRect();
+        const buttons = [...document.querySelectorAll('.bar-right button')].map((el) => {
+          const r = el.getBoundingClientRect();
+          return {left:r.left, right:r.right, top:r.top, bottom:r.bottom};
+        });
+        return {nav:{left:nav.left, right:nav.right, top:nav.top, bottom:nav.bottom},
+          buttons, main:document.getElementById('main').getBoundingClientRect().left,
+          footer:document.getElementById('version').getBoundingClientRect().bottom,
+          width:document.documentElement.clientWidth, height:innerHeight};
+      })()`);
+      const compact = size.width < 600;
+      check(`${at}: real safe-area CSS keeps every navigation target out of the insets`,
+        geometry.buttons.every((r) => r.left >= 44 && r.right <= geometry.width - 12
+          && r.top >= 20 && r.bottom <= geometry.height - 24), JSON.stringify(geometry));
+      check(`${at}: safe-area clearance belongs to the content's actual navigation edge`,
+        compact ? geometry.footer <= geometry.nav.top
+          : geometry.main >= geometry.nav.right
+            && Math.abs(geometry.nav.right - (size.width >= 1200 ? 252 : 140)) < 1,
+        JSON.stringify(geometry));
+      await evaluate(`document.getElementById('b-library').focus()`);
+      await press('Tab', { shift: true });
+      const skip = await evaluate(`(() => {
+        const el = document.querySelector('.skip-link');
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        const ring = parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset);
+        return {focused:document.activeElement === el, left:r.left - ring, top:r.top - ring};
+      })()`);
+      check(`${at}: trusted Shift+Tab exposes the skip link and its outline inside the safe area`,
+        skip.focused && skip.left >= 44 && skip.top >= 20, JSON.stringify(skip));
+    }
+    await viewport({ ...DESKTOP, height: 420 });
+    await go('b-library', 'library');
+    await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_active"]')`,
+      'safe-area source idea');
+    await click('#library-rows [data-session-id="s_a11y_active"] .idea-actions > button:first-child',
+      'interview', 'safe-area interview');
+    const side = await evaluate(`(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const cov = document.querySelector('details.cov');
+      const r = cov.getBoundingClientRect();
+      return {top:r.top, bottom:r.bottom, height:innerHeight, side:cov.dataset.side};
+    })()`);
+    check('short expanded workspace: sticky Coverage stays inside the real safe-area insets',
+      side.side === 'true' && side.top >= 20 && side.bottom <= side.height - 24,
+      JSON.stringify(side));
+    for (const top of [47, 59]) {
+      await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+        insets: { top, left: 44, bottom: 24, right: 12 },
+      });
+      await go('b-nav-new', 'setup');
+      const hidden = await evaluate(`(() => {
+        const el = document.querySelector('.skip-link');
+        return !el.matches(':focus') && el.getBoundingClientRect().bottom <= 0;
+      })()`);
+      check(`${top}px top inset: the unfocused fixed skip link is entirely offscreen`, hidden);
+    }
+  } finally {
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: {} });
+  }
+
+  await go('b-library', 'library');
   await foundationStates(cdp, { check, press, sleep, viewport, evaluate });
+  await viewport(DESKTOP);
+  await go('b-nav-new', 'setup');
+  await cdp.click('#b-start-voice');
+  await until(`!document.getElementById('voice-stage').hidden
+    && document.getElementById('voice-stage').dataset.phase === 'listening'`, 'wide voice stage');
+  check('wide voice entry hides the actual rail and releases its content clearance',
+    await evaluate(`document.querySelector('.bar-right').hidden
+      && parseFloat(getComputedStyle(document.body).paddingLeft) === 0`));
+  await cdp.click('#b-voice-exit');
+  await until(`document.getElementById('voice-stage').hidden`, 'wide voice exit');
+  check('wide voice exit restores one rail beside the same manual interview',
+    await evaluate(`!document.querySelector('.bar-right').hidden
+      && document.body.dataset.panel === 'interview'
+      && getComputedStyle(document.querySelector('.bar-right')).position === 'fixed'
+      && parseFloat(getComputedStyle(document.body).paddingLeft) === 208`));
 }
 
 /** Shipped CSS/classes and browser primitives, with real pointer/keyboard state changes.

@@ -227,6 +227,51 @@ export default async function run(check) {
     $('library-search').dispatchEvent(new win.Event('input'));
     await settle(50);
 
+    const originalFont = doc.documentElement.style.fontSize;
+    const originalTheme = doc.documentElement.dataset.theme;
+    try {
+      doc.documentElement.style.fontSize = '200%';
+      for (const theme of ['light', 'dark']) {
+        doc.documentElement.dataset.theme = theme;
+        for (const width of [1024, 1200, 1440]) {
+          frame.width = width;
+          await settle(100);
+          card('d_done').querySelector('.idea-meta').click();
+          await settle(50);
+          const region = box(detail());
+          const actions = [...detail().querySelectorAll('.idea-actions > button')].map(box);
+          const preview = detail().querySelector('.library-preview');
+          const padding = win.getComputedStyle(detail());
+          const label = `${theme} Ideas at ${width}px and 200% text`;
+          check(`${label}: both detail actions fit inside the pane without sideways scrolling`,
+            parseFloat(win.getComputedStyle(doc.body).fontSize) === 32 && actions.length === 2
+              && actions.every((r) => r.left >= region.left && r.right <= region.right
+                && r.width >= 48 && r.height >= 48)
+              && detail().scrollWidth <= detail().clientWidth,
+            `pane ${region.width}px, actions ${actions.map((r) => `${r.width}px to ${r.right}`).join(',')}`
+              + `, scroll ${detail().scrollWidth}/${detail().clientWidth}`);
+          check(`${label}: prose preview keeps a usable share of the workspace`,
+            region.width >= box($('library-rows')).width
+              && preview.getBoundingClientRect().width >= detail().clientWidth
+                - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight) - 1
+              && preview.scrollWidth <= preview.clientWidth && noSideways(),
+            `preview ${preview.getBoundingClientRect().width}px, scroll ${preview.scrollWidth}/${preview.clientWidth}`);
+          win.scrollTo(0, doc.documentElement.scrollHeight);
+          const stuck = box(detail());
+          check(`${label}: the sticky pane remains fully in the viewport at page end`,
+            stuck.top >= 0 && stuck.bottom <= win.innerHeight,
+            `${stuck.top} to ${stuck.bottom} of ${win.innerHeight}`);
+          win.scrollTo(0, 0);
+        }
+      }
+    } finally {
+      doc.documentElement.style.fontSize = originalFont;
+      if (originalTheme === undefined) delete doc.documentElement.dataset.theme;
+      else doc.documentElement.dataset.theme = originalTheme;
+      frame.width = 1280;
+      await settle(100);
+    }
+
     // ── the pane's primary navigates to the idea it shows ─────────────────────
     card('d_done').querySelector('.idea-meta').click();
     await settle(50);

@@ -156,6 +156,7 @@ const now = () => Date.now();
 const workBySession = new Map();
 const deletedSessions = new Set();
 const barActions = document.querySelector('.bar-right');
+const barTitle = document.querySelector('.bar h1');
 
 // ─────────────────────────────────────────────────────────────── plumbing
 
@@ -169,9 +170,8 @@ const DESTINATIONS = { ideas: 'b-library', start: 'b-nav-new', settings: 'b-sett
 /**
  * Toggle panels with `hidden` — never a route — and tell the shell which one is showing.
  *
- * body[data-panel] is what app.css lays the navigation out from: a bottom bar on a phone
- * for Ideas and Start/Settings, a top app bar with a back arrow on Interview and Done.
- * Interview and Done are detail screens, so no destination is current there.
+ * Below 600px navigation is a bottom bar or a contextual detail bar; wider windows use
+ * the same controls in a rail. Detail screens have no current top-level destination.
  */
 function show(panel, destination) {
   for (const p of ['panel-setup', 'panel-interview', 'panel-library', 'panel-done']) {
@@ -207,7 +207,7 @@ function show(panel, destination) {
     if (key === current) els[id].setAttribute('aria-current', 'page');
     else els[id].removeAttribute('aria-current');
   }
-  // On a detail screen the Ideas button is drawn as a back arrow, so say so to the ear too.
+  // The compact detail bar draws Ideas as a back arrow; keep its destination name explicit.
   if (current) els['b-library'].removeAttribute('aria-label');
   else els['b-library'].setAttribute('aria-label', 'Back to ideas');
   // Interview only: Done prints the final figure in its own meta line.
@@ -218,7 +218,16 @@ function show(panel, destination) {
   // after navigation, when its own cleanup is (rightly) guarded off the screen it left.
   if (panel !== 'panel-interview') questionBusy(false);
   if (panel !== 'panel-done') outputBusy(false);
+  renderShell();
   renderVoiceStage();
+}
+
+function renderShell() {
+  const detail = ['interview', 'done'].includes(document.body.dataset.panel);
+  const title = detail && state.session ? sessionDisplayTitle(state.session) : 'IdeaForge';
+  if (barTitle.textContent !== title) barTitle.textContent = title;
+  if (detail) barTitle.title = title;
+  else barTitle.removeAttribute('title');
 }
 
 /** The screen show() last drew, as `panel:destination`, so re-showing it clears nothing. */
@@ -1253,6 +1262,7 @@ function renderMeter(s) {
 
 function render() {
   const s = state.session;
+  renderShell();
   // Shown here, but renderVoiceStage() (called last) hides it again in voice mode, and show()
   // hides it on every other panel: Interview is the only screen it belongs to.
   els.meter.hidden = false;
@@ -2200,6 +2210,7 @@ async function speakLong(text) {
 
 function renderDone() {
   const s = state.session;
+  renderShell();
   els['done-title'].textContent = sessionDisplayTitle(s, 'Your refined prompt');
   const degraded = s.turns.some((t) => t.questionSource === 'bank');
   els['done-meta'].textContent =

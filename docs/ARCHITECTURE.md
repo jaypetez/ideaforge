@@ -298,10 +298,14 @@ hardcodes the seven labels, and `test/docs.test.mjs` will fail on the README sti
 
 **A UI panel.** A `<section>` in `index.html`, its ids added to the `els` list in
 `src/ui/app.js`, and the panel id added to `show()`. `show()` also writes the panel's name to
-`body[data-panel]`, which is what `src/ui/app.css` lays the shell out from: on a phone, a
+`body[data-panel]`, which is what `src/ui/app.css` lays the shell out from: below 600px, a
 fixed bottom navigation bar for the top-level destinations (Ideas, New idea, Settings) and a
 top app bar with a back arrow for detail screens (Interview, Done). Decide which kind the new
-panel is and add it to those selectors. Start and Settings are not two panels: they are
+panel is and add it to those selectors. From 600px the same destinations form a compact
+labelled rail; at 1200px it expands. `renderShell()` derives the contextual title from
+`sessionDisplayTitle`, with literal full text and a visual ellipsis, not a second title
+store. Body padding reserves rail/safe-area space and is removed while voice owns the
+screen. Start and Settings are not two panels: they are
 two `data-view` values of `#panel-setup`, so a new settings group is a `.settings-only`
 block plus a button in `#settings-index`, not a panel. `boot` in `src/ui/app.js` picks the
 opening panel (Ideas when any session is stored, Start otherwise), and `show()` clears the

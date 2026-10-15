@@ -13,12 +13,13 @@ resolve, and `test/browser/contrast.browser.mjs` checks every colour pair in lig
 dark (see [Contrast and targets](#contrast-and-targets)).
 
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
-[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). Only the web and native
-colour/type/spacing/shape/state foundations are implemented here. The adaptive shell and
-Start/Ideas/Interview/Voice/Result recompositions are **not yet implemented**. The guide's
+[the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
+colour/type/spacing/shape/state foundations and the web adaptive shell (#191) are implemented
+here. The native adaptive shell and Start/Ideas/Interview/Voice/Result recompositions are
+**not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the new foundation and existing layouts, not the complete reference boards.
+the foundations and web shell with existing screen compositions, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -107,6 +108,36 @@ The web's classic boot script also retints the chrome for an explicit capture `d
 without changing or storing it, even if preference storage is blocked. `theme.js`,
 `theme-boot.js`, the two `index.html` meta tags and the manifest's dark install fallback
 agree with the CSS ground roles; wiring and before-paint tests hold that agreement.
+
+## Current web shell
+
+`app.css` owns the adaptive rail: `--rail-compact` is 96px from 600px through 1199px;
+`--rail-expanded` is 208px from 1200px. It keeps one labelled navigation set, not duplicated
+controls or routes. Below 600px the same buttons form bottom navigation on Ideas/Start/
+Settings or the contextual Back/title/Settings bar on Interview/Result. The contextual
+title uses the session reducer's display order, retains its complete literal text and
+tooltip, and may ellipsize visually.
+
+Wide rail clearance belongs to `body`, including its safe area; `.wrap` keeps its screenshot
+padding contract and task-specific form/conversation/library/settings/document measure.
+Voice removes the rail clearance and hides the navigation through the existing `hidden`
+state. Rail overflow can scroll vertically in a short or enlarged-text window; labels
+and keyboard focus are not discarded. Error toasts stay on the work side, not over the rail.
+Coverage and the library detail pane reserve the same bottom thumb gap as `.wrap`,
+so reading to the page end cannot push their tops out of the viewport. The library list
+track is bounded by its actual remaining workspace, not enlarged rems alone, so the
+detail actions and prose retain room at 200% text.
+The existing Result height cap/action placement remain until #203; this is not the complete
+document makeover.
+
+`shell.browser.mjs` measures the boundary widths in both themes at 100%/200% text, preserves
+the compact fixed-bar/focus tests and rejects duplicated controls or unsafe title markup.
+The trusted-input keyboard/policy suite and lifecycle probe check actual focus/targets,
+gesture behavior and a new idea's title after an older request settles.
+The policy suite also supplies nonzero safe-area CSS insets through the browser protocol,
+measures the skip link's full focus outline and the short sticky coverage panel, and
+enters/exits the real wide voice flow to prove rail clearance is removed/restored.
+These are controlled desktop-browser checks, not physical-phone safe-area evidence.
 
 ## State, focus and elevation
 
@@ -362,7 +393,7 @@ These are new targets, not a repetition of the completed first pass (#60):
 
 | Current composition | New target |
 |---|---|
-| Top navigation buttons on wide web | Quiet labelled adaptive rail and task-specific main width |
+| Web labelled adaptive rail and task-specific width (implemented in #191) | Later screen recompositions retain this shell |
 | Large repeated library cards/edit disclosures | Compact rows, direct compact Continue/View result, selected expanded detail action |
 | Tall connection/hero stack | Short lead, provider/required-fields/ready stages in the existing shared form |
 | Question, coverage and composer competing | Current question first, quiet history/progress, compact expanding composer |
