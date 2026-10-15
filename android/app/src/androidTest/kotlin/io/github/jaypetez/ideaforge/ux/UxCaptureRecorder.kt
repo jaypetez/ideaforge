@@ -40,8 +40,10 @@ import java.io.File
 internal data class UxConfiguration(
     val window: String, val theme: String, val fontScale: Float, val palette: String? = null,
     val requestedWidthDp: Int? = null, val requestedHeightDp: Int? = null,
+    val navigationMode: String? = null,
 ) {
-    val id get() = "$window-$theme-f${fontScale.toString().replace('.', '_')}"
+    val id get() = "$window-$theme-f${fontScale.toString().replace('.', '_')}" +
+        navigationMode?.let { "-nav-$it" }.orEmpty()
 }
 
 internal data class UxControl(
@@ -225,6 +227,7 @@ internal class UxCaptureRecorder(
             put("imeBottomPx", view.rootWindowInsets?.getInsets(WindowInsets.Type.ime())?.bottom ?: 0)
             put("requestedFontScale", configuration.fontScale)
             put("window", configuration.window)
+            configuration.navigationMode?.let { put("systemNavigationMode", it) }
             configuration.requestedWidthDp?.let { put("requestedWidthDp", it) }
             configuration.requestedHeightDp?.let { put("requestedHeightDp", it) }
             documentViewport?.let { put("documentViewportPx", bounds(it)) }

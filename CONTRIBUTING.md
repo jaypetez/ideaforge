@@ -298,6 +298,9 @@ This selects `UxCaptureDeviceTest#requestedShellEvidenceKeepsInsetsAndIdentity` 
 explicit SHA provenance on both standard visual managed devices. It covers compact,
 medium, expanded and compact-landscape windows, both themes and font scales 1.0/1.3/2.0,
 actual IME, resize/recreation, same-session Ask me more and in-place paused voice.
+Additional light/font-2 cases repeat Interview/IME, Result and paused Voice with each
+installed three-button/gestural system-navigation overlay, verifying selection and
+restoring the original overlay enablement. They prove inset layout, not gesture usability.
 The paused controller uses scripted speech and a fake service; it proves layout/identity,
 not real recognition, permission prompts or service behavior. The default `evidence=full`
 retains the shared full inventory; a focused shell pass is not a full-matrix pass.

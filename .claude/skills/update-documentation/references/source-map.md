@@ -50,7 +50,8 @@ source wins over prose, and a generated artifact wins over a description of that
   page scroller rather than clipping the enlarged editor. Library retains its installed
   Material adaptive panes.
   [`AdaptiveShellTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ui/AdaptiveShellTest.kt)
-  and the opt-in shell method in `UxCaptureDeviceTest` own route/resize/voice/inset proof.
+  and the opt-in shell method in `UxCaptureDeviceTest` own route/resize/voice/inset proof,
+  including bounded enlarged-text cases for installed system-navigation modes.
   Re-check DESIGN, the Android guide, architecture, full title semantics, no
   navigation-triggered microphone/service and actual exact-SHA pixel manifests.
   Scripted controller speech/service in paused-stage evidence is not physical input
@@ -103,7 +104,8 @@ source wins over prose, and a generated artifact wins over a description of that
   own shared-data loading, labelled isolated phases and real navigation.
   [`UxCaptureRecorder.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxCaptureRecorder.kt)
   owns PNG/semantics/manifests; [`UxDeviceEnvironment.kt`](../../../../android/app/src/androidTest/kotlin/io/github/jaypetez/ideaforge/ux/UxDeviceEnvironment.kt)
-  restores actual display/font settings. Re-check platform-specific phases, explicit caller
+  restores actual display/font settings and changed system-navigation overlays.
+  Re-check platform-specific phases, explicit caller
   SHA versus clean-tree evidence, focused versus complete matrix results, and known red
   baselines against those owners.
   Native [`SessionStore.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/SessionStore.kt)

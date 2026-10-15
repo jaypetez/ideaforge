@@ -121,7 +121,7 @@ class UxCaptureDeviceTest {
         }
         val sizes = mapOf("compact" to (411 to 914), "medium" to (720 to 960),
             "compact-landscape" to (640 to 400), "expanded" to (1280 to 900))
-        val matrix = windows.flatMap { window ->
+        val baseMatrix = windows.flatMap { window ->
             listOf("light", "dark").flatMap { theme ->
                 listOf(1f, 1.3f, 2f).map {
                     UxConfiguration(window, theme, it, requestedWidthDp = sizes.getValue(window).first,
@@ -131,17 +131,29 @@ class UxCaptureDeviceTest {
         }
         val states = listOf("fresh", "ready", "library-long", "interview-long", "result-long")
         val frames = states + listOf("shell-interview-ime", "shell-voice-paused")
+        val environment = UxDeviceEnvironment(instrumentation.uiAutomation)
+        check(environment.navigationModes.isNotEmpty()) { "no supported system-navigation overlay is installed" }
+        val navigationFrames = listOf("interview-long", "result-long", "shell-interview-ime", "shell-voice-paused")
+        val matrix = baseMatrix + baseMatrix.filter { it.theme == "light" && it.fontScale == 2f }.flatMap { config ->
+            environment.navigationModes.map { config.copy(navigationMode = it) }
+        }
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux-shell"),
-            matrix.flatMap { config -> frames.map { "${config.id}/$it" } }.toSet())
+            matrix.flatMap { config ->
+                (if (config.navigationMode == null) frames else navigationFrames).map { "${config.id}/$it" }
+            }.toSet())
         val originalGraph = app.graph
         runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
         var primaryError: Throwable? = null
         try {
             check(runDir.mkdirs())
-            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+            environment.use {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
-                    for (id in states) {
+                    config.navigationMode?.let { mode ->
+                        environment.selectNavigationMode(mode)
+                        compose.waitUntil(DEVICE_TIMEOUT) { environment.navigationModeApplied(mode) }
+                    }
+                    for (id in if (config.navigationMode == null) states else listOf("interview-long", "result-long")) {
                         val state = fixtures.state(id)
                         try {
                             prepare(state, config)
