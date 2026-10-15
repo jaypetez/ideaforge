@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
+import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -33,6 +34,9 @@ import io.github.jaypetez.ideaforge.ux.UxBounds
 import io.github.jaypetez.ideaforge.ux.UxEvidence
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -50,6 +54,18 @@ import java.io.File
 class InterviewLayoutTest {
     @get:Rule
     val compose = createEmptyComposeRule()
+    private val graphs = mutableListOf<AppGraph>()
+
+    @After
+    fun closeScopes() {
+        runBlocking {
+            for (graph in graphs) {
+                graph.appScope.coroutineContext[Job]?.cancelAndJoin()
+                graph.mainScope.coroutineContext[Job]?.cancelAndJoin()
+            }
+        }
+        compose.waitForIdle()
+    }
 
     @Test
     fun anEnlargedCompactComposerLeavesReachableChipsAndWriteUpWithoutClippedLabels() {
@@ -83,7 +99,7 @@ class InterviewLayoutTest {
     private fun requireLongInterviewReachable(requireCurrent: Boolean = false, providerUnavailable: Boolean = false) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
-        val graph = installTestGraph(ring = usableRing())
+        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
         graph.providerSource = ProviderSource {
             if (providerUnavailable) throw ProviderException("config", "Controlled unavailable provider while opening.")
             ScriptedModel()
@@ -118,7 +134,7 @@ class InterviewLayoutTest {
 
     @Test
     fun theEnlargedWalkthroughChipTapActuallyFillsTheRealDraftBeforeSend() {
-        val graph = installTestGraph(ring = usableRing())
+        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
         graph.providerSource = ProviderSource { ScriptedModel() }
         val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
         ActivityScenario.launch(MainActivity::class.java).use {
