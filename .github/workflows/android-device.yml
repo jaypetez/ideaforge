@@ -74,20 +74,24 @@ jobs:
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
+          -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=fresh+ready+library-long+interview-long+result-long+save-failure+writing
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
 
       - name: Expanded native UX evidence
         if: ${{ !cancelled() }}
         run: >-
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
+          -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
+          -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=fresh+ready+library-long+interview-long+result-long+save-failure+writing
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
 
       - name: Upload named native UX screenshots and manifests
@@ -96,6 +100,8 @@ jobs:
         with:
           name: android-ux-evidence-${{ github.sha }}
           path: |
+            android/app/build/intermediates/managed_device_android_test_additional_output/
+            android/app/build/intermediates/connected_android_test_additional_output/
             android/app/build/outputs/managed_device_android_test_additional_output/
             android/app/build/outputs/connected_android_test_additional_output/
           if-no-files-found: error
