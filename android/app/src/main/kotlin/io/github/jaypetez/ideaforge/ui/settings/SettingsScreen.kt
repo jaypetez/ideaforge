@@ -61,6 +61,7 @@ import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.maskKey
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.ui.GUIDE_URL
+import io.github.jaypetez.ideaforge.ui.PrivacyPolicyLink
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
@@ -412,4 +413,5 @@ private fun About() {
     val uri = LocalUriHandler.current
     Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), Modifier.testTag(SettingsTags.VERSION))
     TextButton(onClick = { runCatching { uri.openUri(GUIDE_URL) } }) { Text(stringResource(R.string.settings_guide)) }
+    PrivacyPolicyLink()
 }

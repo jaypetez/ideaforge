@@ -267,6 +267,14 @@ Voice stays in that destination and respects only remaining insets. Caption/leve
 is not a reason to rebuild the shell. Content measures stay in `ui/theme/Roles.kt`, and
 Library still uses `NavigableListDetailPaneScaffold` rather than a second breakpoint grid.
 
+**Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
+and the shared localized action in Settings About and the common onboarding footer.
+It uses the platform URI handler and reports a missing/blocked external handler inline
+with the existing status primitive, including the destination and a retry.
+`SettingsScreenTest` and `OnboardingFlowTest` assert actual view intents against the
+literal published URL; `PrivacyPolicyLinkTest` covers open failures and recovery.
+The web link belongs to `index.html`'s shared Start/Settings About group, not a second route.
+
 **The JavaScript is the reference, and parity is measured, not reviewed.** `tools/vectors.mjs`
 records real calls into the JS core and runtime as JSON files under `test/vectors/`. The Kotlin tests
 replay them through the consumers registered in

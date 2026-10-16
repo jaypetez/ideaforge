@@ -30,6 +30,23 @@ function loadFrame(src) {
 
 const settle = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function followPolicy(frame, link, path) {
+  if (!link) return false;
+  await new Promise((resolve, reject) => {
+    const loaded = () => { clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => {
+      frame.removeEventListener('load', loaded);
+      reject(new Error('the footer policy navigation did not finish'));
+    }, BOOT_MS);
+    frame.addEventListener('load', loaded, { once: true });
+    link.click();
+  });
+  const doc = frame.contentDocument;
+  return frame.contentWindow.location.pathname === path
+    && doc.title === 'Privacy policy | IdeaForge guide'
+    && doc.scripts.length === 0 && !doc.getElementById('provider');
+}
+
 export default async function run(check, { subpath }) {
   // ── boots at the origin root ──────────────────────────────────────────────
   const frame = await loadFrame('/index.html');
@@ -56,6 +73,10 @@ export default async function run(check, { subpath }) {
     $('version').textContent);
   const guideLink = doc.querySelector('#panel-setup a[href="./guide/"]');
   check('the setup screen links to the public guide', Boolean(guideLink));
+  const policyLink = doc.querySelector('#settings-about a[href="./guide/privacy-policy.html"]');
+  check('Start exposes the labelled privacy policy in its shared footer',
+    policyLink?.textContent === 'Privacy policy' && policyLink.getClientRects().length > 0
+      && new URL(policyLink.href).pathname === '/guide/privacy-policy.html');
   check('the dictation note is rendered', $('stt-note').textContent.trim().length > 0);
   check('no key stored, so Forget keys is hidden', $('b-forget').hidden === true);
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
@@ -344,6 +365,12 @@ export default async function run(check, { subpath }) {
   check('the IPv6 loopback literal is still refused, which is why we warn about it',
     !(await csp('http://[::1]:9/')));
 
+  $('b-settings').click();
+  await settle(150);
+  check('Settings About keeps the same visible privacy-policy action',
+    $('panel-setup').dataset.view === 'settings' && policyLink?.getClientRects().length > 0);
+  check('the actual Settings footer opens the static policy, not the worker app fallback',
+    await followPolicy(frame, policyLink, '/guide/privacy-policy.html'));
   frame.remove();
 
   // The root-scoped service worker that boot() just registered shares this origin's cache
@@ -355,6 +382,8 @@ export default async function run(check, { subpath }) {
   const oldShell = await caches.open('ideaforge-v27');
   await oldShell.put(subpath + 'index.html', new Response('<!doctype html><title>Old shell</title>'));
   await oldShell.put(subpath + 'src/ui/app.js', new Response('/* old shared form */'));
+  const prePolicyShell = await caches.open('ideaforge-v29');
+  await prePolicyShell.put(subpath + 'index.html', new Response('<!doctype html><title>No policy link</title>'));
 
   // ── boots identically on a Pages-style subpath ────────────────────────────
   const sub = await loadFrame(subpath + 'index.html');
@@ -371,6 +400,10 @@ export default async function run(check, { subpath }) {
   check('the guide link stays below the Pages-style subpath',
     subGuideLink && new URL(subGuideLink.href).pathname === `${subpath}guide/`,
     subGuideLink && new URL(subGuideLink.href).pathname);
+  const subPolicyLink = sub.contentDocument.querySelector('#settings-about a[href="./guide/privacy-policy.html"]');
+  check('the visible privacy-policy footer stays below the Pages-style subpath',
+    subPolicyLink?.textContent === 'Privacy policy' && subPolicyLink.getClientRects().length > 0
+      && new URL(subPolicyLink.href).pathname === `${subpath}guide/privacy-policy.html`);
 
   // The manifest's start_url, scope and icons are resolved against the manifest URL, so a
   // root-absolute value would break the installed app on Pages while looking fine locally.
@@ -407,6 +440,8 @@ export default async function run(check, { subpath }) {
   const names = await caches.keys();
   check('installing the progressive shell retires the pre-progressive mixed-graph cache',
     !names.includes('ideaforge-v27'), names.join(', '));
+  check('installing the policy-linked shell retires the pre-policy cache',
+    !names.includes('ideaforge-v29'), names.join(', '));
   const cache = names.length ? await caches.open(names[0]) : null;
   const cached = cache ? (await cache.keys()).map((r) => new URL(r.url).pathname) : [];
   check('the service worker precached the shell', cached.length > 20, cached.length + ' entries');
@@ -418,8 +453,14 @@ export default async function run(check, { subpath }) {
   check('the installed offline shell contains matching progressive markup and handlers',
     ['b-connect-next', 'b-connect-back', 'connect-status'].every((id) =>
       shellHtml.includes(`id="${id}"`) && shellJs.includes(`'${id}'`)));
+  check('the offline app shell retains its relative privacy-policy link',
+    shellHtml.includes('href="./guide/privacy-policy.html"'));
+  check('the actual subpath Start footer opens its static policy under the active worker',
+    await followPolicy(sub, subPolicyLink, `${subpath}guide/privacy-policy.html`));
 
-  await reg.unregister();
+  // Navigation retired the app frame's realm; unregister through the live harness.
+  const currentReg = await navigator.serviceWorker.getRegistration(subpath);
+  if (currentReg) await currentReg.unregister();
   await Promise.all(names.map((n) => caches.delete(n)));
   sub.remove();
 }

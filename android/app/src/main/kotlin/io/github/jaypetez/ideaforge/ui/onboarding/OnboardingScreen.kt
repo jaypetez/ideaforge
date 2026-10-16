@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.hostOf
+import io.github.jaypetez.ideaforge.ui.PrivacyPolicyLink
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
@@ -79,6 +80,7 @@ fun OnboardingScreen(vm: OnboardingViewModel, onDone: () -> Unit) {
         if (choice == null) PickProvider(vm.choices, vm::pick)
         else if (choice.local) LocalServer(choice, state, vm)
         else HostedKey(choice, state, vm)
+        PrivacyPolicyLink()
     }
 }
 
