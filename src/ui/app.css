@@ -283,7 +283,9 @@ section > h2 {
   display: none;
 }
 .field-error { color: var(--error); }
-.field-error:empty, .connect-status:empty { display: none; }
+.field-error:empty, .connect-status:empty,
+#credential-error:empty, #data-status:empty, #appearance-status:empty,
+#voice-preferences-status:empty, #speech-check:empty { display: none; }
 /* A summary means the fields are usable, never that a request succeeded. */
 .connect-summary { display: none; }
 #panel-setup[data-view="start"] .connect[data-collapsed] { padding-block: var(--s3); }
@@ -997,8 +999,7 @@ button[aria-busy="true"] {
 .hint:not(.callout)[data-status="success"] { color: var(--success); }
 .hint:not(.callout)[data-status="warning"] { color: var(--warning); }
 
-/* Reuse the platform's HTML dialog/top-layer primitive, not a custom modal controller.
-   Existing window.confirm prompts remain browser-owned and are not replaced here. */
+/* Focus containment and top-layer placement belong to the native dialog. */
 dialog {
   width: min(calc(100% - var(--s6)), var(--width-overlay));
   max-height: calc(100dvh - var(--s6)); overflow: auto;
@@ -1014,7 +1015,17 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
 #panel-setup[data-view="settings"] > .group {
   background: transparent; border-radius: 0;
   border-block-start: 1px solid var(--outline-variant);
+  padding: var(--s4) 0; gap: var(--s4);
 }
+#panel-setup[data-view="settings"] > .group > h2 { font-size: var(--type-title-size); }
+.settings-summary { margin: 0; overflow-wrap: anywhere; }
+#panel-setup[data-view="settings"] > .group > .settings-summary { margin-block-start: calc(-1 * var(--s3)); }
+.settings-danger {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+  padding-block-start: var(--s4); border-block-start: 1px solid var(--outline-variant);
+}
+.settings-danger h3 { margin: 0; font-size: var(--t-md); font-weight: 600; }
+#field-tts { display: flex; flex-direction: column; gap: var(--s4); }
 
 /* ──────────────────────────────────────────────── desktop layouts (#109) */
 /* 1024px and wider uses the width instead of one 720px column, per panel: Ideas is a list
@@ -1088,10 +1099,9 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
     border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary);
   }
 
-  /* Settings: index | groups. The index is sticky, so it stays beside a long Listen and
-     speak group, and its buttons scroll the page rather than change location.hash. */
+  /* The section index scrolls/focuses the shared fields, never location.hash. */
   #panel-setup[data-view="settings"] {
-    display: grid; grid-template-columns: 12rem minmax(0, 1fr);
+    display: grid; grid-template-columns: minmax(0, min(12rem, 27%)) minmax(0, 1fr);
     grid-template-rows: repeat(5, auto) 1fr; column-gap: var(--s6); row-gap: 0;
   }
   #panel-setup[data-view="settings"] > * { grid-column: 2; min-width: 0; }
@@ -1249,6 +1259,15 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
    Send when its column reaches the end of the page. Voice keeps its top toast instead. */
 body:is([data-panel="done"], [data-panel="interview"]):not(.voice-active):has(#err-toast:not([hidden])) {
   padding-bottom: calc(var(--toast-err-max) + var(--s7) + env(safe-area-inset-bottom));
+}
+/* Setup keyboard focus must clear the persistent error as well as the phone navigation. */
+html:has(body[data-panel="setup"] #err-toast:not([hidden])) {
+  --setup-error-clearance: calc(var(--nav-bar-height, 0px) + var(--toast-err-max)
+    + var(--s7) + env(safe-area-inset-bottom));
+  scroll-padding-bottom: var(--setup-error-clearance);
+}
+body[data-panel="setup"]:has(#err-toast:not([hidden])) {
+  padding-bottom: var(--setup-error-clearance);
 }
 /* Two classes, to outrank button.quiet's padding. */
 .toast-err .toast-dismiss {

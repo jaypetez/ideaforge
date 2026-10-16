@@ -189,7 +189,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   `#toasts`' `data-note-ms` (probes shorten it there) and take no pointer events; the error
   toast does, so `.toasts` is placed clear of Send (top on a phone's Interview), Pause/Exit
   (top on the voice stage) and the bottom navigation, and Done's body grows by the
-  error's maximum height while one shows (never `.wrap`'s 72px). A failed save is an
+  error's maximum height while one shows (never `.wrap`'s 72px). Setup reserves error
+  clearance in both its focus scrollport and page bottom, including the phone navigation,
+  so a keyboard retry at enlarged text cannot land under the persistent error. A failed save is an
   error, not a note, held in `state.saveFailure`: `fail(null)` shows it again on that
   idea's Interview and Done until it saves or is dismissed, so neither a turn nor the
   move to Done can drop it. `test/browser/toasts.browser.mjs` hit-tests those controls
@@ -199,8 +201,25 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   local providers through `onProviderChange`; `Voice and speaking pace` opens when OpenAI
   speech is selected through `onSpeechChange`. Both live in `index.html`; the provider/key,
   spoken-replies choice, dictation, finish word and start actions stay outside them.
+  Required hosted-speech keys/consent and Preview also stay outside optional disclosures.
   `screenshots.mjs` rejects setup captures that clip the start controls or footer. Fix the
   app layout when that gate fails; do not hide required controls just for a capture.
+- **Settings recovery belongs to its operation.** The same form has five sections:
+  Connection, Voice, Appearance, Your data and About. Credential errors persist beside
+  Connection and data results beside Your data; screen toasts are not their only copy.
+  `confirmAction` uses a native dialog and returns an awaited boolean, with Cancel focused.
+  Confirmed Forget retires effects before storage; `secrets.js` serializes credential
+  operations so an older encrypted write cannot survive a completed clear. Failed
+  removal keeps an explicit retry, not the old in-memory provider. Clear fields
+  before awaiting removal so a late completion cannot erase new edits. A hosted
+  preview cancelled during persistence queues revocation, never successful verification.
+  Teardown/navigation use the same cancellation path. `updateCredentials` merges an
+  operation's owned branch against the latest durable ring inside the queue; serializing
+  stale whole-ring snapshots alone still loses independent updates. Connection/Start owns
+  its submitted inference and STT branches; TTS verification has an independent writer.
+  A retired durable STT put must not override the next Start's explicit dictation choice.
+  Library's current `confirmDelete` is synchronous: its future dialog integration must
+  await the result, not treat a Promise as permission.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the
   destination passed to `show()`; app.css hides `.start-only` / `.settings-only` from that
   attribute alone. Every id stays in the one section. Start's provider/fields/ready phases

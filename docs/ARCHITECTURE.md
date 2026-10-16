@@ -73,9 +73,15 @@ exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the rele
 ever handles a finished, verified APK.
 
 The Pages artifact has two static surfaces: the app at its root and the public guide under
-`guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests.
+`guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests,
+including another site prefix on the same origin before its own worker is installed.
 Without that boundary, a failed guide navigation could fall through to cached `index.html`
 and render the app where documentation was requested.
+
+For app assets, `sw.js` retains background network/cache refresh in the fetch event's
+lifetime and clones a response before its consumer can use the body. `test/sw.test.mjs`
+drives delayed cache storage, reported write failures and offline fallbacks; the browser
+suite covers the actual assembled shell.
 
 The app's Focus Studio foundation lives in `src/ui/app.css`; `guide/assets/guide.css` still
 has the earlier palette until the separate guide migration (#205). The guide uses system

@@ -547,6 +547,114 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
       && document.body.dataset.panel === 'interview'
       && getComputedStyle(document.querySelector('.bar-right')).position === 'fixed'
       && parseFloat(getComputedStyle(document.body).paddingLeft) === 208`));
+
+  for (const [size, scale] of [[PHONE, 1], [PHONE, 2], [{ width: 320, height: 640 }, 2],
+    [COMPACT_RAIL, 2], [DESKTOP, 2], [{ width: 844, height: 390 }, 2]]) {
+    await viewport(size);
+    await click('#b-settings', 'setup', 'connection error keyboard recovery');
+    await evaluate(`(() => {
+      document.documentElement.style.fontSize=${JSON.stringify(`${scale * 100}%`)};
+      const provider=document.getElementById('provider');
+      provider.value='anthropic';provider.dispatchEvent(new Event('change'));
+      const key=document.getElementById('apikey');
+      key.value='sk-keyboard-recovery-194-not-a-key';key.dispatchEvent(new Event('input'));
+      window.__recoveryFetch=window.fetch;
+      window.fetch=async()=>new Response(JSON.stringify({error:{message:'Scripted rejected recovery key'}}),
+        {status:401,headers:{'content-type':'application/json'}});
+    })()`);
+    try {
+      await click('#b-check', 'setup', 'failed connection check');
+      await until(`!document.getElementById('err').hidden && !document.getElementById('b-check').disabled`,
+        'persistent connection error');
+      await evaluate(`document.getElementById('apikey').focus()`);
+      const key = await focusInfo(['#connect']);
+      check(`${size.width}px text ${scale}: a rejected key stays visible above its persistent error`,
+        key.shown && key.inView && !key.covered, JSON.stringify(key));
+      for (let step = 0; step < 8
+        && !(await evaluate(`document.activeElement===document.getElementById('b-check')`)); step++) await press('Tab');
+      const recovery = await focusInfo(['#connect']);
+      check(`${size.width}px text ${scale}: trusted Tab reaches an unobscured connection retry`,
+        await evaluate(`document.activeElement===document.getElementById('b-check')`)
+          && recovery.shown && recovery.inView && !recovery.covered, JSON.stringify(recovery));
+    } finally {
+      await evaluate(`window.fetch=window.__recoveryFetch;delete window.__recoveryFetch;
+        document.getElementById('b-err-dismiss').click();
+        document.documentElement.style.fontSize='100%';
+        document.getElementById('provider').value='artifact';
+        document.getElementById('provider').dispatchEvent(new Event('change'));`);
+    }
+  }
+
+  for (const [size, scale] of [[PHONE, 1], [DESKTOP, 2]]) {
+    await viewport(size);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await evaluate(`(async () => {
+      const s=await import('/src/store/secrets.js');
+      await s.saveCredentials(s.withCreds(s.emptyKeyring(),'artifact',
+        {apiKey:'sk-keyboard-confirmation-194-not-a-key'}));
+    })()`);
+    await cdp.send('Page.reload');
+    await until(`Boolean(document.getElementById('version')?.textContent)`, 'dialog fixture reload');
+    await evaluate(`document.documentElement.style.fontSize=${JSON.stringify(`${scale * 100}%`)}`);
+    await click('#b-settings', 'setup', 'real Settings confirmation');
+    const label = `${size.width}px text ${scale}: actual Forget dialog`;
+    const storedKey = () => evaluate(`(async () => {
+      const s=await import('/src/store/secrets.js');
+      return Boolean((await s.loadCredentials())?.byKind.artifact?.apiKey);
+    })()`);
+    const open = async () => {
+      await evaluate(`document.getElementById('b-forget').scrollIntoView({block:'center',behavior:'instant'})`);
+      await cdp.click('#b-forget');
+      await until(`Boolean(document.querySelector('dialog[open]'))`, 'actual native modal');
+    };
+    await open();
+    check(`${label} starts on Cancel and keeps credentials`,
+      await evaluate(`document.activeElement === document.querySelector('dialog [value="cancel"]')`)
+        && await storedKey());
+    await evaluate(`document.getElementById('b-forget').focus()`);
+    check(`${label} is modal and rejects focus on its background trigger`,
+      await evaluate(`document.querySelector('dialog').matches(':modal')
+        && document.activeElement !== document.getElementById('b-forget')`));
+    await press('Tab');
+    check(`${label} Tab reaches only the destructive action`,
+      await evaluate(`document.activeElement === document.querySelector('dialog [value="confirm"]')`));
+    await press('Tab', { shift: true });
+    check(`${label} reverse Tab from the destructive action returns to Cancel`,
+      await evaluate(`document.activeElement === document.querySelector('dialog [value="cancel"]')`));
+    await press('Tab');
+    await press('Tab');
+    const boundary = await focusInfo(['dialog']);
+    check(`${label} forward Tab never reaches background controls (native browser edge allowed)`,
+      boundary.region === 0 || boundary.end, JSON.stringify(boundary));
+    await press('Tab', { shift: true });
+    const reverse = await focusInfo(['dialog']);
+    check(`${label} reverse Tab never reaches background controls (native browser edge allowed)`,
+      reverse.region === 0 || reverse.end, JSON.stringify(reverse));
+    const geometry = await evaluate(`(() => [...document.querySelectorAll('dialog button')].map(el=>{
+      const r=el.getBoundingClientRect(); return {width:r.width,height:r.height};
+    }))()`);
+    check(`${label} both coarse actions retain 48px targets`,
+      geometry.length === 2 && geometry.every((r) => r.width >= 48 && r.height >= 48),
+      JSON.stringify(geometry));
+    await press('Escape');
+    await until(`!document.querySelector('dialog')`, 'real Escape cancellation');
+    check(`${label} Escape preserves credentials and restores visible focus`,
+      await storedKey() && await evaluate(`document.activeElement === document.getElementById('b-forget')
+        && document.activeElement.getBoundingClientRect().bottom <= innerHeight`));
+    await open();
+    await press('Enter');
+    await until(`!document.querySelector('dialog')`, 'safe default Enter');
+    check(`${label} default Enter cancels rather than deleting`, await storedKey());
+    await open();
+    await press('Tab');
+    await press('Enter');
+    await until(`document.getElementById('b-forget').hidden
+      && /keys were removed/.test(document.getElementById('data-status').textContent)`,
+    'affirmative Forget completion');
+    check(`${label} only affirmative Enter removes credentials`,
+      !(await storedKey()) && await evaluate(`document.activeElement ===
+        document.querySelector('#settings-data h2')`));
+  }
 }
 
 /** Shipped CSS/classes and browser primitives, with real pointer/keyboard state changes.

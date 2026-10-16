@@ -219,7 +219,7 @@ test('the container copies the same publishable roots as the site assembler', ()
 test('the app service worker leaves the public guide alone', () => {
   assert.match(SW, /GUIDE_PATH/);
   assert.match(SW, /GUIDE_SCREENSHOTS_PATH/);
-  assert.match(SW, /url\.pathname\.startsWith\(GUIDE_PATH\)[\s\S]*GUIDE_SCREENSHOTS_PATH/);
+  assert.match(SW, /url\.pathname\.includes\(GUIDE_PATH\)[\s\S]*GUIDE_SCREENSHOTS_PATH/);
   assert.doesNotMatch(SW, /^\s*'\.\/guide\//m,
     'guide pages must not join the app shell cache');
 });

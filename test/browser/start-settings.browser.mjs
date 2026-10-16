@@ -86,8 +86,8 @@ async function views(check) {
     const groups = [...$('panel-setup').querySelectorAll('.group')]
       .filter((el) => el.getClientRects().length > 0)
       .map((el) => el.querySelector(':scope > h2').innerText.trim());
-    check('Settings is grouped as Connection, Listen and speak, Appearance, Data, About',
-      groups.join('|') === 'Connection|Listen and speak|Appearance|Data|About', groups.join('|'));
+    check('Settings is grouped as Connection, Voice, Appearance, Your data, About',
+      groups.join('|') === 'Connection|Voice|Appearance|Your data|About', groups.join('|'));
     check('the disclosure summaries are unchanged plain text',
       $('model-settings').querySelector('summary').textContent === 'Model options'
         && $('speech-options').querySelector('summary').textContent === 'Voice and speaking pace');

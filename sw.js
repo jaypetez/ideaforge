@@ -12,9 +12,9 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v28';
-const GUIDE_PATH = new URL('./guide/', self.location.href).pathname;
-const GUIDE_SCREENSHOTS_PATH = new URL('./docs/screenshots/', self.location.href).pathname;
+const CACHE = 'ideaforge-v29';
+const GUIDE_PATH = '/guide/';
+const GUIDE_SCREENSHOTS_PATH = '/docs/screenshots/';
 
 const SHELL = [
   './',
@@ -29,6 +29,7 @@ const SHELL = [
   './src/ui/library.js',
   './src/ui/share.js',
   './src/ui/menu.js',
+  './src/ui/dialog.js',
   './src/ui/theme.js',
   './src/ui/theme-boot.js',
   './src/ui/icon.svg',
@@ -99,21 +100,29 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   // The public guide is a separate static surface under this worker's root scope. Let the
   // browser fetch it normally so a failed guide navigation can never turn into the app shell.
-  if (url.pathname.startsWith(GUIDE_PATH)
-      || url.pathname.startsWith(GUIDE_SCREENSHOTS_PATH)) return;
+  // Another site prefix on this origin can have its own guide without its own worker yet.
+  if (url.pathname.includes(GUIDE_PATH)
+      || url.pathname.includes(GUIDE_SCREENSHOTS_PATH)) return;
+
+  const network = fetch(request).then((res) => {
+    if (res && res.ok) {
+      // The client may consume res before cache storage opens.
+      const copy = res.clone();
+      event.waitUntil(caches.open(CACHE).then((c) => c.put(request, copy))
+        .catch((error) => console.warn('The app cache refresh could not be saved.', error)));
+    }
+    return res;
+  }).catch(() => null);
+  // Cached replies must not retire their still-running module refresh.
+  event.waitUntil(network);
 
   event.respondWith((async () => {
     const cached = await caches.match(request);
-    const network = fetch(request).then((res) => {
-      if (res && res.ok) caches.open(CACHE).then((c) => c.put(request, res.clone()));
-      return res;
-    }).catch(() => null);
-
     // Stale-while-revalidate, with a navigation falling back to the cached shell so a
     // cold offline launch still opens the app rather than the browser's error page.
     return cached
       || (await network)
-      || (request.mode === 'navigate' ? caches.match('./index.html') : undefined)
+      || (request.mode === 'navigate' ? await caches.match('./index.html') : undefined)
       || new Response('offline', { status: 503, statusText: 'offline' });
   })());
 });

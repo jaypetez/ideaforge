@@ -57,7 +57,7 @@ export default async function run(check, { subpath }) {
   const guideLink = doc.querySelector('#panel-setup a[href="./guide/"]');
   check('the setup screen links to the public guide', Boolean(guideLink));
   check('the dictation note is rendered', $('stt-note').textContent.trim().length > 0);
-  check('no key stored, so Forget my key is hidden', $('b-forget').hidden === true);
+  check('no key stored, so Forget keys is hidden', $('b-forget').hidden === true);
   check('the interview panel starts hidden', $('panel-interview').hidden === true);
   check('the ideas library starts hidden', $('panel-library').hidden === true);
   check('the mic button is hidden until an interview starts', $('b-mic').hidden === true);

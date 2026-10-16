@@ -18,6 +18,15 @@ import { SECRETS, get, put, del } from './db.js';
 
 const CRYPTO_KEY = 'wrapping-key';
 const PAYLOAD = 'credentials';
+let operations = Promise.resolve();
+let generation = 0;
+
+function credentialOperation(run) {
+  const result = operations.then(run);
+  // Keep later operations usable; the original rejection still reaches its caller.
+  operations = result.catch(() => {});
+  return result;
+}
 
 async function wrappingKey() {
   const existing = await get(SECRETS, CRYPTO_KEY);
@@ -35,37 +44,69 @@ async function wrappingKey() {
  * @param {object} ring a keyring, or a v1 blob, which is migrated on the way in so an old
  *                      call site cannot write a shape the loader would have to guess at.
  */
-export async function saveCredentials(ring) {
+export function saveCredentials(ring, options) {
+  return writeCredentials(() => ring, options);
+}
+
+/** Merge only the operation's owned fields against the latest durable ring in the queue. */
+export function updateCredentials(update, options) {
+  return writeCredentials(async () => {
+    const blob = await get(SECRETS, PAYLOAD);
+    return update(blob ? await decryptCredentials(blob) : emptyKeyring());
+  }, options);
+}
+
+function writeCredentials(makeRing, { isCurrent = () => true } = {}) {
+  const started = generation;
+  return credentialOperation(async () => {
+    const current = () => {
+      if (started !== generation || !isCurrent()) throw new Error('Credential save was cancelled.');
+    };
+    current();
+    const ring = await makeRing();
+    current();
+    const key = await wrappingKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const payload = ring && ring.version === CREDENTIALS_VERSION ? ring : migrateCredentials(ring);
+    const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+    current();
+    await put(SECRETS, { iv, ciphertext }, PAYLOAD);
+    return payload;
+  });
+}
+
+async function decryptCredentials(blob) {
   const key = await wrappingKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const payload = ring && ring.version === CREDENTIALS_VERSION ? ring : migrateCredentials(ring);
-  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
-  await put(SECRETS, { iv, ciphertext }, PAYLOAD);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: blob.iv }, key, blob.ciphertext
+  );
+  return migrateCredentials(JSON.parse(new TextDecoder().decode(plaintext)));
 }
 
 /** @returns {Promise<object|null>} null when nothing is stored or it cannot be read. */
-export async function loadCredentials() {
-  const blob = await get(SECRETS, PAYLOAD);
-  if (!blob) return null;
-  try {
-    const key = await wrappingKey();
-    const plaintext = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: blob.iv }, key, blob.ciphertext
-    );
-    return migrateCredentials(JSON.parse(new TextDecoder().decode(plaintext)));
-  } catch {
-    // The wrapping key was evicted independently of the payload, so the ciphertext is
-    // now undecryptable rubbish. Clear it and make the user paste the key again — that
-    // is a far better outcome than an infinite loop of failed decryptions.
-    await del(SECRETS, PAYLOAD);
-    return null;
-  }
+export function loadCredentials({ onUnreadable } = {}) {
+  return credentialOperation(async () => {
+    const blob = await get(SECRETS, PAYLOAD);
+    if (!blob) return null;
+    try {
+      return await decryptCredentials(blob);
+    } catch (error) {
+      // Preserve the existing re-entry recovery, but let the UI explain it.
+      await del(SECRETS, PAYLOAD);
+      if (onUnreadable) onUnreadable(error);
+      return null;
+    }
+  });
 }
 
-export async function clearCredentials() {
-  await del(SECRETS, PAYLOAD);
-  await del(SECRETS, CRYPTO_KEY);
+export function clearCredentials() {
+  generation++;
+  // A clear follows even a put already in flight, so an older save cannot resurrect it.
+  return credentialOperation(async () => {
+    await del(SECRETS, PAYLOAD);
+    await del(SECRETS, CRYPTO_KEY);
+  });
 }
 
 // ── the keyring ────────────────────────────────────────────────────────────────────────

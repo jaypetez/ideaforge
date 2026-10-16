@@ -61,6 +61,8 @@ export default async function run(check, { subpath }) {
   await settle(BOOT_MS);
   const registrations = await navigator.serviceWorker.getRegistrations();
   check('the app worker is registered before guide navigation', registrations.length > 0);
+  check('the activated app worker controls the document before guide navigation',
+    app.contentWindow.navigator.serviceWorker.controller?.scriptURL === new URL('/sw.js', location.href).href);
 
   const guideErrors = [];
   const guideViolations = [];

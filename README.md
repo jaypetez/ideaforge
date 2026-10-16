@@ -217,10 +217,11 @@ the width too: an index of its five groups sits beside them.
 </p>
 
 Nothing is synced to an IdeaForge account because there is no account or server. In
-**Settings**, under **Data**, **Back up ideas** downloads one JSON file containing every active and archived interview; **Import
-backup** restores it on another device without silently overwriting a different local copy.
-The backup never contains API keys, but its interview text is deliberately unencrypted, so
-treat it like any other personal document.
+**Settings**, under **Your data**, **Backup ideas** downloads one JSON file containing every
+active and archived interview; **Import ideas** restores it on another device without
+silently overwriting a different local copy. The backup never contains API keys or device
+preferences, but its interview text is deliberately unencrypted, so treat it like any other
+personal document. **Forget keys** asks before removing credentials, not ideas.
 
 On a finished idea, **Share .md** opens the phone's native share sheet with the complete
 markdown file. Where a browser cannot share files, **Copy markdown** takes its place as the
@@ -441,10 +442,11 @@ Both actions precede installation and recent ideas. Everything else lives in **S
             srcset="docs/screenshots/10-settings.dark.png">
     <img src="docs/screenshots/10-settings.light.png" width="760"
          alt="The Settings screen in five separator-divided groups: Connection with the provider,
-              API key, Model options and Check the key; Listen and speak with Dictation, the
-              hands-free finish word, Spoken replies and a collapsed Voice and speaking
-              pace section; Appearance with a System, Light or Dark theme choice; Data with
-              Back up ideas and Import backup; and About with the version and a Guide link.">
+              API key, Model options and Check the key; Voice with Dictation, the hands-free
+              finish word, Spoken replies, Preview voice and optional Voice and speaking
+              pace; Appearance with a System, Light or Dark theme choice; Your data with
+              Backup ideas, Import ideas and separate key-storage guidance; and About with the version
+              and a Guide link. Each section summarises its current state.">
   </picture>
 </p>
 

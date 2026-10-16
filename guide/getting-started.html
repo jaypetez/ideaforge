@@ -133,7 +133,7 @@
       <div class="callout warning">
         <strong>On a shared device, treat saved interviews as personal files.</strong>
         Ideas and credentials are stored for this browser profile. Use
-        <strong>Forget my key</strong> when the key should no longer remain on the device,
+        <strong>Your data &rarr; Forget keys</strong> when keys should no longer remain on the device,
         and export or delete conversations as appropriate.
       </div>
 
@@ -178,14 +178,16 @@
       <p>
         <strong>Settings</strong> holds the rest, in five groups:
         <strong>Connection</strong> (provider, key or address, Model options),
-        <strong>Listen and speak</strong> (Dictation, the hands-free finish word, Spoken
+        <strong>Voice</strong> (Dictation, the hands-free finish word, Spoken
         replies, and Voice and speaking pace), <strong>Appearance</strong> (the theme),
-        <strong>Data</strong> (backup and import) and
+        <strong>Your data</strong> (backup, import and Forget keys) and
         <strong>About</strong> (version and this guide). The provider and its key or address,
         <strong>Dictation</strong>, finish word and <strong>Spoken replies</strong> stay
-        outside the expandable sections. Open the extra options only when you want to change
-        them. In a window 1024 pixels wide or wider, an index of the five groups sits beside
-        them; choose one to scroll straight to it.
+        outside the expandable sections. Each heading has a current-state summary.
+        Required hosted-speech keys, consent and the preview action also stay outside
+        optional disclosures. Open extra voice/pace options only when you need them.
+        In a window 1024 pixels wide or wider, an index of the five groups sits beside
+        them; choose one to scroll and focus its heading without changing the page address.
       </p>
       <figure class="screenshot tall-shot">
         <picture>
@@ -194,10 +196,11 @@
           <img class="hero-shot"
                src="../docs/screenshots/10-settings.light.png"
                alt="The Settings screen in five groups: Connection with the provider, API
-                    key, Model options and Check the key; Listen and speak with Dictation, the
-                    hands-free finish word, Spoken replies and a collapsed Voice and speaking
-                    pace section; Appearance with the System, Light and Dark theme choice;
-                    Data with Back up ideas and Import backup; and About."
+                    key, Model options and Check the key; Voice with Dictation, the
+                    hands-free finish word, Spoken replies, Preview voice and optional
+                    Voice and speaking pace; Appearance with the System, Light and Dark
+                    theme choice; Your data with Backup ideas, Import ideas and key-storage status;
+                    and About, with current-state summaries."
                loading="lazy">
         </picture>
         <figcaption>
@@ -240,10 +243,11 @@
         </li>
         <li>
           <strong>Choose how to listen and speak.</strong>
-          These are in <strong>Settings</strong>, under <strong>Listen and speak</strong>.
-          Expand <strong>Voice and speaking pace</strong> to preview a browser voice and
-          adjust its pace. Selecting OpenAI under <strong>Spoken replies</strong> opens
-          this section automatically for its separate key, consent and preview.
+          These are in <strong>Settings</strong>, under <strong>Voice</strong>.
+          <strong>Preview voice</strong> is always visible; expand
+          <strong>Voice and speaking pace</strong> to choose a browser voice and adjust pace.
+          Selecting OpenAI under <strong>Spoken replies</strong> reveals its separate key,
+          consent and required check outside the optional disclosure.
           Under <strong>Dictation</strong>, choose browser recognition, hosted transcription
           with its key, or <strong>Off &mdash; keyboard only</strong>. The hands-free finish
           word is configured here too. Optional OpenAI speech has a separate consented
@@ -403,7 +407,7 @@
             </tr>
             <tr>
               <th scope="row">Inference, transcription and speech credentials</th>
-              <td>Encrypted in IndexedDB; removed by <strong>Forget my key</strong>.</td>
+              <td>Encrypted in IndexedDB; removed by confirmed <strong>Forget keys</strong>.</td>
             </tr>
             <tr>
               <th scope="row">Finish word, hands-free preference, theme, browser voice and pace</th>

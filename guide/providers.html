@@ -265,11 +265,20 @@
           send bearer authorisation. Provider requests explicitly omit browser cookies.
         </li>
         <li>
-          <strong>Forget my key</strong> removes the whole stored credential payload and
-          its wrapping key, including inference, transcription and speech keys.
+          <strong>Settings &rarr; Your data &rarr; Forget keys</strong> asks before removing
+          the whole stored credential payload and its wrapping key, including inference,
+          transcription and speech keys. Cancel or Escape changes nothing; a delayed
+          check cannot restore keys after confirmed removal.
           It does not revoke a key at the provider; revoke it there as well when needed.
         </li>
       </ul>
+      <p>
+        Matching Groq or OpenAI dictation explicitly reuses that provider&rsquo;s inference
+        key. Another transcription provider needs its own key; a saved key for the previous
+        transcription service is not transferred to it. Dictation choices save when you
+        check the connection or start an idea, which does not test transcription.
+        Key/storage failures remain beside Connection; correct the problem and retry.
+      </p>
 
       <p>
         The encrypted-at-rest design and its limits are explained in
@@ -334,7 +343,8 @@
       <h2 id="spoken-replies">Spoken replies are a third, independent choice</h2>
       <p>
         <strong>Browser voice</strong> is the default and needs no extra IdeaForge key.
-        Expand <strong>Voice and speaking pace</strong> for the picker and preview.
+        Use <strong>Preview voice</strong> directly in <strong>Voice</strong>; expand
+        <strong>Voice and speaking pace</strong> for the picker and pace.
         The picker lists the voices exposed by the browser and labels their language and
         on-device or network status. Preview a voice and adjust Speaking pace before
         starting. Network voices may send spoken text off the device; a local label is not
@@ -350,8 +360,9 @@
       <ol class="steps">
         <li>
           Choose OpenAI under <strong>Spoken replies</strong>.
-          <strong>Voice and speaking pace</strong> opens automatically; enter a
-          <strong>Separate speech key</strong> there. IdeaForge never borrows your inference or
+          Enter the <strong>Separate speech key</strong> shown directly in Voice, outside
+          the optional <strong>Voice and speaking pace</strong> disclosure.
+          IdeaForge never borrows your inference or
           transcription key for speech, even when both use OpenAI.
         </li>
         <li>
