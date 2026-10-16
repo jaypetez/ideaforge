@@ -20,7 +20,7 @@ const PHASES = new Set([
   'paused', 'recovering', 'blocked', 'complete',
 ]);
 
-function holdCredentialCommit(win) {
+export function holdCredentialCommit(win) {
   const original = win.IDBObjectStore.prototype.put;
   const complete = Object.getOwnPropertyDescriptor(win.IDBTransaction.prototype, 'oncomplete');
   let intercepted = false;
@@ -405,13 +405,13 @@ function detail(app) {
   });
 }
 
-async function expect(app, check, label, predicate, ms) {
+export async function expect(app, check, label, predicate, ms) {
   const value = await until(predicate, ms);
   check(label, !!value, value ? '' : detail(app));
   return value;
 }
 
-async function withApp(check, label, scenario, {
+export async function withApp(check, label, scenario, {
   remembered = false, speakMs = 220, seed, credentials, preferences, reuseStorage = false,
 } = {}) {
   if (!reuseStorage) await cleanStorage();
@@ -560,7 +560,7 @@ async function withApp(check, label, scenario, {
   }
 }
 
-async function startVoice(app, check) {
+export async function startVoice(app, check) {
   const before = new Set((await listSessions()).map((session) => session.id));
   app.$('b-start-voice').click();
   return expect(app, check, 'Start with voice enters the dedicated speaking stage', async () => {

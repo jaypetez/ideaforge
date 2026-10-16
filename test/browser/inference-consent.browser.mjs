@@ -3,7 +3,9 @@ import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials, emptyKeyring, saveCredentials, withCreds } from '../../src/store/secrets.js';
 import { PREFS_KEY, INFERENCE_KEY } from '../../src/store/prefs.js';
+import { createInferenceConsent } from '../../src/store/inference-consent.js';
 import { acknowledgeInference } from './fixtures/inference.js';
+import { expect, holdCredentialCommit, startVoice, withApp } from './voice-stage.browser.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -145,6 +147,79 @@ async function visit(run, preferences = {}, seed = null) {
 }
 
 export default async function run(check) {
+  await import('./fixtures/fake-voice.js');
+  for (const [kind, finish] of [['browser', 'exit'], ['groq', 'exit'], ['groq', 'withdrawal']]) {
+    await withApp(check, `retired provider rebuild preserves voice ownership: ${kind}/${finish}`, async (app) => {
+      app.$('stt').value = kind;
+      app.$('stt').dispatchEvent(new app.win.Event('change'));
+      app.$('sttkey').value = 'gsk-synthetic-consent-recorder-not-a-key';
+      app.expectedRequestUrl = 'https://api.groq.com/openai/v1/audio/transcriptions';
+      app.win.fetch = async (input) => {
+        const url = String(input?.url || input);
+        if (url !== app.expectedRequestUrl) throw new Error(`Unexpected recorder request: ${url}`);
+        app.requests.push(url);
+        app.expectedRequests++;
+        return new app.win.Response(JSON.stringify({ text: '' }));
+      };
+      const session = await startVoice(app, check);
+      if (!session || !(await expect(app, check, 'the original granted input starts listening',
+        () => app.$('voice-stage').dataset.phase === 'listening'
+          && app.mic.tracks().some((track) => track.readyState === 'live')))) return;
+      app.mic.mute(true);
+      const grant = createInferenceConsent();
+      grant.select('artifact', 'artifact');
+      grant.withdraw();
+      if (!(await expect(app, check, 'another tab withdraws and fully stops the first input',
+        () => app.$('voice-stage').dataset.phase === 'blocked' && app.mic.allStopped()
+          && !app.$('b-voice-pause').disabled && !app.$('inference-consent').checked))) return;
+      grant.accept('artifact');
+      if (!(await expect(app, check, 'a fresh grant enables deliberate Resume',
+        () => app.$('inference-consent').checked && !app.$('b-voice-pause').disabled))) return;
+      const commit = holdCredentialCommit(app.win);
+      let resumed;
+      try {
+        const button = app.$('b-voice-pause');
+        const handler = button.onclick;
+        button.onclick = function (event) {
+          resumed = Promise.resolve(handler.call(this, event));
+          return resumed;
+        };
+        try { button.click(); } finally { button.onclick = handler; }
+        if (!(await expect(app, check, 'Resume holds its actual provider-rebuild credential completion',
+          commit.held))) return;
+        app.$('b-voice-exit').click();
+        if (!(await expect(app, check, 'Exit retires the held Resume before manual controls return',
+          () => app.$('manual-interview').getClientRects().length > 0
+            && !app.$('handsfree-wrap').hidden && app.mic.allStopped()))) return;
+        app.$('handsfree').checked = true;
+        app.$('handsfree').dispatchEvent(new app.win.Event('change'));
+        if (!(await expect(app, check, 'the same idea acquires one newer input before the old rebuild settles',
+          () => app.$('voice-stage').dataset.phase === 'listening'
+            && app.mic.tracks().filter((track) => track.readyState === 'live').length === 1))) return;
+        app.mic.mute(true);
+        const requests = app.mic.requests;
+        const recognitions = app.fake.recognition.sessions.length;
+        const active = app.mic.tracks().filter((track) => track.readyState === 'live');
+        commit.release();
+        await resumed;
+        await sleep(300);
+        check('a retired Resume neither replaces nor reacquires the newer microphone',
+          app.mic.requests === requests && app.fake.recognition.sessions.length === recognitions
+            && active.every((track) => track.readyState === 'live'),
+          `microphone ${requests} -> ${app.mic.requests}; recognition ${recognitions} -> ${app.fake.recognition.sessions.length}`);
+        if (finish === 'exit') app.$('b-voice-exit').click();
+        else grant.withdraw();
+        await expect(app, check, `${finish} closes every input after the retired rebuild completes`,
+          () => app.mic.allStopped(), 1000);
+        check('retired Resume preserves the original single unanswered idea',
+          (await listSessions()).length === 1 && (await loadSession(session.id)).turns.length === 1
+            && app.model.calls.length === 0);
+      } finally {
+        commit.restore();
+      }
+    });
+  }
+
   for (const voice of [false, true]) {
     await visit(async ({ $, captures, requests, newSessions, forceStart, errors }) => {
       check(`${voice ? 'Voice' : 'Type'}: ready setup has a provider-named unchecked inference agreement`,

@@ -2461,7 +2461,10 @@ async function pauseVoice({ command = false, blocked = false, detail = '' } = {}
 async function resumeVoice() {
   if (state.capturePending || !state.session) return;
   const permit = requireInference();
+  const id = state.session.id;
+  const navigation = state.navigation;
   state.voiceEpoch++;
+  const epoch = state.voiceEpoch;
   state.voiceMode = 'active';
   state.voicePhase = 'starting';
   state.voiceDetail = '';
@@ -2480,6 +2483,8 @@ async function resumeVoice() {
   }
   if (state.writing === state.session.id) return;
   await ensureInferenceProvider(permit);
+  if (epoch !== state.voiceEpoch || !currentView(id, navigation)
+      || state.voiceMode !== 'active') return;
   requireInference(permit);
   forgetVerdict();
   await setupVoice({ automatic: true });
