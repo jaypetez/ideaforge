@@ -315,6 +315,15 @@ pre-integration application tree. The manifests label before/after and the actua
 SHA. Require nonzero execution of the selected test and the complete accepted manifests;
 a successful Gradle command alone is not visual proof or a full-inventory pass.
 
+For inference-disclosure integration, `-f evidence=consent` selects
+`UxCaptureDeviceTest#requestedInferenceConsentIsProminent` with `uxInferenceProbe=after`.
+It requests Settings Connection, provider selection and hosted/local provider details
+on both visual devices, in both themes at font scales 1.0/1.3/2.0.
+`-f evidence=consent-before` requires the agreement controls to be absent and records
+the existing actions instead; use it only on the unchanged pre-consent application.
+The recorder requires the complete requested matrix and actual checkout SHA.
+Neither a focused result nor zero discovered visual tests certifies the default inventory.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

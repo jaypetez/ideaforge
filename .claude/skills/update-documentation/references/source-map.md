@@ -131,6 +131,11 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  Its method-focused inference-consent route records Settings Connection, provider
+  selection and hosted/local details. A before phase requires absent agreement controls
+  and unchanged pre-integration application sources; after requires the real labelled
+  control. Require actual nonzero selected-test execution and the complete matrix,
+  never infer visual acceptance from a successful build or an ATD-only run.
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) and
   [`ScriptedProviderIsDebugOnlyTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ScriptedProviderIsDebugOnlyTest.kt)
   reject fixture JSON, activities and retained debug-only classes in release packaging.
