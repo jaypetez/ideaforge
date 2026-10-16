@@ -19,7 +19,8 @@ export async function acknowledgeInference(win) {
   }
   if (!$('inference-consent')?.getClientRects().length) {
     $('b-settings').click();
-    await until(() => $('panel-setup').dataset.view === 'settings', 'Settings');
+    await until(() => !$('panel-setup').hidden && doc.body.dataset.panel === 'setup'
+      && $('panel-setup').dataset.view === 'settings', 'Settings');
   }
   const checkbox = $('inference-consent');
   if (!checkbox || checkbox.disabled || !checkbox.getClientRects().length) {

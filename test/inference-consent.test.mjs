@@ -8,7 +8,7 @@ import { createOpenAICompatProvider } from '../src/providers/openaiCompat.js';
 import { ProviderError } from '../src/providers/errors.js';
 import { inferenceDestination } from '../src/providers/index.js';
 import { createInferenceConsent } from '../src/store/inference-consent.js';
-import { loadPrefs, savePrefs } from '../src/store/prefs.js';
+import { loadPrefs, savePrefs, PREFS_KEY, INFERENCE_KEY } from '../src/store/prefs.js';
 
 const denied = () => new ProviderError('consent', 'Review the inference agreement in Settings.');
 const parts = { system: 'system', prefix: 'private idea', tail: 'private answer' };
@@ -63,10 +63,20 @@ for (const kind of ['anthropic', 'openai-compat']) {
 
 async function withPreferences(run, initial = {}) {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-  const storage = { value: JSON.stringify(initial), failRead: false, failWrite: false };
+  const storage = {
+    values: new Map([[PREFS_KEY, JSON.stringify(initial)]]),
+    failRead: false, failWrite: false, beforeWrite: null,
+  };
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
-    getItem() { if (storage.failRead) throw new Error('scripted unreadable preferences'); return storage.value; },
-    setItem(_key, value) { if (storage.failWrite) throw new Error('scripted full disk'); storage.value = value; },
+    getItem(key) {
+      if (storage.failRead) throw new Error('scripted unreadable preferences');
+      return storage.values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      if (storage.failWrite) throw new Error('scripted full disk');
+      storage.beforeWrite?.(key, value);
+      storage.values.set(key, value);
+    },
   } });
   let grants = 0;
   const retired = [];
@@ -79,6 +89,7 @@ async function withPreferences(run, initial = {}) {
 
 test('missing, legacy and malformed inference preferences default to no permission', async () => {
   for (const value of [{}, { handsFree: true, hostedSpeechAllowed: true },
+    { inferenceDestination: 'groq', inferenceGrant: 'stale-ordinary-snapshot' },
     { inferenceDestination: 'groq', inferenceGrant: true },
     { inferenceDestination: 'groq', inferenceGrant: {} }]) {
     await withPreferences(({ gate }) => {
@@ -99,6 +110,18 @@ test('agreement persists separately from voice preferences and survives a fresh 
     reloaded.select('groq', 'groq');
     assert.equal(reloaded.require('groq').grant, permit.grant);
     assert.equal(loadPrefs().hostedSpeechAllowed, true);
+  });
+
+  test('malformed consent-owned records deny without replacing ordinary preferences', async () => {
+    for (const raw of ['null', '[]', 'not json',
+      '{"inferenceDestination":"groq","inferenceGrant":true}']) {
+      await withPreferences(({ gate, storage }) => {
+        storage.values.set(INFERENCE_KEY, raw);
+        gate.select('groq', 'groq');
+        assert.throws(() => gate.require('groq'), (error) => error.code === 'consent');
+        assert.equal(loadPrefs().theme, 'dark');
+      }, { theme: 'dark' });
+    }
   });
 });
 
@@ -196,4 +219,35 @@ test('HTTP retries recheck permission instead of resending after withdrawal', as
       assert.equal(requests, 1, 'only the request admitted before withdrawal left the adapter');
     } finally { globalThis.fetch = original; }
   });
+});
+
+test('ordinary preference writes cannot resurrect a withdrawn grant in another tab', async () => {
+  await withPreferences(({ gate, storage }) => {
+    gate.select('groq', 'groq');
+    const old = gate.accept('groq');
+    const otherTab = createInferenceConsent();
+    otherTab.select('groq', 'groq');
+    let interleaved = false;
+    storage.beforeWrite = (key) => {
+      if (key !== PREFS_KEY || interleaved) return;
+      interleaved = true;
+      otherTab.withdraw();
+    };
+    assert.equal(savePrefs({ theme: 'dark' }), true);
+    assert.equal(interleaved, true, 'withdrawal occurred between the ordinary read and write');
+    assert.throws(() => gate.require('groq', old), (error) => error.code === 'consent');
+    const reloaded = createInferenceConsent();
+    reloaded.select('groq', 'groq');
+    assert.throws(() => reloaded.require('groq'), (error) => error.code === 'consent');
+    assert.equal(loadPrefs().theme, 'dark', 'the independent Appearance change is preserved');
+  });
+});
+
+test('a cleared preset local field is incomplete, not an invented localhost destination', () => {
+  for (const kind of ['ollama', 'lmstudio']) {
+    for (const baseUrl of ['', '   ']) {
+      assert.throws(() => inferenceDestination({ kind, baseUrl }), (error) => error.code === 'config');
+    }
+    assert.equal(inferenceDestination({ kind }).local, true, 'omitted configuration can use its preset');
+  }
 });

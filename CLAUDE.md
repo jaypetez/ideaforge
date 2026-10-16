@@ -128,7 +128,9 @@ These are load-bearing and most of them fail *silently* if broken.
 - **Inference agreement is not a key check or microphone permission.**
   `src/store/inference-consent.js` and Android's `data/InferenceConsent.kt` own the
   non-secret destination/grant preferences. Default/legacy/read-failed records deny;
-  kind switches (including back) and validated local-address changes retire the grant,
+  the web grant has a consent-owned atomic storage entry so an ordinary preference write
+  in another tab cannot resurrect it. Provider-kind switches (including back) and validated
+  local-address changes retire the grant,
   while model-only edits keep it. Bind cached providers, retries and permission callbacks
   to their original permit. `consent` errors propagate through the runtimes rather than
   becoming bank fallback or a failed-but-finished synthesis. Gate session/capture/service

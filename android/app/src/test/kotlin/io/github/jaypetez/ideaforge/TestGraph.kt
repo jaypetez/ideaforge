@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.SoftwareKey
+import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
@@ -27,9 +28,10 @@ class FakeCheck(var answer: (ProviderChoice, ProviderConfig) -> List<String> = {
  * (Robolectric has no AndroidKeyStore) and a fake provider check. [ring] is saved first, so
  * the app starts as a returning user would.
  */
-fun installTestGraph(check: ProviderCheck = FakeCheck(), ring: JsonObject? = null, key: SoftwareKey = SoftwareKey(), inferenceAgreed: Boolean = false): AppGraph {
+fun installTestGraph(check: ProviderCheck = FakeCheck(), ring: JsonObject? = null, key: SoftwareKey = SoftwareKey(),
+    inferenceAgreed: Boolean = false, preferences: PrefsStore? = null): AppGraph {
     val app = RuntimeEnvironment.getApplication() as IdeaForgeApp
-    val graph = AppGraph(app, keyringKey = key, providerCheck = check)
+    val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences)
     runBlocking {
         if (ring != null) graph.keyringStore.save(ring)
         graph.keyringStore.load()

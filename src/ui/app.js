@@ -33,7 +33,7 @@ import {
   emptyKeyring, credsFor, withCreds, withStt, withTts, hasAnyKey,
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
-import { loadPrefs, savePrefs, speechPreferences, PREFS_KEY } from '../store/prefs.js';
+import { loadPrefs, savePrefs, speechPreferences, PREFS_KEY, INFERENCE_KEY } from '../store/prefs.js';
 import { createInferenceConsent } from '../store/inference-consent.js';
 import { applyTheme } from './theme.js';
 import { createVoice, STT_PRESETS, forgetVerdict, ttsSupported } from '../voice/index.js';
@@ -3650,7 +3650,7 @@ function bind() {
     }
   });
   window.addEventListener('storage', (event) => {
-    if (event.key !== PREFS_KEY && event.key !== null) return;
+    if (![PREFS_KEY, INFERENCE_KEY, null].includes(event.key)) return;
     const permit = state.voicePermit || state.providerPermit;
     if (permit) {
       try { inference.require(permit.destination, permit); }

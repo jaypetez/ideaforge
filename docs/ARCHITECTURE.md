@@ -143,7 +143,9 @@ replace the session reducer or persistence rules.
 
 `src/store/inference-consent.js` owns the device-local grant, using the strict `readPrefs`
 result rather than ordinary preference defaults. `inferenceDestination` in the provider
-registry derives the non-secret identity through the existing URL policy. Provider-kind
+registry derives the non-secret identity through the existing URL policy. The web grant
+uses one consent-owned atomic localStorage entry, never the ordinary preference writer:
+a stale Appearance/voice snapshot in another tab cannot restore a withdrawn grant. Provider-kind
 switches and validated local-destination changes retire the grant; model-only changes do
 not. `app.js` binds immutable grant/epoch permits to constructed providers and voice work,
 and checks them before new sessions, resumed/pending work, capture and each model attempt.

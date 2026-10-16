@@ -2,7 +2,7 @@ import { createSession, setPending, setSynthesis } from '../../src/core/session.
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials, emptyKeyring, saveCredentials, withCreds } from '../../src/store/secrets.js';
-import { PREFS_KEY } from '../../src/store/prefs.js';
+import { PREFS_KEY, INFERENCE_KEY } from '../../src/store/prefs.js';
 import { acknowledgeInference } from './fixtures/inference.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -18,11 +18,13 @@ async function until(predicate, label) {
 async function visit(run, preferences = {}, seed = null) {
   const held = new Set((await listSessions()).map((session) => session.id));
   const previous = localStorage.getItem(PREFS_KEY);
+  const previousConsent = localStorage.getItem(INFERENCE_KEY);
   for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
   for (const key of await caches.keys()) await caches.delete(key);
   await clearCredentials();
   await saveCredentials(withCreds(emptyKeyring(), 'groq', { apiKey: 'scripted-consent-not-a-key' }));
   localStorage.setItem(PREFS_KEY, JSON.stringify(preferences));
+  localStorage.removeItem(INFERENCE_KEY);
   if (seed) await saveSession(seed);
   const frame = document.createElement('iframe');
   frame.width = 390;
@@ -136,6 +138,8 @@ async function visit(run, preferences = {}, seed = null) {
     await clearCredentials();
     if (previous === null) localStorage.removeItem(PREFS_KEY);
     else localStorage.setItem(PREFS_KEY, previous);
+    if (previousConsent === null) localStorage.removeItem(INFERENCE_KEY);
+    else localStorage.setItem(INFERENCE_KEY, previousConsent);
     for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
   }
 }
@@ -174,6 +178,7 @@ export default async function run(check) {
   await allowedAndReload(check);
   await changedDestinations(check);
   await failedStorage(check);
+  await anotherTabsWithdrawal(check);
   await retiredRequest(check);
   await retainedIdeas(check);
 }
@@ -181,11 +186,11 @@ export default async function run(check) {
 async function allowedAndReload(check) {
   await visit(async ({ win, $, requests, newSessions, captures, forceStart, reload }) => {
     await acknowledgeInference(win);
-    const grant = JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant;
+    const grant = JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant;
     await reload();
     check('a persisted affirmative agreement survives an actual page reload',
       $('inference-consent').checked
-        && JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant === grant);
+        && JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant === grant);
     await win.document.fonts.ready;
     await Promise.all($('panel-setup').getAnimations().map((animation) => animation.finished));
     const navigation = win.document.querySelector('.bar-right').getBoundingClientRect().top;
@@ -250,17 +255,30 @@ async function changedDestinations(check) {
     change('baseurl', 'http://127.0.0.1:11993/v1/');
     change('model', 'scripted-model');
     await acknowledgeInference(win);
-    const grant = JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant;
+    const grant = JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant;
     change('baseurl', 'http://127.0.0.1:11993/v1');
     change('model', 'another-model');
     check('canonical local address spelling and model-only edits retain the grant',
       $('inference-consent').checked
-        && JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant === grant);
+        && JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant === grant);
     change('baseurl', 'http://127.0.0.1:11994/v1');
     change('baseurl', 'http://127.0.0.1:11993/v1');
     check('changing a validated local destination and back requires fresh agreement',
       !$('inference-consent').checked
         && /127\.0\.0\.1:11993/.test($('inference-disclosure').textContent));
+    change('provider', 'ollama', 'change');
+    change('baseurl', 'http://127.0.0.1:11993/v1');
+    change('model', 'scripted-model');
+    await acknowledgeInference(win);
+    const localGrant = JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant;
+    change('baseurl', '');
+    check('clearing a preset-backed local field does not invent an agreed localhost recipient',
+      $('inference-consent').disabled
+        && JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant === localGrant);
+    change('baseurl', 'http://127.0.0.1:11993/v1');
+    check('restoring the same validated server after an incomplete edit retains its grant',
+      $('inference-consent').checked
+        && JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant === localGrant);
   });
 }
 
@@ -271,7 +289,7 @@ async function failedStorage(check) {
     const write = prototype.setItem;
     try {
       prototype.setItem = function (key, value) {
-        if (key === PREFS_KEY) throw new win.DOMException('Scripted full device', 'QuotaExceededError');
+        if (key === INFERENCE_KEY) throw new win.DOMException('Scripted full device', 'QuotaExceededError');
         return write.call(this, key, value);
       };
       $('inference-consent').click();
@@ -294,7 +312,7 @@ async function failedStorage(check) {
     const draft = 'Keep this private answer on the device when preferences become unreadable.';
     try {
       prototype.getItem = function (key) {
-        if (key === PREFS_KEY) throw new win.DOMException('Scripted blocked storage', 'SecurityError');
+        if (key === INFERENCE_KEY) throw new win.DOMException('Scripted blocked storage', 'SecurityError');
         return read.call(this, key);
       };
       $('answer').value = draft;
@@ -313,10 +331,45 @@ async function failedStorage(check) {
   });
 }
 
+async function anotherTabsWithdrawal(check) {
+  await visit(async ({ win, $, forceStart, requests, captures }) => {
+    await acknowledgeInference(win);
+    await forceStart();
+    const stalePreferences = JSON.parse(win.localStorage.getItem(PREFS_KEY));
+    const peer = document.createElement('iframe');
+    peer.style.cssText = 'position:absolute;left:-10000px;width:390px;height:844px';
+    const loaded = new Promise((resolve) => { peer.onload = resolve; });
+    peer.src = '/index.html';
+    document.body.append(peer);
+    try {
+      await loaded;
+      const other = peer.contentWindow;
+      const get = (id) => other.document.getElementById(id);
+      other.fetch = async () => { throw new Error('No network in the peer consent actor'); };
+      await until(() => get('version')?.textContent, 'second-tab boot');
+      get('b-settings').click();
+      await until(() => !get('panel-setup').hidden
+        && get('panel-setup').dataset.view === 'settings', 'second-tab Settings');
+      get('inference-consent').click();
+      await until(() => !get('inference-consent').checked, 'second-tab withdrawal');
+      win.localStorage.setItem(PREFS_KEY, JSON.stringify({ ...stalePreferences, theme: 'dark' }));
+      const draft = 'Keep this private draft after another tab withdrew the agreement.';
+      $('answer').value = draft;
+      $('answer').dispatchEvent(new win.Event('input', { bubbles: true }));
+      await $('b-send').onclick();
+      check('a real second-tab withdrawal survives a stale ordinary preference write and blocks the cached provider',
+        requests.length === 0 && captures() === 0 && $('answer').value === draft
+          && JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant === '');
+    } finally {
+      peer.remove();
+    }
+  });
+}
+
 async function retiredRequest(check) {
   await visit(async ({ win, $, settings, requests, network, newSessions, forceStart }) => {
     await acknowledgeInference(win);
-    const oldGrant = JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant;
+    const oldGrant = JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant;
     await forceStart();
     const session = (await newSessions())[0];
     network.holdNext = true;
@@ -328,7 +381,7 @@ async function retiredRequest(check) {
     $('inference-consent').click();
     await acknowledgeInference(win);
     check('a fresh affirmative choice has a different grant from retired model work',
-      JSON.parse(win.localStorage.getItem(PREFS_KEY)).inferenceGrant !== oldGrant);
+      JSON.parse(win.localStorage.getItem(INFERENCE_KEY)).inferenceGrant !== oldGrant);
     network.release(true);
     await sending;
     const stored = await loadSession(session.id);

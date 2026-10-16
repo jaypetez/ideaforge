@@ -117,7 +117,7 @@ export function inferenceDestination(config) {
   const choice = PROVIDER_CHOICES.find((entry) => entry.id === config?.kind);
   if (!choice) throw new ProviderError('config', 'Choose a supported inference provider.');
   if (!choice.local) return { id: choice.id, kind: choice.id, label: choice.label, local: false };
-  const base = String(config.baseUrl || choice.defaultBaseUrl || '').trim();
+  const base = String(config.baseUrl ?? choice.defaultBaseUrl ?? '').trim();
   assertLoopback(base);
   const url = new URL(base);
   if (!['http:', 'https:'].includes(url.protocol)

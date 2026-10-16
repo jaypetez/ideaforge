@@ -228,6 +228,8 @@ source wins over prose, and a generated artifact wins over a description of that
   [`prefs.js`](../../../../src/store/prefs.js), plus native
   [`InferenceConsent.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/InferenceConsent.kt)
   and `PrefsStore.kt`, own destination-bound non-secret grants and strict preference reads.
+  The web grant uses a consent-owned atomic preference entry; ordinary preference writes
+  must never restore a grant from an earlier snapshot.
   Provider registries own validated destination identity; `app.js`, native onboarding/
   Settings, `AppShell`, `InterviewWork`/`InterviewViewModel` and `DriveController` own
   session/effect admission. Adapter `beforeSample` hooks recheck bound permits per attempt,

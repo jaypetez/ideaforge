@@ -124,7 +124,7 @@ fun inferenceDestination(config: ProviderConfig): InferenceDestination {
     val choice = PROVIDER_CHOICES.firstOrNull { it.id == config.kind }
         ?: throw ProviderException(ProviderErrorCode.CONFIG, "Choose a supported inference provider.")
     if (!choice.local) return InferenceDestination(choice.id, choice.id, choice.label, false)
-    val url = parse(config.baseUrl.orAbsent() ?: choice.defaultBaseUrl.orEmpty())
+    val url = parse(config.baseUrl ?: choice.defaultBaseUrl.orEmpty())
     LocalNetworkPolicy.check(url)
     if (url.username.isNotEmpty() || url.password.isNotEmpty() || url.query != null || url.fragment != null) {
         throw ProviderException(ProviderErrorCode.CONFIG, "Use a local server address without embedded credentials, query parameters or a fragment.")

@@ -4,7 +4,7 @@ import {
 } from '../../src/store/secrets.js';
 import { deleteSession, listSessions } from '../../src/store/sessions.js';
 import { del, SECRETS } from '../../src/store/db.js';
-import { PREFS_KEY } from '../../src/store/prefs.js';
+import { PREFS_KEY, INFERENCE_KEY } from '../../src/store/prefs.js';
 import { acknowledgeInference } from './fixtures/inference.js';
 
 const sleep = (ms = 40) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,7 +19,9 @@ async function until(predicate, label) {
 
 async function visit(run, ring = null, prepare = async () => {}) {
   const previousPrefs = localStorage.getItem(PREFS_KEY);
+  const previousConsent = localStorage.getItem(INFERENCE_KEY);
   localStorage.removeItem(PREFS_KEY);
+  localStorage.removeItem(INFERENCE_KEY);
   await clearCredentials();
   if (ring) await saveCredentials(ring);
   await prepare();
@@ -74,6 +76,8 @@ async function visit(run, ring = null, prepare = async () => {}) {
     frame.remove();
     if (previousPrefs === null) localStorage.removeItem(PREFS_KEY);
     else localStorage.setItem(PREFS_KEY, previousPrefs);
+    if (previousConsent === null) localStorage.removeItem(INFERENCE_KEY);
+    else localStorage.setItem(INFERENCE_KEY, previousConsent);
     await clearCredentials();
     for (const row of await listSessions()) if (!held.has(row.id)) await deleteSession(row.id);
     for (const worker of await navigator.serviceWorker.getRegistrations()) await worker.unregister();

@@ -227,6 +227,18 @@ class AdaptersTest {
     }
 
     @Test
+    fun anExplicitlyClearedLocalAddressNeverFallsBackToThePresetRecipient() {
+        for (kind in listOf("ollama", "lmstudio")) {
+            for (base in listOf("", "   ")) {
+                assertEquals("config", assertFailsWith<ProviderException> {
+                    inferenceDestination(ProviderConfig(kind, baseUrl = base))
+                }.code)
+            }
+            assertTrue(inferenceDestination(ProviderConfig(kind)).local)
+        }
+    }
+
+    @Test
     fun aQuestionModelOverrideNeverReachesTheComplexTier() = runBlocking {
         for ((kind, strong) in listOf("anthropic" to "claude-sonnet-5", "openai" to "gpt-5-mini",
             "groq" to "openai/gpt-oss-120b", "openrouter" to "openai/gpt-5-mini")) {

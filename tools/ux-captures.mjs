@@ -205,7 +205,7 @@ export async function runUxCaptures(options) {
     server = await serveRepo({
       root: scratch,
       before(_req, _res, url) {
-        if (url.pathname === MODULE) return { root: ROOT };
+        if ([MODULE, '/test/browser/fixtures/inference.js'].includes(url.pathname)) return { root: ROOT };
       },
     });
     const origin = `http://127.0.0.1:${server.address().port}`;

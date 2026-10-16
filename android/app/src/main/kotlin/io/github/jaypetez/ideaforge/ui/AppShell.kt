@@ -27,8 +27,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -43,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -86,6 +89,12 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     val library: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory)
     val graph = (LocalContext.current.applicationContext as IdeaForgeApp).graph
     val scope = rememberCoroutineScope()
+    val admission = remember { mutableLongStateOf(0L) }
+    DisposableEffect(nav) {
+        val listener = NavController.OnDestinationChangedListener { _, _, _ -> admission.longValue++ }
+        nav.addOnDestinationChangedListener(listener)
+        onDispose { nav.removeOnDestinationChangedListener(listener) }
+    }
     // Null while the keyring is read: nothing renders rather than a frame of the wrong screen.
     val start = startGate(graph.keyringStore) ?: return
     val uri = LocalUriHandler.current
@@ -108,10 +117,13 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     // Pop to the library, not to the graph's start destination: after first-run onboarding
     // the start destination (Onboarding) is no longer on the back stack, and popping to it
     // pops nothing, so every bottom-bar tap would stack another copy of the library.
-    fun goTopLevel(route: Any) = nav.navigate(route) {
-        popUpTo<LibraryRoute> { saveState = true }
-        launchSingleTop = true
-        restoreState = true
+    fun goTopLevel(route: Any) {
+        admission.longValue++
+        nav.navigate(route) {
+            popUpTo<LibraryRoute> { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 
     // No launchSingleTop: a new idea must be a new back-stack entry. Reusing the current
@@ -119,17 +131,20 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     // in-flight work, so one idea's results could land in another (a busy flag is not an
     // identity guard). Pop any open interview first so the stack does not grow per tap.
     fun newIdea() {
+        val action = ++admission.longValue
+        val origin = nav.currentBackStackEntry
         val revision = graph.inferenceConsent.state.value.revision
+        fun current() = admission.longValue == action && nav.currentBackStackEntry === origin
         scope.launch {
             try {
                 graph.inferenceConsent.require()
-                if (revision != graph.inferenceConsent.state.value.revision) return@launch
+                if (!current() || revision != graph.inferenceConsent.state.value.revision) return@launch
                 nav.navigate(InterviewRoute(library.newSessionId())) {
                     popUpTo<InterviewRoute> { inclusive = true }
                 }
             } catch (error: ProviderException) {
                 if (error.code != "consent") throw error
-                goTopLevel(SettingsRoute)
+                if (current()) goTopLevel(SettingsRoute)
             }
         }
     }

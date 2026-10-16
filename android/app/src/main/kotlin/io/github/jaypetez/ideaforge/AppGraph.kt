@@ -57,6 +57,7 @@ class AppGraph(
     // The network call onboarding makes. Tests hand in a fake, so no test opens a socket.
     val providerCheck: ProviderCheck = ProviderCheck.Default,
     providerSource: ProviderSource = ProviderSource.FromKeyring,
+    preferences: PrefsStore? = null,
 ) {
     /**
      * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
@@ -89,7 +90,7 @@ class AppGraph(
 
     // One DataStore per file per process; DataStore throws if a second instance opens it.
     val prefsStore: PrefsStore by lazy {
-        PrefsStore.create(CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
+        preferences ?: PrefsStore.create(CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
             context.preferencesDataStoreFile("prefs")
         }
     }

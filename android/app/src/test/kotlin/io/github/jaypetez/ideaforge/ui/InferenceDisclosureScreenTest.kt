@@ -14,11 +14,19 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import io.github.jaypetez.ideaforge.FakeCheck
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.usableRing
+import io.github.jaypetez.ideaforge.data.PrefsStore
+import io.github.jaypetez.ideaforge.ui.settings.MemoryDataStore
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -29,6 +37,18 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+
+private class DelayedAdmissionPreferences : DataStore<Preferences> {
+    private val memory = MemoryDataStore()
+    @Volatile var hold: CompletableDeferred<Unit>? = null
+    @Volatile var waiting = false
+    override val data: Flow<Preferences> get() = flow {
+        hold?.let { waiting = true; it.await() }
+        emitAll(memory.data)
+    }
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+        memory.updateData(transform)
+}
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -83,4 +103,37 @@ class InferenceDisclosureScreenTest {
         assertFalse(local.contains("nothing leaves your network", ignoreCase = true))
         assertTrue(local.contains("hosted", ignoreCase = true))
     }
+
+    private fun delayedAdmission(agreed: Boolean, newer: String) {
+        val preferences = DelayedAdmissionPreferences()
+        installTestGraph(ring = usableRing(), inferenceAgreed = agreed, preferences = PrefsStore(preferences))
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 10_000)
+        val hold = CompletableDeferred<Unit>()
+        preferences.hold = hold
+        try {
+            compose.onNode(hasText("New idea") and hasClickAction() and hasAnyAncestor(hasTestTag(NAVIGATION)))
+                .performClick()
+            compose.waitUntil(10_000) { preferences.waiting }
+            compose.onNode(hasText(newer) and hasClickAction() and hasAnyAncestor(hasTestTag(NAVIGATION)))
+                .performClick()
+            hold.complete(Unit)
+            compose.waitForIdle()
+            if (newer == "Settings") {
+                compose.waitUntilAtLeastOneExists(hasTestTag("settings-active"), 10_000)
+            } else {
+                compose.waitUntilAtLeastOneExists(hasText("v${io.github.jaypetez.ideaforge.BuildConfig.VERSION_NAME}"), 10_000)
+                compose.onNodeWithTag("settings-active").assertDoesNotExist()
+            }
+            compose.onNodeWithTag("question").assertDoesNotExist()
+        } finally {
+            hold.complete(Unit)
+        }
+    }
+
+    @Test
+    fun aDelayedSuccessfulNewIdeaCannotReplaceNewerSettingsNavigation() = delayedAdmission(true, "Settings")
+
+    @Test
+    fun aDelayedDeniedNewIdeaCannotReplaceANewerIdeasTap() = delayedAdmission(false, "Ideas")
 }

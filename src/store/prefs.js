@@ -20,6 +20,7 @@
 // (test/prefs.test.mjs checks they agree).
 export const PREFS_KEY = 'ideaforge.prefs';
 const KEY = PREFS_KEY;
+export const INFERENCE_KEY = `${PREFS_KEY}.inference`;
 
 const DEFAULTS = {
   /** The word that ends a spoken answer. Empty means "use the built-in default". */
@@ -70,27 +71,41 @@ export function loadPrefs() {
 
 /** Authorization callers must inspect error rather than treating defaults as stored consent. */
 export function readPrefs() {
+  let stored = {};
+  let consent = {};
+  let error = null;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { prefs: { ...DEFAULTS }, error: null };
-    const stored = JSON.parse(raw);
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
-      throw new Error('Device preferences have an invalid format.');
-    }
-    return { prefs: {
-      ...DEFAULTS, ...stored, ...speechPreferences(stored), ...inferencePreferences(stored),
+    stored = readObject(KEY);
+  } catch (cause) {
+    error = cause;
+  }
+  try {
+    consent = readObject(INFERENCE_KEY);
+  } catch (cause) {
+    error ||= cause;
+  }
+  return { prefs: {
+      ...DEFAULTS, ...stored, ...speechPreferences(stored), ...inferencePreferences(consent),
       hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
       theme: themePreference(stored.theme),
-    }, error: null };
-  } catch (error) {
-    return { prefs: { ...DEFAULTS }, error };
+    }, error };
+}
+
+function readObject(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return {};
+  const value = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Device preferences have an invalid format.');
   }
+  return value;
 }
 
 function writePrefs(next) {
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      ...next, ...speechPreferences(next), ...inferencePreferences(next),
+      ...next, ...speechPreferences(next),
+      inferenceDestination: undefined, inferenceGrant: undefined,
       theme: themePreference(next.theme),
     }));
     return true;
@@ -105,9 +120,15 @@ export function savePrefs(patch) {
 }
 
 export function saveInferenceConsent(destination, grant) {
-  const current = readPrefs();
-  if (current.error) return false;
-  return writePrefs({
-    ...current.prefs, inferenceDestination: destination, inferenceGrant: grant,
-  });
+  if (readPrefs().error) return false;
+  // One consent-owned atomic entry: an ordinary preference writer in another tab must
+  // never put its stale grant back after withdrawal.
+  try {
+    localStorage.setItem(INFERENCE_KEY, JSON.stringify(inferencePreferences({
+      inferenceDestination: destination, inferenceGrant: grant,
+    })));
+    return true;
+  } catch {
+    return false;
+  }
 }
