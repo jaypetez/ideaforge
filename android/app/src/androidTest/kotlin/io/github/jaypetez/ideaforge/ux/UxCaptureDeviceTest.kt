@@ -100,6 +100,98 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
 
     @Test
+    fun requestedPrivacyPolicyLinksAreReachable() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val phase = bundle.getString("uxPrivacyProbe")
+        if (phase.isNullOrEmpty()) {
+            require(bundle.getString("class")?.contains("#requestedPrivacyPolicyLinksAreReachable") != true) {
+                "the selected privacy probe requires uxPrivacyProbe=before or after and capture provenance"
+            }
+            return
+        }
+        require(phase in setOf("before", "after")) { "uxPrivacyProbe must be before or after" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "privacy evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+            }
+        }
+        val frames = listOf("settings-about", "onboarding-provider", "onboarding-details")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-privacy-$phase"),
+            matrix.flatMap { config -> frames.map { "${config.id}/privacy-$phase-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState("privacy-$phase-$frame",
+                            if (frame == "settings-about") "settings" else "onboarding",
+                            "real-app", phase, null, null)
+                        try {
+                            val base = fixtures.state(if (frame == "settings-about") "ready" else "fresh")
+                            prepare(base, config)
+                            navigate(base)
+                            when (frame) {
+                                "settings-about" -> {
+                                    compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+                                    await("settings-version")
+                                    revealControl("settings-version")
+                                }
+                                "onboarding-provider" -> revealControl("provider-custom")
+                                "onboarding-details" -> {
+                                    compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+                                    await("api-key")
+                                    compose.onNode(hasText(target.getString(R.string.onboarding_back)) and hasClickAction())
+                                        .performScrollTo()
+                                }
+                            }
+                            val link = hasText("Privacy policy") and hasClickAction()
+                            val controls = if (phase == "after") {
+                                compose.onNode(link).performScrollTo().assertIsDisplayed()
+                                listOf(UxControl("privacy-policy", link))
+                            } else {
+                                compose.onNode(link).assertDoesNotExist()
+                                when (frame) {
+                                    "settings-about" -> listOf(textControl("how-it-works", R.string.settings_guide))
+                                    "onboarding-provider" -> listOf(tag("provider-custom"))
+                                    else -> listOf(textControl("back", R.string.onboarding_back))
+                                }
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeSurface = state.surface,
+                                nativeMapping = "Real MainActivity $frame; $phase privacy-link integration, actual system dynamic colour.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() },
+                { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    @Test
     fun requestedShellEvidenceKeepsInsetsAndIdentity() {
         val bundle = InstrumentationRegistry.getArguments()
         val optIn = bundle.getString("uxShellProbe")

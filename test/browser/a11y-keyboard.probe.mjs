@@ -196,6 +196,16 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     return stops;
   }
 
+  async function policyFocus(label, fontSize = 16) {
+    await evaluate(`document.querySelector('#settings-about a[href="./guide/"]').focus()`);
+    await press('Tab');
+    const info = await focusInfo(['#main']);
+    const target = await evaluate(`document.activeElement?.getAttribute('href') === './guide/privacy-policy.html'
+      && parseFloat(getComputedStyle(document.body).fontSize) === ${fontSize}`);
+    check(`${label}: trusted Tab reaches a visible, unobscured Privacy policy link`,
+      target && info.shown && info.inView && !info.covered, JSON.stringify(info));
+  }
+
   /** Open an overflow menu from the keyboard, walk it, and close it with Escape. */
   async function menu(label, trigger, menuSelector) {
     await evaluate(`document.querySelector(${JSON.stringify(trigger)}).focus()`);
@@ -264,6 +274,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await click('#b-nav-new', 'setup', `${at} Start`);
     await current(`${at} Start`, 'b-nav-new');
     await walk(`${at} Start`, ['#main']);
+    await policyFocus(`${at} Start`);
     if (at === 'phone') {
       await evaluate(`(() => {
         const field = document.getElementById('provider');
@@ -342,6 +353,18 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await current(`${at} Settings`, 'b-settings');
     await walk(`${at} Settings`, wide
       ? ['#settings-index', '#panel-setup > :not(#settings-index)'] : ['#main']);
+    await policyFocus(`${at} Settings`);
+    if (at === 'phone') {
+      const originalFont = await evaluate('document.documentElement.style.fontSize');
+      try {
+        await evaluate("document.documentElement.style.fontSize = '200%'");
+        await policyFocus('phone Settings at 200% text', 32);
+        await click('#b-nav-new', 'setup', 'enlarged Start policy');
+        await policyFocus('phone Start at 200% text', 32);
+      } finally {
+        await evaluate(`document.documentElement.style.fontSize = ${JSON.stringify(originalFont)}`);
+      }
+    }
 
     // Ideas
     await click('#b-library', 'library', `${at} Ideas`);

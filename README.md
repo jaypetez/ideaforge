@@ -339,7 +339,8 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
 - **Works today:** two-step onboarding, the typed interview with suggestion chips, coverage and
   the built-in checklist fallback, the result screen (Share .md, Copy markdown, Save .md, Ask
   me more), the Ideas library and Settings. Backups move both ways between Android and the web
-  app.
+  app. **Privacy policy** opens from Settings → About and the footer of both onboarding
+  steps, before a provider needs to be checked.
 - **New, emulator-checked only:** hands-free voice. *Answer by voice* reads each question
   aloud and listens for the finish word, kept hearing with the screen off by a microphone
   foreground service whose notification offers Pause and Exit. It has not been tried on a
@@ -425,7 +426,7 @@ depends on whose resolver is asking.
     <img src="docs/screenshots/01-setup.light.png" width="760"
          alt="The concise Start screen: Choose a provider with Anthropic selected, its
               data/key explanation and Continue, above separate Start with voice and
-              Type instead actions and the version and Guide footer.">
+              Type instead actions and the version, Guide and Privacy policy footer.">
   </picture>
 </p>
 
@@ -434,7 +435,9 @@ Start with a provider, continue to its required fields, then **Use this connecti
 keys. The ready summary names the provider and its actual check state. A saved key is
 **not checked** on a new visit, and a delayed check cannot vouch for edited settings.
 Checking is optional, not an extra gate before **Start with voice** or **Type instead**.
-Both actions precede installation and recent ideas. Everything else lives in **Settings**:
+Both actions precede installation and recent ideas. The footer keeps the
+[Privacy policy](guide/privacy-policy.html) available before choosing or checking a provider.
+Everything else lives in **Settings**:
 
 <p align="center">
   <picture>
@@ -445,8 +448,8 @@ Both actions precede installation and recent ideas. Everything else lives in **S
               API key, Model options and Check the key; Voice with Dictation, the hands-free
               finish word, Spoken replies, Preview voice and optional Voice and speaking
               pace; Appearance with a System, Light or Dark theme choice; Your data with
-              Backup ideas, Import ideas and separate key-storage guidance; and About with the version
-              and a Guide link. Each section summarises its current state.">
+              Backup ideas, Import ideas and separate key-storage guidance; and About with version,
+              Guide and Privacy policy links. Each section summarises its current state.">
   </picture>
 </p>
 

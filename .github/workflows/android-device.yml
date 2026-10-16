@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       evidence:
-        description: Full UX inventory or the focused adaptive-shell interaction matrix
+        description: Full UX inventory, adaptive shell, or privacy-link before/after matrix
         type: choice
-        options: [full, shell]
+        options: [full, shell, privacy-before, privacy]
         default: full
 
 permissions:
@@ -82,8 +82,9 @@ jobs:
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || '' }}
+          ${{ !startsWith(inputs.evidence, 'privacy') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
@@ -94,8 +95,9 @@ jobs:
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || '' }}
+          ${{ !startsWith(inputs.evidence, 'privacy') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}

@@ -305,6 +305,16 @@ The paused controller uses scripted speech and a fake service; it proves layout/
 not real recognition, permission prompts or service behavior. The default `evidence=full`
 retains the shared full inventory; a focused shell pass is not a full-matrix pass.
 
+For privacy-link integration, `-f evidence=privacy` selects
+`UxCaptureDeviceTest#requestedPrivacyPolicyLinksAreReachable` with `uxPrivacyProbe=after`.
+It captures Settings About and both onboarding steps on the compact and expanded visual
+devices, in both themes at font scales 1.0/1.3/2.0. Each link must be reachable, labelled,
+fully painted and at least 48dp. `-f evidence=privacy-before` instead requires those links
+to be absent and records the baseline's existing controls; use it only on an unchanged
+pre-integration application tree. The manifests label before/after and the actual checkout
+SHA. Require nonzero execution of the selected test and the complete accepted manifests;
+a successful Gradle command alone is not visual proof or a full-inventory pass.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

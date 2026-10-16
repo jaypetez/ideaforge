@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.ui.settings
 
+import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
@@ -32,10 +34,12 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /** The settings screen inside the real app shell, with a software keyring key. */
@@ -155,5 +159,17 @@ class SettingsScreenTest {
         openSettings(usableRing())
         compose.onNodeWithTag(SettingsTags.VERSION).performScrollTo().assertIsDisplayed()
             .assertTextContains(BuildConfig.VERSION_NAME, substring = true)
+    }
+
+    @Test
+    fun privacyPolicyInAboutOpensThePublishedPolicyWithAViewIntent() {
+        openSettings(usableRing())
+        compose.onNodeWithText("Privacy policy").performScrollTo().assertIsDisplayed().performClick()
+        scenario!!.onActivity {
+            val intent = shadowOf(it).nextStartedActivity
+            assertNotNull("the policy opens an external activity", intent)
+            assertEquals(Intent.ACTION_VIEW, intent?.action)
+            assertEquals("https://jaypetez.github.io/ideaforge/guide/privacy-policy.html", intent?.dataString)
+        }
     }
 }

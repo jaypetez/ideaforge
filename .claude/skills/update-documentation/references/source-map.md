@@ -203,6 +203,21 @@ source wins over prose, and a generated artifact wins over a description of that
   Android `pauseRun` in
   [`DriveController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/DriveController.kt)
   cancels capture work and preserves only the caption/segments already available.
+- **Privacy-policy entry points.** Sources:
+  [`PrivacyPolicyLink.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/PrivacyPolicyLink.kt)
+  owns the one native policy URL, localized external action and explicit open-error recovery.
+  Settings About and the common onboarding footer reuse it. Native screen intent tests and
+  `PrivacyPolicyLinkTest` prove the destination and known handler failures;
+  `PrivacyPolicyRecoveryScreenTest` checks full auto-revealed feedback at narrow/enlarged
+  real AppShell surfaces, including another rejected tap. The method-focused
+  privacy route in `UxCaptureDeviceTest` and `android-device.yml` owns actual before/after
+  pixels, full labels and target/inset checks. A before run requires absent links and an
+  unchanged pre-integration application tree; it is not positive acceptance evidence.
+  [`index.html`](../../../../index.html) owns the relative shared web footer link.
+  `app.browser.mjs` exercises real root/subpath navigation and the offline shell;
+  `a11y-keyboard.probe.mjs` verifies trusted Tab and enlarged-text reachability.
+  Re-check README/guide footer labels, the Android guide, architecture and generated
+  Start/Settings screenshots. Keep the confirmed policy contact unchanged.
 - **Setup disclosures.** Sources: [`index.html`](../../../../index.html) (`model-settings`,
   `speech-options`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`onProviderChange`,
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.
