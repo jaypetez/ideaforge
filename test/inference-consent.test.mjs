@@ -111,18 +111,18 @@ test('agreement persists separately from voice preferences and survives a fresh 
     assert.equal(reloaded.require('groq').grant, permit.grant);
     assert.equal(loadPrefs().hostedSpeechAllowed, true);
   });
+});
 
-  test('malformed consent-owned records deny without replacing ordinary preferences', async () => {
-    for (const raw of ['null', '[]', 'not json',
-      '{"inferenceDestination":"groq","inferenceGrant":true}']) {
-      await withPreferences(({ gate, storage }) => {
-        storage.values.set(INFERENCE_KEY, raw);
-        gate.select('groq', 'groq');
-        assert.throws(() => gate.require('groq'), (error) => error.code === 'consent');
-        assert.equal(loadPrefs().theme, 'dark');
-      }, { theme: 'dark' });
-    }
-  });
+test('malformed consent-owned records deny without replacing ordinary preferences', async () => {
+  for (const raw of ['null', '[]', 'not json',
+    '{"inferenceDestination":"groq","inferenceGrant":true}']) {
+    await withPreferences(({ gate, storage }) => {
+      storage.values.set(INFERENCE_KEY, raw);
+      gate.select('groq', 'groq');
+      assert.throws(() => gate.require('groq'), (error) => error.code === 'consent');
+      assert.equal(loadPrefs().theme, 'dark');
+    }, { theme: 'dark' });
+  }
 });
 
 test('kind switch and switch back require a fresh grant; model-only selection does not', async () => {

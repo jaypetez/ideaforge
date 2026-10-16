@@ -52,6 +52,6 @@ fun InferenceAgreement(
         }
         Text(stringResource(R.string.inference_separate), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (!problem.isNullOrEmpty()) IdeaForgeStatusText(problem, StatusTone.ERROR)
+        if (!problem.isNullOrEmpty()) IdeaForgeStatusText(problem, StatusTone.Error)
     }
 }
