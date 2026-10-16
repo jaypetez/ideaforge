@@ -178,7 +178,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`.github/workflows/release.yml`](../../../../.github/workflows/release.yml),
   [release-note configuration](../../../../.github/release.yml),
   [`tools/apk-cert-pin.mjs`](../../../../tools/apk-cert-pin.mjs) with the signer pin in
-  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK),
+  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK and
+  distinct upload certificate), [`tools/check-android-bundle.sh`](../../../../tools/check-android-bundle.sh)
+  (checksum-pinned bundletool and actual upload signatures), and
+  [`tools/test-android-packages.sh`](../../../../tools/test-android-packages.sh)
+  (disposable-key APK/AAB, shared versionCode and negative controls in required Android CI),
   [`tools/check-privacy-policy.mjs`](../../../../tools/check-privacy-policy.mjs) with
   [`guide/privacy-policy.html`](../../../../guide/privacy-policy.html) (the confirmed contact),
   [`package.json`](../../../../package.json), and

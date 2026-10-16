@@ -418,12 +418,14 @@ npm run serve</code></pre>
         checks that the <a href="./privacy-policy.html">privacy policy</a> has a confirmed
         public contact, and reruns <code>npm run test:all</code>. The release skill runs
         <code>node tools/check-privacy-policy.mjs</code> before preparation or tagging;
-        an unresolved placeholder is a stop condition. A separate job, the only one that references the
-        Android keystore secrets (held as secrets of a <code>release</code> environment that
-        accepts only version tags), builds the signed APK and refuses it unless its signer matches the
+        an unresolved placeholder is a stop condition. Separate read-only signing jobs use
+        app-signing and upload-key secrets (held as secrets of a <code>release</code> environment that
+        accepts only version tags). The APK job refuses its output unless the signer matches the
         fingerprint pinned in <code>SECURITY.md</code>; it fails while that pin reads
-        <code>PENDING</code>. Only then may write-enabled jobs publish the reproducible source
-        archives, the signed APK, <code>SHA256SUMS</code>, and the multi-architecture
+        <code>PENDING</code>. The upload-signed AAB must pass checksum-pinned bundletool
+        validation and signature checks with a different key. Only then may write-enabled
+        jobs publish the reproducible source archives, the signed APK, upload-signed AAB,
+        its R8 <code>mapping.txt</code>, <code>SHA256SUMS</code> covering all five payloads, and the multi-architecture
         container image. Pages deployment remains an independent main-branch pipeline.
       </p>
 

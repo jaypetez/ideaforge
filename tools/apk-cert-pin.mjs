@@ -10,6 +10,7 @@
 // the key we published".
 //
 //   node tools/apk-cert-pin.mjs <apksigner-output.txt> [SECURITY.md]
+//   node tools/apk-cert-pin.mjs --upload-key <certificate-sha256> [SECURITY.md]
 //
 // Zero dependencies, like everything else here. Exits non-zero, with a GitHub `::error::`
 // annotation, on any mismatch or on anything it cannot read unambiguously.
@@ -79,21 +80,37 @@ export function checkPin({ apksignerOutput, securityMd }) {
   return { ok: true, fingerprint: actual };
 }
 
+/** The Play upload certificate must not be the app-signing certificate. */
+export function checkUploadKey({ fingerprint, securityMd }) {
+  const pinned = readPin(securityMd);
+  if (pinned.error) return { ok: false, message: pinned.error };
+  const actual = normalizeFingerprint(fingerprint);
+  if (!actual) return { ok: false, message: 'the upload certificate is not a SHA-256 fingerprint' };
+  if (actual === pinned.pin) {
+    return { ok: false, message: 'the upload key must be different from the pinned app-signing key' };
+  }
+  return { ok: true, fingerprint: actual };
+}
+
 function main(argv) {
-  const [outputFile, securityFile = 'SECURITY.md'] = argv;
-  if (!outputFile) {
-    console.error('usage: node tools/apk-cert-pin.mjs <apksigner-output.txt> [SECURITY.md]');
+  const upload = argv[0] === '--upload-key';
+  const [source, securityFile = 'SECURITY.md'] = upload ? argv.slice(1) : argv;
+  if (!source) {
+    console.error('usage: node tools/apk-cert-pin.mjs <apksigner-output.txt> [SECURITY.md]\n'
+      + '       node tools/apk-cert-pin.mjs --upload-key <certificate-sha256> [SECURITY.md]');
     return 2;
   }
-  const result = checkPin({
-    apksignerOutput: readFileSync(outputFile, 'utf8'),
-    securityMd: readFileSync(securityFile, 'utf8'),
-  });
+  const securityMd = readFileSync(securityFile, 'utf8');
+  const result = upload
+    ? checkUploadKey({ fingerprint: source, securityMd })
+    : checkPin({ apksignerOutput: readFileSync(source, 'utf8'), securityMd });
   if (!result.ok) {
     console.log(`::error::${result.message}`);
     return 1;
   }
-  console.log(`signer certificate SHA-256 ${result.fingerprint} matches SECURITY.md`);
+  console.log(upload
+    ? `upload certificate SHA-256 ${result.fingerprint} differs from the pinned app-signing key`
+    : `signer certificate SHA-256 ${result.fingerprint} matches SECURITY.md`);
   return 0;
 }
 

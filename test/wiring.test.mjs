@@ -224,12 +224,13 @@ test('the app service worker leaves the public guide alone', () => {
     'guide pages must not join the app shell cache');
 });
 
-// The signed-APK release job (#95). There is no YAML parser here (no dependencies), so jobs
+// The signed Android release jobs (#95/#176). There is no YAML parser here, so jobs
 // are cut out by their two-space indentation, which is how every workflow in this repo is
 // written.
 const RELEASE = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8').replace(/\r\n/g, '\n');
 const CI = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8').replace(/\r\n/g, '\n');
 const SIGNING_SECRETS = ['ANDROID_KEYSTORE_B64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'];
+const UPLOAD_SECRETS = SIGNING_SECRETS.map((name) => name.replace('ANDROID_', 'ANDROID_UPLOAD_'));
 
 function job(workflow, name) {
   const start = workflow.search(new RegExp(`^  ${name}:\n`, 'm'));
@@ -247,7 +248,7 @@ test('release verification refuses an incomplete privacy policy before publicati
     < verify.indexOf('npm run test:all'), 'check policy readiness before the release ladder');
 });
 
-test('the android-apk job is the only one given the signing secrets, and it fails closed', () => {
+test('only the APK job gets app-signing secrets, and publication gets neither signing role', () => {
   const apk = job(RELEASE, 'android-apk');
   assert.match(apk, /^ {4}needs: verify$/m);
   assert.match(apk, /^ {4}environment: release$/m);
@@ -256,8 +257,8 @@ test('the android-apk job is the only one given the signing secrets, and it fail
 
   const inApk = new Set([...apk.matchAll(/secrets\.(\w+)/g)].map((m) => m[1]));
   assert.deepEqual([...inApk].sort(), [...SIGNING_SECRETS].sort(), 'android-apk reads exactly the four secrets');
-  const outside = RELEASE.replace(apk, '');
-  assert.doesNotMatch(outside, /secrets\.ANDROID_/, 'a signing secret is exposed outside android-apk');
+  const outside = RELEASE.replace(apk, '').replace(job(RELEASE, 'android-aab'), '');
+  assert.doesNotMatch(outside, /secrets\.ANDROID_/, 'a signing secret is exposed outside the read-only signing jobs');
 
   assert.ok(apk.includes('::error::release keystore secrets are not configured'),
     'a missing secret must fail the release, never skip the APK');
@@ -272,30 +273,81 @@ test('the android-apk job is the only one given the signing secrets, and it fail
     'the keystore is deleted whether the job passed or not');
 });
 
-test('the android-apk job pins the same actions as the ci android job', () => {
-  const apk = job(RELEASE, 'android-apk');
+test('the bundle job receives only upload secrets and verifies before staging both outputs', () => {
+  const aab = job(RELEASE, 'android-aab');
+  assert.match(aab, /^ {4}needs: verify$/m);
+  assert.match(aab, /^ {4}environment: release$/m);
+  assert.match(aab, /^ {6}contents: read$/m);
+  assert.doesNotMatch(aab, /: write|continue-on-error:/);
+  const secrets = new Set([...aab.matchAll(/secrets\.(\w+)/g)].map((match) => match[1]));
+  assert.deepEqual([...secrets].sort(), [...UPLOAD_SECRETS].sort());
+  const required = aab.match(/for name in ([\w ]+); do/)?.[1].split(' ');
+  assert.deepEqual(required?.sort(), [...UPLOAD_SECRETS].sort());
+  assert.match(aab, /if \[ -n "\$missing" \]; then[\s\S]*::error::upload keystore secrets are not configured[\s\S]*exit 1/);
+  for (const name of SIGNING_SECRETS.filter((name) => name !== 'ANDROID_KEYSTORE_B64')) {
+    assert.ok(aab.includes(`${name}: \${{ secrets.${name.replace('ANDROID_', 'ANDROID_UPLOAD_')} }}`));
+  }
+  assert.match(aab, /ANDROID_KEYSTORE_PATH="\$RUNNER_TEMP\/upload\.jks"/);
+  assert.match(aab, /:app:bundleRelease :app:verifyReleaseBundle/);
+  assert.match(aab, /bash tools\/check-android-bundle\.sh "\$BUNDLE" "\$ANDROID_KEYSTORE_PATH" "\$ANDROID_KEY_ALIAS"/);
+  assert.match(aab, /\[ -s "\$MAPPING" \]/);
+  assert.match(aab, /dist\/ideaforge-\$\{VERSION\}\.aab/);
+  assert.match(aab, /cp "\$MAPPING" dist\/mapping\.txt/);
+  assert.match(aab, /- name: Delete the upload keystore\n\s+if: always\(\)\n\s+run: rm -f "\$RUNNER_TEMP\/upload\.jks"/);
+  assert.ok(aab.indexOf('bash tools/check-android-bundle.sh') < aab.indexOf('cp "$BUNDLE"'));
+});
+
+test('both signing jobs pin the same actions as the ci android job', () => {
   const android = job(CI, 'android');
   const pins = (text) => new Map([...text.matchAll(/uses: ([\w/-]+)@(\S+)/g)].map((m) => [m[1], m[2]]));
-  const ours = pins(apk);
   const theirs = pins(android);
-  for (const action of ['actions/checkout', 'actions/setup-java', 'gradle/actions/setup-gradle', 'actions/upload-artifact']) {
-    assert.ok(ours.has(action), `android-apk does not use ${action}`);
-    assert.equal(ours.get(action), theirs.get(action), `${action} is pinned differently from ci.yml`);
+  for (const name of ['android-apk', 'android-aab']) {
+    const source = job(RELEASE, name);
+    const ours = pins(source);
+    for (const action of ['actions/checkout', 'actions/setup-java', 'gradle/actions/setup-gradle', 'actions/upload-artifact']) {
+      assert.ok(ours.has(action), `${name} does not use ${action}`);
+      assert.equal(ours.get(action), theirs.get(action), `${action} is pinned differently from ci.yml`);
+    }
+    assert.match(source, /distribution: temurin\n\s+java-version: '21'/);
   }
   for (const [action, ref] of pins(RELEASE)) {
     assert.match(ref, /^[0-9a-f]{40}$/, `${action} is not pinned to a full commit SHA`);
   }
-  assert.match(apk, /distribution: temurin\n\s+java-version: '21'/);
 });
 
-test('the release waits for the signed APK and publishes it with its checksum', () => {
+test('the release waits for both signing roles and checksums every published payload', () => {
   const release = job(RELEASE, 'release');
-  assert.match(release, /^ {4}needs: \[verify, android-apk\]$/m);
+  assert.match(release, /^ {4}needs: \[verify, android-apk, android-aab\]$/m);
   const uploaded = job(RELEASE, 'android-apk').match(/name: (ideaforge-[\w-]+)\n\s+path: dist\/\*\.apk/)?.[1];
   assert.ok(uploaded, 'android-apk uploads no APK artifact');
   assert.match(release, new RegExp(String.raw`actions/download-artifact@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+name: ${uploaded}\n\s+path: dist`));
-  assert.match(release, /sha256sum "\$\{NAME\}\.tar\.gz" "\$\{NAME\}\.zip" "\$\{NAME\}\.apk" > SHA256SUMS/);
-  assert.match(release, /gh release create[\s\S]*dist\/\*\.apk[\s\S]*dist\/SHA256SUMS/);
+  assert.match(job(RELEASE, 'android-aab'), /name: ideaforge-release-aab\n\s+path: \|\n\s+dist\/\*\.aab\n\s+dist\/mapping\.txt/);
+  assert.match(release, /actions\/download-artifact@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+name: ideaforge-release-aab\n\s+path: dist/);
+  assert.match(release, /\[ -f "\$\{NAME\}\.aab" \]/);
+  assert.match(release, /\[ -s mapping\.txt \]/);
+  assert.match(release, /sha256sum "\$\{NAME\}\.tar\.gz" "\$\{NAME\}\.zip" "\$\{NAME\}\.apk" "\$\{NAME\}\.aab" mapping\.txt > SHA256SUMS/);
+  assert.match(release, /gh release create[\s\S]*dist\/\*\.apk dist\/\*\.aab dist\/mapping\.txt dist\/SHA256SUMS/);
+});
+
+test('bundle validation pins its download and checks actual signatures without weakening APK packaging', () => {
+  const checker = readFileSync(join(ROOT, 'tools', 'check-android-bundle.sh'), 'utf8');
+  assert.match(checker, /^version=\d+\.\d+\.\d+$/m);
+  assert.match(checker, /^sha256=[0-9a-f]{64}$/m);
+  assert.match(checker, /https:\/\/github\.com\/google\/bundletool\/releases\/download\/\$\{version\}\/bundletool-all-\$\{version\}\.jar/);
+  assert.match(checker, /sha256sum --check --strict/);
+  assert.ok(checker.indexOf('sha256sum --check --strict') < checker.indexOf('java -jar'));
+  assert.match(checker, /java -jar "\$tool" validate --bundle="\$bundle"/);
+  assert.match(checker, /jarsigner[\s\S]*-verify -strict[\s\S]*"\$bundle" "\$alias"/);
+  assert.match(checker, /grep -Fx 'jar verified\.'/);
+  assert.match(checker, /apk-cert-pin\.mjs --upload-key "\$fingerprint" "\$policy"/);
+  const build = readFileSync(join(ROOT, 'android', 'app', 'build.gradle.kts'), 'utf8');
+  for (const task of ['verifyReleaseApk', 'verifyReleaseBundle']) {
+    assert.ok(build.includes(`tasks.register<VerifyReleasePackage>("${task}")`));
+  }
+  assert.match(build, /SingleArtifact\.BUNDLE/);
+  assert.match(build, /it\.startsWith\("assets\/"\) \|\| it\.startsWith\("base\/assets\/"\)/);
+  assert.ok(job(CI, 'android').includes('bash tools/test-android-packages.sh'),
+    'actual signing, versionCode and rejection controls must run on PRs without release secrets');
 });
 
 test('release signing material is ignored by git and docker', () => {

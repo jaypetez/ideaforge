@@ -385,6 +385,10 @@ neither, `:app:assembleRelease` produces `app-release-unsigned.apk`; a half-fill
 an error. `assembleRelease` is finalised by `:app:verifyReleaseApk`, which fails if the APK
 packages the walkthrough script or R8's mapping lists any debug-only class. Never commit a
 keystore or its passwords.
+`:app:bundleRelease` uses the same signing inputs and versionCode, and is finalised by
+`:app:verifyReleaseBundle` with the same checks on the actual AAB. The release workflow
+maps separate upload-key secrets into these existing Gradle inputs for the bundle; it
+does not change which certificate signs the APK.
 
 ```sh
 cd android
@@ -407,6 +411,10 @@ pass. Backups are a second contract: `test/fixtures/backup-from-web.json` and
 validates the Gradle wrapper, runs `./gradlew --no-daemon check :app:assembleDebug`, and
 uploads the debug APK as the `ideaforge-debug-apk` artifact. It feeds the single required `ci`
 check.
+The same job runs `bash tools/test-android-packages.sh` with two generated disposable keys:
+actual APK/AAB signing, pinned bundletool validation, matching versionCode, and rejection
+of missing upload secrets, reused keys, unsigned bundles and a corrupt tool download.
+It neither reads production signing secrets nor publishes these test packages.
 
 **On a device.** `android/app/src/androidTest/` holds an instrumented walkthrough: it launches
 the debug build with its scripted provider, answers the interview through the screen (typed
@@ -543,12 +551,21 @@ and reruns the full ladder with `npm run test:all`. Only then does the write-ena
 than its tag is a support problem forever afterwards.
 
 The APK comes from a separate `android-apk` job in the `release` environment, the only job
-in the workflow that references the four keystore secrets (`ANDROID_KEYSTORE_B64`,
+in the workflow that references the four app-signing secrets (`ANDROID_KEYSTORE_B64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). It fails rather
 than skips when one is missing, and `tools/apk-cert-pin.mjs` fails it unless
 `apksigner verify --print-certs` shows exactly one signer whose SHA-256 equals the fingerprint
 pinned in [SECURITY.md](SECURITY.md#release-signing-certificate). While that pin reads
 `PENDING`, every release fails at this job and nothing at all is published, by design.
+
+The separate read-only `android-aab` job receives only `ANDROID_UPLOAD_KEYSTORE_B64`,
+`ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS` and
+`ANDROID_UPLOAD_KEY_PASSWORD` from that same tag-restricted environment. It signs
+`:app:bundleRelease` with the upload key, checks the actual package for debug-only code
+and fixtures, validates it with checksum-pinned bundletool, verifies its signature and
+refuses an upload certificate equal to the published app-signing pin. It stages the
+bundle's own R8 `mapping.txt`, not a debug or APK mapping. Missing upload secrets fail
+loudly; there is no fallback to the app-signing key.
 
 The workflow text alone does not keep the secrets in that job; the repository settings do.
 Before the first signed tag the maintainer:
@@ -556,6 +573,9 @@ Before the first signed tag the maintainer:
 - creates the release key and stores the four values as **environment secrets on the
   `release` environment**, never as repository secrets (a repository secret is readable by
   any job in any workflow that names it);
+- creates a different Play upload key and stores its four `ANDROID_UPLOAD_*` values in
+  that environment; enrols the app-signing key with Play separately if both distribution
+  paths must use the same certificate;
 - restricts the `release` environment's deployment branches and tags to tags matching
   `v*.*.*`, so no branch, pull request or other workflow can run a job in it (a required
   reviewer is optional);
@@ -567,7 +587,8 @@ version would already have turned CI's `android` job red on `main`. There is no 
 them.
 
 The tag produces two things: a GitHub release with `.tar.gz`, `.zip`, the signed
-`ideaforge-VERSION.apk` and `SHA256SUMS` covering all three, the archives built straight from
+`ideaforge-VERSION.apk`, upload-signed `ideaforge-VERSION.aab`, its `mapping.txt`, and
+`SHA256SUMS` covering all five payloads, the archives built straight from
 the tagged tree with `git archive`; and a container image at
 `ghcr.io/jaypetez/ideaforge`, tagged with the version and — unless the tag is a prerelease —
 `latest`.

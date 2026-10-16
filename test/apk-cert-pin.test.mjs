@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  checkPin, normalizeFingerprint, parseSigners, readPin, SECTION,
+  checkPin, checkUploadKey, normalizeFingerprint, parseSigners, readPin, SECTION,
 } from '../tools/apk-cert-pin.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -47,6 +47,25 @@ test('a different signer fails and names both fingerprints', () => {
   assert.equal(result.ok, false);
   assert.match(result.message, new RegExp(OTHER));
   assert.match(result.message, new RegExp(FP));
+});
+
+test('the Play upload key must differ from the normalized app-signing pin', () => {
+  assert.deepEqual(checkUploadKey({ fingerprint: colons(OTHER), securityMd: security(FP) }),
+    { ok: true, fingerprint: OTHER });
+  for (const fingerprint of [FP, FP.toUpperCase(), colons(FP)]) {
+    const result = checkUploadKey({ fingerprint, securityMd: security(colons(FP)) });
+    assert.equal(result.ok, false, fingerprint);
+    assert.match(result.message, /must be different/);
+  }
+});
+
+test('upload signing rejects a missing policy, a pending pin and a malformed fingerprint', () => {
+  for (const securityMd of ['', security('PENDING'), security('abc123')]) {
+    assert.equal(checkUploadKey({ fingerprint: OTHER, securityMd }).ok, false);
+  }
+  for (const fingerprint of [undefined, '', 'abc123', `${OTHER}00`]) {
+    assert.equal(checkUploadKey({ fingerprint, securityMd: security(FP) }).ok, false);
+  }
 });
 
 test('a PENDING pin is refused, so no release ships before the key is published', () => {
@@ -127,4 +146,27 @@ test('SECURITY.md carries a pin line the release workflow can read', () => {
   // Either a real fingerprint, or PENDING until the maintainer creates the key. Anything
   // else (a typo, a deleted line, a renamed heading) would fail the next release instead.
   assert.ok(pinned.pin || /PENDING/.test(pinned.error ?? ''), JSON.stringify(pinned));
+});
+
+test('the upload-key CLI rejects key reuse rather than blessing an otherwise valid certificate', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ideaforge-upload-pin-'));
+  try {
+    const md = join(dir, 'SECURITY.md');
+    writeFileSync(md, security(FP));
+    const run = (fingerprint) => spawnSync(process.execPath,
+      [SCRIPT, '--upload-key', fingerprint, md], { encoding: 'utf8' });
+    const distinct = run(colons(OTHER));
+    assert.equal(distinct.status, 0, distinct.stdout + distinct.stderr);
+    const reused = run(colons(FP));
+    assert.equal(reused.status, 1, reused.stdout + reused.stderr);
+    assert.match(reused.stdout, /::error::.*must be different/);
+    writeFileSync(md, security('PENDING'));
+    const pending = run(OTHER);
+    assert.equal(pending.status, 1);
+    assert.match(pending.stdout, /::error::.*PENDING/);
+    const missing = spawnSync(process.execPath, [SCRIPT, '--upload-key'], { encoding: 'utf8' });
+    assert.equal(missing.status, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

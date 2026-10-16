@@ -67,10 +67,17 @@ only runs after a successful `CI` workflow run for a push to `main`, then re-che
 tested SHA is still the exact tip of `main` before deploying. `.github/workflows/release.yml`
 puts a read-only `verify` job — version triplet, `main` ancestry, a confirmed privacy contact
 through `tools/check-privacy-policy.mjs`, full `npm run test:all` ladder — in front of the
-write-enabled release job. Its `android-apk` job is the only one
-given the keystore secrets; it signs the APK and fails unless `tools/apk-cert-pin.mjs` finds
+write-enabled release job. Its read-only `android-apk` job alone receives the app-signing
+secrets; it signs the APK and fails unless `tools/apk-cert-pin.mjs` finds
 exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the release job only
-ever handles a finished, verified APK.
+ever handles finished, verified packages. The separate `android-aab` job receives only the
+upload-key secrets and builds the bundle and its R8 mapping. `tools/check-android-bundle.sh`
+checks pinned bundletool bytes, bundle structure, actual signatures and a certificate
+different from the app-signing pin. `VerifyReleasePackage` in
+`android/app/build.gradle.kts` checks both shipped containers for debug-only code/fixtures;
+`tools/test-android-packages.sh` proves the two signing roles and shared versionCode with
+disposable keys in required Android CI. Publication receives neither key and checksums
+every attached payload.
 
 The Pages artifact has two static surfaces: the app at its root and the public guide under
 `guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests,
