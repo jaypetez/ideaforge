@@ -587,25 +587,52 @@ test('the device workflow runs the declared managed device, on demand, outside t
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
   const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   const app = androidFile('app', 'build.gradle.kts');
-  const device = workflow.match(/:app:(\w+)DebugAndroidTest/)?.[1];
-  assert.ok(device, 'android-device.yml no longer runs a managed-device task');
-  assert.ok(app.includes(`create<com.android.build.api.dsl.ManagedVirtualDevice>("${device}")`),
-    `app/build.gradle.kts declares no managed device ${device}`);
+  const devices = [...workflow.matchAll(/- window: (\w+)\r?\n\s+device: (\w+)/g)]
+    .map(([, window, device]) => ({ window, device }));
+  assert.deepEqual(devices, [
+    { window: 'walkthrough', device: 'pixel6Api34' },
+    { window: 'compact', device: 'pixel6Api34Visual' },
+    { window: 'expanded', device: 'pixelTabletApi34Visual' },
+  ]);
+  for (const { device } of devices) {
+    assert.ok(app.includes(`create<com.android.build.api.dsl.ManagedVirtualDevice>("${device}")`),
+      `app/build.gradle.kts declares no managed device ${device}`);
+  }
+  const device = devices[0].device;
+  assert.ok(workflow.includes(':app:${{ matrix.device }}DebugAndroidTest'),
+    'each matrix job must execute its declared managed-device task');
+  assert.match(workflow, /fail-fast: false/, 'one failed window must not cancel the other evidence');
+  assert.match(workflow, /timeout-minutes: 40/, 'each independent device retains the bounded job budget');
+  assert.ok(workflow.includes("if: ${{ matrix.window == 'walkthrough' }}"));
+  assert.ok(workflow.includes("if: ${{ matrix.window != 'walkthrough' }}"));
   // The maintainer starts the first run by hand, so workflow_dispatch must stay.
   for (const trigger of ['workflow_dispatch:', 'schedule:', 'branches: [main]']) {
     assert.ok(workflow.includes(trigger), `android-device.yml lost its ${trigger} trigger`);
   }
   // Not required: the ci gate must never wait on an emulator.
   assert.ok(!/android-device|walkthrough/.test(ci), 'ci.yml must not depend on the device workflow');
-  assert.equal((workflow.match(/#requestedPrivacyPolicyLinksAreReachable/g) || []).length, 2,
-    'both privacy visual devices must select the actual test method');
-  assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
+  assert.equal((workflow.match(/#requestedPrivacyPolicyLinksAreReachable/g) || []).length, 1,
+    'the shared visual matrix must select the actual privacy test method');
+  assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 1,
     'before/after provenance must reach both privacy probes without an empty runner argument');
-  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && !startsWith\(inputs\.evidence, 'consent'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
-    'privacy and consent requests must not inherit the unrelated empty shell runner argument');
-  assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
-    'both consent visual devices must select the actual test method');
-  assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
+  assert.equal((workflow.match(/inputs\.evidence == 'shell' && '-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=true' \|\| ''/g) || []).length, 1,
+    'only shell requests may receive the shell opt-in; never emit an empty instrumentation value');
+  assert.ok(!workflow.includes("format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe="),
+    'empty runner values can make full class discovery report zero tests');
+  assert.ok(workflow.includes('-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=${{ matrix.window }}'));
+  assert.ok(workflow.includes('check-native-evidence.py --window "${{ matrix.window }}"'),
+    'both visual windows need the same host-side execution and artifact check');
+  assert.ok(workflow.includes("if: ${{ !cancelled() && matrix.window != 'walkthrough' }}"),
+    'a failed visual task must still receive its host-side diagnostic');
+  assert.ok(workflow.includes('name: android-ux-evidence-${{ github.sha }}-${{ matrix.window }}'));
+  assert.ok(workflow.includes('name: android-device-reports-${{ matrix.window }}'),
+    'parallel windows must not collide while uploading their reports');
+  assert.match(workflow, /if-no-files-found: error/);
+  assert.ok(ci.includes('python3 -B -m unittest discover -s ../test -p native_evidence_test.py'),
+    'the required Android job must cover the host-side evidence checks');
+  assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 1,
+    'the shared visual matrix must select the actual consent test method');
+  assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 1,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [
     ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],

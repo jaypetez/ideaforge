@@ -24,6 +24,7 @@ point the `ANDROID_KEYSTORE_*`/`ANDROID_KEY_*` variables at it (section 5b).
 - The Android SDK, found through `ANDROID_HOME` or `android/local.properties` (`sdk.dir=…`,
   ignored by git). `adb` and `emulator` live in the SDK's `platform-tools/` and `emulator/`.
 - Node 22+ for the vector side of the contract.
+- Python 3 for the host-side native evidence XML/JSON check (standard library only).
 
 Run Gradle from `android/`. On Windows use `gradlew.bat`, or `./gradlew` from Git Bash.
 
@@ -215,8 +216,27 @@ PR.
 `.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
 nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
 `./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest` with software rendering
-(`swiftshader_indirect`), uploading the reports on failure. Start a run with
-`gh workflow run android-device.yml`.
+(`swiftshader_indirect`), alongside the requested compact/tablet evidence on standard rendering
+images in independent jobs. Every device keeps the existing bounded job budget and a failed
+window does not cancel its siblings. Visual artifacts are
+`android-ux-evidence-<sha>-<window>` and reports are `android-device-reports-<window>`,
+including `walkthrough`. `tools/check-native-evidence.py` checks each visual device's actual selected-test
+execution, complete passed manifest, clean tested SHA and referenced PNG files; a zero-test
+Gradle success is a failure. Missing-output upload remains fail-closed. Start a run with
+`gh workflow run android-device.yml`; focused modes remain distinct from the full inventory.
+The checker uses Python's standard XML/JSON parsers, with no installed dependency. Its
+negative regressions run in the required Android job and before the device tasks:
+
+```sh
+python -B -m unittest discover -s test -p native_evidence_test.py
+```
+
+Run that command from the repository root. Do not pass unused opt-ins as empty
+instrumentation arguments.
+The recorder preserves transient blank frames as diagnostic attempts and resets its
+two-consecutive-rendered-root proof within the unchanged capture budget. Persistent blank
+pixels, incorrect themes and unrelated capture failures still fail; semantics alone cannot
+certify a rendered frame.
 
 ## 8. Report
 

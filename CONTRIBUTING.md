@@ -284,6 +284,16 @@ under `android/app/build/intermediates/` or `build/outputs/`, named
 `connected_android_test_additional_output/` or `managed_device_android_test_additional_output/`.
 The current managed runner uses variant/task directories under `intermediates/`.
 The Android-device workflow collects both locations, along with reports, even after failure.
+After each visual device, `tools/check-native-evidence.py` verifies that the requested
+method actually passed, then checks the complete recorder inventory, clean tested-SHA
+provenance and referenced PNG files. Zero discovered tests cannot pass on a successful
+Gradle exit. Mode opt-ins are omitted when unused, never sent as empty runner values.
+This host-side check uses Python 3's standard-library XML/JSON support, not an app or Node
+dependency. Its regressions run in the required Android CI job and before device evidence:
+
+```powershell
+python -B -m unittest discover -s test -p native_evidence_test.py
+```
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected
@@ -413,9 +423,13 @@ the debug build with its scripted provider, answers the interview through the sc
 answers and a chip), presses Write it up and checks the Result screen shows the export. The
 scripted provider exists only in the debug source set, which `ScriptedProviderIsDebugOnlyTest`
 asserts. `.github/workflows/android-device.yml` runs it on the Gradle managed device
-`pixel6Api34` (an ATD image), followed by UX captures on the rendering-enabled
+`pixel6Api34` (an ATD image), alongside UX captures on the rendering-enabled
 `pixel6Api34Visual` and `pixelTabletApi34Visual`, on every push to `main`, nightly and on demand
-(`workflow_dispatch`). It is not part of the required `ci` check. Locally, against an emulator
+(`workflow_dispatch`). Each device has an independent job and the same bounded time budget;
+one failing window does not cancel the others. Visual artifacts are
+`android-ux-evidence-<sha>-compact` / `android-ux-evidence-<sha>-expanded`, and reports are
+`android-device-reports-<window>` (including `walkthrough`).
+It is not part of the required `ci` check. Locally, against an emulator
 that is already running (without the `leaveApksInstalledAfterRun` property the task uninstalls
 the app afterwards, wiping its keyring and ideas):
 

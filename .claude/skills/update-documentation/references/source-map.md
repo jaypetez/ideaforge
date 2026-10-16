@@ -130,7 +130,16 @@ source wins over prose, and a generated artifact wins over a description of that
   own real loading/empty/filtered/unavailable reads and retry; failed reads never publish a
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
-  visual managed devices and always-upload evidence, not the required `ci` gate.
+  independent ATD/visual managed-device jobs, non-cancelling sibling failures and
+  always-upload per-window evidence/reports, not the required `ci` gate.
+  [`check-native-evidence.py`](../../../../tools/check-native-evidence.py) checks actual
+  selected-method execution in JUnit XML and complete recorder artifacts on the clean
+  tested SHA. Its standard-library regressions in
+  [`native_evidence_test.py`](../../../../test/native_evidence_test.py) run in Android CI;
+  this host-side check does not replace recorder pixel/geometry checks or opening PNGs.
+  `UxEvidence.requireStableTheme` keeps blank-frame settling inside the existing capture
+  budget, resets consecutive root proof and still rejects persistent blank/wrong-theme
+  pixels. `UxCaptureRecorder` retains failed display attempts, not semantic substitutes.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled
