@@ -601,8 +601,16 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both privacy visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both privacy probes without an empty runner argument');
-  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && !startsWith\(inputs\.evidence, 'consent'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
-    'privacy and consent requests must not inherit the unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence == 'shell' && '-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=true' \|\| ''/g) || []).length, 2,
+    'only shell requests may receive the shell opt-in; never emit an empty instrumentation value');
+  assert.ok(!workflow.includes("format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe="),
+    'empty runner values can make full class discovery report zero tests');
+  for (const window of ['compact', 'expanded']) {
+    assert.ok(workflow.includes(`check-native-evidence.py --window ${window}`),
+      `${window} evidence needs a host-side nonzero execution and artifact check`);
+  }
+  assert.ok(ci.includes('python3 -B -m unittest discover -s ../test -p native_evidence_test.py'),
+    'the required Android job must cover the host-side evidence checks');
   assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
     'both consent visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,

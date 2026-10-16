@@ -131,6 +131,11 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  [`check-native-evidence.py`](../../../../tools/check-native-evidence.py) checks actual
+  selected-method execution in JUnit XML and complete recorder artifacts on the clean
+  tested SHA. Its standard-library regressions in
+  [`native_evidence_test.py`](../../../../test/native_evidence_test.py) run in Android CI;
+  this host-side check does not replace recorder pixel/geometry checks or opening PNGs.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled

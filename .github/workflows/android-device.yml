@@ -65,6 +65,9 @@ jobs:
       - name: Versions
         run: java -version && ./gradlew --version
 
+      - name: Native evidence checker tests
+        run: python3 -B -m unittest discover -s ../test -p native_evidence_test.py
+
       # The managed device (pixel6Api34, an ATD image) is declared in app/build.gradle.kts.
       # Gradle downloads the system image, boots it headless, runs the tests and shuts it
       # down. swiftshader_indirect is software rendering: a runner has no GPU.
@@ -83,12 +86,18 @@ jobs:
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'shell' && '-Pandroid.testInstrumentationRunnerArguments.uxShellProbe=true' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
+
+      - name: Verify compact native UX evidence
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 ../tools/check-native-evidence.py --window compact
+          --evidence "${{ inputs.evidence || 'full' }}" --sha "${{ github.sha }}"
 
       - name: Expanded native UX evidence
         if: ${{ !cancelled() }}
@@ -97,12 +106,18 @@ jobs:
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'shell' && '-Pandroid.testInstrumentationRunnerArguments.uxShellProbe=true' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
+
+      - name: Verify expanded native UX evidence
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 ../tools/check-native-evidence.py --window expanded
+          --evidence "${{ inputs.evidence || 'full' }}" --sha "${{ github.sha }}"
 
       - name: Locate native evidence outputs
         if: always()

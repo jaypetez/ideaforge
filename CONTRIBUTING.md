@@ -284,6 +284,16 @@ under `android/app/build/intermediates/` or `build/outputs/`, named
 `connected_android_test_additional_output/` or `managed_device_android_test_additional_output/`.
 The current managed runner uses variant/task directories under `intermediates/`.
 The Android-device workflow collects both locations, along with reports, even after failure.
+After each visual device, `tools/check-native-evidence.py` verifies that the requested
+method actually passed, then checks the complete recorder inventory, clean tested-SHA
+provenance and referenced PNG files. Zero discovered tests cannot pass on a successful
+Gradle exit. Mode opt-ins are omitted when unused, never sent as empty runner values.
+This host-side check uses Python 3's standard-library XML/JSON support, not an app or Node
+dependency. Its regressions run in the required Android CI job and before device evidence:
+
+```powershell
+python -B -m unittest discover -s test -p native_evidence_test.py
+```
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected

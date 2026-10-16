@@ -716,6 +716,12 @@ and clipping fail rather than becoming skipped passes. The Android-device workfl
 the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
+After each visual task, `tools/check-native-evidence.py` checks the selected method's JUnit
+execution and its complete passed manifest with matching clean-SHA provenance and named
+PNG files. Zero discovered tests, skipped methods, missing outputs and partial matrices
+fail explicitly before upload. The recorder still owns rendered-pixel, control and geometry
+assertions; the host check does not replace those or visual inspection. Optional runner
+arguments are omitted when unused rather than emitted with empty values.
 
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
