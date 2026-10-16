@@ -714,7 +714,10 @@ records. Finalization is attempted even after cleanup failures, which are record
 terminal failed manifest. Missing requested states, blank/black images, lost action labels
 and clipping fail rather than becoming skipped passes. The Android-device workflow runs
 the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
-`pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
+`pixelTabletApi34Visual` captures in independent jobs, without cancelling sibling devices
+on a failure. Each keeps the bounded job budget rather than sharing one serial deadline.
+Visual artifacts are `android-ux-evidence-<sha>-<window>`; reports are
+`android-device-reports-<window>`, including `walkthrough`. Uploads run after success or
 failure without changing the required `ci` gate.
 After each visual task, `tools/check-native-evidence.py` checks the selected method's JUnit
 execution and its complete passed manifest with matching clean-SHA provenance and named
@@ -722,6 +725,9 @@ PNG files. Zero discovered tests, skipped methods, missing outputs and partial m
 fail explicitly before upload. The recorder still owns rendered-pixel, control and geometry
 assertions; the host check does not replace those or visual inspection. Optional runner
 arguments are omitted when unused rather than emitted with empty values.
+The recorder retains blank display attempts and waits within its existing capture budget
+for two consecutive rendered requested-root samples. A blank frame resets that proof;
+persistently blank frames, a wrong theme and unrelated capture errors still fail.
 
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped

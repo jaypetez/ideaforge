@@ -30,8 +30,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  walkthrough:
-    name: walkthrough
+  device:
+    name: ${{ matrix.window }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - window: walkthrough
+            device: pixel6Api34
+          - window: compact
+            device: pixel6Api34Visual
+          - window: expanded
+            device: pixelTabletApi34Visual
     runs-on: ubuntu-latest
     timeout-minutes: 40
     defaults:
@@ -72,17 +82,18 @@ jobs:
       # Gradle downloads the system image, boots it headless, runs the tests and shuts it
       # down. swiftshader_indirect is software rendering: a runner has no GPU.
       - name: Instrumented walkthrough on a managed emulator
+        if: ${{ matrix.window == 'walkthrough' }}
         run: >-
-          ./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest
+          ./gradlew --no-daemon :app:${{ matrix.device }}DebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
 
       # Standard AOSP images render actual pixels; ATD disables HWUI drawing. The same
       # opt-in fixture test runs both themes at font scales 1.0/1.3/2.0 in each window.
       # The tested checkout SHA is required by the recorder, never inferred or defaulted.
-      - name: Compact native UX evidence
-        if: ${{ !cancelled() }}
+      - name: Native UX evidence
+        if: ${{ matrix.window != 'walkthrough' }}
         run: >-
-          ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
+          ./gradlew --no-daemon :app:${{ matrix.device }}DebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
@@ -90,46 +101,26 @@ jobs:
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
-          -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
+          -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=${{ matrix.window }}
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
 
-      - name: Verify compact native UX evidence
-        if: ${{ !cancelled() }}
+      - name: Verify native UX evidence
+        if: ${{ !cancelled() && matrix.window != 'walkthrough' }}
         run: >-
-          python3 ../tools/check-native-evidence.py --window compact
-          --evidence "${{ inputs.evidence || 'full' }}" --sha "${{ github.sha }}"
-
-      - name: Expanded native UX evidence
-        if: ${{ !cancelled() }}
-        run: >-
-          ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
-          -Pandroid.enableAdditionalTestOutput=true
-          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ inputs.evidence == 'shell' && '-Pandroid.testInstrumentationRunnerArguments.uxShellProbe=true' || '' }}
-          ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
-          ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
-          -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
-          -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
-
-      - name: Verify expanded native UX evidence
-        if: ${{ !cancelled() }}
-        run: >-
-          python3 ../tools/check-native-evidence.py --window expanded
+          python3 ../tools/check-native-evidence.py --window "${{ matrix.window }}"
           --evidence "${{ inputs.evidence || 'full' }}" --sha "${{ github.sha }}"
 
       - name: Locate native evidence outputs
-        if: always()
+        if: ${{ always() && matrix.window != 'walkthrough' }}
         run: |
           find app/build -type d -iname '*additional*' -print
           find app/build -type f \( -name '*.png' -o -name 'manifest*.json' \) -print | sed -n '1,80p'
 
       - name: Upload named native UX screenshots and manifests
-        if: always()
+        if: ${{ always() && matrix.window != 'walkthrough' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-ux-evidence-${{ github.sha }}
+          name: android-ux-evidence-${{ github.sha }}-${{ matrix.window }}
           path: |
             android/app/build/intermediates/managed_device_android_test_additional_output/
             android/app/build/intermediates/connected_android_test_additional_output/
@@ -142,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-device-reports
+          name: android-device-reports-${{ matrix.window }}
           path: |
             android/app/build/reports/
             android/app/build/outputs/androidTest-results/
