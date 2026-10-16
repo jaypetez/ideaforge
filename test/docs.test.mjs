@@ -599,8 +599,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
   assert.ok(!/android-device|walkthrough/.test(ci), 'ci.yml must not depend on the device workflow');
   assert.equal((workflow.match(/#requestedPrivacyPolicyLinksAreReachable/g) || []).length, 2,
     'both privacy visual devices must select the actual test method');
-  assert.equal((workflow.match(/uxPrivacyProbe=\$\{\{ inputs\.evidence == 'privacy-before' && 'before' \|\| inputs\.evidence == 'privacy' && 'after' \|\| '' \}\}/g) || []).length, 2,
-    'before/after provenance must reach both privacy probes');
+  assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
+    'before/after provenance must reach both privacy probes without an empty runner argument');
+  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
+    'privacy requests must not inherit the unrelated empty shell runner argument');
   for (const [name, text] of [
     ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
     ['docs/ARCHITECTURE.md', readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8')],

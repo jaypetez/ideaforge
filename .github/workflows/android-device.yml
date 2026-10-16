@@ -83,8 +83,8 @@ jobs:
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=${{ inputs.evidence == 'privacy-before' && 'before' || inputs.evidence == 'privacy' && 'after' || '' }}
+          ${{ !startsWith(inputs.evidence, 'privacy') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
@@ -96,8 +96,8 @@ jobs:
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxShellProbe=${{ inputs.evidence == 'shell' && 'true' || '' }}
-          -Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=${{ inputs.evidence == 'privacy-before' && 'before' || inputs.evidence == 'privacy' && 'after' || '' }}
+          ${{ !startsWith(inputs.evidence, 'privacy') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=expanded
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
