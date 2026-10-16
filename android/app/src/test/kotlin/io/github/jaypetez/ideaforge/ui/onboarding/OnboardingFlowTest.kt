@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.ui.onboarding
 
+import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -30,11 +31,13 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalTestApi::class)
@@ -59,6 +62,29 @@ class OnboardingFlowTest {
         compose.waitUntilAtLeastOneExists(matcher, timeoutMillis = 10_000)
 
     private val library = hasText("No ideas yet. Start one with New idea.")
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp", fontScale = 2f)
+    fun privacyPolicyFooterOpensFromBothOnboardingStepsWithEnlargedText() {
+        val check = FakeCheck()
+        installTestGraph(check)
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+
+        for (step in 1..2) {
+            compose.onNodeWithText("Step $step of 2").assertExists()
+            compose.onNodeWithText("Privacy policy").performScrollTo().assertIsDisplayed()
+                .assertHeightIsAtLeast(48.dp).performClick()
+            scenario!!.onActivity {
+                val intent = shadowOf(it).nextStartedActivity
+                assertNotNull("step $step opens an external activity", intent)
+                assertEquals(Intent.ACTION_VIEW, intent?.action)
+                assertEquals("https://jaypetez.github.io/ideaforge/guide/privacy-policy.html", intent?.dataString)
+            }
+            if (step == 1) compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        }
+        assertTrue("reading the policy never checks a provider", check.calls.isEmpty())
+    }
 
     @Test
     fun aHostedKeyReachesTheLibraryInTwoSteps() {

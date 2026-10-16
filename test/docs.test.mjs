@@ -597,6 +597,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
   }
   // Not required: the ci gate must never wait on an emulator.
   assert.ok(!/android-device|walkthrough/.test(ci), 'ci.yml must not depend on the device workflow');
+  assert.equal((workflow.match(/#requestedPrivacyPolicyLinksAreReachable/g) || []).length, 2,
+    'both privacy visual devices must select the actual test method');
+  assert.equal((workflow.match(/uxPrivacyProbe=\$\{\{ inputs\.evidence == 'privacy-before' && 'before' \|\| inputs\.evidence == 'privacy' && 'after' \|\| '' \}\}/g) || []).length, 2,
+    'before/after provenance must reach both privacy probes');
   for (const [name, text] of [
     ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
     ['docs/ARCHITECTURE.md', readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8')],
