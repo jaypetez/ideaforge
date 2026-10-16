@@ -50,7 +50,8 @@
       <p class="eyebrow">First run</p>
       <h1>Start with the idea, not a perfect prompt.</h1>
       <p class="lede">
-        Choose where the questions come from, then Start with voice or Type instead.
+        Choose where the questions come from, review the interview-text agreement,
+        then Start with voice or Type instead.
         A rough opening statement is enough. The app saves the conversation on this
         device and writes the result as portable Markdown.
       </p>
@@ -270,6 +271,13 @@
           check. Selecting a provider, typing and checking never request the microphone.
         </li>
         <li>
+          <strong>Agree to the named interview destination.</strong>
+          At Ready, read the disclosure and tick <strong>I agree to send interview text</strong>.
+          It starts unchecked; a saved key or a successful connection check is not agreement.
+          IdeaForge saves the acknowledgement as a non-secret device preference. It is separate
+          from microphone permission and hosted transcription or speech choices.
+        </li>
+        <li>
           <strong>Start with voice, or Type instead.</strong>
           Open <strong>New idea</strong> to return to Start, where both buttons are. If
           Dictation is off, Start says so beside a disabled
@@ -279,6 +287,14 @@
         </li>
       </ol>
 
+      <p>
+        In <strong>Settings &rarr; Connection</strong>, uncheck the agreement to withdraw it.
+        Changing provider kind, including switching back, or a validated local server address
+        requires fresh agreement; changing only a model does not. Missing agreement blocks
+        new and resumed interview work, not reading or exporting local ideas. Requests
+        already sent cannot be recalled. If preferences cannot be read or agreement cannot
+        be saved, resolve the reported storage problem before continuing.
+      </p>
       <p>
         Provider credentials are kept separately from interview records. API keys are
         encrypted at rest in this browser, while non-secret preferences such as the

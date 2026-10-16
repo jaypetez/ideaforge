@@ -139,13 +139,35 @@ continuation updates presentation. Pausing voice can let a submitted request set
 its original idea without starting another capture; changing voice presentation does not
 replace the session reducer or persistence rules.
 
+## Inference authorisation
+
+`src/store/inference-consent.js` owns the device-local grant, using the strict `readPrefs`
+result rather than ordinary preference defaults. `inferenceDestination` in the provider
+registry derives the non-secret identity through the existing URL policy. The web grant
+uses one consent-owned atomic localStorage entry, never the ordinary preference writer:
+a stale Appearance/voice snapshot in another tab cannot restore a withdrawn grant. Provider-kind
+switches and validated local-destination changes retire the grant; model-only changes do
+not. `app.js` binds immutable grant/epoch permits to constructed providers and voice work,
+and checks them before new sessions, resumed/pending work, capture and each model attempt.
+The adapters' injected `beforeSample` hook includes internal retries but not key/catalogue
+checks. No preference API enters `src/core/` or `src/runtime/`.
+
+Android's `data/InferenceConsent.kt` owns the matching PrefsStore grant/revision policy.
+`AppShell`, onboarding/Settings, `InterviewViewModel`, shared `InterviewWork`,
+`ProviderSource` and `DriveController` use it before session/service/capture effects.
+Pending work and permission callbacks cannot borrow a newer grant. Local read/export
+does not require a provider. Failed acceptance is explicit and denied; failed withdrawal
+blocks the current process but cannot promise that an unwritable stored grant was erased.
+The [privacy policy](../guide/privacy-policy.html#model-requests) owns that user-facing limit.
+
 ## When a turn fails
 
 The happy path is in [CLAUDE.md](../CLAUDE.md). This is the other one, and it is the
-property most worth not breaking: **a failure never dead-ends an interview.**
+property most worth not breaking: **a provider outage never dead-ends an authorised interview.**
 
 | What went wrong | Where it is handled | What the user sees |
 |---|---|---|
+| Inference is not authorised | UI/store admission, per-attempt provider hooks and explicit `consent` propagation in both runtimes | Review agreement; local text remains, with no checklist substitute for refusal |
 | The provider threw | `bankFallback` in `src/runtime/turn.js` | A question from the built-in bank; the turnline says so |
 | The model returned unparseable JSON | One repair directive, then a regeneration, in `runTurn` | Nothing |
 | The question tripped a tripwire | `questionTripwire` in `src/core/engine.js`; one regeneration, then the bank | Nothing |

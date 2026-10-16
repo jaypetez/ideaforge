@@ -25,6 +25,7 @@ object ProviderErrorCode {
     const val BAD_RESPONSE = "bad_response"
     const val ABORTED = "aborted"
     const val CONFIG = "config"
+    const val CONSENT = "consent"
 }
 
 /** Only these are worth trying again; the rest need the user to change something. */

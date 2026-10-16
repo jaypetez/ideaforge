@@ -5,6 +5,7 @@ import {
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, loadSession, saveSession } from '../../src/store/sessions.js';
 import { buildBackup } from '../../src/core/backup.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 4000;
 const settle = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -331,6 +332,7 @@ export default async function run(check) {
     `${Math.round(phoneMenu.left)}–${Math.round(phoneMenu.right)} of ${doc.documentElement.clientWidth}`);
   phoneCard.querySelector('[popover]').hidePopover();
 
+  await acknowledgeInference(win);
   const synthesisCard = $('library-rows').querySelector('[data-session-id="s_synthesis"]');
   findButton(synthesisCard, 'Continue').click();
   await settle(300);

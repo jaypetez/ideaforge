@@ -156,6 +156,14 @@ navigation retire pending check effects before they can overwrite newer proof or
 fields. Start with voice remains primary, Type instead stays visible, and both precede
 installation/recent content. Setup alone never requests the microphone; the initiating
 voice tap still primes output synchronously.
+Ready also presents the unchecked, provider-named inference agreement. A check or saved
+key cannot tick it. Its device-local record is independent of microphone and hosted-voice
+choices, and a missing/failed acknowledgement disables both start actions with explicit
+recovery. Settings Connection exposes withdrawal; local ideas remain readable/exportable.
+Android uses the same policy in its existing onboarding details and Connection form,
+without claiming the later native Start redesign is complete. Provider-kind/local-address
+changes retire agreement; model-only changes retain it. See the
+[privacy policy](../guide/privacy-policy.html#model-requests) for storage-failure limits.
 Back/Change also retire pending Start/Continue effects without discarding entered values,
 completed unchanged connection proof or an already committed idea. A failed Continue
 returns focus to a visible field or provider choice.

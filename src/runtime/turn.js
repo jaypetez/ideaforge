@@ -114,6 +114,7 @@ export async function runTurn(session, deps = {}) {
       calls++;
     } catch (err) {
       calls++;
+      if (err && err.code === 'consent') throw err;
       if (err && err.code === 'aborted') {
         return {
           session: clearPending(working, now), turn: null, degraded: false, error: null,

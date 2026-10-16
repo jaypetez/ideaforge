@@ -62,7 +62,7 @@ class ResultLayoutTest {
     private fun requireRealResultLayout(inline: Boolean) {
         val fixtures = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val done = fixtures.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-done" }
-        val graph = installTestGraph(ring = usableRing())
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true)
         runBlocking { assertTrue(graph.sessionStore.insert(done)) }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)

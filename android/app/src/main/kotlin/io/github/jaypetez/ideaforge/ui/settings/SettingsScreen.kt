@@ -62,6 +62,7 @@ import io.github.jaypetez.ideaforge.core.maskKey
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.ui.GUIDE_URL
 import io.github.jaypetez.ideaforge.ui.PrivacyPolicyLink
+import io.github.jaypetez.ideaforge.ui.InferenceAgreement
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
@@ -180,6 +181,8 @@ private fun Connection(state: SettingsState, vm: SettingsViewModel) {
         }
     }
     choice.note?.let { Hint(it) }
+    InferenceAgreement(choice, state.inferenceDestination, state.inferenceAgreed,
+        state.inferenceProblem, vm::setAgreement)
 
     // Only the fields this provider declares are composed at all, so none can hold a value
     // the save would read back (the web's hidden-field bugs). A local server has no key.

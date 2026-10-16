@@ -12,6 +12,7 @@ import {
 } from '../../src/core/session.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, saveSession } from '../../src/store/sessions.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 4000;
 const settle = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,6 +91,10 @@ export default async function run(check) {
       stop() {}
       abort() {}
     };
+    win.claude = { use: async () => async () => { throw new Error('Unexpected model call in shell navigation'); } };
+    $('provider').value = 'artifact';
+    $('provider').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     const shown = (el) => !!el && el.getClientRects().length > 0
       && win.getComputedStyle(el).visibility !== 'hidden';
     const current = () => items.filter((item) => item.getAttribute('aria-current') === 'page')
@@ -183,9 +188,10 @@ export default async function run(check) {
     const originalProvider = $('provider').value;
     $('provider').value = 'custom';
     $('provider').dispatchEvent(new win.Event('change'));
-    focusClear('Start required local fields', $('b-start'));
+    focusClear('Start required local fields', $('b-connect-next'));
     $('provider').value = originalProvider;
     $('provider').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
 
     $('b-library').click();
     await settled();

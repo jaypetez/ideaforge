@@ -61,7 +61,7 @@ export const ANTHROPIC_TIERS = {
  */
 export function createAnthropicProvider(config) {
   const { apiKey, model = null, tiers = ANTHROPIC_TIERS, baseUrl = API_ROOT,
-          maxTokens = 4096, deadlineMs = DEADLINE_MS } = config || {};
+          maxTokens = 4096, deadlineMs = DEADLINE_MS, beforeSample } = config || {};
   if (!apiKey) throw new ProviderError('config', 'Anthropic provider needs an API key');
 
   const endpoint = `${String(baseUrl).replace(/\/+$/, '')}${MESSAGES_PATH}`;
@@ -105,13 +105,17 @@ export function createAnthropicProvider(config) {
     return { text, modelTierApplied: resolved, usage: body.usage || null };
   }
 
+  const sample = (parts, opts = {}) => withRetry(() => {
+    beforeSample?.();
+    return call(parts, opts);
+  }, { signal: opts.signal });
+
   return {
     id: 'anthropic',
     label: 'Anthropic',
-    sample: (parts, opts = {}) =>
-      withRetry(() => call(parts, opts), { signal: opts.signal }),
+    sample,
     sampleJson: async (parts, opts = {}) => {
-      const out = await withRetry(() => call(parts, opts), { signal: opts.signal });
+      const out = await sample(parts, opts);
       return { ...out, json: extractJson(out.text) };
     },
     /**

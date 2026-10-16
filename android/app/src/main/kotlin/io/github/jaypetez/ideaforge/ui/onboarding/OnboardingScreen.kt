@@ -50,6 +50,7 @@ import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.hostOf
 import io.github.jaypetez.ideaforge.ui.PrivacyPolicyLink
+import io.github.jaypetez.ideaforge.ui.InferenceAgreement
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
@@ -178,10 +179,11 @@ private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewM
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    InferenceAgreement(c, s.destination, s.agreed, null, vm::setAgreement)
     Failure(s.failure)
     s.unreadable?.let { UnreadableKeyring(it, vm::replaceUnreadable) }
     Actions(vm::back) {
-        Button(onClick = vm::checkKey, enabled = !s.checking, busy = s.checking, modifier = Modifier.testTag("check-key")) {
+        Button(onClick = vm::checkKey, enabled = !s.checking && s.agreed, busy = s.checking, modifier = Modifier.testTag("check-key")) {
             Text(stringResource(if (s.checking) R.string.onboarding_checking else R.string.onboarding_check_key))
         }
     }
@@ -245,6 +247,7 @@ private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingVie
         enabled = !s.checking,
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
     )
+    InferenceAgreement(c, s.destination, s.agreed, null, vm::setAgreement)
     Failure(s.failure)
     s.unreadable?.let { UnreadableKeyring(it, vm::replaceUnreadable) }
     Actions(vm::back) {

@@ -50,6 +50,7 @@ class WalkthroughDeviceTest {
     private var scenario: ActivityScenario<MainActivity>? = null
     private var restore: (suspend () -> Unit)? = null
     private var restoreProvider: (() -> Unit)? = null
+    private var restorePreferences: (suspend () -> Unit)? = null
     // Null until @Before has read the store: a throw before then leaves nothing to delete.
     private var knownBefore: Set<String>? = null
 
@@ -69,6 +70,10 @@ class WalkthroughDeviceTest {
             restore = { if (hadOne) keyring.save(original) else keyring.forget() }
         }
         graph.sessionStore.load()
+        val originalPreferences = graph.prefsStore.current()
+        restorePreferences = { check(graph.prefsStore.update { originalPreferences }) }
+        graph.inferenceConsent.accept(io.github.jaypetez.ideaforge.providers.inferenceDestination(
+            io.github.jaypetez.ideaforge.data.inferenceConfig(graph.keyringStore.state.value.ring)))
         knownBefore = graph.sessionStore.knownIds()
     }
 
@@ -87,7 +92,7 @@ class WalkthroughDeviceTest {
             try {
                 restore?.invoke()
             } finally {
-                restoreProvider?.invoke()
+                try { restorePreferences?.invoke() } finally { restoreProvider?.invoke() }
             }
         }
         Unit

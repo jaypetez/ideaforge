@@ -573,6 +573,16 @@ app ${appUrl}${APP_URL ? '' : '  (the working tree)'}`);
     check('the model we mean to use is in it', listed.includes(MODEL), `${listed.length} listed`);
 
     await app.set('model', MODEL, 'input');
+    await app.click('b-settings');
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'settings'`,
+      'the inference disclosure');
+    await app.click('inference-consent');
+    await app.waitFor(`document.getElementById('inference-consent').checked`,
+      'the scripted agreement to this local model server');
+    check('the scripted user agrees before any interview request', chatCalls.length === 0);
+    await app.click('b-nav-new');
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'start'`,
+      'Start after agreement');
 
     // ── the interview ───────────────────────────────────────────────
     console.log('\nthe interview');

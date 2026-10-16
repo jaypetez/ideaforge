@@ -1,5 +1,6 @@
 import { createVoiceStage } from '../../../src/ui/voice-stage.js';
 import { listSessions, saveSession } from '../../../src/store/sessions.js';
+import { acknowledgeInference } from './inference.js';
 
 const visible = (el) => Boolean(el && !el.hidden && el.getClientRects().length);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,6 +100,9 @@ export async function presentUxState(win, scene, fixtures) {
       detail: 'No microphone level reading is supplied. No microphone or speech service is running.',
     });
     return ['#voice-status', '#voice-question', '#voice-transcript', '#b-voice-pause', '#b-voice-exit'];
+  }
+  if (scene.surface === 'interview' || ['writing', 'synthesis-failure'].includes(scene.id)) {
+    await acknowledgeInference(win);
   }
   if (scene.surface === 'library') {
     if (!visible($('panel-library'))) click($('b-library'));

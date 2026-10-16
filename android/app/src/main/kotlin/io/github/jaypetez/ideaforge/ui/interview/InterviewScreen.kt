@@ -79,6 +79,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.R
+import io.github.jaypetez.ideaforge.data.InferencePermit
 import io.github.jaypetez.ideaforge.core.DIMENSIONS
 import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
 import io.github.jaypetez.ideaforge.core.coveragePercent
@@ -147,8 +148,10 @@ fun InterviewScreen(
     modifier: Modifier = Modifier,
     drive: DriveController? = null,
     onBack: (() -> Unit)? = null,
+    onConsent: (() -> Unit)? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val inference by vm.inferenceState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope0 = rememberCoroutineScope()
     val voice = drive?.state?.collectAsStateWithLifecycle()?.value
@@ -157,30 +160,45 @@ fun InterviewScreen(
     val context = LocalContext.current
     val deniedMessage = stringResource(R.string.voice_mic_denied)
     val notificationsOff = stringResource(R.string.voice_notifications_denied)
-    var rationale by rememberSaveable { mutableStateOf(false) }
+    var rationale by remember { mutableStateOf(false) }
+    var permissionPermit by remember { mutableStateOf<InferencePermit?>(null) }
+    LaunchedEffect(inference) {
+        vm.refreshConsent()
+        if (inference.blocked) {
+            rationale = false
+            permissionPermit = null
+        }
+    }
     // The answer to the permission prompt, then the tap's intent carried out.
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
-        if (drive == null) return@rememberLauncherForActivityResult
-        val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-        val started = if (attached) {
-            if (mic) drive.resume() else Unit
-            mic
-        } else {
-            beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
-        }
-        if (started && grants[Manifest.permission.POST_NOTIFICATIONS] == false) {
-            scope0.launch { snackbar.showSnackbar(notificationsOff) }
+        scope0.launch {
+            val expected = permissionPermit ?: return@launch
+            if (!vm.authorizeVoice(expected)) return@launch
+            val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
+            if (drive == null) return@launch
+            val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
+            val started = if (attached) {
+                if (mic) drive.resume()
+                mic
+            } else {
+                beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
+            }
+            if (started && grants[Manifest.permission.POST_NOTIFICATIONS] == false) {
+                scope0.launch { snackbar.showSnackbar(notificationsOff) }
+            }
         }
     }
     val askOrStart: () -> Unit = {
-        if (drive != null) {
-            when {
-                voicePermissionsHeld(context) -> {
+        scope0.launch {
+            if (!vm.authorizeVoice()) return@launch
+            permissionPermit = vm.inferenceState.value.permit
+            if (drive != null) {
+                if (voicePermissionsHeld(context)) {
                     val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
                     if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
+                } else {
+                    rationale = true
                 }
-                else -> rationale = true
             }
         }
     }
@@ -218,7 +236,15 @@ fun InterviewScreen(
             title = { Text(stringResource(R.string.voice_mic_title)) },
             text = { Text(stringResource(R.string.voice_mic_rationale)) },
             confirmButton = {
-                TextButton(onClick = { rationale = false; permissions.launch(voicePermissions()) }, modifier = Modifier.testTag("voice-mic-continue")) {
+                TextButton(onClick = {
+                    scope0.launch {
+                        val expected = permissionPermit
+                        if (expected != null && vm.authorizeVoice(expected)) {
+                            rationale = false
+                            permissions.launch(voicePermissions())
+                        }
+                    }
+                }, modifier = Modifier.testTag("voice-mic-continue")) {
                     Text(stringResource(R.string.voice_mic_continue))
                 }
             },
@@ -235,8 +261,12 @@ fun InterviewScreen(
                 voice,
                 onPause = drive::pause,
                 onResume = {
-                    // A blocked drive may be blocked on the permission itself: ask again.
-                    if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
+                    scope0.launch {
+                        if (vm.authorizeVoice()) {
+                            permissionPermit = vm.inferenceState.value.permit
+                            if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
+                        }
+                    }
                 },
                 onExit = drive::exit,
                 modifier = Modifier.weight(1f),
@@ -262,6 +292,14 @@ fun InterviewScreen(
                 Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
                     .let { if (shortWindow) it.verticalScroll(scroll) else it }) {
                     if (scrollHeader) InterviewHeader(state, onBack)
+                    if (state.consentRequired) {
+                        Column(Modifier.fillMaxWidth().padding(IdeaForgeSpacing.content)) {
+                            Text(stringResource(R.string.inference_required), modifier = Modifier.testTag("inference-required"))
+                            if (onConsent != null) TextButton(onClick = onConsent) {
+                                Text(stringResource(R.string.inference_review))
+                            }
+                        }
+                    }
                     CoverageStrip(state)
                     if (state.busy != null) {
                         LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
@@ -303,6 +341,7 @@ private fun noticeText(n: InterviewNotice): String = when (n) {
     is InterviewNotice.NoProvider -> stringResource(R.string.notice_no_provider, n.detail)
     is InterviewNotice.Fallback -> stringResource(R.string.notice_fallback, n.detail)
     is InterviewNotice.Failed -> stringResource(R.string.notice_interview_failed, n.detail)
+    is InterviewNotice.Consent -> n.detail
 }
 
 @Composable

@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ui.interview
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.js.num
 import io.github.jaypetez.ideaforge.core.runtime.Provider
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.runtime.SynthesisResult
 import io.github.jaypetez.ideaforge.core.runtime.TurnResult
 import io.github.jaypetez.ideaforge.core.runtime.resumeSynthesis
@@ -49,23 +50,28 @@ internal class InterviewWork(
      * marks a wrap advisory as made (the typed screen shows it at once); the drive asks its
      * own question about wrapping and records the offer when it reads it out.
      */
-    fun turn(session: Session, provider: Provider?, resume: Boolean, recordOffer: Boolean = true): Deferred<SessionWorker.Outcome<SettledTurn>> {
+    fun turn(session: Session, provider: suspend () -> Provider?, resume: Boolean, recordOffer: Boolean = true): Deferred<SessionWorker.Outcome<SettledTurn>> {
         val tag = worker.tag(sessionId)
         return writes.async {
             worker.run(
                 tag,
                 work = {
                     val base = withLibraryMetadata(session, store.get(sessionId), now())
-                    val out = if (resume) {
-                        resumeTurn(base, provider, now())
-                    } else {
-                        // The answer, with a marker saying a turn is in flight and which
-                        // prompt it sent. If the process dies before the reply, reopening
-                        // finds the marker and re-issues the byte-identical prompt.
-                        store.save(if (provider != null) withPendingTurn(base, now()) else base)
-                        runTurn(base, provider, now())
+                    try {
+                        val model = provider()
+                        val out = if (resume) {
+                            resumeTurn(base, model, now())
+                        } else {
+                            store.save(if (model != null) withPendingTurn(base, now()) else base)
+                            runTurn(base, model, now())
+                        }
+                        settle(out, recordOffer)
+                    } catch (error: ProviderException) {
+                        // A submitted local answer is still the user's work when permission
+                        // is withdrawn or its strict preference read fails before dispatch.
+                        if (error.code == "consent" && !resume) store.save(base)
+                        throw error
                     }
-                    settle(out, recordOffer)
                 },
                 commit = { (_, settled, _) -> store.save(settled) },
             )
@@ -83,14 +89,15 @@ internal class InterviewWork(
     }
 
     /** The write-up. A failed one still finishes the interview: the export works without it. */
-    fun writeUp(session: Session, provider: Provider?, resume: Boolean): Deferred<SessionWorker.Outcome<SettledSynthesis>> {
+    fun writeUp(session: Session, provider: suspend () -> Provider?, resume: Boolean): Deferred<SessionWorker.Outcome<SettledSynthesis>> {
         val tag = worker.tag(sessionId)
         return writes.async {
             worker.run(
                 tag,
                 work = {
                     val base = withLibraryMetadata(session, store.get(sessionId), now())
-                    val result = if (resume) resumeSynthesis(base, provider, now()) else runSynthesis(base, provider, now())
+                    val model = provider()
+                    val result = if (resume) resumeSynthesis(base, model, now()) else runSynthesis(base, model, now())
                     val settled = if (result.ok || result.aborted) result.session else setStatusField(result.session, "done", now())
                     result to settled
                 },

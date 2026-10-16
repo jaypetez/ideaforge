@@ -601,8 +601,12 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both privacy visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both privacy probes without an empty runner argument');
-  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
-    'privacy requests must not inherit the unrelated empty shell runner argument');
+  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && !startsWith\(inputs\.evidence, 'consent'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
+    'privacy and consent requests must not inherit the unrelated empty shell runner argument');
+  assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
+    'both consent visual devices must select the actual test method');
+  assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
+    'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [
     ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
     ['docs/ARCHITECTURE.md', readFileSync(join(ROOT, 'docs', 'ARCHITECTURE.md'), 'utf8')],

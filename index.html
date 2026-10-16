@@ -235,6 +235,14 @@
       <p class="hint connect-status" id="connect-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <p class="hint field-error" id="connection-error" role="alert"></p>
       <p class="hint callout" id="credential-error" data-status="error" role="alert"></p>
+      <div class="inference-agreement" id="inference-agreement" hidden>
+        <p id="inference-disclosure"></p>
+        <label class="toggle">
+          <input type="checkbox" id="inference-consent" aria-describedby="inference-disclosure inference-status">
+          <span id="inference-label">I agree to send interview text to this provider.</span>
+        </label>
+        <p class="hint" id="inference-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
     </div><!-- /.group.connect -->
 
     <div class="btns start-actions start-only">

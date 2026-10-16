@@ -43,6 +43,7 @@ class DriveControllerTest {
     fun threeTurnsAreDrivenHandsFreeAndEachIsPersisted() {
         repeat(3) { rig.scripts += spoken("answer number ${it + 1} over") }
         rig.controller.start(rig.seeded, "typed")
+        assertTrue("the service starts after asynchronous consent admission", rig.until { rig.service.starts == 1 })
         assertEquals(1, rig.service.starts)
 
         assertTrue(
@@ -124,7 +125,7 @@ class DriveControllerTest {
         // The typed screen reads the idea back and offers the open question.
         val vm = InterviewViewModel(
             rig.id, rig.store, rig.worker, rig.clock, ring = { emptyKeyring() },
-            providers = ProviderSource { rig.model }, writes = rig.writes,
+            providers = ProviderSource { rig.model }, writes = rig.writes, inference = rig.inference,
         )
         rig.advance(1_000)
         val open = vm.state.value.openTurn

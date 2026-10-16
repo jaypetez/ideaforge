@@ -13,12 +13,14 @@
 //     non-secret per-device preference lives in this codebase.
 //
 // Every access is wrapped: a private window throws on the first touch of localStorage, and
-// a preference failing to load must never be the reason an interview cannot start.
+// ordinary preferences can fall back. Inference authorization uses readPrefs()'s explicit
+// error instead: unreadable consent cannot authorize an interview.
 
 // src/ui/theme-boot.js reads this key synchronously before first paint; rename both or neither
 // (test/prefs.test.mjs checks they agree).
 export const PREFS_KEY = 'ideaforge.prefs';
 const KEY = PREFS_KEY;
+export const INFERENCE_KEY = `${PREFS_KEY}.inference`;
 
 const DEFAULTS = {
   /** The word that ends a spoken answer. Empty means "use the built-in default". */
@@ -28,6 +30,8 @@ const DEFAULTS = {
   speechVoice: '',
   speechRate: 1,
   hostedSpeechAllowed: false,
+  inferenceDestination: '',
+  inferenceGrant: '',
   /** 'system' | 'light' | 'dark' — the same key and values the Android app stores. */
   theme: 'system',
 };
@@ -49,31 +53,80 @@ export function speechPreferences(value = {}) {
   };
 }
 
+export function inferencePreferences(value = {}) {
+  return {
+    inferenceDestination: typeof value.inferenceDestination === 'string'
+      && value.inferenceDestination.length <= 4096 ? value.inferenceDestination : '',
+    inferenceGrant: typeof value.inferenceGrant === 'string'
+      && /^[a-zA-Z0-9_-]{1,128}$/.test(value.inferenceGrant) ? value.inferenceGrant : '',
+  };
+}
+
 /** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number,
- *             hostedSpeechAllowed: boolean, theme: 'system'|'light'|'dark'}} */
+ *             hostedSpeechAllowed: boolean, inferenceDestination: string, inferenceGrant: string,
+ *             theme: 'system'|'light'|'dark'}} */
 export function loadPrefs() {
+  return readPrefs().prefs;
+}
+
+/** Authorization callers must inspect error rather than treating defaults as stored consent. */
+export function readPrefs() {
+  let stored = {};
+  let consent = {};
+  let error = null;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
-    const stored = JSON.parse(raw);
-    if (!stored || typeof stored !== 'object') return { ...DEFAULTS };
-    return {
-      ...DEFAULTS, ...stored, ...speechPreferences(stored),
+    stored = readObject(KEY);
+  } catch (cause) {
+    error = cause;
+  }
+  try {
+    consent = readObject(INFERENCE_KEY);
+  } catch (cause) {
+    error ||= cause;
+  }
+  return { prefs: {
+      ...DEFAULTS, ...stored, ...speechPreferences(stored), ...inferencePreferences(consent),
       hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
       theme: themePreference(stored.theme),
-    };
+    }, error };
+}
+
+function readObject(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return {};
+  const value = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Device preferences have an invalid format.');
+  }
+  return value;
+}
+
+function writePrefs(next) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({
+      ...next, ...speechPreferences(next),
+      inferenceDestination: undefined, inferenceGrant: undefined,
+      theme: themePreference(next.theme),
+    }));
+    return true;
   } catch {
-    return { ...DEFAULTS };
+    return false;
   }
 }
 
 /** Merge and write. Callers handling consent use the result to report a failed write. */
 export function savePrefs(patch) {
+  return writePrefs({ ...loadPrefs(), ...patch });
+}
+
+export function saveInferenceConsent(destination, grant) {
+  if (readPrefs().error) return false;
+  // One consent-owned atomic entry: an ordinary preference writer in another tab must
+  // never put its stale grant back after withdrawal.
   try {
-    const next = { ...loadPrefs(), ...patch };
-    localStorage.setItem(KEY, JSON.stringify({
-      ...next, ...speechPreferences(next), theme: themePreference(next.theme),
-    }));
+    localStorage.setItem(INFERENCE_KEY, JSON.stringify(inferencePreferences({
+      inferenceDestination: destination, inferenceGrant: grant,
+    })));
     return true;
   } catch {
     return false;

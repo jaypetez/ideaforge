@@ -141,7 +141,8 @@ class NoticeVisibilityTest {
         }
         val writes = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val vm = InterviewViewModel(stringOf(active["id"])!!, store, SessionWorker(), Clock { 1_760_000_000_000 },
-            ring = { emptyKeyring() }, providers = ProviderSource { provider }, writes = writes)
+            ring = { emptyKeyring() }, providers = ProviderSource { provider }, writes = writes,
+            inference = io.github.jaypetez.ideaforge.data.testInferenceConsent(writes))
         try {
             compose.setContent {
                 IdeaForgeTheme(dynamicColor = false) { InterviewScreen(vm, onFinished = {}) }

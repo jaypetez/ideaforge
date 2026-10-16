@@ -15,9 +15,11 @@ import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.SpeakStatus
 import io.github.jaypetez.ideaforge.voice.SpeechBackend
 import io.github.jaypetez.ideaforge.voice.hostedSpeechReady
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -216,7 +218,9 @@ class HostedSpeechViewModelTest {
     @Test
     fun forgetDuringACheckLeavesNoKeyAndNoPermission() {
         val forgets = mutableListOf<Unit>()
-        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), onForget = { forgets += Unit }).also { store.put("settings", it) }
+        val inference = io.github.jaypetez.ideaforge.data.InferenceConsent(prefs, { keyring.state.value.ring },
+            CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))
+        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), inference, onForget = { forgets += Unit }).also { store.put("settings", it) }
         join(vm.chooseHosted(true))
         vm.setKey(SPEECH)
         consentAll()

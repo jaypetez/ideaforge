@@ -379,7 +379,8 @@
         </li>
         <li>
           If a saved interview is resumed without a usable provider, it can continue from
-          the question bank.
+          the question bank after valid inference agreement. Missing or withdrawn agreement
+          is an explicit stop, not a provider outage or a checklist substitute.
         </li>
         <li>
           In a fully checklist-only run, the coverage percentage may remain flat because
@@ -402,9 +403,10 @@
 
       <h3 id="interrupted-work">If the tab closes during a request</h3>
       <p>
-        IdeaForge records a pending turn or synthesis before starting the provider call. On
-        resume it clears already-completed bookkeeping without duplicating a question, or
-        safely reissues the deterministic request when the work did not finish.
+        When an idea contains a pending turn or synthesis, recovery first requires valid
+        inference agreement. It clears already-completed bookkeeping without duplicating
+        a question, or safely reissues the deterministic request when the work did not
+        finish. Without agreement the local text remains available without replaying it.
       </p>
 
       <footer class="page-footer">

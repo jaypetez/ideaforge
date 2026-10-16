@@ -100,6 +100,104 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
 
     @Test
+    fun requestedInferenceConsentIsProminent() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val phase = bundle.getString("uxInferenceProbe")
+        if (phase.isNullOrEmpty()) {
+            require(bundle.getString("class")?.contains("#requestedInferenceConsentIsProminent") != true) {
+                "the selected inference probe requires uxInferenceProbe=before or after and capture provenance"
+            }
+            return
+        }
+        require(phase in setOf("before", "after")) { "uxInferenceProbe must be before or after" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "consent evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+            }
+        }
+        val frames = listOf("settings-connection", "onboarding-provider", "onboarding-hosted", "onboarding-local")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-consent-$phase"),
+            matrix.flatMap { config -> frames.map { "${config.id}/consent-$phase-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState("consent-$phase-$frame",
+                            if (frame == "settings-connection") "settings" else "onboarding",
+                            "real-app", phase, null, null)
+                        try {
+                            val base = fixtures.state(if (frame == "settings-connection") "ready" else "fresh")
+                            prepare(base, config, inferenceAgreed = false)
+                            navigate(base)
+                            when (frame) {
+                                "settings-connection" -> {
+                                    compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+                                    await("settings-active")
+                                }
+                                "onboarding-provider" -> revealControl("provider-ollama")
+                                "onboarding-hosted" -> {
+                                    compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+                                    await("api-key")
+                                }
+                                "onboarding-local" -> {
+                                    compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+                                    await("model")
+                                    compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-local-model")
+                                    hideKeyboard()
+                                }
+                            }
+                            val controls = when {
+                                frame == "onboarding-provider" -> listOf(tag("provider-ollama"))
+                                phase == "after" -> {
+                                    compose.onNodeWithTag("inference-consent").performScrollTo().assertIsDisplayed()
+                                    listOf(tag("inference-consent"))
+                                }
+                                else -> {
+                                    compose.onNodeWithTag("inference-consent").assertDoesNotExist()
+                                    listOf(tag(when (frame) {
+                                        "settings-connection" -> "settings-save"
+                                        "onboarding-hosted" -> "check-key"
+                                        else -> "finish-local"
+                                    }))
+                                }
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeSurface = state.surface,
+                                nativeMapping = "Real MainActivity $frame; $phase inference consent, actual system dynamic colour.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() },
+                { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    @Test
     fun requestedPrivacyPolicyLinksAreReachable() {
         val bundle = InstrumentationRegistry.getArguments()
         val phase = bundle.getString("uxPrivacyProbe")
@@ -671,7 +769,7 @@ class UxCaptureDeviceTest {
         }
     }
 
-    private fun prepare(state: UxState, config: UxConfiguration) = runBlocking {
+    private fun prepare(state: UxState, config: UxConfiguration, inferenceAgreed: Boolean = true) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
         val controlled = FixtureProvider(ScriptedProvider(script), state.id)
@@ -690,6 +788,10 @@ class UxCaptureDeviceTest {
             ))))
         }
         graph.keyringStore.load()
+        if (inferenceAgreed && state.id != "fresh") {
+            graph.inferenceConsent.accept(io.github.jaypetez.ideaforge.providers.inferenceDestination(
+                io.github.jaypetez.ideaforge.data.inferenceConfig(graph.keyringStore.state.value.ring)))
+        }
         if (state.id == "unavailable") {
             File(context.filesDir, "sessions").writeText("owned UX storage fault")
             val load = runCatching { graph.sessionStore.load() }

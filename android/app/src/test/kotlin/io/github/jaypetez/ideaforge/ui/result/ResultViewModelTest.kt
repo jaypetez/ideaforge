@@ -199,7 +199,7 @@ class ResultViewModelTest {
         val model = ScriptedModel(fail = ProviderException("network", "offline"))
         val interview = InterviewViewModel(
             "s_walkthrough", h.store, h.worker, Clock { 1_760_000_009_000 },
-            ring = { emptyKeyring() }, providers = ProviderSource { model }, writes = h.writes,
+            ring = { emptyKeyring() }, providers = ProviderSource { model }, writes = h.writes, inference = h.inference,
         )
         idle()
         assertFalse("not finished: it asks more", interview.state.value.finished)

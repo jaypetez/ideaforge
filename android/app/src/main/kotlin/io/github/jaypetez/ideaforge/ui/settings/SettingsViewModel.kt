@@ -16,17 +16,24 @@ import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
+import io.github.jaypetez.ideaforge.data.InferenceConsent
 import io.github.jaypetez.ideaforge.providers.PROVIDER_CHOICES
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
 import io.github.jaypetez.ideaforge.providers.createProvider
 import io.github.jaypetez.ideaforge.providers.presetModels
+import io.github.jaypetez.ideaforge.providers.InferenceDestination
+import io.github.jaypetez.ideaforge.providers.ProviderErrorCode
+import io.github.jaypetez.ideaforge.providers.inferenceDestination
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.ui.onboarding.CheckFailure
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.onboarding.checkFailure
 import io.github.jaypetez.ideaforge.ui.onboarding.hasUsableProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +62,7 @@ data class ConnectionEditor(
     val wrapModel: String = "",
     /** Suggestions for both model boxes: the preset's tiers, or what the server listed. */
     val models: List<String> = presetModels(choice),
+    val agreement: Boolean? = null,
 )
 
 data class SettingsState(
@@ -74,6 +82,9 @@ data class SettingsState(
     val confirmingForget: Boolean = false,
     /** Forget all ran. With no usable provider left, the screen routes to onboarding. */
     val forgotten: Boolean = false,
+    val inferenceDestination: InferenceDestination? = null,
+    val inferenceAgreed: Boolean = false,
+    val inferenceProblem: String? = null,
 ) {
     val ring: JsonObject get() = keyring.ring
 
@@ -114,6 +125,7 @@ class SettingsViewModel(
     private val prefsStore: PrefsStore,
     private val keyring: KeyringStore,
     private val checker: ProviderCheck,
+    private val inference: InferenceConsent,
     val choices: List<ProviderChoice> = PROVIDER_CHOICES,
     // The web's buildProvider before accepting local settings: refuses an address the adapter
     // would refuse on every call, without touching the network (see OnboardingViewModel).
@@ -128,11 +140,13 @@ class SettingsViewModel(
     private val local = MutableStateFlow(Local())
 
     val state: StateFlow<SettingsState> =
-        combine(prefsStore.prefs, keyring.state, local) { prefs, ring, l ->
+        combine(prefsStore.prefs, keyring.state, local, inference.state) { prefs, ring, l, consent ->
+            val editor = l.editor ?: if (ring.status == KeyringState.Status.NOT_LOADED) null else editorFor(ring.ring, activeId(ring.ring))
+            val destination = editor?.let(::destinationOf)
             SettingsState(
                 prefs = prefs,
                 keyring = ring,
-                editor = l.editor ?: if (ring.status == KeyringState.Status.NOT_LOADED) null else editorFor(ring.ring, activeId(ring.ring)),
+                editor = editor,
                 checking = l.checking,
                 failure = l.failure,
                 notice = l.notice,
@@ -140,6 +154,9 @@ class SettingsViewModel(
                 triggerDraft = l.triggerDraft,
                 confirmingForget = l.confirmingForget,
                 forgotten = l.forgotten,
+                inferenceDestination = destination,
+                inferenceAgreed = destination != null && (editor?.agreement ?: inference.allowed(destination, prefs)),
+                inferenceProblem = consent.problem,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
@@ -188,28 +205,47 @@ class SettingsViewModel(
 
     private fun edit(transform: (ConnectionEditor) -> ConnectionEditor) {
         val e = editor() ?: return
-        local.update { it.copy(editor = transform(e), failure = null, notice = null) }
+        generation++
+        work?.cancel()
+        local.update { it.copy(editor = transform(e), checking = false, failure = null, notice = null, unreadable = null) }
     }
 
     // ---- Connection -------------------------------------------------------------------
 
     fun pickProvider(id: String) {
         if (choices.none { it.id == id }) return
+        editor()?.let { inference.select(it.choice.id, destinationOf(it)?.id) }
         // Any pending "replace the unreadable keyring?" belonged to the provider being left;
         // the confirmation itself is never stored (see persist's `replace`).
         generation++
         work?.cancel()
-        local.update { it.copy(editor = editorFor(keyring.state.value.ring, id), checking = false, failure = null, notice = null, unreadable = null) }
+        val next = editorFor(keyring.state.value.ring, id)
+        val changed = inference.select(next.choice.id, destinationOf(next)?.id)
+        local.update { it.copy(editor = if (changed) next.copy(agreement = false) else next, checking = false, failure = null, notice = null, unreadable = null) }
     }
 
     fun setApiKey(v: String) = edit { it.copy(apiKey = v) }
 
     /** A different address is a different server: the list read off the old one is a lie about it. */
-    fun setBaseUrl(v: String) = edit { it.copy(baseUrl = v, models = presetModels(it.choice)) }
+    fun setBaseUrl(v: String) = edit {
+        inference.select(it.choice.id, destinationOf(it)?.id)
+        val next = it.copy(baseUrl = v, models = presetModels(it.choice))
+        if (inference.select(next.choice.id, destinationOf(next)?.id)) next.copy(agreement = false) else next
+    }
 
     fun setModel(v: String) = edit { it.copy(model = v) }
 
     fun setWrapModel(v: String) = edit { it.copy(wrapModel = v) }
+
+    fun setAgreement(on: Boolean) {
+        editor()?.let { inference.select(it.choice.id, destinationOf(it)?.id) }
+        edit { it.copy(agreement = on) }
+        if (!on) inference.withdraw()
+    }
+
+    private fun destinationOf(e: ConnectionEditor): InferenceDestination? = try {
+        inferenceDestination(configOf(e))
+    } catch (_: ProviderException) { null }
 
     /** The key to use: a newly typed one, else the saved one. Only for a provider with a key. */
     private fun keyOf(e: ConnectionEditor): String = if (e.choice.needsKey) e.apiKey.trim().ifEmpty { e.savedKey } else ""
@@ -281,12 +317,19 @@ class SettingsViewModel(
      * unreadable keyring without asking.
      */
     private suspend fun persist(e: ConnectionEditor, replace: Boolean = false) {
+        val generation = generation
+        val destination = inferenceDestination(configOf(e))
+        if (e.agreement != true && (e.agreement == false || !inference.allowed(destination, prefsStore.inferenceCurrent()))) {
+            throw ProviderException(ProviderErrorCode.CONSENT, "Agree to send interview text to ${e.choice.label} before saving this connection.")
+        }
         val key = keyOf(e)
         if (e.choice.local) {
             buildLocal(ProviderConfig(kind = e.choice.id, baseUrl = e.baseUrl.trim(), model = e.model.trim()))
         } else {
             checker.check(e.choice, configOf(e))
         }
+        currentCoroutineContext().ensureActive()
+        if (generation != this.generation) throw CancellationException("Connection changed")
         // An unreadable keyring is kept on disk on purpose (a Keystore that failed once may
         // answer now): read it again, and if it is still unreadable, saving would replace
         // every other provider's record, so that waits for the user's say-so.
@@ -304,6 +347,8 @@ class SettingsViewModel(
             put("wrapModel", JsonPrimitive(if (e.choice.picksModel) e.wrapModel.trim() else ""))
         }
         try {
+            currentCoroutineContext().ensureActive()
+            if (generation != this.generation) throw CancellationException("Connection changed")
             keyring.save(withCreds(current.ring, e.choice.id, JsonObject(rec)))
         } catch (ce: CancellationException) {
             throw ce
@@ -311,6 +356,8 @@ class SettingsViewModel(
             local.update { it.copy(failure = CheckFailure("That worked, but it could not be saved on this device.", ex.message.orEmpty())) }
             return
         }
+        currentCoroutineContext().ensureActive()
+        inference.accept(destination) { generation == this.generation }
         // Back to the saved record: the typed key is now the masked placeholder.
         local.update { it.copy(editor = null, unreadable = null, notice = "Saved. ${e.choice.label} answers the next interview.") }
     }
@@ -392,6 +439,7 @@ class SettingsViewModel(
         // Before anything suspends: a speech check or transcription save in flight read the
         // old generation and will now be refused (KeyringStore.saveIf).
         keyring.revoke()
+        inference.withdraw("Keys were forgotten. Review the inference agreement after setting up a provider.")
         runCatching { onForget() }
         val previous = work
         previous?.cancel()
@@ -421,7 +469,7 @@ class SettingsViewModel(
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
                 SettingsViewModel(
-                    graph.prefsStore, graph.keyringStore, graph.providerCheck,
+                    graph.prefsStore, graph.keyringStore, graph.providerCheck, graph.inferenceConsent,
                     onForget = {
                         graph.hostedSpeaker.cancel()
                         graph.driveController.pauseFor("Keys were deleted from this device. Tap Resume to continue with the device voice.")

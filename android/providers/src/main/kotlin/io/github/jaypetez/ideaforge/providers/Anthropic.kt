@@ -56,6 +56,7 @@ class AnthropicProvider(
     baseUrl: String = ANTHROPIC_API_ROOT,
     private val maxTokens: Int = 4096,
     private val retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    private val beforeSample: suspend () -> Unit = {},
 ) : ModelProvider {
     override val id = "anthropic"
     override val label = "Anthropic"
@@ -106,7 +107,7 @@ class AnthropicProvider(
     }
 
     override suspend fun sample(parts: PromptParts, modelTier: String): Sampled =
-        withRetry(delay = retryDelay) { call(parts, modelTier) }
+        withRetry(delay = retryDelay) { beforeSample(); call(parts, modelTier) }
 
     /** `cache` is ignored, as in the JS: the cache marker is decided by prefix size alone. */
     override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {

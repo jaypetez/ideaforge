@@ -376,8 +376,14 @@ async function run(theme, chrome, port) {
       const s = document.getElementById('stt');
       s.value = 'off';
       s.dispatchEvent(new Event('change'));
-      document.getElementById('b-start').click();
+      document.getElementById('b-settings').click();
     })()`);
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'settings'`, 'agreement in Settings');
+    await app.eval(`document.getElementById('inference-consent').click()`);
+    await app.waitFor(`document.getElementById('inference-consent').checked`, 'the scripted inference agreement');
+    await app.eval(`document.getElementById('b-nav-new').click()`);
+    await app.waitFor(`document.getElementById('panel-setup').dataset.view === 'start'`, 'the agreed Start view');
+    await app.eval(`document.getElementById('b-start').click()`);
 
     await app.waitFor(`!document.getElementById('panel-interview').hidden`, 'the interview panel');
     await app.waitFor(`document.getElementById('question').textContent.length > 5`, 'the seed question');

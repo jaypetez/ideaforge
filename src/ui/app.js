@@ -22,8 +22,9 @@ import { seedTurn, submitAnswer, runTurn, resumeTurn } from '../runtime/turn.js'
 import { resumeSynthesis, runSynthesis } from '../runtime/synthesize.js';
 import { createDriveLoop } from '../runtime/drive.js';
 import {
-  createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback, presetModels,
+  createProvider, PROVIDER_CHOICES, defaultProviderKind, isLoopback, presetModels, inferenceDestination,
 } from '../providers/index.js';
+import { ProviderError } from '../providers/errors.js';
 import {
   deleteSession, importSessions, saveSession, loadSession, listSessions, newSessionId,
 } from '../store/sessions.js';
@@ -32,7 +33,8 @@ import {
   emptyKeyring, credsFor, withCreds, withStt, withTts, hasAnyKey,
 } from '../store/secrets.js';
 import { requestPersistence } from '../store/db.js';
-import { loadPrefs, savePrefs, speechPreferences } from '../store/prefs.js';
+import { loadPrefs, savePrefs, speechPreferences, PREFS_KEY, INFERENCE_KEY } from '../store/prefs.js';
+import { createInferenceConsent } from '../store/inference-consent.js';
 import { applyTheme } from './theme.js';
 import { createVoice, STT_PRESETS, forgetVerdict, ttsSupported } from '../voice/index.js';
 import { createSpeechOutput } from '../voice/output.js';
@@ -59,6 +61,7 @@ for (const id of [
   'connect-heading', 'connect-status', 'b-connect-next', 'b-connect-back', 'key-error',
   'key-required', 'model-required',
   'settings-connection-summary', 'connection-error', 'credential-error',
+  'inference-agreement', 'inference-disclosure', 'inference-consent', 'inference-label', 'inference-status',
   'settings-voice-summary', 'settings-appearance-summary', 'settings-data-summary',
   'appearance-status', 'voice-preferences-status', 'data-status', 'keys-summary', 'browser-voice-note',
   'install-card', 'install-title', 'install-note', 'b-install',
@@ -88,6 +91,10 @@ for (const id of [
 const state = {
   session: null,
   provider: null,
+  providerPermit: null,
+  providerRevision: null,
+  voicePermit: null,
+  inferenceDestination: null,
   creds: null,
   busy: false,
   /** Set when a chip was tapped, so answerQuestion records the right provenance. */
@@ -163,6 +170,7 @@ const state = {
 const now = () => Date.now();
 const workBySession = new Map();
 const deletedSessions = new Set();
+const inference = createInferenceConsent({ onRetire: retireInference });
 const barActions = document.querySelector('.bar-right');
 const barTitle = document.querySelector('.bar h1');
 
@@ -518,6 +526,7 @@ function busy(on, label) {
   els['b-reopen'].disabled = on || !!(state.session
     && (workBySession.has(state.session.id) || state.writing === state.session.id));
   questionBusy(on, label);
+  renderInferenceControls();
   if (on && state.voiceMode === 'active') setVoicePhase('thinking');
 }
 
@@ -778,6 +787,96 @@ function currentChoice() {
   return PROVIDER_CHOICES.find((c) => c.id === els.provider.value) || PROVIDER_CHOICES[0];
 }
 
+function formInferenceDestination() {
+  const choice = currentChoice();
+  if (choice.local && els['base-note'].textContent.trim()) {
+    throw new ProviderError('config', els['base-note'].textContent.trim());
+  }
+  return inferenceDestination({
+    kind: choice.id, baseUrl: choice.local ? els.baseurl.value.trim() : undefined,
+  });
+}
+
+function requireInference(expected) {
+  const destination = formInferenceDestination();
+  return inference.require(destination.id, expected);
+}
+
+function retireInference(message) {
+  if (state.starting) retireStart(state.starting);
+  if (state.voiceSetup) state.voiceSetup.abort();
+  state.voiceSetup = null;
+  if (state.voiceMode !== 'manual') {
+    pauseVoice({ blocked: true, detail: message }).catch(fail);
+  } else {
+    teardownVoice({ preservePreview: true });
+    flushDraft().catch(fail);
+  }
+}
+
+function renderInferenceControls() {
+  const destination = state.inferenceDestination;
+  const allowed = !!destination && inference.status(destination.id).allowed;
+  const hasQuestion = !!(state.session && openTurn(state.session));
+  for (const id of ['b-send', 'b-skip', 'b-mic']) {
+    els[id].disabled = state.busy || !hasQuestion || !allowed;
+  }
+  for (const id of ['b-wrap', 'b-wrap-offer']) els[id].disabled = state.busy || !allowed;
+  els.handsfree.disabled = state.capturePending || !allowed;
+  els['b-reopen'].disabled = state.busy || !allowed || !!(state.session
+    && (workBySession.has(state.session.id) || state.writing === state.session.id));
+}
+
+function renderInferenceAgreement() {
+  const choice = currentChoice();
+  let destination = null;
+  let invalid = '';
+  try {
+    destination = formInferenceDestination();
+  } catch (error) {
+    if (!(error instanceof ProviderError)) throw error;
+    invalid = error.message;
+  }
+  inference.select(choice.id, destination?.id);
+  state.inferenceDestination = destination;
+  const current = inference.status(destination?.id);
+  els['inference-agreement'].hidden = els['panel-setup'].dataset.view !== 'settings'
+    && state.connectStep !== 'ready';
+  els['inference-disclosure'].textContent = destination?.local
+    ? `IdeaForge sends your idea and answers to ${choice.label} at ${destination.address} to generate questions and your write-up. `
+      + 'That server’s operator controls what it keeps. Optional hosted transcription and speech use separate services and choices.'
+    : `IdeaForge sends your idea and answers to ${choice.label} to generate questions and your write-up. `
+      + `${choice.label}’s terms govern what it keeps.`;
+  els['inference-label'].textContent = `I agree to send interview text to ${choice.label}.`;
+  els['inference-consent'].checked = current.allowed;
+  els['inference-consent'].disabled = !!invalid || !!current.error || state.forgetting === 'clearing';
+  els['inference-status'].textContent = invalid || current.problem
+    || (current.allowed ? 'Agreed on this device. Uncheck to withdraw; connection checks are separate.'
+      : 'Agreement is required for interview requests, separately from microphone and hosted-voice choices.');
+  els['inference-status'].dataset.status = invalid || current.problem || current.error ? 'error' : '';
+  const blocked = !current.allowed || !!invalid || state.forgetting === 'clearing';
+  els['b-start'].disabled = blocked;
+  els['b-start-voice'].disabled = blocked || els.stt.value === 'off';
+  renderStartNote();
+  renderInferenceControls();
+}
+
+function cachedInferenceProvider(permit) {
+  requireInference(permit);
+  if (state.providerPermit?.destination === permit.destination
+      && state.providerPermit.grant === permit.grant && state.providerPermit.epoch === permit.epoch
+      && state.providerRevision === state.connectRevision) return state.provider;
+  return undefined;
+}
+
+async function ensureInferenceProvider(permit) {
+  const cached = cachedInferenceProvider(permit);
+  if (cached !== undefined) return cached;
+  const provider = await buildProvider();
+  requireInference(permit);
+  return provider;
+}
+
 function onProviderChange() {
   invalidateConnection();
   const c = currentChoice();
@@ -893,7 +992,7 @@ function renderConnect() {
       ? 'Check failed. Review the connection fields or try again. Checking is optional.'
       : 'Connection needs attention. Review the fields and try again.')
     : state.connectStep === 'provider' && els['panel-setup'].dataset.view === 'start' ? ''
-    : `${savedKey ? 'Key saved on this device; n' : 'N'}ot checked this visit. You can start without checking.`;
+    : `${savedKey ? 'Key saved on this device; n' : 'N'}ot checked this visit. Checking is optional.`;
   els['b-check'].disabled = checking || state.forgetting === 'clearing' || !!els['base-note'].textContent.trim();
   els['b-check'].setAttribute('aria-busy', String(checking));
   els['b-check'].textContent = checking ? 'Checking…'
@@ -908,6 +1007,7 @@ function renderConnect() {
   els.model.required = !!c.picksModel && !c.models?.default;
   els['model-required'].hidden = !els.model.required;
   renderSettingsSummaries();
+  renderInferenceAgreement();
 }
 
 function connectionFailure(error, action) {
@@ -1037,6 +1137,10 @@ function renderStartNote() {
     ? 'Saved keys are being removed. Wait for that to finish before starting.'
     : els['base-note'].textContent.trim()
     ? 'Fix the server address above before starting.'
+    : !state.inferenceDestination || !inference.status(state.inferenceDestination.id).allowed
+      ? state.connectStep === 'ready'
+        ? 'Review the interview-text agreement above before starting.'
+        : 'Finish the connection details and review the interview-text agreement before starting.'
     : els.stt.value === 'off'
       ? 'Dictation is off — turn it on in Settings to start with voice.'
       : '';
@@ -1428,6 +1532,8 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
   const creds = credsFor(ring, c.id);
   if (c.needsKey && !creds.apiKey) throw new Error('This provider needs an API key.');
 
+  const destination = formInferenceDestination();
+  const permit = inference.status(destination.id).permit;
   const provider = await createProvider({
     kind: c.id,
     apiKey: creds.apiKey,
@@ -1437,6 +1543,7 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
     // Reading the model list is how you find out what to put in the model box, so that
     // one call cannot be the thing that insists the box is already filled.
     modelRequired: requireModel ? undefined : false,
+    beforeSample: () => inference.require(destination.id, permit),
   });
 
   if (!ownsConnection(context)) {
@@ -1455,6 +1562,8 @@ async function buildProvider({ requireModel = true, persist: write = true } = {}
     }, () => ownsConnection(context));
     if (!ownsConnection(context)) throw new Error('Provider setup was cancelled.');
     state.provider = provider;
+    state.providerPermit = permit;
+    state.providerRevision = state.connectRevision;
   }
   return provider;
 }
@@ -1581,6 +1690,7 @@ function render() {
   els.answer.disabled = state.busy || !open;
   renderCoverage();
   renderVoiceStage();
+  renderInferenceControls();
 }
 
 /**
@@ -1673,9 +1783,15 @@ function renderChips(chips) {
 
 async function nextQuestion(
   session = state.session, provider = state.provider, navigation = state.navigation,
-  fromVoice = state.voiceMode !== 'manual',
+  fromVoice = state.voiceMode !== 'manual', permit = state.providerPermit,
 ) {
   if (!session || deletedSessions.has(session.id)) return;
+  try {
+    requireInference(permit);
+  } catch (error) {
+    if (currentView(session.id, navigation)) { busy(false); fail(error); }
+    return;
+  }
   if (currentView(session.id, navigation)) {
     busy(true, 'thinking of the next question…');
     fail(null);
@@ -1689,6 +1805,7 @@ async function nextQuestion(
       return { ...result, advisory };
     });
     if (out.discarded || out.aborted || !currentView(session.id, navigation)) return;
+    requireInference(permit);
     warn(out);
 
     if (out.error) {
@@ -1726,6 +1843,20 @@ async function nextQuestion(
 /** Give up on the open question. Both the button and the spoken command land here. */
 async function doSkip() {
   if (state.busy || !state.session || !openTurn(state.session)) return;
+  let permit;
+  let provider;
+  const id = state.session.id;
+  const navigation = state.navigation;
+  try {
+    permit = requireInference();
+    busy(true);
+    const cached = cachedInferenceProvider(permit);
+    provider = cached === undefined ? await ensureInferenceProvider(permit) : cached;
+  } catch (error) {
+    if (currentView(id, navigation)) { busy(false); fail(error); }
+    return;
+  }
+  if (!currentView(id, navigation)) return;
   busy(true);
   cancelDraftSave();
   state.session = skipQuestion(state.session, { now: now() });
@@ -1734,42 +1865,54 @@ async function doSkip() {
   // question arrives — that late insert was the layout shift (#107).
   renderThread(state.session);
   const session = state.session;
-  const provider = state.provider;
-  const navigation = state.navigation;
   const credentialEpoch = state.credentialEpoch;
   const fromVoice = state.voiceMode !== 'manual';
   els.answer.value = '';
   state.answerSource = 'typed';
   say('');
   await persist(session);
-  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice);
+  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice, permit);
 }
 
 /** Record an answer and ask the next question. The hands-free loop calls this directly. */
 async function submitAndAdvance(text, source) {
   if (state.busy || !state.session || !openTurn(state.session)) return;
+  let permit;
+  let provider;
+  const id = state.session.id;
+  const navigation = state.navigation;
+  try {
+    permit = requireInference();
+    busy(true);
+    const cached = cachedInferenceProvider(permit);
+    provider = cached === undefined ? await ensureInferenceProvider(permit) : cached;
+  } catch (error) {
+    if (currentView(id, navigation)) { busy(false); fail(error); }
+    return;
+  }
+  if (!currentView(id, navigation)) return;
   busy(true);
   cancelDraftSave();
   state.session = submitAnswer(state.session, { text, source, now: now() });
   dismissWrapOffer();
   renderThread(state.session);
   const session = state.session;
-  const provider = state.provider;
-  const navigation = state.navigation;
   const credentialEpoch = state.credentialEpoch;
   const fromVoice = state.voiceMode !== 'manual';
   els.answer.value = '';
   state.answerSource = 'typed';
   say('');
   await persist(session);
-  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice);
+  await nextQuestion(session, credentialEpoch === state.credentialEpoch ? provider : null, navigation, fromVoice, permit);
 }
 
 async function send(text, source) {
   const body = String(text == null ? els.answer.value : text).trim();
   if (!body || state.busy) return;
   if (state.voiceMode === 'manual' && state.voice && !els.listening.hidden) state.voice.abort();
-  await submitAndAdvance(body, source || state.answerSource);
+  try {
+    await submitAndAdvance(body, source || state.answerSource);
+  } catch (error) { fail(error); }
 }
 
 // ───────────────────────────────────────────────────────────────── voice
@@ -1853,6 +1996,7 @@ async function speakForVoice(text) {
   const speech = state.speech;
   const epoch = state.voiceEpoch;
   if (!speech || state.voiceMode !== 'active') return;
+  requireInference(state.voicePermit);
   const result = await speech.speak(text);
   if (speech !== state.speech || epoch !== state.voiceEpoch || state.voiceMode !== 'active') return;
   if (!result || result.status !== 'spoken') {
@@ -1917,6 +2061,7 @@ async function setupVoice({ defer = false, automatic = state.wantHandsFree } = {
     els['handsfree-wrap'].hidden = !possible || !ttsSupported();
     return;
   }
+  requireInference(state.voicePermit);
   const epoch = state.voiceEpoch;
   const navigation = state.navigation;
   if (state.voiceSetup) state.voiceSetup.abort();
@@ -1931,6 +2076,12 @@ async function setupVoice({ defer = false, automatic = state.wantHandsFree } = {
     if (setup.signal.aborted || epoch !== state.voiceEpoch || navigation !== state.navigation) {
       voice.dispose();
       return;
+    }
+    try {
+      requireInference(state.voicePermit);
+    } catch (error) {
+      voice.dispose();
+      throw error;
     }
     state.voice = voice;
   } catch (error) {
@@ -1961,6 +2112,7 @@ async function setupVoice({ defer = false, automatic = state.wantHandsFree } = {
 }
 
 async function listenOnce({ prompt, autoStop }) {
+  requireInference(state.voicePermit || state.providerPermit);
   const voice = state.voice;
   const epoch = state.voiceEpoch;
   const navigation = state.navigation;
@@ -2031,6 +2183,8 @@ async function listenOnce({ prompt, autoStop }) {
  */
 async function runHandsFree() {
   if (state.cycling || state.busy || !state.handsFree || !state.voice || !state.session) return;
+  try { requireInference(state.voicePermit); }
+  catch (error) { await pauseVoice({ blocked: true, detail: error.message }); return; }
   const voice = state.voice;
   const id = state.session.id;
   const navigation = state.navigation;
@@ -2120,6 +2274,7 @@ async function runHandsFree() {
  */
 async function listenForDriving(prompt, confirm, voice, running) {
   if (!running()) return '';
+  requireInference(state.voicePermit);
   const prefix = els.answer.value.trim();
   state.capturePrefix = prefix;
   state.capturePrefixSource = state.answerSource;
@@ -2190,10 +2345,10 @@ function currentQuestion() {
   return t ? t.question : '';
 }
 
-function teardownVoice() {
+function teardownVoice({ preservePreview = false } = {}) {
   if (state.voiceSetup) state.voiceSetup.abort();
   state.voiceSetup = null;
-  cancelSpeechPreview().catch(fail);
+  if (!preservePreview) cancelSpeechPreview().catch(fail);
   setHandsFree(false);
   if (state.voice) state.voice.dispose();
   if (state.speech) state.speech.dispose();
@@ -2206,6 +2361,7 @@ function teardownVoice() {
   state.voiceMeterWarning = '';
   state.voiceTranscript = null;
   state.readback = false;
+  state.voicePermit = null;
   els['b-mic'].hidden = true;
   els['handsfree-wrap'].hidden = true;
   els.handsfree.disabled = false;
@@ -2213,6 +2369,7 @@ function teardownVoice() {
 }
 
 function setHandsFree(on) {
+  if (on) requireInference(state.voicePermit || state.providerPermit);
   if (on && (!state.session || state.voiceWrapPending
       || (!state.busy && !openTurn(state.session)))) {
     on = false;
@@ -2303,10 +2460,15 @@ async function pauseVoice({ command = false, blocked = false, detail = '' } = {}
 
 async function resumeVoice() {
   if (state.capturePending || !state.session) return;
+  const permit = requireInference();
+  const id = state.session.id;
+  const navigation = state.navigation;
   state.voiceEpoch++;
+  const epoch = state.voiceEpoch;
   state.voiceMode = 'active';
   state.voicePhase = 'starting';
   state.voiceDetail = '';
+  state.voicePermit = permit;
   prepareSpeechOutput();
   renderVoiceStage();
   keepScreenAwake();
@@ -2320,6 +2482,16 @@ async function resumeVoice() {
     return;
   }
   if (state.writing === state.session.id) return;
+  const ownsResume = () => epoch === state.voiceEpoch && currentView(id, navigation)
+    && state.voiceMode === 'active';
+  try {
+    await ensureInferenceProvider(permit);
+  } catch (error) {
+    if (!ownsResume()) return;
+    throw error;
+  }
+  if (!ownsResume()) return;
+  requireInference(permit);
   forgetVerdict();
   await setupVoice({ automatic: true });
 }
@@ -2380,7 +2552,11 @@ async function wrapUp(note) {
   const session = state.session;
   if (!session || state.writing === session.id) return;
   const navigation = state.navigation;
-  const provider = state.provider;
+  const permit = requireInference();
+  const cached = cachedInferenceProvider(permit);
+  const provider = cached === undefined ? await ensureInferenceProvider(permit) : cached;
+  requireInference(permit);
+  if (!currentView(session.id, navigation) || state.writing === session.id) return;
   const credentialEpoch = state.credentialEpoch;
   const wasDriving = state.voiceMode === 'active';
   state.writing = session.id;
@@ -2420,6 +2596,7 @@ async function wrapUp(note) {
       };
     });
     if (out.discarded || out.aborted || !currentView(session.id, navigation)) return;
+    requireInference(permit);
     warn(out);
     if (!out.ok) {
       const message = out.error
@@ -2866,8 +3043,10 @@ function renderInstall(info = state.install && state.install.state()) {
 
 async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   if (state.starting) return;
+  const permit = requireInference();
   state.navigation++;
   teardownVoice();
+  state.voicePermit = permit;
   const context = connectionContext();
   state.starting = context;
   const owns = () => state.starting === context && ownsConnection(context);
@@ -2891,6 +3070,12 @@ async function startInterview({ handsFree = state.wantHandsFree } = {}) {
   }
   if (!owns()) {
     retireStart(context);
+    return;
+  }
+  try { requireInference(permit); }
+  catch (error) {
+    retireStart(context);
+    connectionFailure(error, 'start');
     return;
   }
   const platform = state.install ? state.install.state().platform : 'other';
@@ -2920,7 +3105,13 @@ async function resumeInterview(id) {
   const navigation = ++state.navigation;
   teardownVoice();
   state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
-  prepareSpeechOutput();
+  let permit = null;
+  let agreementError = null;
+  try {
+    permit = requireInference();
+    state.voicePermit = permit;
+    prepareSpeechOutput();
+  } catch (error) { agreementError = error; }
   say('');
   fail(null);
   if (!(await flushDraft())) return;
@@ -2946,15 +3137,26 @@ async function resumeInterview(id) {
     show('panel-done');
     return;
   }
+  if (agreementError) {
+    showUnconsentedIdea(s, agreementError);
+    return;
+  }
 
   // Said after the show() below, never here: the panel change would clear it unread.
   let providerNote = '';
   try {
     await buildProvider();
+    requireInference(permit);
   } catch (e) {
     if (navigation !== state.navigation) return;
+    if (e.code === 'consent') {
+      showUnconsentedIdea(s, e);
+      return;
+    }
     providerNote = withoutModelNote(e);
     state.provider = null;
+    state.providerPermit = permit;
+    state.providerRevision = state.connectRevision;
   }
   if (navigation !== state.navigation) return;
 
@@ -2968,6 +3170,7 @@ async function resumeInterview(id) {
     let out;
     try {
       out = await sessionWork(s, 'synthesis', async (signal) => {
+        requireInference(permit);
         const result = await resumeSynthesis(s, { provider, now: now(), signal });
         return { ...result,
           session: result.ok || result.aborted ? result.session : setStatusField(result.session, 'done', now()) };
@@ -2976,6 +3179,7 @@ async function resumeInterview(id) {
       if (currentView(id, navigation)) outputBusy(false);
     }
     if (out.discarded || out.aborted || !currentView(id, navigation)) return;
+    requireInference(permit);
     warn(out);
     if (!out.ok) {
       fail(out.error
@@ -2995,7 +3199,10 @@ async function resumeInterview(id) {
     busy(true, 'picking up where the last question left off…');
     try {
       const provider = state.provider;
-      const out = await sessionWork(s, 'turn', (signal) => resumeTurn(s, { provider, now: now(), signal }));
+      const out = await sessionWork(s, 'turn', (signal) => {
+        requireInference(permit);
+        return resumeTurn(s, { provider, now: now(), signal });
+      });
       if (out.discarded || out.aborted || !currentView(id, navigation)) return;
       warn(out);
     } catch (e) { if (currentView(id, navigation)) fail(e); }
@@ -3017,6 +3224,23 @@ async function resumeInterview(id) {
     ? 'chip' : 'typed';
   await setupVoice({ defer: !state.wantHandsFree, automatic: state.wantHandsFree });
   if (state.voiceMode === 'manual') els.answer.focus();
+}
+
+function showUnconsentedIdea(session, error) {
+  teardownVoice({ preservePreview: true });
+  state.provider = null;
+  state.providerPermit = null;
+  if (openTurn(session)) {
+    show('panel-interview');
+    render();
+    els.answer.value = session.draftAnswer || '';
+    state.answerSource = 'typed';
+  } else {
+    renderDone();
+    show('panel-done');
+  }
+  fail(error);
+  renderInferenceControls();
 }
 
 /** `stored` is a list boot already read, so a cold start reads the sessions once. */
@@ -3135,6 +3359,15 @@ function bind() {
     onSttChange();
   };
   els.stt.onchange = onSttChange;
+  els['inference-consent'].onchange = () => {
+    try {
+      const destination = formInferenceDestination();
+      if (els['inference-consent'].checked) inference.accept(destination.id);
+      else inference.withdraw();
+      fail(null);
+    } catch (error) { fail(error); }
+    renderConnect();
+  };
   // On change, not on input: normalising every keystroke fights whoever is typing.
   els.stopword.onchange = () => applyTrigger(els.stopword.value);
   els['b-start'].onclick = () => startInterview({ handsFree: false }).catch(fail);
@@ -3171,7 +3404,7 @@ function bind() {
   els['b-speech-preview'].onclick = () => previewSpeech().catch(fail);
   els['b-voice-pause'].onclick = () => {
     const action = ['paused', 'blocked'].includes(state.voiceMode) ? resumeVoice() : pauseVoice();
-    action.catch(fail);
+    return action.catch(fail);
   };
   els['b-voice-exit'].onclick = () => exitVoice().catch(fail);
   els['b-install'].onclick = async () => {
@@ -3186,6 +3419,8 @@ function bind() {
   els['b-mic'].onclick = async () => {
     if (state.busy || !state.session || !openTurn(state.session)) return;
     if (state.voice && !els.listening.hidden) { state.voice.stop(); return; }
+    try { state.voicePermit = requireInference(); }
+    catch (error) { fail(error); return; }
     setHandsFree(false);
     const navigation = state.navigation;
     const id = state.session.id;
@@ -3215,6 +3450,10 @@ function bind() {
   };
   els.handsfree.onchange = async () => {
     const on = els.handsfree.checked;
+    if (on) {
+      try { state.voicePermit = requireInference(); }
+      catch (error) { els.handsfree.checked = false; fail(error); return; }
+    }
     if (on && state.voiceMode === 'manual' && !els.listening.hidden) {
       els.handsfree.checked = false;
       say('Stop the current recording before turning on hands-free.');
@@ -3313,10 +3552,10 @@ function bind() {
     state.threadExpanded = !state.threadExpanded;
     renderThread();
   };
-  els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.');
+  els['b-wrap'].onclick = () => wrapUp('Wrapped up early, at your request.').catch(fail);
   els['b-wrap-offer'].onclick = () => {
     if (state.busy || state.voiceMode !== 'manual') return;
-    return wrapUp('Wrapped up at your request.');
+    return wrapUp('Wrapped up at your request.').catch(fail);
   };
   // Dismissing is the whole of it: session.wrapOffered is already persisted, so the engine
   // will not offer again, and the next answer goes ahead as if the card was never there.
@@ -3366,9 +3605,13 @@ function bind() {
     closeDoneMenu();
     if (!state.session || state.busy || workBySession.has(state.session.id)
         || state.writing === state.session.id) return;
+    let permit;
+    try { permit = requireInference(); }
+    catch (error) { fail(error); return; }
     const navigation = ++state.navigation;
     const session = state.session;
     teardownVoice();
+    state.voicePermit = permit;
     state.wantHandsFree = loadPrefs().handsFree === true && els.stt.value !== 'off';
     prepareSpeechOutput();
     // Said after show('panel-interview'), which would otherwise clear it. A failed save
@@ -3376,9 +3619,13 @@ function bind() {
     let providerNote = '';
     try {
       await buildProvider();
+      requireInference(permit);
     } catch (error) {
+      if (error.code === 'consent') { fail(error); return; }
       providerNote = withoutModelNote(error);
       state.provider = null;
+      state.providerPermit = permit;
+      state.providerRevision = state.connectRevision;
     }
     if (!currentView(session.id, navigation)) return;
     const reopenedAt = now();
@@ -3412,6 +3659,18 @@ function bind() {
     } else {
       flushDraft().catch(fail);
     }
+  });
+  window.addEventListener('storage', (event) => {
+    if (![PREFS_KEY, INFERENCE_KEY, null].includes(event.key)) return;
+    const permit = state.voicePermit || state.providerPermit;
+    if (permit) {
+      try { inference.require(permit.destination, permit); }
+      catch (error) {
+        retireInference(error.message);
+        if (state.session) fail(error);
+      }
+    }
+    renderConnect();
   });
 }
 

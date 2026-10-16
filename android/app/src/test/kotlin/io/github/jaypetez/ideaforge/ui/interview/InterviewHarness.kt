@@ -10,6 +10,8 @@ import io.github.jaypetez.ideaforge.core.vectors.Vectors
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.data.testInferenceConsent
+import io.github.jaypetez.ideaforge.data.testInferenceRing
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -56,18 +58,19 @@ class ScriptedModel(
  * scope (Dispatchers.Main, which the test sets to [dispatcher]), the app scope the turns run
  * in, and the store's I/O. `advanceTimeBy` then moves the draft debounce exactly.
  */
-class InterviewHarness(val dir: File, val scheduler: TestCoroutineScheduler = TestCoroutineScheduler()) {
+class InterviewHarness(val dir: File, val scheduler: TestCoroutineScheduler = TestCoroutineScheduler(), private val agreed: Boolean = true) {
     val dispatcher = StandardTestDispatcher(scheduler)
     var store = SessionStore(dir, io = dispatcher)
     var worker = SessionWorker()
     var writes = CoroutineScope(SupervisorJob() + dispatcher)
+    var inference = testInferenceConsent(writes, agreed = agreed)
 
     fun vm(
         provider: Provider?,
         id: String = "s_test_00000001",
         clock: Clock = Clock { 1_760_000_000_000 },
         source: ProviderSource = ProviderSource { provider ?: throw ProviderException("config", "no provider") },
-    ) = InterviewViewModel(id, store, worker, clock, ring = { emptyKeyring() }, providers = source, writes = writes)
+    ) = InterviewViewModel(id, store, worker, clock, ring = { testInferenceRing() }, providers = source, writes = writes, inference = inference)
 
     /** A fresh process over the same files: new store, new worker, new app scope. */
     fun restart() {
@@ -75,5 +78,6 @@ class InterviewHarness(val dir: File, val scheduler: TestCoroutineScheduler = Te
         store = SessionStore(dir, io = dispatcher)
         worker = SessionWorker()
         writes = CoroutineScope(SupervisorJob() + dispatcher)
+        inference = testInferenceConsent(writes, agreed = agreed)
     }
 }

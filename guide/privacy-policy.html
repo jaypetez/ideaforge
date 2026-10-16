@@ -111,11 +111,12 @@
               <td><strong>Device preferences</strong></td>
               <td>
                 Plain localStorage, including theme, finish word, hands-free choice,
-                speaking voice/pace and hosted-speech permission.
+                speaking voice/pace, hosted-speech permission and the non-secret inference
+                destination and acknowledgement identifier.
               </td>
               <td>
                 Plain Preferences DataStore, including those choices and the separate
-                hosted-transcription permission.
+                hosted-transcription permission and the inference acknowledgement.
               </td>
             </tr>
             <tr>
@@ -148,11 +149,36 @@
 
       <h2 id="model-requests">What goes to a model provider, and when</h2>
       <p>
+        Before starting or resuming interview work, affirm the unchecked, provider-named
+        interview-text agreement. Web Start shows it at Ready and in Settings Connection;
+        Android shows it in provider details during onboarding and in Settings Connection.
+        Android saves it with the connection; on the web, checking the box saves it.
+        An old installation without an acknowledgement is not treated as having agreed.
+        A successful key check, saved credentials or microphone permission cannot supply it.
+      </p>
+      <p>
         Generating a follow-up question or write-up sends interview context to the
         selected provider: the opening idea, questions and answers (compacted as needed),
         facts and coverage. The provider returns generated questions, suggestions or a
         write-up, which become part of the local interview. Connection/key checks and
         model-list reads also contact the selected service, without sending an interview.
+      </p>
+      <p>
+        The acknowledgement is a non-secret device preference, excluded from session backups.
+        Changing provider kind, including switching back, or changing a validated local server
+        address requires fresh agreement. Model-only changes do not. Uncheck it in
+        <strong>Settings &rarr; Connection</strong> to block new interview requests, retries
+        and capture immediately. It also gates pending-turn and write-up recovery.
+        Existing local ideas remain readable and exportable. An already submitted request
+        may finish for its original idea; withdrawal cannot recall data already sent.
+      </p>
+      <p>
+        Unreadable preferences or an acknowledgement that cannot be saved do not authorise
+        inference. A failed withdrawal is reported, not labelled saved: the current page or
+        app process remains blocked, but an old on-disk acknowledgement may remain if storage
+        rejected the change. Fix storage and withdraw successfully before reloading or
+        restarting. Inference agreement is independent of microphone permission and the
+        transcription and speech choices below; their separate checks remain separate.
       </p>
       <p>
         Hosted inference choices are <strong>Anthropic</strong>, <strong>OpenAI</strong>,

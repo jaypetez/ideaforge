@@ -261,7 +261,10 @@ export default async function run(check, { subpath }) {
   check('…and Start is disabled while it is refused', $('b-start').disabled === true);
 
   typeBase('http://127.0.0.1:11435/v1');
-  check('a loopback address on a non-default port is accepted', $('b-start').disabled === false);
+  check('a loopback address on a non-default port permits a destination agreement',
+    !$('inference-consent').disabled && $('base-note').textContent === '');
+  check('a valid address alone never grants inference permission',
+    $('b-start').disabled && !$('inference-consent').checked);
   check('…with nothing to complain about', $('base-note').textContent === '');
 
   // ── a hidden field is not an empty one ───────────────────────────────────
@@ -384,6 +387,9 @@ export default async function run(check, { subpath }) {
   await oldShell.put(subpath + 'src/ui/app.js', new Response('/* old shared form */'));
   const prePolicyShell = await caches.open('ideaforge-v29');
   await prePolicyShell.put(subpath + 'index.html', new Response('<!doctype html><title>No policy link</title>'));
+  const preConsentShell = await caches.open('ideaforge-v30');
+  await preConsentShell.put(subpath + 'index.html', new Response('<!doctype html><title>No inference agreement</title>'));
+  await preConsentShell.put(subpath + 'src/ui/app.js', new Response('/* pre-consent controller */'));
 
   // ── boots identically on a Pages-style subpath ────────────────────────────
   const sub = await loadFrame(subpath + 'index.html');
@@ -442,6 +448,8 @@ export default async function run(check, { subpath }) {
     !names.includes('ideaforge-v27'), names.join(', '));
   check('installing the policy-linked shell retires the pre-policy cache',
     !names.includes('ideaforge-v29'), names.join(', '));
+  check('installing the consent shell retires pre-consent HTML and controller together',
+    !names.includes('ideaforge-v30'), names.join(', '));
   const cache = names.length ? await caches.open(names[0]) : null;
   const cached = cache ? (await cache.keys()).map((r) => new URL(r.url).pathname) : [];
   check('the service worker precached the shell', cached.length > 20, cached.length + ' entries');

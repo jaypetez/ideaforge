@@ -24,6 +24,7 @@ import io.github.jaypetez.ideaforge.core.promptHash
 import io.github.jaypetez.ideaforge.core.renameSession
 import io.github.jaypetez.ideaforge.core.restoreSession
 import io.github.jaypetez.ideaforge.core.runtime.Provider
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.runtime.seedTurn
 import io.github.jaypetez.ideaforge.core.runtime.submitAnswer
 import io.github.jaypetez.ideaforge.core.selectNextDimension
@@ -32,6 +33,8 @@ import io.github.jaypetez.ideaforge.core.setPending
 import io.github.jaypetez.ideaforge.core.setSessionTags
 import io.github.jaypetez.ideaforge.core.skipQuestion
 import io.github.jaypetez.ideaforge.data.Clock
+import io.github.jaypetez.ideaforge.data.InferenceConsent
+import io.github.jaypetez.ideaforge.data.InferencePermit
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import kotlinx.coroutines.CancellationException
@@ -75,6 +78,7 @@ sealed interface InterviewNotice {
 
     /** Saving or running the turn threw. */
     data class Failed(override val detail: String, override val cause: Throwable? = null) : InterviewNotice
+    data class Consent(override val detail: String) : InterviewNotice
 }
 
 data class InterviewState(
@@ -91,6 +95,7 @@ data class InterviewState(
     val finished: Boolean = false,
     /** The write-up behind [finished] failed; the result screen says so (ResultRoute). */
     val writeUpFailed: Boolean = false,
+    val consentRequired: Boolean = false,
 ) {
     val openTurn: JsonObject? get() = session?.let(::openTurn)
 
@@ -100,9 +105,9 @@ data class InterviewState(
     val turnCount: Int get() = (session?.get("turns") as? JsonArray)?.size ?: 0
 
     /** The web shows "That's enough — write it up" from the fourth question on. */
-    val canWriteUp: Boolean get() = session != null && turnCount >= 4 && busy == null
+    val canWriteUp: Boolean get() = session != null && turnCount >= 4 && busy == null && !consentRequired
 
-    val canAnswer: Boolean get() = openTurn != null && busy == null
+    val canAnswer: Boolean get() = openTurn != null && busy == null && !consentRequired
 }
 
 /**
@@ -125,12 +130,16 @@ class InterviewViewModel(
     private val ring: () -> JsonElement,
     private val providers: ProviderSource,
     private val writes: CoroutineScope,
+    private val inference: InferenceConsent,
     private val draftDelayMs: Long = DRAFT_DEBOUNCE_MS,
 ) : ViewModel() {
     private val _state = MutableStateFlow(InterviewState())
     val state: StateFlow<InterviewState> = _state.asStateFlow()
+    val inferenceState get() = inference.state
 
     private var provider: Provider? = null
+    private var providerPermit: InferencePermit? = null
+    private var providerRing: JsonElement? = null
     private val work = InterviewWork(sessionId, store, worker, clock, writes)
     private var draftJob: Job? = null
 
@@ -146,6 +155,38 @@ class InterviewViewModel(
 
     init {
         viewModelScope.launch { open() }
+    }
+
+    fun refreshConsent() {
+        val consent = inference.state.value
+        if (consent.blocked) _state.update {
+            it.copy(consentRequired = true, notice = InterviewNotice.Consent(consent.problem.orEmpty()))
+        } else if (consent.permit != null && _state.value.session != null) {
+            _state.update { it.copy(consentRequired = false) }
+        }
+    }
+
+    private suspend fun modelForWork(expected: InferencePermit? = null): Provider? {
+        val permit = inference.require(expected)
+        val current = ring()
+        if (permit != providerPermit || current != providerRing) {
+            provider = try {
+                providers.buildAuthorized(current) { inference.require(permit) }
+            } catch (error: ProviderException) {
+                if (error.code == "consent") throw error
+                _state.update { it.copy(notice = InterviewNotice.NoProvider(message(error))) }
+                null
+            }
+            providerPermit = permit
+            providerRing = current
+        }
+        return provider
+    }
+
+    private fun consentFailed(error: ProviderException) {
+        _state.update {
+            it.copy(busy = null, consentRequired = true, notice = InterviewNotice.Consent(message(error)))
+        }
     }
 
     // ─────────────────────────────────────────────────────────── opening
@@ -165,13 +206,25 @@ class InterviewViewModel(
             _state.update { it.copy(notice = InterviewNotice.Failed(message(e), e)) }
             return
         }
-        provider = try {
-            providers.build(ring())
+        if (stored != null && stringOf(stored["status"]) == "done" && openTurn(stored) == null
+            && !truthy(stored["pending"])) {
+            _state.update { it.copy(session = stored, finished = true) }
+            return
+        }
+        if (stored != null) {
+            _state.update { it.copy(session = stored, answer = stringOf(stored["draftAnswer"]).orEmpty(), consentRequired = true) }
+        }
+        try {
+            modelForWork()
+            _state.update { it.copy(consentRequired = false) }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: ProviderException) {
+            if (e.code == "consent") { consentFailed(e); return }
             _state.update { it.copy(notice = InterviewNotice.NoProvider(message(e))) }
-            null
+        } catch (e: Exception) {
+            _state.update { it.copy(notice = InterviewNotice.Failed(message(e), e)) }
+            return
         }
 
         if (stored == null) {
@@ -217,6 +270,7 @@ class InterviewViewModel(
     }
 
     fun send() {
+        refreshConsent()
         val st = _state.value
         val s = st.session ?: return
         if (!st.canAnswer) return
@@ -227,6 +281,7 @@ class InterviewViewModel(
     }
 
     fun skip() {
+        refreshConsent()
         val st = _state.value
         val s = st.session ?: return
         if (!st.canAnswer) return
@@ -249,7 +304,11 @@ class InterviewViewModel(
     /** Starts the turn's work in the app scope, where it outlives this screen. */
     private fun startTurn(session: Session, resume: Boolean): Deferred<SessionWorker.Outcome<SettledTurn>> {
         _state.update { it.copy(busy = if (resume) Busy.Resuming else Busy.Thinking) }
-        return work.turn(session, provider, resume)
+        val permit = inference.state.value.permit
+        return work.turn(session, {
+            if (permit == null) throw ProviderException("consent", "Review the interview-text agreement in Settings.")
+            modelForWork(permit)
+        }, resume)
     }
 
     private suspend fun finishTurn(turn: Deferred<SessionWorker.Outcome<SettledTurn>>) {
@@ -257,6 +316,10 @@ class InterviewViewModel(
             turn.await()
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ProviderException) {
+            if (e.code == "consent") { consentFailed(e); return }
+            _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
+            return
         } catch (e: Exception) {
             _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
             return
@@ -284,8 +347,9 @@ class InterviewViewModel(
 
     /** "Write it up", from the composer or the wrap offer. */
     fun writeUp() {
+        refreshConsent()
         val st = _state.value
-        if (st.session == null || st.busy != null) return
+        if (st.session == null || st.busy != null || st.consentRequired) return
         writeUp(resume = false)
     }
 
@@ -298,12 +362,20 @@ class InterviewViewModel(
         val session = _state.value.session ?: return
         cancelDraft()
         _state.update { it.copy(busy = Busy.Writing, wrapOffer = null) }
-        val job = work.writeUp(session, provider, resume)
+        val permit = inference.state.value.permit
+        val job = work.writeUp(session, {
+            if (permit == null) throw ProviderException("consent", "Review the interview-text agreement in Settings.")
+            modelForWork(permit)
+        }, resume)
         viewModelScope.launch {
             val outcome = try {
                 job.await()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ProviderException) {
+                if (e.code == "consent") { consentFailed(e); return@launch }
+                _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
+                return@launch
             } catch (e: Exception) {
                 _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
                 return@launch
@@ -385,6 +457,7 @@ class InterviewViewModel(
      * screen shows the voice stage and writes nothing.
      */
     fun handOffToVoice(): Pair<Session, String>? {
+        refreshConsent()
         val st = _state.value
         val s = st.session ?: return null
         if (!st.canAnswer) return null
@@ -392,6 +465,16 @@ class InterviewViewModel(
         val drafted = if (stringOf(s["draftAnswer"]).orEmpty() == st.answer) s else setDraftAnswer(s, str(st.answer), now())
         _state.update { it.copy(session = drafted) }
         return drafted to st.answerSource
+    }
+
+    suspend fun authorizeVoice(expected: InferencePermit? = null): Boolean = try {
+        modelForWork(expected)
+        _state.update { it.copy(consentRequired = false) }
+        true
+    } catch (error: ProviderException) {
+        if (error.code != "consent") throw error
+        consentFailed(error)
+        false
     }
 
     /**
@@ -425,6 +508,7 @@ class InterviewViewModel(
                     ring = { graph.keyringStore.state.value.ring },
                     providers = graph.providerSource,
                     writes = graph.appScope,
+                    inference = graph.inferenceConsent,
                 )
             }
         }

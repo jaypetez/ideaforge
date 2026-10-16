@@ -131,6 +131,11 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  Its method-focused inference-consent route records Settings Connection, provider
+  selection and hosted/local details. A before phase requires absent agreement controls
+  and unchanged pre-integration application sources; after requires the real labelled
+  control. Require actual nonzero selected-test execution and the complete matrix,
+  never infer visual acceptance from a successful build or an ATD-only run.
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) and
   [`ScriptedProviderIsDebugOnlyTest.kt`](../../../../android/app/src/testDebug/kotlin/io/github/jaypetez/ideaforge/ScriptedProviderIsDebugOnlyTest.kt)
   reject fixture JSON, activities and retained debug-only classes in release packaging.
@@ -218,6 +223,24 @@ source wins over prose, and a generated artifact wins over a description of that
   `a11y-keyboard.probe.mjs` verifies trusted Tab and enlarged-text reachability.
   Re-check README/guide footer labels, the Android guide, architecture and generated
   Start/Settings screenshots. Keep the confirmed policy contact unchanged.
+- **Affirmative inference agreement.** Sources:
+  [`inference-consent.js`](../../../../src/store/inference-consent.js) and
+  [`prefs.js`](../../../../src/store/prefs.js), plus native
+  [`InferenceConsent.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/InferenceConsent.kt)
+  and `PrefsStore.kt`, own destination-bound non-secret grants and strict preference reads.
+  The web grant uses a consent-owned atomic preference entry; ordinary preference writes
+  must never restore a grant from an earlier snapshot.
+  Provider registries own validated destination identity; `app.js`, native onboarding/
+  Settings, `AppShell`, `InterviewWork`/`InterviewViewModel` and `DriveController` own
+  session/effect admission. Adapter `beforeSample` hooks recheck bound permits per attempt,
+  independently of connection checks. `inference-consent.test.mjs`, the matching browser
+  probe and native consent/work/drive/adapter tests own denial, reload, switching,
+  failed-storage and retired-work proof. Positive scripted actors affirm explicitly through
+  UI or the actual preference owner; unconsented countercases must remain.
+  Re-check README, getting-started/providers/mobile-and-voice/Android/privacy guidance,
+  SECURITY, architecture, DESIGN, canonical images and cache retirement. Failed withdrawal
+  cannot promise cross-restart revocation when storage rejects the change. Local read/export
+  and independent microphone/STT/TTS checks remain available.
 - **Setup disclosures.** Sources: [`index.html`](../../../../index.html) (`model-settings`,
   `speech-options`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`onProviderChange`,
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.

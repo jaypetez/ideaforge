@@ -40,6 +40,8 @@ data class Prefs(
      * record path is the user's explicit choice of dictation engine. Cleared by Forget.
      */
     val hostedTranscriptionAllowed: Boolean = false,
+    val inferenceDestination: String = "",
+    val inferenceGrant: String = "",
 ) {
     /** The trigger the driving loop listens for (src/core/driving.js DEFAULTS.trigger). */
     val effectiveTrigger: String get() = trigger.ifBlank { DEFAULT_TRIGGER }
@@ -49,6 +51,8 @@ data class Prefs(
         speechVoice = speechVoice.take(MAX_VOICE),
         speechRate = if (speechRate.isFinite() && speechRate in MIN_RATE..MAX_RATE) speechRate else 1.0,
         theme = theme.takeIf { it in THEMES } ?: THEME_SYSTEM,
+        inferenceDestination = inferenceDestination.takeIf { it.length <= 4096 }.orEmpty(),
+        inferenceGrant = inferenceGrant.takeIf { it.matches(Regex("[a-zA-Z0-9_-]{1,128}")) }.orEmpty(),
     )
 
     companion object {
@@ -87,11 +91,13 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         val hostedSpeechAllowed = booleanPreferencesKey("hostedSpeechAllowed")
         val hostedTranscriptionAllowed = booleanPreferencesKey("hostedTranscriptionAllowed")
         val theme = stringPreferencesKey("theme")
+        val inferenceDestination = stringPreferencesKey("inferenceDestination")
+        val inferenceGrant = stringPreferencesKey("inferenceGrant")
     }
 
     /**
-     * A preference failing to load must never be the reason an interview cannot start, so a
-     * read error yields the defaults rather than an exception.
+     * Ordinary preferences can use defaults. Inference authorization uses
+     * [inferenceCurrent], which must not turn a read failure into permission.
      */
     val prefs: Flow<Prefs> = store.data
         .catch { e -> if (e is java.io.IOException) emit(emptyPreferences()) else throw e }
@@ -105,9 +111,13 @@ class PrefsStore(private val store: DataStore<Preferences>) {
         hostedSpeechAllowed = p[Keys.hostedSpeechAllowed] == true,
         hostedTranscriptionAllowed = p[Keys.hostedTranscriptionAllowed] == true,
         theme = p[Keys.theme] ?: Prefs.THEME_SYSTEM,
+        inferenceDestination = p[Keys.inferenceDestination] ?: "",
+        inferenceGrant = p[Keys.inferenceGrant] ?: "",
     ).validated()
 
     suspend fun current(): Prefs = prefs.first()
+
+    suspend fun inferenceCurrent(): Prefs = read(store.data.first())
 
     /**
      * Merge and write, validated. Returns false on a failed write, which callers handling
@@ -123,9 +133,13 @@ class PrefsStore(private val store: DataStore<Preferences>) {
             p[Keys.hostedSpeechAllowed] = next.hostedSpeechAllowed
             p[Keys.hostedTranscriptionAllowed] = next.hostedTranscriptionAllowed
             p[Keys.theme] = next.theme
+            p[Keys.inferenceDestination] = next.inferenceDestination
+            p[Keys.inferenceGrant] = next.inferenceGrant
         }
         true
     } catch (e: java.io.IOException) {
+        false
+    } catch (e: SecurityException) {
         false
     }
 }

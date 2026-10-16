@@ -350,6 +350,9 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
 
     // Settings
     await click('#b-settings', 'setup', `${at} Settings`);
+    if (!(await evaluate("document.getElementById('inference-consent').checked"))) {
+      await click('#inference-consent', 'setup', `${at} affirmative inference agreement`);
+    }
     await current(`${at} Settings`, 'b-settings');
     await walk(`${at} Settings`, wide
       ? ['#settings-index', '#panel-setup > :not(#settings-index)'] : ['#main']);
@@ -426,6 +429,9 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
       field.dispatchEvent(new Event('change'));
     }
   })()`);
+  if (!(await evaluate("document.getElementById('inference-consent').checked"))) {
+    await click('#inference-consent', 'setup', 'voice inference agreement');
+  }
   await cdp.click('#b-start-voice');
   await until(`!document.getElementById('voice-stage').hidden
     && document.getElementById('voice-stage').dataset.phase === 'listening'`, 'voice stage listening');

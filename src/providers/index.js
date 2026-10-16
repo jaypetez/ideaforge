@@ -112,6 +112,23 @@ export function presetModels(choice) {
   return [...new Set([tiers.quick, tiers.default, tiers.complex].filter(Boolean))].sort();
 }
 
+/** Non-secret recipient identity. Model/key edits do not change where interview text goes. */
+export function inferenceDestination(config) {
+  const choice = PROVIDER_CHOICES.find((entry) => entry.id === config?.kind);
+  if (!choice) throw new ProviderError('config', 'Choose a supported inference provider.');
+  if (!choice.local) return { id: choice.id, kind: choice.id, label: choice.label, local: false };
+  const base = String(config.baseUrl ?? choice.defaultBaseUrl ?? '').trim();
+  assertLoopback(base);
+  const url = new URL(base);
+  if (!['http:', 'https:'].includes(url.protocol)
+      || url.username || url.password || url.search || url.hash) {
+    throw new ProviderError('config',
+      'Use an HTTP(S) local server address without embedded credentials, query parameters or a fragment.');
+  }
+  const address = url.href.replace(/\/+$/, '');
+  return { id: `${choice.id}:${address}`, kind: choice.id, label: choice.label, local: true, address };
+}
+
 /**
  * @param {{kind: string, apiKey?: string, baseUrl?: string, model?: string,
  *          wrapModel?: string}} config
@@ -125,7 +142,7 @@ export async function createProvider(config) {
   // registry is what decides that a base URL a user typed may only be on their machine,
   // because that decision is about this page's CSP rather than about HTTP.
   if (config.baseUrl) assertLoopback(config.baseUrl);
-  if (kind === 'artifact') return createArtifactProvider();
+  if (kind === 'artifact') return createArtifactProvider({ beforeSample: config.beforeSample });
 
   // `model` and `wrapModel` become a tier map here and are deliberately NOT forwarded. The
   // adapters resolve `model || tiers[modelTier]`, so passing the scalar on as well would

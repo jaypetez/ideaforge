@@ -13,6 +13,7 @@ import {
   clearCredentials, credsFor, emptyKeyring, loadCredentials, saveCredentials, withCreds,
 } from '../../src/store/secrets.js';
 import { deleteSession, listSessions } from '../../src/store/sessions.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 4000;
 const settle = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,6 +111,7 @@ async function views(check) {
       await until(() => view() === 'start');
       check('New idea returns to the Start view', view() === 'start' && current() === 'b-nav-new',
         `${view()} / ${current()}`);
+      await acknowledgeInference(win);
       $('b-start').click();
       await until(() => !$('panel-interview').hidden);
       check('Type instead starts the interview from Start', !$('panel-interview').hidden,
@@ -231,6 +233,7 @@ async function formBeatsKeyring(check) {
     $('baseurl').dispatchEvent(new win.Event('input'));
     await toStart();
     check('a good address folds it again', folded());
+    await acknowledgeInference(win);
 
     // A start that fails: a local server with no model cannot build a provider.
     await toSettings();
@@ -263,6 +266,7 @@ async function formBeatsKeyring(check) {
     check('with the field empty again, the saved key folds Start',
       folded() && /key saved/.test($('connect-summary-text').textContent),
       $('connect-summary-text').textContent);
+    await acknowledgeInference(win);
 
     // Dictation off disables Start with voice; Start must say why.
     await toSettings();

@@ -8,7 +8,7 @@
  * without a reply has a server that is wedged, and making someone wait three deadlines to
  * be told so is worse than telling them after one.
  *
- * @typedef {'auth'|'rate_limit'|'overloaded'|'network'|'timeout'|'bad_response'|'aborted'|'config'} ProviderErrorCode
+ * @typedef {'auth'|'rate_limit'|'overloaded'|'network'|'timeout'|'bad_response'|'aborted'|'config'|'consent'} ProviderErrorCode
  */
 
 export class ProviderError extends Error {

@@ -33,7 +33,7 @@ class MainActivityTest {
     // (OnboardingFlowTest covers that path).
     @Before
     fun launch() {
-        installTestGraph(ring = usableRing())
+        installTestGraph(ring = usableRing(), inferenceAgreed = true)
         scenario = ActivityScenario.launch(MainActivity::class.java)
         compose.waitUntilAtLeastOneExists(hasText("v${BuildConfig.VERSION_NAME}"), timeoutMillis = 10_000)
     }

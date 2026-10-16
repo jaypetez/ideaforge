@@ -153,6 +153,7 @@ export function createOpenAICompatProvider(config) {
     maxTokens = (preset && preset.maxTokens) || 4096,
     modelRequired = (preset && preset.modelRequired) || false,
     deadlineMs = (preset && preset.deadlineMs) || DEADLINE_MS,
+    beforeSample,
   } = cfg;
   if (!baseUrl) throw new ProviderError('config', 'OpenAI-compatible provider needs a base URL');
 
@@ -233,13 +234,18 @@ export function createOpenAICompatProvider(config) {
     return { text, modelTierApplied: body.model || resolved, usage: body.usage || null };
   }
 
+  const sample = (parts, opts = {}) => withRetry(() => {
+    beforeSample?.();
+    return call(parts, opts);
+  }, { signal: opts.signal });
+
   return {
     id: cfg.preset || 'openai-compat',
     label,
     note: preset && preset.note,
-    sample: (parts, opts = {}) => withRetry(() => call(parts, opts), { signal: opts.signal }),
+    sample,
     sampleJson: async (parts, opts = {}) => {
-      const out = await withRetry(() => call(parts, { ...opts, json: true }), { signal: opts.signal });
+      const out = await sample(parts, { ...opts, json: true });
       return { ...out, json: extractJson(out.text) };
     },
     /** What the server will actually answer to, rather than what we guessed it might. */

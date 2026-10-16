@@ -20,6 +20,7 @@
 import { createSession, renameSession, setSynthesis, setTitle } from '../../src/core/session.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 5000;
 const settle = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -114,6 +115,12 @@ export default async function run(check) {
       && $('library-rows').querySelectorAll('.idea-card').length === IDS.length, BOOT_MS);
     check('at 1280px the app boots to Ideas with every saved idea listed', Boolean(booted),
       `${doc.body.dataset.panel}, ${$('library-rows') && $('library-rows').children.length} rows`);
+    win.claude = { use: async () => async () => ({ text: JSON.stringify({
+      question: 'Which bicycle route would you ride first?', move: 'concretize', chips: [], coverage: {},
+    }) }) };
+    $('provider').value = 'artifact';
+    $('provider').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
 
     // ── list | detail ────────────────────────────────────────────────────────
     $('library-status').value = 'all';

@@ -19,6 +19,7 @@ import { createSession, setSynthesis, setTitle } from '../../src/core/session.js
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const ID = 's_motion_done';
 
@@ -191,6 +192,9 @@ export default async function run(check) {
     $('stt').value = 'browser';
     $('stt').dispatchEvent(new win.Event('change'));
     check('booting draws no View Transition', calls === 0, describe());
+    await acknowledgeInference(win);
+    calls = 0;
+    returned.length = 0;
 
     // ── the three nav buttons: one transition each, focus on the heading
     for (const where of ['settings', 'start', 'ideas']) {

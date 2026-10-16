@@ -22,6 +22,7 @@ import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 // The walkthrough's shape: a short bridge, a question of forty-odd characters (one line at
 // a desktop width, two at a phone), a row of short chips. That is what the skeleton is drawn
@@ -136,6 +137,7 @@ async function openSeeded(win, $, id, check, describe) {
   $('provider').dispatchEvent(new win.Event('change'));
   $('stt').value = 'off';
   $('stt').dispatchEvent(new win.Event('change'));
+  await acknowledgeInference(win);
   $('b-library').click();
   const card = await until(() => visible($('panel-library'))
     && $('library-rows').querySelector(`[data-session-id="${id}"]`));

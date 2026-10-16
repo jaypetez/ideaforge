@@ -204,6 +204,10 @@ A provider that is not OpenAI-shaped needs its own adapter beside
 `sample`, `sampleJson`, `listModels` and `validateKey`, and throws `ProviderError` with one
 of the codes in `src/providers/errors.js` — the turn loop reads that code to choose between
 retrying, falling back to the question bank, and telling the user their key is wrong.
+Forward the injected `beforeSample` authorisation hook before every inference attempt,
+including internal retries, but not static key checks or model-list reads. A `consent`
+error must propagate rather than become checklist fallback. The app binds the original
+destination/grant permit; an adapter must not acquire a fresh agreement for old work.
 Returning a plain `Error` makes every failure look like the same failure.
 
 Two things to check by hand, because `npm test` cannot see either: that a *bad* key
@@ -314,6 +318,15 @@ to be absent and records the baseline's existing controls; use it only on an unc
 pre-integration application tree. The manifests label before/after and the actual checkout
 SHA. Require nonzero execution of the selected test and the complete accepted manifests;
 a successful Gradle command alone is not visual proof or a full-inventory pass.
+
+For inference-disclosure integration, `-f evidence=consent` selects
+`UxCaptureDeviceTest#requestedInferenceConsentIsProminent` with `uxInferenceProbe=after`.
+It requests Settings Connection, provider selection and hosted/local provider details
+on both visual devices, in both themes at font scales 1.0/1.3/2.0.
+`-f evidence=consent-before` requires the agreement controls to be absent and records
+the existing actions instead; use it only on the unchanged pre-consent application.
+The recorder requires the complete requested matrix and actual checkout SHA.
+Neither a focused result nor zero discovered visual tests certifies the default inventory.
 
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
