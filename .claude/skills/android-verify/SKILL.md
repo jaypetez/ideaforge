@@ -41,6 +41,9 @@ cd android
 `:core` and `:providers` are plain JVM modules on JUnit 5. `:app` runs its tests under
 Robolectric on JUnit 4, with no device. `WalkthroughVectorTest` lives in `src/testDebug/`, so
 it runs in the debug unit-test task only. Reports land in `android/<module>/build/reports/`.
+Use these selectors while correcting a failure, preserving warm Gradle state. Routine
+`clean`, `--rerun-tasks`, cache deletion or daemon shutdown defeats incremental validation;
+the worktree-removal shutdown in section 6 is a different operation.
 
 ## 2. The whole Android gate
 
@@ -48,9 +51,12 @@ it runs in the debug unit-test task only. Reports land in `android/<module>/buil
 ./gradlew check :app:assembleDebug
 ```
 
-This is exactly what CI runs (section 7). `check` covers every module's tests, both `:app`
-unit-test variants and Android lint (`abortOnError`). The APK lands in
+This is exactly what CI runs (section 7). `check` covers every module's configured unit
+tests and Android lint (`abortOnError`). The APK lands in
 `android/app/build/outputs/apk/debug/`.
+Run this whole gate on the final reviewed head, not after every focused fix. Retain its
+command/result and tested SHA; changed sources, fixtures or validation inputs invalidate
+the corresponding evidence. The web pre-push `npm run test:all` gate is still required.
 
 ## 3. Golden vectors: the contract with the JavaScript core
 

@@ -72,6 +72,13 @@ read-only review agent check the exact diff, and squash-merges only when `ci` is
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
 
+The skill separates focused development proof from one clean-head final validation.
+It records the reviewed diff, review/fix round and tested SHA so resume does not restart
+completed work; three unsuccessful rounds escalate rather than loop. Native-only changes
+use native visual evidence, not regeneration of unchanged web screenshots. Full pre-push
+checks and the exact-head `ci` gate still apply; see the skill for evidence invalidation
+and the [shared test ladder](AGENTS.md#the-ladder) for focused commands.
+
 The [lean coding contract](AGENTS.md#lean-coding) is adapted from Ponytail without copying
 its many-client distribution. Full guidance is automatic in the two CLI clients after
 normal workspace trust; `/ideaforge-assist lite`, `full`, `ultra` or `off` selects the

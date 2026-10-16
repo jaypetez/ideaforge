@@ -107,33 +107,67 @@ reasonable plan needs a product decision, escalate (section 9) now rather than g
   (labelled, with acceptance criteria), not a drive-by fix.
 - Public behaviour changes update documentation in the same PR. Documentation is one
   synchronized surface.
+- Keep a per-issue record in the session workspace: acceptance evidence, command/result,
+  tested SHA, review round and reviewed diff, CI run/attempt, and the current failure.
+  Restore that record after compaction or resume instead of restarting completed phases.
+  Existing browser elapsed logs, Gradle reports and GitHub job timestamps distinguish
+  validation from model/tool waiting; do not infer model speed from total issue time.
 
 ## 5. Prove it
 
 Every acceptance criterion needs evidence: a test name, a command and its result, or a
 screenshot you have looked at. "It should work" is not evidence.
 
-| Touched | Run |
+During implementation, run the cheapest relevant checks first: unit selectors, an exact
+`node tools/browser-check.mjs --required --probe theme.browser.mjs`, or Gradle's `--tests`
+selector as appropriate. A focused browser run still includes the independent policy and
+accessibility phase. Inspect a failure before rerunning a broader command.
+
+The table is the required final evidence inventory, not a second full-validation phase
+before section 7. Complete focused regression proof before review; after confirmed fixes,
+collect the final inventory once on the clean final head in section 7.
+
+| Touched | Required final evidence |
 |---|---|
-| Anything | `npm test`, `npm run test:docs`, `npm run test:graph` |
-| `src/ui/`, `src/voice/`, `src/store/`, `index.html`, `sw.js`, `manifest.webmanifest`, `guide/` | `npm run test:browser:required` |
-| Anything visible | `npm run screenshots`, then open the changed images, light and dark |
+| Anything | `npm run test:all` (includes `npm test`, graph and required-browser checks), plus `npm run test:docs` |
+| Web UI, README or its generated artifacts | `npm run screenshots`, then open the changed images, light and dark |
 | `android/` | `./gradlew check :app:assembleDebug` in `android/` (`gradlew.bat` on Windows), plus the emulator smoke run in [android-verify](../android-verify/SKILL.md) when an emulator is available |
 | `.github/workflows/` | `npm run test:docs`, and read the workflow run on the PR |
 
+Native-only visible changes need their native acceptance evidence, not regeneration of
+unchanged web README images. A focused capture is not a full-matrix pass. Preserve local
+Gradle state: no routine `clean`, `--rerun-tasks`, cache deletion or daemon shutdown between
+fixes; follow the Android skill's shutdown rule when actually removing a worktree.
+
 When a check fails, work out whether the assertion or the code is wrong before changing
-either. Both have happened here.
+either. Both have happened here. Do not retry an identical unchanged failure without a
+specific transient-infrastructure diagnosis. Preserve failed output; a recurring failure
+needs correction or section 9 escalation, not retries until green.
 
 ## 6. Independent review
 
-Commit, then give the exact diff (`git diff main...HEAD`) to the read-only review agent
-`ideaforge-review-claude`, and to `ideaforge-docs-review-claude` when documentation changed.
-Fix every confirmed finding, then re-run section 5. Stop after three review-and-fix rounds
-that still leave confirmed findings, and escalate.
+Commit, then give the exact diff (`git diff main...HEAD`) to the client's matching read-only
+code review adapter, plus its documentation review adapter when documentation changed; see
+[the client table](../../../CONTRIBUTING.md#coding-assistants). The caller owns validation:
+review agents do not run commands or repeat the test ladder.
+
+Fix every confirmed finding and run the focused regression checks. Re-review the changed
+diff and affected consumers, carrying forward unresolved findings. Count combined code/docs
+review-and-fix rounds per issue, not per agent; compaction or resume never resets the count.
+Stop after three rounds that still leave confirmed findings, and escalate.
+
+A clean review of an unchanged diff is terminal. CI completion, a progress question or a
+context restore is not a reason for another review. Changed code, documentation or relevant
+review context invalidates that verdict; do not reuse it for an unseen diff.
 
 ## 7. Deliver
 
-Validate and push exactly as AGENTS.md requires:
+After review corrections and generated artifacts are settled, complete section 5's final
+inventory and validate/push exactly as AGENTS.md requires. The `test:all` below supplies the
+unit, graph and required-browser evidence together; do not precede it with another full
+browser run merely to mark section 5 complete. Stage and commit generated artifacts before
+the clean-head gate. Any later head, working-tree, fixture or validation-input change
+invalidates affected evidence and requires final validation again before pushing.
 
 ```sh
 test -z "$(git status --porcelain)" &&
@@ -149,9 +183,11 @@ its exit check, then continue below. Its trailing `gh pr create --fill` would op
 without `Closes #42` or the evidence checklist.
 
 Write down the full SHA that `tested` held. Shell state does not survive between tool
-calls, so the merge gate needs it as a literal value.
+calls, so the merge gate needs it as a literal value. Record each command's result and the
+CI run/attempt alongside that SHA. Do not rerun a passed gate on unchanged inputs merely
+while waiting, or push metadata-only checkpoints just to start another CI run.
 
-Open the PR. Its body must contain `Closes #42`, a checklist mapping each acceptance
+Open the PR using the repository's template. Its body must contain `Closes #42`, a checklist mapping each acceptance
 criterion to its evidence, and a summary of the commands run with their results. End it
 with the attribution line the session's instructions require.
 
@@ -232,6 +268,9 @@ npm test
 
 Comment on the issue with the PR link and one line on what shipped. If the merge closed the
 last open blocker of another issue, nothing else is needed; the next pick will see it.
+The next issue must still satisfy the green-main preflight on the actual merged commit.
+Observe that CI result; do not add unrelated optional device, Pages or release workflows
+to the wait. Device evidence required by this issue's acceptance criteria remains required.
 
 **Escalate when** three fix rounds still fail, when the work needs a physical device, a
 secret, paid usage or a product decision, or when the issue turns out to be wrong:
