@@ -1,8 +1,10 @@
 import importlib.util
 import json
 from pathlib import Path
+import struct
 import tempfile
 import unittest
+import zlib
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -10,6 +12,15 @@ SPEC = importlib.util.spec_from_file_location(
 EVIDENCE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EVIDENCE)
 SHA = "a" * 40
+
+
+def png_chunk(kind, payload):
+    return (struct.pack(">I", len(payload)) + kind + payload
+            + struct.pack(">I", zlib.crc32(kind + payload)))
+
+
+IMAGE = (EVIDENCE.PNG + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+         + png_chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00\xff")) + png_chunk(b"IEND", b""))
 
 
 class NativeEvidenceTest(unittest.TestCase):
@@ -23,15 +34,20 @@ class NativeEvidenceTest(unittest.TestCase):
         self.write_report()
         self.manifest = self.build / "intermediates/managed_device_android_test_additional_output/task" / folder / "manifest-compact.json"
         self.manifest.parent.mkdir(parents=True)
-        self.artifact = "compact-light-f1_0/real-app/fresh.png"
-        image = self.manifest.parent / self.artifact
-        image.parent.mkdir(parents=True)
-        image.write_bytes(EVIDENCE.PNG)
+        inventory = sorted(EVIDENCE.full_inventory("compact"))
+        captures = []
+        for key in inventory:
+            configuration, state = key.split("/")
+            artifact = f"{configuration}/real-app/{state}.png"
+            image = self.manifest.parent / artifact
+            image.parent.mkdir(parents=True, exist_ok=True)
+            image.write_bytes(IMAGE)
+            captures.append({"state": state, "testedSha": SHA, "sourceState": "clean",
+                             "passed": True, "artifact": artifact, "geometry": [], "rootPixelAttempts": []})
+        self.artifact = captures[0]["artifact"]
         self.data = {
             "schema": 1, "mode": "matrix", "testedSha": SHA, "sourceState": "clean",
-            "status": "passed", "failures": [], "expected": ["compact-light-f1_0/fresh"],
-            "captures": [{"state": "fresh", "testedSha": SHA, "sourceState": "clean",
-                          "passed": True, "artifact": self.artifact, "geometry": []}],
+            "status": "passed", "failures": [], "expected": inventory, "captures": captures,
         }
         self.write_manifest()
 
@@ -48,7 +64,7 @@ class NativeEvidenceTest(unittest.TestCase):
         return EVIDENCE.check_evidence(self.build, "compact", SHA, "full")
 
     def test_actual_execution_and_complete_matching_artifacts_pass(self):
-        self.assertEqual(self.verify(), 1)
+        self.assertEqual(self.verify(), len(self.data["expected"]))
 
     def test_original_zero_test_report_fails_even_when_artifacts_exist(self):
         self.report.write_text(
@@ -107,6 +123,21 @@ class NativeEvidenceTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.verify()
 
+    def test_a_valid_focused_state_matrix_cannot_claim_the_full_inventory(self):
+        self.data["captures"] = [capture for capture in self.data["captures"] if capture["state"] == "fresh"]
+        self.data["expected"] = [key for key in self.data["expected"] if key.endswith("/fresh")]
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "full inventory was not requested"):
+            self.verify()
+
+    def test_omitting_only_the_walkthrough_frames_is_not_a_full_pass(self):
+        self.data["captures"] = [capture for capture in self.data["captures"]
+                                 if not capture["state"].startswith("walkthrough-")]
+        self.data["expected"] = [key for key in self.data["expected"] if "/walkthrough-" not in key]
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError, "full inventory was not requested"):
+            self.verify()
+
     def test_capture_provenance_and_control_failures_are_not_hidden(self):
         capture = self.data["captures"][0]
         for key, value in (("testedSha", "b" * 40), ("passed", False),
@@ -132,6 +163,33 @@ class NativeEvidenceTest(unittest.TestCase):
         self.write_manifest()
         with self.assertRaisesRegex(ValueError, "invalid PNG artifact path"):
             self.verify()
+
+    def test_signature_only_truncated_and_bad_checksum_pngs_fail(self):
+        image = self.manifest.parent / self.artifact
+        corrupted = bytearray(IMAGE)
+        corrupted[45] ^= 1
+        for content in (EVIDENCE.PNG, IMAGE[:-1], bytes(corrupted)):
+            with self.subTest(length=len(content)):
+                image.write_bytes(content)
+                with self.assertRaises(ValueError):
+                    self.verify()
+        image.write_bytes(EVIDENCE.PNG + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+                          + png_chunk(b"IDAT", b"not compressed") + png_chunk(b"IEND", b""))
+        with self.assertRaisesRegex(ValueError, "corrupt PNG image data"):
+            self.verify()
+
+    def test_root_attempt_pngs_must_also_exist_and_be_valid(self):
+        relative = self.artifact.replace(".png", "-root-attempt-1.png")
+        self.data["captures"][0]["rootPixelAttempts"] = [{"artifact": relative}]
+        self.write_manifest()
+        with self.assertRaises(FileNotFoundError):
+            self.verify()
+        image = self.manifest.parent / relative
+        image.write_bytes(EVIDENCE.PNG)
+        with self.assertRaisesRegex(ValueError, "truncated PNG"):
+            self.verify()
+        image.write_bytes(IMAGE)
+        self.assertEqual(self.verify(), len(self.data["expected"]))
 
     def test_focused_mode_cannot_use_a_full_inventory_manifest(self):
         self.method, _ = EVIDENCE.MODES["shell"]

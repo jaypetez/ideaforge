@@ -4,8 +4,10 @@ import argparse
 import json
 from pathlib import Path
 import re
+import struct
 import sys
 import xml.etree.ElementTree as ET
+import zlib
 
 
 CAPTURE_CLASS = "io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest"
@@ -47,11 +49,57 @@ def check_png(directory, relative):
     path = (directory / relative).resolve()
     require(path.is_relative_to(directory.resolve()) and path.suffix == ".png",
             f"invalid PNG artifact path: {relative}")
-    with path.open("rb") as image:
-        require(image.read(8) == PNG, f"missing or corrupt PNG: {path}")
+    data = path.read_bytes()
+    require(data[:8] == PNG, f"missing or corrupt PNG: {path}")
+    offset = 8
+    header = None
+    compressed = bytearray()
+    ended = False
+    while offset + 12 <= len(data):
+        length, kind = struct.unpack(">I4s", data[offset:offset + 8])
+        end = offset + 12 + length
+        require(end <= len(data), f"truncated PNG chunk: {path}")
+        payload = data[offset + 8:end - 4]
+        crc = struct.unpack(">I", data[end - 4:end])[0]
+        require(zlib.crc32(kind + payload) == crc, f"corrupt PNG checksum: {path}")
+        if kind == b"IHDR":
+            require(offset == 8 and length == 13, f"invalid PNG header: {path}")
+            header = struct.unpack(">IIBBBBB", payload)
+        elif kind == b"IDAT":
+            require(header is not None, f"PNG data precedes its header: {path}")
+            compressed.extend(payload)
+        elif kind == b"IEND":
+            require(length == 0 and end == len(data), f"invalid PNG ending: {path}")
+            ended = True
+            break
+        offset = end
+    require(header is not None and ended and compressed, f"truncated PNG image: {path}")
+    width, height, depth, colour, compression, filtering, interlace = header
+    # UiAutomation's Bitmap.compress writes this format, not interlaced/paletted images.
+    require(width > 0 and height > 0 and depth == 8 and colour in (2, 6)
+            and (compression, filtering, interlace) == (0, 0, 0),
+            f"unsupported recorder PNG format: {path}")
+    row = width * (3 if colour == 2 else 4) + 1
+    expected = row * height
+    inflater = zlib.decompressobj()
+    try:
+        pixels = inflater.decompress(bytes(compressed), expected + 1)
+    except zlib.error as error:
+        raise ValueError(f"corrupt PNG image data: {path}") from error
+    require(inflater.eof and not inflater.unused_data and len(pixels) == expected
+            and all(pixels[start] <= 4 for start in range(0, expected, row)),
+            f"truncated or invalid PNG image data: {path}")
 
 
-def check_manifest(path, sha):
+def full_inventory(window):
+    fixtures = Path(__file__).resolve().parents[1] / "test/fixtures/ux.json"
+    states = [state["id"] for state in json.loads(fixtures.read_text(encoding="utf-8"))["states"]]
+    states += ["walkthrough-seed", "walkthrough-chip", "walkthrough-result"]
+    return {f"{window}-{theme}-f{scale}/{state}"
+            for theme in ("light", "dark") for scale in ("1_0", "1_3", "2_0") for state in states}
+
+
+def check_manifest(path, sha, required_inventory):
     manifest = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(manifest, dict), f"{path}: malformed capture manifest")
     require(manifest.get("schema") == 1 and manifest.get("mode") == "matrix",
@@ -64,6 +112,8 @@ def check_manifest(path, sha):
     require(isinstance(expected, list) and expected and all(isinstance(key, str) and key for key in expected),
             f"{path}: empty or malformed expected capture inventory")
     require(len(set(expected)) == len(expected), f"{path}: duplicate expected capture")
+    if required_inventory is not None:
+        require(set(expected) == required_inventory, f"{path}: full inventory was not requested")
     captures = manifest.get("captures")
     require(isinstance(captures, list) and len(captures) == len(expected),
             f"{path}: incomplete capture matrix")
@@ -84,6 +134,11 @@ def check_manifest(path, sha):
             require(isinstance(control, dict) and control.get("passed") is True,
                     f"{path}: a requested control failed")
             check_png(path.parent, control.get("artifact"))
+        attempts = capture.get("rootPixelAttempts")
+        require(isinstance(attempts, list), f"{path}: missing root-attempt evidence")
+        for attempt in attempts:
+            require(isinstance(attempt, dict), f"{path}: malformed root-attempt evidence")
+            check_png(path.parent, attempt.get("artifact"))
     require(len(set(keys)) == len(keys) and set(keys) == set(expected),
             f"{path}: captured states do not match the requested inventory")
     return len(captures)
@@ -100,7 +155,8 @@ def check_evidence(build, window, sha, evidence):
         root = build / location / "managed_device_android_test_additional_output"
         manifests.extend(root.glob(f"**/{folder}/manifest-{window}.json"))
     require(manifests, f"{device}: missing requested {evidence} capture manifest")
-    return sum(check_manifest(path, sha) for path in manifests)
+    inventory = full_inventory(window) if evidence == "full" else None
+    return sum(check_manifest(path, sha, inventory) for path in manifests)
 
 
 def main():
