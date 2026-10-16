@@ -270,9 +270,12 @@ Library still uses `NavigableListDetailPaneScaffold` rather than a second breakp
 **Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
 and the shared localized action in Settings About and the common onboarding footer.
 It uses the platform URI handler and reports a missing/blocked external handler inline
-with the existing status primitive, including the destination and a retry.
+with the existing status primitive, including the destination and a retry. Each failed
+tap brings the feedback into view using the existing native relocation API.
 `SettingsScreenTest` and `OnboardingFlowTest` assert actual view intents against the
 literal published URL; `PrivacyPolicyLinkTest` covers open failures and recovery.
+`PrivacyPolicyRecoveryScreenTest` checks complete feedback visibility in the actual
+enlarged, narrow AppShell, including another failure after scrolling back to the action.
 The web link belongs to `index.html`'s shared Start/Settings About group, not a second route.
 
 **The JavaScript is the reference, and parity is measured, not reviewed.** `tools/vectors.mjs`

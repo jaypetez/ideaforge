@@ -207,7 +207,9 @@ source wins over prose, and a generated artifact wins over a description of that
   [`PrivacyPolicyLink.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/PrivacyPolicyLink.kt)
   owns the one native policy URL, localized external action and explicit open-error recovery.
   Settings About and the common onboarding footer reuse it. Native screen intent tests and
-  `PrivacyPolicyLinkTest` prove the destination and known handler failures; the method-focused
+  `PrivacyPolicyLinkTest` prove the destination and known handler failures;
+  `PrivacyPolicyRecoveryScreenTest` checks full auto-revealed feedback at narrow/enlarged
+  real AppShell surfaces, including another rejected tap. The method-focused
   privacy route in `UxCaptureDeviceTest` and `android-device.yml` owns actual before/after
   pixels, full labels and target/inset checks. A before run requires absent links and an
   unchanged pre-integration application tree; it is not positive acceptance evidence.
