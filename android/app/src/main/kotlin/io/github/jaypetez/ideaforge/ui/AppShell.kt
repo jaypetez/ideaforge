@@ -66,6 +66,7 @@ import io.github.jaypetez.ideaforge.ui.result.ResultViewModel
 import io.github.jaypetez.ideaforge.ui.settings.SettingsScreen
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** The public guide, published beside the web app (guide/ on Pages). */
@@ -135,7 +136,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
         val origin = nav.currentBackStackEntry
         val revision = graph.inferenceConsent.state.value.revision
         fun current() = admission.longValue == action && nav.currentBackStackEntry === origin
-        scope.launch {
+        scope.launch(Dispatchers.Main.immediate) {
             try {
                 graph.inferenceConsent.require()
                 if (!current() || revision != graph.inferenceConsent.state.value.revision) return@launch

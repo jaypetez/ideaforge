@@ -197,13 +197,15 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("base-url").performTextInput("https://api.example.com/v1")
         compose.onNodeWithTag("find-models").performClick()
         waitFor(hasTestTag("check-failure"))
+        compose.onNodeWithText("api.example.com is not on a private network", substring = true).assertExists()
 
-        // Typing a model after the refusal and pressing Continue must not save the address:
+        // Typing a model after the refusal must not make the address acceptable:
         // the keyring would then count as usable and every interview would fail.
         compose.onNodeWithTag("model").performTextInput("qwen2.5:7b-instruct")
         compose.onNodeWithTag("finish-local").performScrollTo().assertIsNotEnabled()
-        waitFor(hasTestTag("check-failure"))
-        compose.onNodeWithText("api.example.com is not on a private network", substring = true).assertExists()
+        compose.onNodeWithTag("inference-consent").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Enter a valid local server address before agreeing", substring = true)
+            .performScrollTo().assertIsDisplayed()
         compose.onNode(library).assertDoesNotExist()
         assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
     }

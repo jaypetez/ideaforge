@@ -43,6 +43,7 @@ class DriveControllerTest {
     fun threeTurnsAreDrivenHandsFreeAndEachIsPersisted() {
         repeat(3) { rig.scripts += spoken("answer number ${it + 1} over") }
         rig.controller.start(rig.seeded, "typed")
+        assertTrue("the service starts after asynchronous consent admission", rig.until { rig.service.starts == 1 })
         assertEquals(1, rig.service.starts)
 
         assertTrue(
