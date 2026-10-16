@@ -210,27 +210,36 @@ androidComponents {
         // The release assets must carry neither the scripted walkthrough nor UX fixtures.
         val assets = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.ASSETS)
         tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseAssets(assets)) }
-        // The checks above read inputs to packaging; this one reads the APK that ships (#95).
-        val verify = tasks.register<VerifyReleaseApk>("verifyReleaseApk") {
-            apkDir.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK))
+        // Check the actual containers, not only the inputs to APK/AAB packaging.
+        tasks.withType<VerifyReleasePackage>().configureEach {
             mapping.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.OBFUSCATION_MAPPING_FILE))
             debugSources.set(layout.projectDirectory.dir("src/debug/kotlin"))
             releaseSources.set(layout.projectDirectory.dir("src/release/kotlin"))
+        }
+        val verifyApk = tasks.register<VerifyReleasePackage>("verifyReleaseApk") {
+            packages.from(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK).map { directory ->
+                directory.asFileTree.matching { include("*.apk") }
+            })
             stamp.set(layout.buildDirectory.file("verifyReleaseApk/ok"))
         }
-        tasks.matching { it.name == "assembleRelease" }.configureEach { finalizedBy(verify) }
+        val verifyBundle = tasks.register<VerifyReleasePackage>("verifyReleaseBundle") {
+            packages.from(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.BUNDLE))
+            stamp.set(layout.buildDirectory.file("verifyReleaseBundle/ok"))
+        }
+        tasks.matching { it.name == "assembleRelease" }.configureEach { finalizedBy(verifyApk) }
+        tasks.matching { it.name == "bundleRelease" }.configureEach { finalizedBy(verifyBundle) }
     }
 }
 
-// The release APK must carry neither debug fixture JSON nor any class that exists only in
+// Release packages must carry neither debug fixture JSON nor any class that exists only in
 // the debug source set (the scripted provider, the recognizer probe). R8 renames classes, so
 // the APK's dex cannot be searched for their names; its mapping file can, because every class
 // that survives shrinking is listed there under its original name. A debug-only class is one
 // declared under src/debug with no same-named declaration under src/release (DebugProbes and
 // DebugProviders have release stubs that answer "nothing").
-abstract class VerifyReleaseApk : DefaultTask() {
-    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val apkDir: DirectoryProperty
+abstract class VerifyReleasePackage : DefaultTask() {
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val packages: ConfigurableFileCollection
 
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
     abstract val mapping: RegularFileProperty
@@ -262,18 +271,19 @@ abstract class VerifyReleaseApk : DefaultTask() {
             .filter { !it.startsWith(" ") && !it.startsWith("#") && it.contains(" -> ") }
             .map { it.substringBefore(" -> ") }
         val leaked = kept.filter { name -> debugOnly.any { name == it || name.startsWith("$it$") } }
-        check(leaked.isEmpty()) { "the release APK contains debug-only classes: $leaked" }
+        check(leaked.isEmpty()) { "the release package contains debug-only classes: $leaked" }
 
-        val apks = apkDir.get().asFile.listFiles { f -> f.extension == "apk" }.orEmpty()
-        check(apks.isNotEmpty()) { "no APK in ${apkDir.get().asFile}" }
-        for (apk in apks) {
-            ZipFile(apk).use { zip ->
+        val archives = packages.files
+        check(archives.isNotEmpty()) { "no release APK or AAB to verify" }
+        for (archive in archives) {
+            ZipFile(archive).use { zip ->
                 val fixtures = zip.entries().asSequence().map { it.name }
-                    .filter { it.startsWith("assets/") && it.substringAfterLast('/') in setOf("walkthrough.json", "ux.json") }.toList()
-                check(fixtures.isEmpty()) { "${apk.name} packages debug fixtures: $fixtures" }
+                    .filter { (it.startsWith("assets/") || it.startsWith("base/assets/")) &&
+                        it.substringAfterLast('/') in setOf("walkthrough.json", "ux.json") }.toList()
+                check(fixtures.isEmpty()) { "${archive.name} packages debug fixtures: $fixtures" }
             }
         }
-        stamp.get().asFile.writeText("checked ${apks.map { it.name }} against ${debugOnly.size} debug-only classes\n")
+        stamp.get().asFile.writeText("checked ${archives.map { it.name }} against ${debugOnly.size} debug-only classes\n")
     }
 }
 

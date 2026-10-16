@@ -240,6 +240,17 @@ adb install -r ideaforge-VERSION.apk</code></pre>
         Android updates an installed release only with an APK signed by the same key, so a
         later release installs over it and keeps its data.
       </p>
+      <p>
+        Releases also carry <code>ideaforge-VERSION.aab</code> and the bundle&rsquo;s R8
+        <code>mapping.txt</code>, both covered by <code>SHA256SUMS</code>. The bundle is for
+        Play upload, not direct installation. Its separate <strong>upload key</strong>
+        authenticates the upload; Play signs the generated device APKs with the enrolled
+        <strong>app-signing key</strong>. The maintainer must enrol the same app-signing key
+        if Play and GitHub APKs are to share the published fingerprint. The upload
+        certificate is not the APK trust pin. This does not mean Play distribution is
+        available yet; see the
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#play-upload-key-and-bundle">key and bundle policy</a>.
+      </p>
 
       <h2 id="emulator">Install on the emulator</h2>
       <ol class="steps">

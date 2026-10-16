@@ -109,6 +109,10 @@ jobs:
       - name: Check and build
         run: ./gradlew --no-daemon check :app:assembleDebug
 
+      - name: Verify release package signing with disposable keys
+        working-directory: .
+        run: bash tools/test-android-packages.sh
+
       - name: Upload the debug APK
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
