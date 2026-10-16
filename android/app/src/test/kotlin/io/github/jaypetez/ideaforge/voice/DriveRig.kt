@@ -13,6 +13,8 @@ import io.github.jaypetez.ideaforge.core.setDraftAnswer
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.data.testInferenceConsent
+import io.github.jaypetez.ideaforge.data.testInferenceRing
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.interview.ScriptedModel
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -65,7 +67,7 @@ fun spoken(text: String): List<At> = listOf(
  * service and the walkthrough model. Nothing touches a microphone, a speaker or the network.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
+class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Boolean = true) {
     val scheduler = TestCoroutineScheduler()
     val dispatcher = StandardTestDispatcher(scheduler)
 
@@ -91,16 +93,21 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
     val service = FakeService()
     val clock = Clock { 1_760_000_000_000 }
     val id = "s_drive_00000001"
+    var ring = testInferenceRing()
+    val inference = testInferenceConsent(writes, ring = { ring }, agreed = agreed, onRetire = ::retireInference)
+
+    private fun retireInference(message: String) { main.launch { controller.blockForInference(message) } }
 
     val controller = DriveController(
         store, worker, clock,
-        ring = { emptyKeyring() },
+        ring = { ring },
         providers = { ProviderSource { model } },
         writes = writes,
         main = main,
         recognizerSource = { recognizer },
         speaker = { speaker },
         service = service,
+        inference = inference,
         recognitionAvailable = { recognitionAvailable },
         whisper = { whisperAsked++; whisper },
     )
@@ -146,6 +153,7 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel()) {
     fun close() {
         main.cancel()
         writes.cancel()
+        scheduler.runCurrent()
         Dispatchers.resetMain()
     }
 }

@@ -1,6 +1,7 @@
 package io.github.jaypetez.ideaforge.ui.settings
 
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import io.github.jaypetez.ideaforge.FakeCheck
 import io.github.jaypetez.ideaforge.core.credsFor
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -115,21 +116,30 @@ class SettingsViewModelTest {
             else PrefsStore.create(CoroutineScope(job + Dispatchers.IO)) { prefsFile }
         val keyring = KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, key)
         private val store = ViewModelStore()
-        val vm = SettingsViewModel(prefs, keyring, checker, buildLocal = { built += it }).also { store.put("settings", it) }
+        private val inference = io.github.jaypetez.ideaforge.data.InferenceConsent(
+            prefs, { keyring.state.value.ring }, CoroutineScope(job + Dispatchers.IO))
+        val vm = SettingsViewModel(prefs, keyring, checker, inference, buildLocal = { built += it }).also { store.put("settings", it) }
 
         fun loaded(): SettingsState = runBlocking {
             withTimeout(10_000) { vm.state.first { it.prefs != null && it.editor != null } }
         }
 
+        fun agreeAndSave(): Job? {
+            vm.setAgreement(true)
+            return vm.save()
+        }
+
         fun join(job: Job?) = runBlocking { withTimeout(10_000) { job?.join() } }
 
-        /** The state once it satisfies [ok]: it is combined from three flows, asynchronously. */
+        /** The state once it satisfies [ok]: it is combined asynchronously. */
         fun settle(ok: (SettingsState) -> Boolean = { !it.checking }): SettingsState = runBlocking {
             withTimeout(10_000) { vm.state.first(ok) }
         }
 
         fun kill() = runBlocking {
+            val viewModelJob = vm.viewModelScope.coroutineContext[Job]
             store.clear()
+            viewModelJob?.join()
             job.cancelAndJoin()
         }
     }
@@ -149,6 +159,23 @@ class SettingsViewModelTest {
         booleanPreferencesKey("hostedSpeechAllowed") to true,
         booleanPreferencesKey("hostedTranscriptionAllowed") to true,
     )
+
+    @Test
+    fun savingNeedsAnAffirmativeAgreementButCheckingNeverCreatesOne() {
+        val ring = withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_legacy_without_agreement"))
+        val key = seed(ring)
+        val p = Process(prefsFile("missing-inference-agreement"), key, memoryPrefs = emptyPreferences())
+        assertFalse(p.loaded().inferenceAgreed)
+        p.join(p.vm.save())
+        assertTrue(p.settle { it.failure != null }.failure!!.detail.contains("Agree"))
+        assertTrue(p.check.calls.isEmpty())
+        assertEquals(ring, p.keyring.state.value.ring)
+        p.join(p.vm.check())
+        assertEquals(1, p.check.calls.size)
+        assertEquals("", runBlocking { p.prefs.inferenceCurrent() }.inferenceGrant)
+        assertFalse(p.settle().inferenceAgreed)
+        p.kill()
+    }
 
     // Acceptance: every preference persists across process death. Each is set through the
     // ViewModel, the process dies, and a new one reads it back from the same file.
@@ -293,7 +320,7 @@ class SettingsViewModelTest {
         runBlocking { p.keyring.save(withCreds(emptyKeyring(), "groq", obj("apiKey" to "gsk_pre_forget_000000001"))) }
         p.loaded()
         p.vm.setApiKey("gsk_typed_before_forget_01")
-        val saving = p.vm.save()!!
+        val saving = p.agreeAndSave()!!
         p.join(p.vm.forget())
         gate.complete(Unit)
         p.join(saving)
@@ -318,7 +345,7 @@ class SettingsViewModelTest {
 
         p.vm.pickProvider("groq")
         p.vm.setApiKey("gsk_new_key_0000000001")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNotNull("saving asks first", p.settle { it.unreadable != null }.unreadable)
 
         refuse = true
@@ -328,7 +355,7 @@ class SettingsViewModelTest {
         refuse = false
         p.vm.pickProvider("openai")
         p.vm.setApiKey("sk-proj-other-provider-001")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNotNull("the next save asks again", p.settle { !it.checking }.unreadable)
         assertTrue("nothing was written", blob.contentEquals(p.keyring.file.readBytes()))
         assertEquals(KeyringState.Status.UNREADABLE, p.keyring.state.value.status)
@@ -364,7 +391,7 @@ class SettingsViewModelTest {
         assertEquals("gsk_old_key_0000000001", s.editor!!.savedKey)
 
         p.vm.setApiKey("  gsk_new_key_0000000002\n")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
 
         assertEquals("the new key was checked before it was saved", "gsk_new_key_0000000002", p.check.calls.single().second.apiKey)
@@ -392,7 +419,7 @@ class SettingsViewModelTest {
         val p = Process(prefsFile("refused"), key, check)
         p.loaded()
         p.vm.setApiKey("gsk_typo")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNotNull(p.settle().failure)
         assertEquals("gsk_old_key_0000000001", stringOf(credsFor(p.keyring.state.value.ring, "groq")["apiKey"]))
         p.kill()
@@ -410,7 +437,7 @@ class SettingsViewModelTest {
         p.vm.setApiKey("sk-proj-new-key-000000001")
         p.vm.setModel("gpt-q")
         p.vm.setWrapModel("gpt-wrap")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
         assertNull("the check got no address", p.check.calls.single().second.baseUrl)
         val rec = credsFor(p.keyring.state.value.ring, "openai")
@@ -431,7 +458,7 @@ class SettingsViewModelTest {
         assertNull("no model, no save", p.vm.save())
         assertNotNull(p.settle { it.failure != null }.failure)
         p.vm.setModel("qwen2.5:7b-instruct")
-        p.join(p.vm.save())
+        p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
         assertTrue("a local save makes no network call", p.check.calls.isEmpty())
         assertEquals("http://10.0.2.2:11434/v1", p.built.single().baseUrl)

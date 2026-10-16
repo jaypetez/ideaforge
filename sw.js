@@ -12,7 +12,7 @@
 // a CACHED old secrets.js that knows nothing about the keyring — a mixed module graph
 // that fails in ways neither version would on its own. Renaming makes `activate` drop the
 // whole old cache at once.
-const CACHE = 'ideaforge-v30';
+const CACHE = 'ideaforge-v31';
 const GUIDE_PATH = '/guide/';
 const GUIDE_SCREENSHOTS_PATH = '/docs/screenshots/';
 
@@ -61,6 +61,7 @@ const SHELL = [
   './src/providers/tts.js',
   './src/store/db.js',
   './src/store/prefs.js',
+  './src/store/inference-consent.js',
   './src/store/secrets.js',
   './src/store/sessions.js',
   './src/voice/index.js',

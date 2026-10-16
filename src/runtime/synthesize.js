@@ -43,6 +43,7 @@ export async function runSynthesis(session, deps = {}) {
   try {
     result = await provider.sampleJson(parts, { modelTier, signal, cache: true });
   } catch (err) {
+    if (err && err.code === 'consent') throw err;
     const restored = setStatusField(clearPending(working, now), before, now);
     if (err && err.code === 'aborted') {
       return { session: restored, ok: false, error: null, aborted: true, warnings, calls: 1 };

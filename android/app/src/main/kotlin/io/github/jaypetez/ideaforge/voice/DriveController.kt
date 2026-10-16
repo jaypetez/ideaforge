@@ -15,6 +15,7 @@ import io.github.jaypetez.ideaforge.core.runtime.DriveResult
 import io.github.jaypetez.ideaforge.core.runtime.DriveTurn
 import io.github.jaypetez.ideaforge.core.runtime.ListenFailure
 import io.github.jaypetez.ideaforge.core.runtime.Provider
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.runtime.submitAnswer
 import io.github.jaypetez.ideaforge.core.setDraftAnswer
 import io.github.jaypetez.ideaforge.core.setWrapOffered
@@ -22,6 +23,8 @@ import io.github.jaypetez.ideaforge.core.shouldOfferWrap
 import io.github.jaypetez.ideaforge.core.skipQuestion
 import io.github.jaypetez.ideaforge.core.wrapAdvisory
 import io.github.jaypetez.ideaforge.data.Clock
+import io.github.jaypetez.ideaforge.data.InferenceConsent
+import io.github.jaypetez.ideaforge.data.InferencePermit
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.interview.InterviewWork
@@ -133,6 +136,7 @@ class DriveController(
     private val recognizerSource: () -> Recognizer,
     private val speaker: () -> Speaker,
     private val service: DriveServiceControl,
+    private val inference: InferenceConsent,
     private val trigger: suspend () -> String = { DEFAULT_TRIGGER },
     /** SpeechRecognizer.isRecognitionAvailable: false sends every capture to [whisper]. */
     private val recognitionAvailable: () -> Boolean = { true },
@@ -151,6 +155,9 @@ class DriveController(
     private var work: InterviewWork? = null
     private var provider: Provider? = null
     private var providerBuilt = false
+    private var providerPermit: InferencePermit? = null
+    private var providerRing: JsonElement? = null
+    private var permit: InferencePermit? = null
     private var triggerWord = DEFAULT_TRIGGER
 
     /** The draft that was in the answer box when this capture began, and its source. */
@@ -195,9 +202,20 @@ class DriveController(
         if (_state.value.mode != null) halt()
         adopt(id, session, draftSource)
         _state.value = VoiceStageState(sessionId = id, mode = VoiceMode.ACTIVE, question = questionOf(session))
-        serviceOn()
         epoch++
-        begin(epoch)
+        val my = epoch
+        val revision = inference.state.value.revision
+        job = main.launch {
+            try {
+                val allowed = inference.require()
+                if (my != epoch || revision != inference.state.value.revision) return@launch
+                permit = allowed
+                serviceOn()
+                begin(my)
+            } catch (error: ProviderException) {
+                if (my == epoch) blockForInference(error.message.orEmpty())
+            }
+        }
     }
 
     /**
@@ -221,16 +239,33 @@ class DriveController(
     /** Pause with a reason: hosted speech or transcription was revoked, or Forget ran. */
     fun pauseFor(detail: String) = pauseRun(command = false, detail = detail)
 
+    fun blockForInference(detail: String) {
+        if (_state.value.mode == VoiceMode.ACTIVE) {
+            pauseRun(command = false, detail = detail, blocked = true)
+        } else if (_state.value.mode != null) {
+            epoch++
+            stopEffects()
+            serviceOff()
+            _state.update { it.copy(mode = VoiceMode.BLOCKED, detail = detail) }
+        }
+    }
+
     /** Resume after Pause or a stand-down: a tap, from the stage or the notification. */
     fun resume() {
         val st = _state.value
         if (st.mode != VoiceMode.PAUSED && st.mode != VoiceMode.BLOCKED) return
         val id = sessionId ?: return
         _state.update { it.copy(mode = VoiceMode.ACTIVE, phase = null, detail = "", exit = null) }
-        serviceOn()
         epoch++
         val my = epoch
+        val revision = inference.state.value.revision
         job = main.launch {
+            val allowed = try {
+                inference.require()
+            } catch (error: ProviderException) {
+                if (my == epoch) blockForInference(error.message.orEmpty())
+                return@launch
+            }
             // Under the idea's lock: a turn the pause left in flight settles first, and what is
             // read is what it saved.
             val stored = worker.exclusive(id) { store.get(id) }
@@ -247,6 +282,9 @@ class DriveController(
                 session = latest
                 prefix = stringOf(latest["draftAnswer"]).orEmpty().trim()
             }
+            if (revision != inference.state.value.revision || !inference.current(allowed)) return@launch
+            permit = allowed
+            serviceOn()
             begin(my)
         }
     }
@@ -276,7 +314,7 @@ class DriveController(
         captureTurnId = null
     }
 
-    private fun begin(my: Long) {
+    private suspend fun begin(my: Long) {
         // Every drive asks the recogniser afresh: one LanguageUnavailable (a language pack
         // missing that afternoon) must not send every later drive to Whisper, or stand it down.
         recognizerUnavailable = false
@@ -307,14 +345,33 @@ class DriveController(
                 }
             }
         }
-        job = main.launch { runLoop(my) }
+        try {
+            runLoop(my)
+        } catch (error: ProviderException) {
+            if (my == epoch) blockForInference(error.message.orEmpty())
+        }
     }
 
     private suspend fun runLoop(my: Long) {
-        if (!providerBuilt) {
+        val allowed = permit ?: return
+        inference.require(allowed)
+        val currentRing = ring()
+        if (!providerBuilt || providerPermit != allowed || providerRing != currentRing) {
             // No usable provider is the typed screen's NoProvider: questions come from the bank.
-            provider = try { providers().build(ring()) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+            provider = try {
+                providers().buildAuthorized(currentRing) { inference.require(allowed) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: ProviderException) {
+                if (error.code == "consent") {
+                    blockForInference(error.message.orEmpty())
+                    return
+                }
+                null
+            }
             providerBuilt = true
+            providerPermit = allowed
+            providerRing = currentRing
         }
         triggerWord = trigger()
         if (my != epoch) return
@@ -324,7 +381,7 @@ class DriveController(
             return
         }
         runCatching { speaker().newSession() }
-        val drive = DriveLoop(Io(my), triggerWord)
+        val drive = DriveLoop(Io(my, allowed, provider), triggerWord)
         loop = drive
         val result = try {
             drive.run()
@@ -458,11 +515,12 @@ class DriveController(
 
     // ─────────────────────────────────────────────────────────── effects
 
-    private inner class Io(private val my: Long) : DriveIo {
-        override fun running(): Boolean = my == epoch && _state.value.mode == VoiceMode.ACTIVE
+    private inner class Io(private val my: Long, private val allowed: InferencePermit, private val model: Provider?) : DriveIo {
+        override fun running(): Boolean = my == epoch && _state.value.mode == VoiceMode.ACTIVE && inference.current(allowed)
 
         override suspend fun speak(text: String) {
             if (!running()) return
+            inference.require(allowed)
             val result = speaker().speak(text)
             // Hosted speech failed live and the device voice took over: visibly, never silently.
             result.fallback?.let { reason -> if (running()) _state.update { it.copy(detail = reason) } }
@@ -484,6 +542,7 @@ class DriveController(
 
         override suspend fun listen(prompt: String, confirm: Boolean): String {
             if (!running()) return ""
+            inference.require(allowed)
             captureTurnId = session?.let(::openTurn)?.let { stringOf(it["id"]) }
             _state.update { it.copy(listening = true, confirm = confirm, caption = "", levels = emptyList()) }
             val firstWordMs = if (confirm) CONFIRM_FIRST_WORD_MS else DRIVE_FIRST_WORD_MS
@@ -506,6 +565,7 @@ class DriveController(
          * first, so the service's microphone and this app's recording are never open at once.
          */
         private suspend fun transcribed(firstWordMs: Long): String {
+            inference.require(allowed)
             if (recognizerBuilt) runCatching { recognizer().release() }
             val w = whisper() ?: throw ListenFailure(
                 "Speech recognition is unavailable on this device. To dictate, turn on transcription in Settings " +
@@ -534,6 +594,7 @@ class DriveController(
 
         override suspend fun submit(text: String) {
             if (!running()) return
+            inference.require(allowed)
             val s = session ?: return
             val w = work ?: return
             val said = text.trim()
@@ -544,6 +605,7 @@ class DriveController(
 
         override suspend fun skip() {
             if (!running()) return
+            inference.require(allowed)
             val s = session ?: return
             val w = work ?: return
             advance(skipQuestion(s, w.now()))
@@ -556,7 +618,10 @@ class DriveController(
             prefix = ""
             prefixSource = "typed"
             _state.update { it.copy(caption = "") }
-            val outcome = w.turn(answered, provider, resume = false, recordOffer = false).await()
+            val outcome = w.turn(answered, {
+                inference.require(allowed)
+                model
+            }, resume = false, recordOffer = false).await()
             val (out, settled, _) = (outcome as? SessionWorker.Outcome.Committed)?.value ?: return
             session = settled
             if (my == epoch) _state.update { it.copy(question = questionOf(settled)) }
@@ -572,7 +637,10 @@ class DriveController(
             val s = session ?: return
             val w = work ?: return
             _state.update { it.copy(writing = true) }
-            val outcome = w.writeUp(s, provider, resume = false).await()
+            val outcome = w.writeUp(s, {
+                inference.require(allowed)
+                model
+            }, resume = false).await()
             (outcome as? SessionWorker.Outcome.Committed)?.value?.let { session = it.second }
         }
 

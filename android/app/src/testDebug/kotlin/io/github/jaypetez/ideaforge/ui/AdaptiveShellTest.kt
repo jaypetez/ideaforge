@@ -76,7 +76,7 @@ class AdaptiveShellTest {
         fixtures.datasets.getValue("long").single { stringOf(it["id"]) == id }
 
     private fun graph(vararg sessions: Session): AppGraph {
-        val graph = installTestGraph(ring = usableRing())
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true)
         graphs += graph
         graph.providerSource = ProviderSource { ScriptedModel() }
         runBlocking { sessions.forEach { assertTrue(graph.sessionStore.insert(it)) } }

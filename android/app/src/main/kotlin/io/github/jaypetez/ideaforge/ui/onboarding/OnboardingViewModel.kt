@@ -12,13 +12,19 @@ import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
+import io.github.jaypetez.ideaforge.data.InferenceConsent
+import io.github.jaypetez.ideaforge.data.inferenceConfig
 import io.github.jaypetez.ideaforge.providers.createProvider
 import io.github.jaypetez.ideaforge.providers.PROVIDER_CHOICES
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
 import io.github.jaypetez.ideaforge.providers.ProviderErrorCode
+import io.github.jaypetez.ideaforge.providers.InferenceDestination
+import io.github.jaypetez.ideaforge.providers.inferenceDestination
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,9 +55,16 @@ data class OnboardingState(
      * written until the user confirms with [OnboardingViewModel.replaceUnreadable].
      */
     val unreadable: String? = null,
+    val agreed: Boolean = false,
 ) {
     val step: Int get() = if (choice == null) 1 else 2
-    val canFinishLocal: Boolean get() = choice?.local == true && !checking && model.isNotBlank() && baseUrl.isNotBlank()
+    val destination: InferenceDestination? get() = choice?.let {
+        try {
+            inferenceDestination(ProviderConfig(it.id, baseUrl = baseUrl.takeIf { _ -> it.local }))
+        } catch (_: ProviderException) { null }
+    }
+    val canFinishLocal: Boolean get() = choice?.local == true && !checking && model.isNotBlank()
+        && destination != null && agreed
 }
 
 /**
@@ -63,6 +76,7 @@ data class OnboardingState(
 class OnboardingViewModel(
     private val keyring: KeyringStore,
     private val checker: ProviderCheck,
+    private val inference: InferenceConsent,
     val choices: List<ProviderChoice> = PROVIDER_CHOICES,
     // What the web's buildProvider does before accepting settings: build the adapter, which
     // refuses an address that is not an http(s) URL or not on a private network (a CONFIG
@@ -83,6 +97,10 @@ class OnboardingViewModel(
 
     fun pick(id: String) {
         val choice = choices.firstOrNull { it.id == id } ?: return
+        generation++
+        work?.cancel()
+        pendingSave = null
+        replaceConfirmed = false
         // A record saved earlier for this provider (a re-run of onboarding) prefills the
         // address and model; never the key, which is not shown back in full anywhere.
         val saved = credsFor(keyring.state.value.ring, id)
@@ -91,6 +109,7 @@ class OnboardingViewModel(
             baseUrl = text(saved["baseUrl"]).ifEmpty { choice.defaultBaseUrl.orEmpty() }.takeIf { choice.local }.orEmpty(),
             model = if (choice.local) text(saved["model"]) else "",
         )
+        inference.select(choice.id, _state.value.destination?.id)
     }
 
     /** Back to the provider cards. Cancels a check in flight so it cannot land on step 1. */
@@ -101,17 +120,38 @@ class OnboardingViewModel(
         _state.value = OnboardingState()
     }
 
-    fun setApiKey(v: String) = _state.update { it.copy(apiKey = v, failure = null) }
+    private fun edit(change: (OnboardingState) -> OnboardingState) {
+        generation++
+        work?.cancel()
+        pendingSave = null
+        replaceConfirmed = false
+        _state.update { change(it).copy(checking = false, failure = null, unreadable = null) }
+    }
+
+    fun setApiKey(v: String) = edit { it.copy(apiKey = v) }
 
     /** A different address is a different server: the list read off the old one is a lie about it. */
-    fun setBaseUrl(v: String) = _state.update { it.copy(baseUrl = v, models = null, failure = null) }
+    fun setBaseUrl(v: String) = edit {
+        val next = it.copy(baseUrl = v, models = null)
+        val changed = next.choice?.let { c -> inference.select(c.id, next.destination?.id) } == true
+        next.copy(agreed = next.agreed && !changed)
+    }
 
-    fun setModel(v: String) = _state.update { it.copy(model = v, failure = null) }
+    fun setModel(v: String) = edit { it.copy(model = v) }
+
+    fun setAgreement(on: Boolean) {
+        edit { it.copy(agreed = on) }
+        if (!on) inference.withdraw()
+    }
 
     /** Hosted: check the key, and on success save it and finish. */
     fun checkKey() {
         val s = _state.value
         val choice = s.choice?.takeIf { !it.local } ?: return
+        if (!s.agreed) {
+            _state.update { it.copy(failure = CheckFailure("Review the interview-text agreement before continuing.", "")) }
+            return
+        }
         // Pasted keys arrive with a trailing newline or space more often than not.
         val key = s.apiKey.trim()
         if (key.isEmpty()) {
@@ -135,6 +175,7 @@ class OnboardingViewModel(
         }
         launchCheck {
             val names = checker.check(choice, ProviderConfig(kind = choice.id, baseUrl = base))
+            currentCoroutineContext().ensureActive()
             _state.update {
                 it.copy(models = names, model = if (it.model.isBlank() && names.size == 1) names[0] else it.model)
             }
@@ -150,6 +191,10 @@ class OnboardingViewModel(
     fun finishLocal() {
         val s = _state.value
         val choice = s.choice?.takeIf { it.local } ?: return
+        if (!s.agreed) {
+            _state.update { it.copy(failure = CheckFailure("Review the interview-text agreement before continuing.", "")) }
+            return
+        }
         if (!s.canFinishLocal) return
         val base = s.baseUrl.trim()
         val model = s.model.trim()
@@ -171,6 +216,7 @@ class OnboardingViewModel(
     }
 
     private suspend fun save(choice: ProviderChoice, edit: MutableMap<String, JsonElement>.() -> Unit) {
+        currentCoroutineContext().ensureActive()
         // An unreadable keyring is kept on disk on purpose: a Keystore that failed once may
         // answer now. Read it again first, and if it is still unreadable, saving would build
         // on the empty ring and overwrite every other provider's record and the speech keys,
@@ -187,6 +233,7 @@ class OnboardingViewModel(
         // Keep whatever else this provider's record held (a wrap-up model chosen in Settings).
         val rec = LinkedHashMap<String, JsonElement>(credsFor(ring, choice.id)).apply(edit)
         try {
+            currentCoroutineContext().ensureActive()
             keyring.save(withCreds(ring, choice.id, JsonObject(rec)))
         } catch (e: CancellationException) {
             throw e
@@ -194,6 +241,11 @@ class OnboardingViewModel(
             // "Your key was not saved" has to reach the user; a silent failure here would
             // send them to a library that cannot start an interview.
             throw SaveFailed(e)
+        }
+        currentCoroutineContext().ensureActive()
+        val job = currentCoroutineContext()[Job]
+        inference.accept(inferenceDestination(inferenceConfig(keyring.state.value.ring))) {
+            job?.isActive != false && _state.value.agreed && _state.value.choice?.id == choice.id
         }
         _state.update { it.copy(done = true) }
     }
@@ -219,7 +271,7 @@ class OnboardingViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
-                OnboardingViewModel(graph.keyringStore, graph.providerCheck)
+                OnboardingViewModel(graph.keyringStore, graph.providerCheck, graph.inferenceConsent)
             }
         }
     }
@@ -247,6 +299,7 @@ fun checkFailure(e: Throwable): CheckFailure {
         ProviderErrorCode.BAD_RESPONSE -> "The server answered, but not in a way this app understands."
         ProviderErrorCode.CONFIG -> "That setup cannot be used."
         ProviderErrorCode.ABORTED -> "The check was cancelled."
+        ProviderErrorCode.CONSENT -> "Review the interview-text agreement before continuing."
         else -> "The check failed."
     }
     return CheckFailure(lead, detail)

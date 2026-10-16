@@ -15,6 +15,7 @@
 // the screen shows what the app is willing to claim, the store shows what it recorded.
 
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 4000;
 
@@ -145,6 +146,7 @@ async function startDriving(fake, script) {
   const $ = (id) => doc.getElementById(id);
   $('provider').value = 'artifact';
   $('provider').dispatchEvent(new win.Event('change'));
+  await acknowledgeInference(win);
   $('b-start').click();
 
   await until(() => !$('panel-interview').hidden, 5000);

@@ -29,6 +29,26 @@ uses only local assets and system fonts. There is no analytics or telemetry. Exp
 backups are created only by explicit actions; their underlying idea content can already have
 been sent to a selected model, transcriber or speech service.
 
+## Interview-text agreement
+
+Both front ends require an affirmative, provider-named acknowledgement before new or
+resumed inference and before interview capture/service effects. It is a non-secret device
+preference, not a credential or a session/backup field. Missing, legacy or unreadable
+records do not authorise a request. Provider-kind changes (including switching back) and
+validated local-destination changes retire it; model-only changes do not.
+
+Cached providers and retries carry the grant they started under, so withdrawal and a new
+agreement cannot revive old work. Connection/key checks and model discovery remain
+independent and send no interview context. Local ideas remain readable/exportable without
+agreement; already transferred data cannot be recalled. This is a user-choice gate, not
+protection against malicious same-origin code that can already read the preferences.
+
+Withdrawal blocks the current page/process immediately. If persistence fails, the error
+explicitly says an old stored acknowledgement may remain: resolve storage and withdraw
+successfully before reloading/restarting. The
+[privacy policy](guide/privacy-policy.html#model-requests) describes the separate inference,
+microphone, transcription and speech choices and provider-side retention.
+
 ## Optional hosted speech
 
 Browser speech is the default. OpenAI speech requires a **separate speech key**, consent to

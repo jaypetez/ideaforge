@@ -37,7 +37,7 @@ class RecognizerProbeTest {
 
     @Test
     fun theProbeLaunchesAndReportsTheRecognizer() {
-        installTestGraph(ring = usableRing())
+        installTestGraph(ring = usableRing(), inferenceAgreed = true)
         ActivityScenario.launch(RecognizerProbeActivity::class.java).use {
             compose.waitUntilAtLeastOneExists(hasTestTag(RecognizerProbeActivity.SCREEN), 10_000)
             compose.waitUntilAtLeastOneExists(hasText("Start trial"), 5_000)
@@ -58,7 +58,7 @@ class RecognizerProbeTest {
 
     @Test
     fun probeRecognizerOnTheLaunchIntentOpensTheProbe() {
-        installTestGraph(ring = usableRing())
+        installTestGraph(ring = usableRing(), inferenceAgreed = true)
         val launch = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
             .putExtra("probe", "recognizer").putExtra("restarts", 3)
         ActivityScenario.launch<MainActivity>(launch).use { scenario ->
@@ -211,7 +211,7 @@ class RecognizerProbeTest {
     fun autostartFromAnIntentNeedsTheShellProperty() = withFakeEngines { engines ->
         val gate = RecognizerProbeActivity.shellAllowsAutostart
         try {
-            installTestGraph(ring = usableRing())
+            installTestGraph(ring = usableRing(), inferenceAgreed = true)
             val hostile = Intent(app, RecognizerProbeActivity::class.java)
                 .putExtra("autostart", true).putExtra("fgs", true).putExtra("wakelock", true)
             RecognizerProbeActivity.shellAllowsAutostart = { false }

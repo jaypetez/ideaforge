@@ -53,7 +53,7 @@ class InferenceDisclosureScreenTest {
         compose.waitUntilAtLeastOneExists(hasTestTag("provider-groq"), 10_000)
         compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
         compose.onNodeWithTag("inference-consent").performScrollTo().assertIsDisplayed().assertIsOff()
-        compose.onNodeWithText("IdeaForge sends your idea, answers and write-up to Groq", substring = true).assertExists()
+        compose.onNodeWithText("IdeaForge sends your idea and answers to Groq", substring = true).assertExists()
         compose.onNodeWithTag("check-key").performScrollTo().assertIsNotEnabled()
         assertTrue("no check or transfer is hidden in disclosure", check.calls.isEmpty())
     }

@@ -21,6 +21,7 @@ import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 // Each one would run script if it ever reached innerHTML. __pwned is the tell.
 const INJECT = '<img src=x onerror="window.__pwned=1">';
@@ -146,6 +147,7 @@ export default async function run(report) {
     $('provider').dispatchEvent(new win.Event('change'));
     $('stt').value = 'off';
     $('stt').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     $('b-library').click();
     const card = await until(() => visible($('panel-library'))
       && $('library-rows').querySelector(`[data-session-id="${seed.id}"]`));

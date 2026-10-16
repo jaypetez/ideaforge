@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="inference_hosted">IdeaForge sends your idea and answers to %1$s to generate questions and your write-up. %1$s’s terms govern what it keeps.</string>
+    <string name="inference_local">IdeaForge sends your idea and answers to %1$s at %2$s to generate questions and your write-up. That server’s operator controls what it keeps. Optional hosted transcription and speech use separate services and choices.</string>
+    <string name="inference_local_invalid">Enter a valid local server address before agreeing to send interview text.</string>
+    <string name="inference_agree">I agree to send interview text to %1$s.</string>
+    <string name="inference_separate">This agreement is separate from connection checks, microphone permission and hosted voice choices. Uncheck to withdraw; save a new agreement with this connection.</string>
+    <string name="inference_required">Interview text will not be sent until you review and agree to the chosen provider in Settings. Your local ideas and exports are still here.</string>
+    <string name="inference_review">Review in Settings</string>
+</resources>

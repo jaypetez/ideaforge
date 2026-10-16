@@ -138,7 +138,7 @@ class UxCaptureDeviceTest {
                             "real-app", phase, null, null)
                         try {
                             val base = fixtures.state(if (frame == "settings-connection") "ready" else "fresh")
-                            prepare(base, config)
+                            prepare(base, config, inferenceAgreed = false)
                             navigate(base)
                             when (frame) {
                                 "settings-connection" -> {
@@ -769,7 +769,7 @@ class UxCaptureDeviceTest {
         }
     }
 
-    private fun prepare(state: UxState, config: UxConfiguration) = runBlocking {
+    private fun prepare(state: UxState, config: UxConfiguration, inferenceAgreed: Boolean = true) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
         val controlled = FixtureProvider(ScriptedProvider(script), state.id)
@@ -788,6 +788,10 @@ class UxCaptureDeviceTest {
             ))))
         }
         graph.keyringStore.load()
+        if (inferenceAgreed && state.id != "fresh") {
+            graph.inferenceConsent.accept(io.github.jaypetez.ideaforge.providers.inferenceDestination(
+                io.github.jaypetez.ideaforge.data.inferenceConfig(graph.keyringStore.state.value.ring)))
+        }
         if (state.id == "unavailable") {
             File(context.filesDir, "sessions").writeText("owned UX storage fault")
             val load = runCatching { graph.sessionStore.load() }

@@ -167,6 +167,9 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     await cdp.evaluate(`document.getElementById('panel-setup').dataset.view === 'start'
       && document.getElementById('b-start-voice').getClientRects().length > 0
       && document.getElementById('speech').getClientRects().length === 0`));
+  await click('#inference-consent');
+  check('the real voice interview requires its separate affirmative inference agreement',
+    await cdp.evaluate("document.getElementById('inference-consent').checked"));
   await click('#b-start-voice');
   state = await until((s) => s.phase === 'listening' && live(s).length === 1 && s.tracks.includes('live'),
     'Start with voice did not reach real microphone capture');

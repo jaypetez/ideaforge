@@ -216,7 +216,9 @@ class HostedSpeechViewModelTest {
     @Test
     fun forgetDuringACheckLeavesNoKeyAndNoPermission() {
         val forgets = mutableListOf<Unit>()
-        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), onForget = { forgets += Unit }).also { store.put("settings", it) }
+        val inference = io.github.jaypetez.ideaforge.data.InferenceConsent(prefs, { keyring.state.value.ring },
+            CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))
+        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), inference, onForget = { forgets += Unit }).also { store.put("settings", it) }
         join(vm.chooseHosted(true))
         vm.setKey(SPEECH)
         consentAll()

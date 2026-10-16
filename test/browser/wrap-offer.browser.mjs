@@ -21,6 +21,7 @@ import { HARD_TURN_CEILING, SOFT_TURN_CEILING, wrapAdvisory } from '../../src/co
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const ANSWER = 'Couriers need the gate code and the buzzer note before they reach the door.';
 const WRITE_UP = '## Task\nBuild the courier delivery notebook.';
@@ -216,6 +217,7 @@ async function withApp(check, label, scenario, { seed, voice = false } = {}) {
     $('provider').dispatchEvent(new win.Event('change'));
     $('stt').value = voice ? 'browser' : 'off';
     $('stt').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     if (seed) {
       $('b-library').click();
       const card = await until(() => visible($('panel-library'))

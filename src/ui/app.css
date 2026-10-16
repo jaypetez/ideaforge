@@ -300,6 +300,13 @@ section > h2 {
 }
 .connect-summary-text::before { color: var(--success); flex: none; }
 .connect-summary button { flex: none; }
+.inference-agreement {
+  display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
+  border-top: 1px solid var(--outline-variant); padding-top: var(--s3);
+}
+.inference-agreement > p { margin: 0; overflow-wrap: anywhere; }
+.inference-agreement .toggle { min-height: var(--control-height); align-items: center; }
+.inference-agreement [data-status="error"] { color: var(--error); }
 /* An intrinsic rem minimum used to become 320px at 200% text and overflow a 320px
    viewport. Bound it to the available row; labels grow and wrap, never shrink or clip. */
 .start-actions button { min-width: min(10rem, 100%); min-height: var(--voice-control-height); }

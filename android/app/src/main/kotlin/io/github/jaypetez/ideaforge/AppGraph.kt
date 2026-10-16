@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.jaypetez.ideaforge.data.AndroidKeystoreKey
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
+import io.github.jaypetez.ideaforge.data.InferenceConsent
 import io.github.jaypetez.ideaforge.data.KeyringKey
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.PrefsStore
@@ -93,6 +94,13 @@ class AppGraph(
         }
     }
 
+    val inferenceConsent: InferenceConsent by lazy {
+        InferenceConsent(
+            prefsStore, ring = { keyringStore.state.value.ring }, scope = appScope,
+            onRetire = { message -> mainScope.launch { driveController.blockForInference(message) } },
+        )
+    }
+
     /**
      * Native speech output, with the voice and pace read from prefs at each speak. Lazy, and
      * the engine inside it is lazy too: nothing binds TextToSpeech until something talks.
@@ -150,6 +158,7 @@ class AppGraph(
                 override fun start() = driveService.start()
                 override fun stop() = driveService.stop()
             },
+            inference = inferenceConsent,
             trigger = { prefsStore.current().effectiveTrigger },
             recognitionAvailable = { SpeechRecognizer.isRecognitionAvailable(context) },
             whisper = {

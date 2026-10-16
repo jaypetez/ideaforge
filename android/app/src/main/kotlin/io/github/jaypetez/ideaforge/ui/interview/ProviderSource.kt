@@ -1,12 +1,9 @@
 package io.github.jaypetez.ideaforge.ui.interview
 
-import io.github.jaypetez.ideaforge.core.credsFor
-import io.github.jaypetez.ideaforge.core.js.get
-import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.core.PromptParts
 import io.github.jaypetez.ideaforge.core.runtime.Provider
-import io.github.jaypetez.ideaforge.core.runtime.ProviderException
-import io.github.jaypetez.ideaforge.providers.ProviderConfig
-import io.github.jaypetez.ideaforge.providers.ProviderErrorCode
+import io.github.jaypetez.ideaforge.core.runtime.SampleResult
+import io.github.jaypetez.ideaforge.data.inferenceConfig
 import io.github.jaypetez.ideaforge.providers.createProvider
 import kotlinx.serialization.json.JsonElement
 
@@ -21,21 +18,22 @@ import kotlinx.serialization.json.JsonElement
 fun interface ProviderSource {
     fun build(ring: JsonElement): Provider
 
+    fun buildAuthorized(ring: JsonElement, beforeSample: suspend () -> Unit): Provider {
+        val provider = build(ring)
+        return object : Provider {
+            override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
+                beforeSample()
+                return provider.sampleJson(parts, modelTier, cache)
+            }
+        }
+    }
+
     companion object {
-        val FromKeyring = ProviderSource { ring ->
-            val active = stringOf(ring["active"]).orEmpty()
-            if (active.isEmpty()) throw ProviderException(ProviderErrorCode.CONFIG, "no provider is set up")
-            val creds = credsFor(ring, active)
-            fun field(name: String) = stringOf(creds[name])?.takeIf { it.isNotEmpty() }
-            createProvider(
-                ProviderConfig(
-                    kind = active,
-                    apiKey = field("apiKey").orEmpty(),
-                    baseUrl = field("baseUrl"),
-                    model = field("model"),
-                    wrapModel = field("wrapModel"),
-                ),
-            )
+        val FromKeyring = object : ProviderSource {
+            override fun build(ring: JsonElement): Provider = createProvider(inferenceConfig(ring))
+
+            override fun buildAuthorized(ring: JsonElement, beforeSample: suspend () -> Unit): Provider =
+                createProvider(inferenceConfig(ring), beforeSample = beforeSample)
         }
     }
 }

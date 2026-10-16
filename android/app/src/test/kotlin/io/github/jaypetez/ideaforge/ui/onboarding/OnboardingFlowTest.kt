@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ui.onboarding
 import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -101,7 +102,8 @@ class OnboardingFlowTest {
         // Step 2: the key, pasted with the trailing newline a clipboard usually adds.
         compose.onNodeWithText("Step 2 of 2").assertExists()
         compose.onNodeWithTag("api-key").performTextInput("  gsk_live_test_key_1234\n")
-        compose.onNodeWithTag("check-key").performClick()
+        compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
         waitFor(library)
         compose.onNodeWithText("Ideas").assertExists()
@@ -129,7 +131,8 @@ class OnboardingFlowTest {
         waitFor(hasTestTag("provider-groq"))
         compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
         compose.onNodeWithTag("api-key").performTextInput("gsk_wrong")
-        compose.onNodeWithTag("check-key").performClick()
+        compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
         waitFor(hasTestTag("check-failure"))
         compose.onNodeWithText("That key was refused", substring = true).assertExists()
@@ -158,6 +161,7 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("find-models").performClick()
         waitFor(hasText("2 models installed."))
         compose.onNodeWithTag("model-qwen2.5:7b-instruct").performScrollTo().performClick()
+        compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
         compose.onNodeWithTag("finish-local").performScrollTo().performClick()
 
         waitFor(library)
@@ -197,7 +201,7 @@ class OnboardingFlowTest {
         // Typing a model after the refusal and pressing Continue must not save the address:
         // the keyring would then count as usable and every interview would fail.
         compose.onNodeWithTag("model").performTextInput("qwen2.5:7b-instruct")
-        compose.onNodeWithTag("finish-local").performScrollTo().performClick()
+        compose.onNodeWithTag("finish-local").performScrollTo().assertIsNotEnabled()
         waitFor(hasTestTag("check-failure"))
         compose.onNodeWithText("api.example.com is not on a private network", substring = true).assertExists()
         compose.onNode(library).assertDoesNotExist()
@@ -242,7 +246,8 @@ class OnboardingFlowTest {
         waitFor(hasTestTag("provider-anthropic"))
         compose.onNodeWithTag("provider-anthropic").performScrollTo().performClick()
         compose.onNodeWithTag("api-key").performTextInput("sk-ant-new-key")
-        compose.onNodeWithTag("check-key").performClick()
+        compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
         // The reload before the save still failed: nothing is written until the user says so.
         waitFor(hasTestTag("unreadable-keyring"))
@@ -269,7 +274,8 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("provider-anthropic").performScrollTo().performClick()
         compose.onNodeWithTag("api-key").performTextInput("sk-ant-new-key")
         flaky.keys[0] = lost
-        compose.onNodeWithTag("check-key").performClick()
+        compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+        compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
         waitFor(library)
         val ring = graph.keyringStore.state.value.ring

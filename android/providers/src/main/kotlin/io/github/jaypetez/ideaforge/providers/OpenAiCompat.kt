@@ -140,6 +140,7 @@ class OpenAiCompatProvider(
     tokenParam: String? = null,
     maxTokens: Int? = null,
     private val retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    private val beforeSample: suspend () -> Unit = {},
 ) : ModelProvider {
     private val p: OpenAiCompatPreset? = preset?.let {
         OPENAI_COMPAT_PRESETS[it] ?: throw ProviderException(ProviderErrorCode.CONFIG, "unknown preset: $it")
@@ -207,10 +208,10 @@ class OpenAiCompatProvider(
     }
 
     override suspend fun sample(parts: PromptParts, modelTier: String): Sampled =
-        withRetry(delay = retryDelay) { call(parts, modelTier, json = false) }
+        withRetry(delay = retryDelay) { beforeSample(); call(parts, modelTier, json = false) }
 
     override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
-        val out = withRetry(delay = retryDelay) { call(parts, modelTier, json = true) }
+        val out = withRetry(delay = retryDelay) { beforeSample(); call(parts, modelTier, json = true) }
         return SampleResult(extractJson(out.text), out.text, out.modelTierApplied)
     }
 

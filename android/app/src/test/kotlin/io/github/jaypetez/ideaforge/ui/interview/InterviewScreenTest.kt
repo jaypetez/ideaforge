@@ -65,9 +65,11 @@ class InterviewScreenTest {
 
     private fun show(store: SessionStore, model: ScriptedModel, onFinished: (Boolean) -> Unit = {}): InterviewViewModel {
         this.store = store
+        val writes = CoroutineScope(Dispatchers.Unconfined)
         val vm = InterviewViewModel(
             id, store, SessionWorker(), Clock { 1_760_000_000_000 }, ring = { emptyKeyring() },
-            providers = ProviderSource { model }, writes = CoroutineScope(Dispatchers.Unconfined),
+            providers = ProviderSource { model }, writes = writes,
+            inference = io.github.jaypetez.ideaforge.data.testInferenceConsent(writes),
         )
         compose.setContent { IdeaForgeTheme { InterviewScreen(vm, onFinished) } }
         return vm

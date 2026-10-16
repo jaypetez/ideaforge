@@ -7,6 +7,7 @@ import { deleteSession, listSessions, loadSession, saveSession } from '../../src
 import { loadPrefs } from '../../src/store/prefs.js';
 import { createVoiceStage } from '../../src/ui/voice-stage.js';
 import { wav } from './speech-output.browser.mjs';
+import { acknowledgeInference } from './fixtures/inference.js';
 import {
   clearCredentials, emptyKeyring, loadCredentials, saveCredentials, withCreds, withStt, withTts,
 } from '../../src/store/secrets.js';
@@ -479,6 +480,7 @@ async function withApp(check, label, scenario, {
     $('provider').dispatchEvent(new win.Event('change'));
     $('stt').value = 'browser';
     $('stt').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     await scenario(app);
     check(label + ': every visible voice phase is part of the public state contract',
       app.phases.every((value) => PHASES.has(value)), app.phases.join(', '));

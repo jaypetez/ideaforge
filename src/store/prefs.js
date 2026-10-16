@@ -13,7 +13,8 @@
 //     non-secret per-device preference lives in this codebase.
 //
 // Every access is wrapped: a private window throws on the first touch of localStorage, and
-// a preference failing to load must never be the reason an interview cannot start.
+// ordinary preferences can fall back. Inference authorization uses readPrefs()'s explicit
+// error instead: unreadable consent cannot authorize an interview.
 
 // src/ui/theme-boot.js reads this key synchronously before first paint; rename both or neither
 // (test/prefs.test.mjs checks they agree).
@@ -28,6 +29,8 @@ const DEFAULTS = {
   speechVoice: '',
   speechRate: 1,
   hostedSpeechAllowed: false,
+  inferenceDestination: '',
+  inferenceGrant: '',
   /** 'system' | 'light' | 'dark' — the same key and values the Android app stores. */
   theme: 'system',
 };
@@ -49,33 +52,62 @@ export function speechPreferences(value = {}) {
   };
 }
 
+export function inferencePreferences(value = {}) {
+  return {
+    inferenceDestination: typeof value.inferenceDestination === 'string'
+      && value.inferenceDestination.length <= 4096 ? value.inferenceDestination : '',
+    inferenceGrant: typeof value.inferenceGrant === 'string'
+      && /^[a-zA-Z0-9_-]{1,128}$/.test(value.inferenceGrant) ? value.inferenceGrant : '',
+  };
+}
+
 /** @returns {{trigger: string, handsFree: boolean, speechVoice: string, speechRate: number,
- *             hostedSpeechAllowed: boolean, theme: 'system'|'light'|'dark'}} */
+ *             hostedSpeechAllowed: boolean, inferenceDestination: string, inferenceGrant: string,
+ *             theme: 'system'|'light'|'dark'}} */
 export function loadPrefs() {
+  return readPrefs().prefs;
+}
+
+/** Authorization callers must inspect error rather than treating defaults as stored consent. */
+export function readPrefs() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return { prefs: { ...DEFAULTS }, error: null };
     const stored = JSON.parse(raw);
-    if (!stored || typeof stored !== 'object') return { ...DEFAULTS };
-    return {
-      ...DEFAULTS, ...stored, ...speechPreferences(stored),
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+      throw new Error('Device preferences have an invalid format.');
+    }
+    return { prefs: {
+      ...DEFAULTS, ...stored, ...speechPreferences(stored), ...inferencePreferences(stored),
       hostedSpeechAllowed: stored.hostedSpeechAllowed === true,
       theme: themePreference(stored.theme),
-    };
-  } catch {
-    return { ...DEFAULTS };
+    }, error: null };
+  } catch (error) {
+    return { prefs: { ...DEFAULTS }, error };
   }
 }
 
-/** Merge and write. Callers handling consent use the result to report a failed write. */
-export function savePrefs(patch) {
+function writePrefs(next) {
   try {
-    const next = { ...loadPrefs(), ...patch };
     localStorage.setItem(KEY, JSON.stringify({
-      ...next, ...speechPreferences(next), theme: themePreference(next.theme),
+      ...next, ...speechPreferences(next), ...inferencePreferences(next),
+      theme: themePreference(next.theme),
     }));
     return true;
   } catch {
     return false;
   }
+}
+
+/** Merge and write. Callers handling consent use the result to report a failed write. */
+export function savePrefs(patch) {
+  return writePrefs({ ...loadPrefs(), ...patch });
+}
+
+export function saveInferenceConsent(destination, grant) {
+  const current = readPrefs();
+  if (current.error) return false;
+  return writePrefs({
+    ...current.prefs, inferenceDestination: destination, inferenceGrant: grant,
+  });
 }

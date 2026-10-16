@@ -168,7 +168,7 @@ class AdaptersTest {
 
     // ---- the registry, against a capturing interceptor ----
 
-    private class Capture {
+    private class Capture(private val status: Int = 200) {
         val requests = mutableListOf<Request>()
         val clients = ClientFactory { policy ->
             ProviderHttpClients.create(policy).newBuilder().addInterceptor(Interceptor { chain ->
@@ -176,13 +176,53 @@ class AdaptersTest {
                 requests += req
                 val body = if (req.url.host == "api.anthropic.com") """{"content":[{"type":"text","text":"{}"}],"stop_reason":"end_turn"}"""
                 else """{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}"""
-                Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(status).message("Scripted response")
                     .body(body.toResponseBody("application/json".toMediaType())).build()
             }).build()
         }
         fun model(i: Int = requests.lastIndex): String {
             val buf = Buffer().also { requests[i].body!!.writeTo(it) }
             return Json.parseToJsonElement(buf.readUtf8()).jsonObject["model"]!!.jsonPrimitive.content
+        }
+    }
+
+    @Test
+    fun inferenceAuthorizationIsRequiredBeforeDispatchButNotForAConnectionCheck() = runBlocking {
+        for (kind in listOf("anthropic", "openai", "groq")) {
+            val capture = Capture()
+            var checks = 0
+            val provider = createProvider(ProviderConfig(kind, apiKey = "scripted"), capture.clients,
+                beforeSample = {
+                    checks++
+                    throw ProviderException(ProviderErrorCode.CONSENT, "scripted missing agreement")
+                })
+            val denied = assertFailsWith<ProviderException> { provider.sampleJson(parts, "default") }
+            assertEquals("consent", denied.code)
+            assertEquals(0, capture.requests.size, "$kind never dispatches private prompt parts")
+            assertTrue(provider.validateKey())
+            assertEquals(1, capture.requests.size, "$kind connection checks remain independent")
+            assertEquals(1, checks, "$kind checks never invoke inference authorization")
+            val body = capture.requests.single().body?.let { Buffer().also(it::writeTo).readUtf8() }.orEmpty()
+            assertFalse(body.contains("SYS") || body.contains("PRE") || body.contains("TAIL"))
+        }
+    }
+
+    @Test
+    fun everyInferenceRetryRechecksItsBoundPermission() = runBlocking {
+        for (kind in listOf("anthropic", "openai", "groq")) {
+            val capture = Capture(529)
+            var allowed = true
+            var checks = 0
+            val provider = createProvider(ProviderConfig(kind, apiKey = "scripted"), capture.clients,
+                retryDelay = { allowed = false },
+                beforeSample = {
+                    checks++
+                    if (!allowed) throw ProviderException(ProviderErrorCode.CONSENT, "scripted withdrawal")
+                })
+            val denied = assertFailsWith<ProviderException> { provider.sampleJson(parts, "default") }
+            assertEquals("consent", denied.code)
+            assertEquals(1, capture.requests.size, "$kind must not send its old prompt again")
+            assertEquals(2, checks, "$kind rechecks after the retry delay")
         }
     }
 

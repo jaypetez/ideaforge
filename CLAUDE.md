@@ -125,6 +125,15 @@ These are load-bearing and most of them fail *silently* if broken.
   hand or loosen a Kotlin consumer to make it pass.
 - **Never trust model output.** `parseTurnResult` and `parseSynthesisResult` assume the
   model lies about shape; every field is optional. Add validation there, not at call sites.
+- **Inference agreement is not a key check or microphone permission.**
+  `src/store/inference-consent.js` and Android's `data/InferenceConsent.kt` own the
+  non-secret destination/grant preferences. Default/legacy/read-failed records deny;
+  kind switches (including back) and validated local-address changes retire the grant,
+  while model-only edits keep it. Bind cached providers, retries and permission callbacks
+  to their original permit. `consent` errors propagate through the runtimes rather than
+  becoming bank fallback or a failed-but-finished synthesis. Gate session/capture/service
+  effects, but keep local reading/export available. A failed withdrawal blocks the current
+  page/process and reports that persistence failed; never claim the old record was erased.
 - **`source: 'voice'` exempts an answer from the terse and dodge thresholds**, because
   dictation rambles. Chip and unedited-draft answers are capped at `partial` — those are
   Claude's words, not the user's.

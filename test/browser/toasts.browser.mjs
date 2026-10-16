@@ -18,6 +18,7 @@ import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const NOTE_MS = 400;
 const LONG = 'A deliberately long message that wraps onto several lines at phone width, '
@@ -108,6 +109,7 @@ async function openApp(check, label, { width = 900, height = 800, stt = 'off', c
   $('provider').dispatchEvent(new win.Event('change'));
   $('stt').value = stt;
   $('stt').dispatchEvent(new win.Event('change'));
+  await acknowledgeInference(win);
   $('toasts').dataset.noteMs = String(NOTE_MS);
   const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
   return { frame, win, doc, $, errors, shown };

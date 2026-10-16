@@ -60,7 +60,7 @@
     <string name="onboarding_hosted">Hosted</string>
     <string name="onboarding_hosted_hint">No key yet? Groq’s free tier is the cheapest way to start.</string>
     <string name="onboarding_local">On your own network</string>
-    <string name="onboarding_local_card">%1$s on this phone or a computer on your network. No key, nothing leaves your network.</string>
+    <string name="onboarding_local_card">%1$s on this phone or a computer on your network. No model key is needed. Optional hosted transcription or speech sends audio or text to its own service.</string>
     <string name="onboarding_tiers">%1$s for questions, %2$s for the wrap-up.</string>
     <string name="onboarding_tiers_one">%1$s for everything.</string>
     <string name="onboarding_key_title">Add your %1$s key</string>

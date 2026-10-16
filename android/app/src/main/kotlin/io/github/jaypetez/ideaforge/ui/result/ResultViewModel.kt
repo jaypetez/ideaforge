@@ -18,6 +18,8 @@ import io.github.jaypetez.ideaforge.core.js.num
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.reopen
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
+import io.github.jaypetez.ideaforge.data.InferenceConsent
 import io.github.jaypetez.ideaforge.core.restoreSession
 import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.data.Clock
@@ -124,6 +126,7 @@ class ResultViewModel(
     private val clock: Clock,
     private val sink: DocumentSink,
     private val writes: CoroutineScope,
+    private val inference: InferenceConsent,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ResultState())
@@ -188,10 +191,16 @@ class ResultViewModel(
         if (st.reopening) return
         _state.update { it.copy(reopening = true) }
         val tag = worker.tag(sessionId)
+        val revision = inference.state.value.revision
+        val permit = inference.state.value.permit
         val job = writes.async {
             worker.run(
                 tag,
                 work = {
+                    inference.require(permit)
+                    if (revision != inference.state.value.revision) {
+                        throw ProviderException("consent", "The provider changed. Review the agreement again.")
+                    }
                     val now = num(clock.now())
                     val base = store.get(sessionId) ?: session
                     val reopened = reopen(base, now)
@@ -232,6 +241,7 @@ class ResultViewModel(
                     sessionId, graph.sessionStore, graph.sessionWorker, graph.clock,
                     sink = ContentResolverSink(app.contentResolver),
                     writes = graph.appScope,
+                    inference = graph.inferenceConsent,
                 )
             }
         }

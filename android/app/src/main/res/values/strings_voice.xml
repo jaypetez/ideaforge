@@ -21,7 +21,7 @@
     <string name="voice_levels">Microphone level, %1$d readings</string>
     <string name="voice_deaf">No sound is reaching the recogniser. Keep IdeaForge open, or check the microphone.</string>
     <string name="voice_mic_title">Microphone access</string>
-    <string name="voice_mic_rationale">IdeaForge listens for your answers through the phone’s speech recogniser, and reads each question aloud. While a voice interview runs, a notification keeps it going with the screen off and gives you Pause and Exit.</string>
+    <string name="voice_mic_rationale">Your phone’s speech service processes audio, on-device where available. IdeaForge stores no audio. During a voice interview, listening continues with the screen off while its notification shows Pause and Exit.</string>
     <string name="voice_mic_continue">Continue</string>
     <string name="voice_mic_cancel">Not now</string>
     <string name="voice_mic_denied">Microphone access was denied, so voice stood down. You can keep typing, or allow the microphone in Settings and tap Resume.</string>

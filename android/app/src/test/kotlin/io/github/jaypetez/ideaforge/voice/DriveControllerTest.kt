@@ -124,7 +124,7 @@ class DriveControllerTest {
         // The typed screen reads the idea back and offers the open question.
         val vm = InterviewViewModel(
             rig.id, rig.store, rig.worker, rig.clock, ring = { emptyKeyring() },
-            providers = ProviderSource { rig.model }, writes = rig.writes,
+            providers = ProviderSource { rig.model }, writes = rig.writes, inference = rig.inference,
         )
         rig.advance(1_000)
         val open = vm.state.value.openTurn

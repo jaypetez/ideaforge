@@ -54,13 +54,14 @@ class ResultHarness(dir: File, private val dispatcher: CoroutineDispatcher, vara
     val worker = SessionWorker()
     val sink = FakeSink()
     val writes = CoroutineScope(SupervisorJob() + dispatcher)
+    val inference = io.github.jaypetez.ideaforge.data.testInferenceConsent(writes)
 
     init {
         runBlocking { for (s in sessions) store.save(s) }
     }
 
     fun vm(id: String = "s_walkthrough", now: Long = 1_760_000_007_000) =
-        ResultViewModel(id, store, worker, Clock { now }, sink, writes, io = dispatcher)
+        ResultViewModel(id, store, worker, Clock { now }, sink, writes, inference, io = dispatcher)
 
     fun stored(id: String = "s_walkthrough"): JsonObject? = store.get(id)
 }

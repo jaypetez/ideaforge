@@ -102,7 +102,7 @@ class InterviewLayoutTest {
     private fun requireLongInterviewReachable(requireCurrent: Boolean = false, providerUnavailable: Boolean = false) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
-        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
         graph.providerSource = ProviderSource {
             if (providerUnavailable) throw ProviderException("config", "Controlled unavailable provider while opening.")
             ScriptedModel()
@@ -139,7 +139,7 @@ class InterviewLayoutTest {
 
     @Test
     fun theEnlargedWalkthroughChipTapActuallyFillsTheRealDraftBeforeSend() {
-        val graph = installTestGraph(ring = usableRing()).also { graphs += it }
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
         graph.providerSource = ProviderSource { ScriptedModel() }
         val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
         ActivityScenario.launch(MainActivity::class.java).use {

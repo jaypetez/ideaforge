@@ -28,7 +28,7 @@ data class SampleResult(val json: JsonElement?, val text: String = "", val model
  */
 internal fun asProviderFailure(e: Exception): ProviderException = when (e) {
     is kotlin.coroutines.cancellation.CancellationException -> throw e
-    is ProviderException -> e
+    is ProviderException -> if (e.code == "consent") throw e else e
     else -> ProviderException(null, e.message ?: e.toString(), e)
 }
 

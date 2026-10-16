@@ -117,6 +117,22 @@ fun presetModels(tiers: Tiers?): List<String> =
 
 fun presetModels(choice: ProviderChoice?): List<String> = presetModels(choice?.models)
 
+data class InferenceDestination(val id: String, val kind: String, val label: String, val local: Boolean, val address: String? = null)
+
+/** Uses the registry's existing local policy, never raw keystrokes or a credential. */
+fun inferenceDestination(config: ProviderConfig): InferenceDestination {
+    val choice = PROVIDER_CHOICES.firstOrNull { it.id == config.kind }
+        ?: throw ProviderException(ProviderErrorCode.CONFIG, "Choose a supported inference provider.")
+    if (!choice.local) return InferenceDestination(choice.id, choice.id, choice.label, false)
+    val url = parse(config.baseUrl.orAbsent() ?: choice.defaultBaseUrl.orEmpty())
+    LocalNetworkPolicy.check(url)
+    if (url.username.isNotEmpty() || url.password.isNotEmpty() || url.query != null || url.fragment != null) {
+        throw ProviderException(ProviderErrorCode.CONFIG, "Use a local server address without embedded credentials, query parameters or a fragment.")
+    }
+    val address = url.toString().trimEnd('/')
+    return InferenceDestination("${choice.id}:$address", choice.id, choice.label, true, address)
+}
+
 /**
  * What every adapter exposes beyond the runtime's [Provider]: free text, the model list and a
  * key check. `listModels` is present and possibly empty rather than absent, so no call site
@@ -180,6 +196,7 @@ fun createProvider(
     config: ProviderConfig,
     clients: ClientFactory = ClientFactory.DEFAULT,
     retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    beforeSample: suspend () -> Unit = {},
 ): ModelProvider {
     val kind = config.kind.orAbsent() ?: throw ProviderException(ProviderErrorCode.CONFIG, "no provider selected")
     val preset = OPENAI_COMPAT_PRESETS[kind]
@@ -206,6 +223,7 @@ fun createProvider(
             http = http(NetworkPolicy.Hosted(ANTHROPIC_API_ROOT)),
             baseUrl = typed ?: ANTHROPIC_API_ROOT,
             retryDelay = retryDelay,
+            beforeSample = beforeSample,
         )
         preset != null -> OpenAiCompatProvider(
             baseUrl = typed ?: preset.baseUrl,
@@ -215,6 +233,7 @@ fun createProvider(
             tiers = resolveTiers(preset.tiers, config.model, config.wrapModel),
             modelRequired = config.modelRequired,
             retryDelay = retryDelay,
+            beforeSample = beforeSample,
         )
         kind == "custom" -> OpenAiCompatProvider(
             baseUrl = typed.orEmpty(),
@@ -229,6 +248,7 @@ fun createProvider(
             // model-list read) switches it off.
             modelRequired = config.modelRequired ?: true,
             retryDelay = retryDelay,
+            beforeSample = beforeSample,
         )
         else -> throw ProviderException(ProviderErrorCode.CONFIG, "unknown provider: $kind")
     }

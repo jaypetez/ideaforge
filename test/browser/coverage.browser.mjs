@@ -26,6 +26,7 @@ import { coveragePercent } from '../../src/core/markdown.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const ID = 's_coverage_probe';
 const QUESTIONS = [
@@ -184,6 +185,7 @@ export default async function run(report) {
     $('provider').dispatchEvent(new win.Event('change'));
     $('stt').value = 'off';
     $('stt').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     $('b-library').click();
     const card = await until(() => visible($('panel-library'))
       && $('library-rows').querySelector(`[data-session-id="${ID}"]`));

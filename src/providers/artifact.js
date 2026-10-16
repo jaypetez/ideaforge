@@ -19,7 +19,7 @@ export function artifactRuntimeAvailable() {
     && typeof window.claude.use === 'function';
 }
 
-export async function createArtifactProvider() {
+export async function createArtifactProvider({ beforeSample } = {}) {
   if (!artifactRuntimeAvailable()) {
     throw new ProviderError('config', 'not running inside a Claude viewer');
   }
@@ -30,6 +30,7 @@ export async function createArtifactProvider() {
 
   async function call({ system, prefix, tail }, { modelTier = 'default', cache = true, signal, onText } = {}) {
     if (signal && signal.aborted) throw new ProviderError('aborted', 'cancelled');
+    beforeSample?.();
     try {
       const r = await sample([system, prefix, tail].join('\n'), { modelTier, cache, onText });
       return { text: r.text, modelTierApplied: r.modelTierApplied || modelTier, usage: null };

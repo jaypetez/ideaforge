@@ -204,6 +204,10 @@ A provider that is not OpenAI-shaped needs its own adapter beside
 `sample`, `sampleJson`, `listModels` and `validateKey`, and throws `ProviderError` with one
 of the codes in `src/providers/errors.js` — the turn loop reads that code to choose between
 retrying, falling back to the question bank, and telling the user their key is wrong.
+Forward the injected `beforeSample` authorisation hook before every inference attempt,
+including internal retries, but not static key checks or model-list reads. A `consent`
+error must propagate rather than become checklist fallback. The app binds the original
+destination/grant permit; an adapter must not acquire a fresh agreement for old work.
 Returning a plain `Error` makes every failure look like the same failure.
 
 Two things to check by hand, because `npm test` cannot see either: that a *bad* key

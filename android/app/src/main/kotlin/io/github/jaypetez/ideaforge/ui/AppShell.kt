@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -61,6 +62,8 @@ import io.github.jaypetez.ideaforge.ui.result.ResultScreen
 import io.github.jaypetez.ideaforge.ui.result.ResultViewModel
 import io.github.jaypetez.ideaforge.ui.settings.SettingsScreen
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
+import io.github.jaypetez.ideaforge.core.runtime.ProviderException
+import kotlinx.coroutines.launch
 
 /** The public guide, published beside the web app (guide/ on Pages). */
 const val GUIDE_URL = "https://jaypetez.github.io/ideaforge/guide/getting-started.html"
@@ -82,6 +85,7 @@ private data class TopLevel(
 fun AppShell(nav: NavHostController = rememberNavController()) {
     val library: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory)
     val graph = (LocalContext.current.applicationContext as IdeaForgeApp).graph
+    val scope = rememberCoroutineScope()
     // Null while the keyring is read: nothing renders rather than a frame of the wrong screen.
     val start = startGate(graph.keyringStore) ?: return
     val uri = LocalUriHandler.current
@@ -114,8 +118,20 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     // Interview entry would hand the new sessionId the old entry's ViewModelStore, and its
     // in-flight work, so one idea's results could land in another (a busy flag is not an
     // identity guard). Pop any open interview first so the stack does not grow per tap.
-    fun newIdea() = nav.navigate(InterviewRoute(library.newSessionId())) {
-        popUpTo<InterviewRoute> { inclusive = true }
+    fun newIdea() {
+        val revision = graph.inferenceConsent.state.value.revision
+        scope.launch {
+            try {
+                graph.inferenceConsent.require()
+                if (revision != graph.inferenceConsent.state.value.revision) return@launch
+                nav.navigate(InterviewRoute(library.newSessionId())) {
+                    popUpTo<InterviewRoute> { inclusive = true }
+                }
+            } catch (error: ProviderException) {
+                if (error.code != "consent") throw error
+                goTopLevel(SettingsRoute)
+            }
+        }
     }
 
     val destinations = listOf(
@@ -194,6 +210,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                         },
                         drive = graph.driveController,
                         onBack = { nav.popBackStack() },
+                        onConsent = { goTopLevel(SettingsRoute) },
                     )
                 }
                 composable<ResultRoute> { backStack ->

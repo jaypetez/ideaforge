@@ -340,7 +340,9 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   the built-in checklist fallback, the result screen (Share .md, Copy markdown, Save .md, Ask
   me more), the Ideas library and Settings. Backups move both ways between Android and the web
   app. **Privacy policy** opens from Settings → About and the footer of both onboarding
-  steps, before a provider needs to be checked.
+  steps, before a provider needs to be checked. Onboarding requires an unchecked,
+  provider-named interview-text agreement; existing installations review it in Connection
+  before starting new model work.
 - **New, emulator-checked only:** hands-free voice. *Answer by voice* reads each question
   aloud and listens for the finish word, kept hearing with the screen off by a microphone
   foreground service whose notification offers Pause and Exit. It has not been tried on a
@@ -435,6 +437,16 @@ Start with a provider, continue to its required fields, then **Use this connecti
 keys. The ready summary names the provider and its actual check state. A saved key is
 **not checked** on a new visit, and a delayed check cannot vouch for edited settings.
 Checking is optional, not an extra gate before **Start with voice** or **Type instead**.
+The interview-text agreement is not optional: read the provider-named disclosure at Ready
+and tick **I agree to send interview text**. A successful check or a saved key never does
+that for you. The acknowledgement is a non-secret device preference, not part of an idea
+or backup. Changing provider kind, even back to the previous kind, or changing a local
+server's validated address requires fresh agreement; changing only a model does not.
+
+Uncheck the agreement in **Settings → Connection** to stop new interview requests and
+capture. Local ideas remain readable and exportable; withdrawal cannot recall text already
+sent. See the [privacy policy](guide/privacy-policy.html#model-requests) for storage-failure
+limits and the independent microphone, transcription and speech choices.
 Both actions precede installation and recent ideas. The footer keeps the
 [Privacy policy](guide/privacy-policy.html) available before choosing or checking a provider.
 Everything else lives in **Settings**:
@@ -445,7 +457,8 @@ Everything else lives in **Settings**:
             srcset="docs/screenshots/10-settings.dark.png">
     <img src="docs/screenshots/10-settings.light.png" width="760"
          alt="The Settings screen in five separator-divided groups: Connection with the provider,
-              API key, Model options and Check the key; Voice with Dictation, the hands-free
+              API key, Model options, Check the key and an unchecked provider-named
+              interview-text agreement; Voice with Dictation, the hands-free
               finish word, Spoken replies, Preview voice and optional Voice and speaking
               pace; Appearance with a System, Light or Dark theme choice; Your data with
               Backup ideas, Import ideas and separate key-storage guidance; and About with version,

@@ -223,6 +223,22 @@ source wins over prose, and a generated artifact wins over a description of that
   `a11y-keyboard.probe.mjs` verifies trusted Tab and enlarged-text reachability.
   Re-check README/guide footer labels, the Android guide, architecture and generated
   Start/Settings screenshots. Keep the confirmed policy contact unchanged.
+- **Affirmative inference agreement.** Sources:
+  [`inference-consent.js`](../../../../src/store/inference-consent.js) and
+  [`prefs.js`](../../../../src/store/prefs.js), plus native
+  [`InferenceConsent.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/data/InferenceConsent.kt)
+  and `PrefsStore.kt`, own destination-bound non-secret grants and strict preference reads.
+  Provider registries own validated destination identity; `app.js`, native onboarding/
+  Settings, `AppShell`, `InterviewWork`/`InterviewViewModel` and `DriveController` own
+  session/effect admission. Adapter `beforeSample` hooks recheck bound permits per attempt,
+  independently of connection checks. `inference-consent.test.mjs`, the matching browser
+  probe and native consent/work/drive/adapter tests own denial, reload, switching,
+  failed-storage and retired-work proof. Positive scripted actors affirm explicitly through
+  UI or the actual preference owner; unconsented countercases must remain.
+  Re-check README, getting-started/providers/mobile-and-voice/Android/privacy guidance,
+  SECURITY, architecture, DESIGN, canonical images and cache retirement. Failed withdrawal
+  cannot promise cross-restart revocation when storage rejects the change. Local read/export
+  and independent microphone/STT/TTS checks remain available.
 - **Setup disclosures.** Sources: [`index.html`](../../../../index.html) (`model-settings`,
   `speech-options`) and [`src/ui/app.js`](../../../../src/ui/app.js) (`onProviderChange`,
   `onSpeechChange`). Re-check setup instructions against the actual summary labels.

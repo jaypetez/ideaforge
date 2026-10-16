@@ -4,6 +4,8 @@ import {
 } from '../../src/store/secrets.js';
 import { deleteSession, listSessions } from '../../src/store/sessions.js';
 import { del, SECRETS } from '../../src/store/db.js';
+import { PREFS_KEY } from '../../src/store/prefs.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const sleep = (ms = 40) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -16,6 +18,8 @@ async function until(predicate, label) {
 }
 
 async function visit(run, ring = null, prepare = async () => {}) {
+  const previousPrefs = localStorage.getItem(PREFS_KEY);
+  localStorage.removeItem(PREFS_KEY);
   await clearCredentials();
   if (ring) await saveCredentials(ring);
   await prepare();
@@ -68,6 +72,8 @@ async function visit(run, ring = null, prepare = async () => {}) {
       microphones: () => microphones + recognitionStarts });
   } finally {
     frame.remove();
+    if (previousPrefs === null) localStorage.removeItem(PREFS_KEY);
+    else localStorage.setItem(PREFS_KEY, previousPrefs);
     await clearCredentials();
     for (const row of await listSessions()) if (!held.has(row.id)) await deleteSession(row.id);
     for (const worker of await navigator.serviceWorker.getRegistrations()) await worker.unregister();
@@ -139,6 +145,7 @@ async function freshFlow(check) {
     check('Change returns to the existing fields with the unsaved value and useful focus',
       shown('apikey') && $('apikey').value === key && doc.activeElement === $('provider'));
     change('stt', 'off', 'change');
+    await acknowledgeInference(win);
     $('b-start').click();
     await until(() => !$('panel-interview').hidden, 'unchecked typed interview');
     check('Type starts without a mandatory check and stores the typed value',
@@ -155,6 +162,7 @@ async function checkRaces(check) {
     check('a saved key is explicitly untested on a fresh visit, without a success checkmark',
       /saved/i.test($('connect-summary-text').textContent) && /not checked/i.test(status())
         && $('connect-summary-text').dataset.icon !== 'check', status());
+    await acknowledgeInference(win);
     $('b-connect-change').click();
     const requests = [];
     win.fetch = (_url, init) => new Promise((resolve) => requests.push({ init, resolve }));
@@ -211,7 +219,7 @@ async function checkRaces(check) {
 
 async function savedOverride(check) {
   const ring = withCreds(emptyKeyring(), 'openai', { apiKey: 'sk-probe-saved-old-193' });
-  await visit(async ({ $, change, microphones }) => {
+  await visit(async ({ $, change, win, microphones }) => {
     $('b-settings').click();
     await until(() => $('panel-setup').dataset.view === 'settings', 'Settings');
     change('apikey', 'sk-probe-unsaved-new-193');
@@ -225,6 +233,7 @@ async function savedOverride(check) {
       $('apikey').value === 'sk-probe-unsaved-new-193'
         && $('model').value === 'question-override' && $('wrapmodel').value === 'wrap-override'
         && /not checked/i.test($('connect-status').textContent));
+    await acknowledgeInference(win);
     $('b-start').click();
     await until(() => !$('panel-interview').hidden, 'unsaved-override interview');
     const stored = credsFor(await loadCredentials(), 'openai');
@@ -361,6 +370,7 @@ async function delayedConstruction(check) {
       win.claude = { use: () => new Promise((resolve) => { release = resolve; }) };
       change('provider', 'artifact', 'change');
       change('stt', 'off', 'change');
+      await acknowledgeInference(win);
       const starting = $('b-start').onclick();
       await until(() => !!release, 'delayed Start construction');
       change('provider', 'openai', 'change');
@@ -402,6 +412,7 @@ async function delayedConstruction(check) {
         : Promise.resolve(async () => ({ text: '{}' })) };
       change('provider', 'artifact', 'change');
       change('stt', 'off', 'change');
+      if (action === 'start') await acknowledgeInference(win);
       const operation = $(action === 'start' ? 'b-start' : 'b-connect-next').onclick();
       await until(() => !!release, `delayed ${action} before withdrawal`);
       change('speech', 'browser', 'change');
@@ -448,6 +459,7 @@ async function startPresentationRetirement(check) {
       win.claude = { use: async () => async () => ({ text: '{}' }) };
       change('provider', 'artifact', 'change');
       if (action === 'change') await $('b-connect-next').onclick();
+      await acknowledgeInference(win);
       let release;
       win.claude.use = () => new Promise((resolve) => { release = resolve; });
       const starting = $('b-start-voice').onclick();
@@ -468,6 +480,7 @@ async function startPresentationRetirement(check) {
     win.claude = { use: () => new Promise((resolve) => releases.push(resolve)) };
     change('provider', 'artifact', 'change');
     change('stt', 'off', 'change');
+    await acknowledgeInference(win);
     const first = $('b-start').onclick();
     await until(() => releases.length === 1, 'first pending Start');
     $('b-connect-back').click();
@@ -576,6 +589,7 @@ async function declaredFieldsAndManualModel(check) {
       await until(() => $('connect').dataset.step === 'ready', 'manual model ready');
       check('a known local model can become ready without retrying a failed list request', calls === 1);
     }
+    await acknowledgeInference(win);
     $('b-start').click();
     await until(() => !$('panel-interview').hidden, 'manual-model typed interview');
     const saved = credsFor(await loadCredentials(), 'custom');

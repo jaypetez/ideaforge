@@ -5,6 +5,7 @@ import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
 import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { loadPrefs } from '../../src/store/prefs.js';
 import { clearCredentials } from '../../src/store/secrets.js';
+import { acknowledgeInference } from './fixtures/inference.js';
 
 const OLD_ANSWER = 'A bicycle courier needs a reliable way to remember delivery instructions.';
 const OLD_QUESTION = 'Which courier would test the delivery notebook first?';
@@ -254,6 +255,7 @@ async function withApp(check, label, scenario, { seed, voice = false } = {}) {
     $('provider').dispatchEvent(new win.Event('change'));
     $('stt').value = voice ? 'browser' : 'off';
     $('stt').dispatchEvent(new win.Event('change'));
+    await acknowledgeInference(win);
     await scenario(app);
     check(label + ': no uncaught async error', errors.length === 0, errors.join('\n'));
     check(label + ': no provider network request', requests.length === 0, requests.join('\n'));
