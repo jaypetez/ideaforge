@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { runInNewContext } from 'node:vm';
+import { installCaptureTheme } from './theme.browser.mjs';
 import {
   attachReporter, completeReporter, createReporter, monitorProbe, parseOptions, REPORT_BINDING, selectProbes,
 } from '../../tools/browser-check.mjs';
@@ -8,6 +10,49 @@ const PROBE = 'voice-stage.browser.mjs';
 const OTHER = 'turn-lifecycle.browser.mjs';
 const result = (name, ok = true, detail = '') => ({ probe: PROBE, name, ok, detail });
 const payload = (results, done = false, probe = PROBE) => ({ probe, results, done });
+
+test('capture bootstrap establishes either theme before scripts, then stops observing', () => {
+  for (const theme of ['light', 'dark']) {
+    for (const hasRoot of [false, true]) {
+      let callback;
+      let observing = false;
+      const root = { dataset: {} };
+      const document = { documentElement: hasRoot ? root : null };
+      const context = {
+        URL, document, location: { href: `http://127.0.0.1/index.html?capture-theme=${theme}` },
+        MutationObserver: class {
+          constructor(fn) { callback = fn; }
+          observe(target, options) {
+            assert.equal(target, document);
+            assert.equal(options.childList, true);
+            observing = true;
+          }
+          disconnect() { observing = false; }
+        },
+      };
+      runInNewContext(`(${installCaptureTheme})();`, context);
+      if (!hasRoot) {
+        assert.equal(observing, true);
+        document.documentElement = root;
+        callback();
+      }
+      assert.equal(root.dataset.theme, theme, 'the next classic script sees the capture theme');
+      assert.equal(observing, false, 'a later broken boot must not be repaired by this fixture');
+    }
+  }
+});
+
+test('capture bootstrap leaves ordinary navigation alone and rejects invalid fixture input', () => {
+  const document = { documentElement: { dataset: { theme: 'dark' } } };
+  const context = {
+    URL, document, location: { href: 'http://127.0.0.1/index.html' },
+    MutationObserver: class { constructor() { throw new Error('must not observe ordinary navigation'); } },
+  };
+  runInNewContext(`(${installCaptureTheme})();`, context);
+  assert.equal(document.documentElement.dataset.theme, 'dark');
+  context.location.href += '?capture-theme=invalid';
+  assert.throws(() => runInNewContext(`(${installCaptureTheme})();`, context), /invalid capture theme/);
+});
 
 function monitored(t, options = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
