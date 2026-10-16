@@ -2482,9 +2482,15 @@ async function resumeVoice() {
     return;
   }
   if (state.writing === state.session.id) return;
-  await ensureInferenceProvider(permit);
-  if (epoch !== state.voiceEpoch || !currentView(id, navigation)
-      || state.voiceMode !== 'active') return;
+  const ownsResume = () => epoch === state.voiceEpoch && currentView(id, navigation)
+    && state.voiceMode === 'active';
+  try {
+    await ensureInferenceProvider(permit);
+  } catch (error) {
+    if (!ownsResume()) return;
+    throw error;
+  }
+  if (!ownsResume()) return;
   requireInference(permit);
   forgetVerdict();
   await setupVoice({ automatic: true });
@@ -3398,7 +3404,7 @@ function bind() {
   els['b-speech-preview'].onclick = () => previewSpeech().catch(fail);
   els['b-voice-pause'].onclick = () => {
     const action = ['paused', 'blocked'].includes(state.voiceMode) ? resumeVoice() : pauseVoice();
-    action.catch(fail);
+    return action.catch(fail);
   };
   els['b-voice-exit'].onclick = () => exitVoice().catch(fail);
   els['b-install'].onclick = async () => {

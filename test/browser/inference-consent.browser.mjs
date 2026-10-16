@@ -148,8 +148,20 @@ async function visit(run, preferences = {}, seed = null) {
 
 export default async function run(check) {
   await import('./fixtures/fake-voice.js');
-  for (const [kind, finish] of [['browser', 'exit'], ['groq', 'exit'], ['groq', 'withdrawal']]) {
+  for (const [kind, finish] of [
+    ['browser', 'exit'], ['groq', 'exit'], ['groq', 'withdrawal'],
+    ['browser', 'navigate'], ['browser', 'current-failure'],
+  ]) {
+    const completed = finish === 'navigate'
+      ? setSynthesis(submitAnswer(seedTurn(createSession({ id: 'consent-other-done', now: 1 })),
+        { text: 'An already completed private notebook.', now: 2 }),
+      { text: '## Task\nKeep the other completed notebook unchanged.', now: 3 }) : undefined;
     await withApp(check, `retired provider rebuild preserves voice ownership: ${kind}/${finish}`, async (app) => {
+      if (completed) {
+        app.$('b-nav-new').click();
+        if (!(await expect(app, check, 'a new voice idea can start beside the retained completed idea',
+          () => !app.$('panel-setup').hidden))) return;
+      }
       app.$('stt').value = kind;
       app.$('stt').dispatchEvent(new app.win.Event('change'));
       app.$('sttkey').value = 'gsk-synthetic-consent-recorder-not-a-key';
@@ -175,6 +187,27 @@ export default async function run(check) {
       grant.accept('artifact');
       if (!(await expect(app, check, 'a fresh grant enables deliberate Resume',
         () => app.$('inference-consent').checked && !app.$('b-voice-pause').disabled))) return;
+      if (finish === 'current-failure') {
+        const stores = app.win.IDBObjectStore.prototype;
+        const put = stores.put;
+        stores.put = function (value, key) {
+          if (this.name === 'secrets' && key === 'credentials') {
+            throw new app.win.DOMException('Scripted current Resume storage failure', 'QuotaExceededError');
+          }
+          return put.call(this, value, key);
+        };
+        try {
+          app.$('b-voice-pause').click();
+          await expect(app, check, 'a current Resume still reports its actual persistence rejection',
+            () => !app.$('err').hidden
+              && /Scripted current Resume storage failure/.test(app.$('err').textContent));
+          check('failed current Resume does not acquire input or send a model request',
+            app.mic.allStopped() && app.model.calls.length === 0);
+        } finally {
+          stores.put = put;
+        }
+        return;
+      }
       const commit = holdCredentialCommit(app.win);
       let resumed;
       try {
@@ -191,6 +224,29 @@ export default async function run(check) {
         if (!(await expect(app, check, 'Exit retires the held Resume before manual controls return',
           () => app.$('manual-interview').getClientRects().length > 0
             && !app.$('handsfree-wrap').hidden && app.mic.allStopped()))) return;
+        if (completed) {
+          app.$('b-library').click();
+          const card = await expect(app, check, 'the completed other idea remains available while Resume is held',
+            () => !app.$('panel-library').hidden
+              && app.$('library-rows').querySelector(`[data-session-id="${completed.id}"]`));
+          if (!card) return;
+          card.querySelector('.idea-actions > button:not(.idea-more)').click();
+          if (!(await expect(app, check, 'the other result opens cleanly without waiting for the old rebuild',
+            () => !app.$('panel-done').hidden
+              && app.$('output').dataset.source.includes('Keep the other completed notebook unchanged.')
+              && app.$('err').hidden))) return;
+          const source = app.$('output').dataset.source;
+          commit.release();
+          await resumed;
+          check('a rejected retired Resume cannot place its cancellation error on another idea',
+            app.$('err').hidden && app.$('err').textContent === ''
+              && !app.$('panel-done').hidden && app.$('output').dataset.source === source,
+            app.$('err').textContent);
+          check('late rejection preserves the completed idea and releases every microphone',
+            JSON.stringify(await loadSession(completed.id)) === JSON.stringify(completed)
+              && app.mic.allStopped() && app.model.calls.length === 0);
+          return;
+        }
         app.$('handsfree').checked = true;
         app.$('handsfree').dispatchEvent(new app.win.Event('change'));
         if (!(await expect(app, check, 'the same idea acquires one newer input before the old rebuild settles',
@@ -217,7 +273,7 @@ export default async function run(check) {
       } finally {
         commit.restore();
       }
-    });
+    }, { seed: completed });
   }
 
   for (const voice of [false, true]) {
