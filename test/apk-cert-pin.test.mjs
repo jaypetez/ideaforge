@@ -28,6 +28,8 @@ const signerBlock = (n, hex) => [
   `Signer #${n} certificate MD5 digest: edfdd88dfffea69b5f7e7847038f7896`,
 ].join('\n');
 const apksigner = (...hexes) => `${hexes.map((h, i) => signerBlock(i + 1, h)).join('\n')}\n`;
+const sdkSigner = (min, max, hex, dev = false) =>
+  `Signer (minSdkVersion=${min}${dev ? ' (dev release=true)' : ''}, maxSdkVersion=${max}) certificate SHA-256 digest: ${hex}\n`;
 
 const security = (pin, { before = '', after = '' } = {}) => [
   '# Security', '', before, '',
@@ -47,6 +49,43 @@ test('a different signer fails and names both fingerprints', () => {
   assert.equal(result.ok, false);
   assert.match(result.message, new RegExp(OTHER));
   assert.match(result.message, new RegExp(FP));
+});
+
+test('SDK-labelled apksigner output accepts one certificate across platform ranges', () => {
+  for (const output of [
+    sdkSigner(28, 2147483647, FP),
+    sdkSigner(33, 2147483647, colons(FP)) + sdkSigner(28, 32, FP),
+    sdkSigner(33, 2147483647, colons(FP)).replace(/\n/g, '\r\n'),
+  ]) {
+    assert.deepEqual(checkPin({ apksignerOutput: output, securityMd: security(FP) }),
+      { ok: true, fingerprint: FP });
+  }
+});
+
+test('SDK-labelled rotations cannot hide another certificate, including a development range', () => {
+  for (const output of [
+    sdkSigner(33, 2147483647, OTHER) + sdkSigner(28, 32, FP),
+    sdkSigner(33, 2147483647, FP) + sdkSigner(28, 32, OTHER),
+    sdkSigner(33, 2147483647, OTHER, true) + sdkSigner(28, 32, FP),
+    sdkSigner(33, 2147483647, 'malformed') + sdkSigner(28, 32, FP),
+    sdkSigner(33, 2147483647, FP) + sdkSigner(28, 32, 'malformed'),
+    sdkSigner(33, 2147483647, '') + sdkSigner(28, 32, FP),
+    sdkSigner(33, 2147483647, FP) + sdkSigner(28, 32, ''),
+  ]) {
+    assert.equal(checkPin({ apksignerOutput: output, securityMd: security(FP) }).ok, false);
+  }
+});
+
+test('unknown or mixed signer labels fail closed instead of dropping an unrecognized signer', () => {
+  for (const output of [
+    sdkSigner(28, 2147483647, FP) + `Signer (future-format) certificate SHA-256 digest: ${OTHER}\n`,
+    sdkSigner(28, 2147483647, FP) + `Signer (future-format) certificate SHA-256 digest: ${FP}\n`,
+    `Signer #1 in lineage certificate SHA-256 digest: ${FP}\n`,
+    sdkSigner(28, 2147483647, FP) + apksigner(FP),
+    apksigner(FP, FP),
+  ]) {
+    assert.equal(checkPin({ apksignerOutput: output, securityMd: security(FP) }).ok, false);
+  }
 });
 
 test('the Play upload key must differ from the normalized app-signing pin', () => {
@@ -121,6 +160,10 @@ test('the CLI exits 0 on a match and 1 with a GitHub error annotation otherwise'
 
     writeFileSync(md, security(colons(FP)));
     let r = run();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+
+    writeFileSync(out, sdkSigner(33, 2147483647, FP) + sdkSigner(28, 32, colons(FP)));
+    r = run();
     assert.equal(r.status, 0, r.stdout + r.stderr);
 
     writeFileSync(md, security(OTHER));

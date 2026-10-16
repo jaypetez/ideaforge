@@ -51,7 +51,7 @@ fingerprint="$(node -p "new (require('node:crypto').X509Certificate)(require('no
 printf '## Release signing certificate\n\nSigner certificate SHA-256: `%s`\n' "$fingerprint" > "$scratch/policy.md"
 build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
 apk=android/app/build/outputs/apk/release/app-release.apk
-"$build_tools/apksigner" verify --print-certs "$apk" > "$scratch/apksigner.txt"
+"$build_tools/apksigner" verify --print-certs "$apk" | tee "$scratch/apksigner.txt"
 node tools/apk-cert-pin.mjs "$scratch/apksigner.txt" "$scratch/policy.md"
 
 export ANDROID_KEYSTORE_PATH="$scratch/upload.jks" ANDROID_KEY_ALIAS=upload

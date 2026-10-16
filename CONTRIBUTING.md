@@ -554,7 +554,8 @@ The APK comes from a separate `android-apk` job in the `release` environment, th
 in the workflow that references the four app-signing secrets (`ANDROID_KEYSTORE_B64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). It fails rather
 than skips when one is missing, and `tools/apk-cert-pin.mjs` fails it unless
-`apksigner verify --print-certs` shows exactly one signer whose SHA-256 equals the fingerprint
+`apksigner verify --print-certs` shows one app-signing certificate across all reported SDK
+ranges, whose SHA-256 equals the fingerprint
 pinned in [SECURITY.md](SECURITY.md#release-signing-certificate). While that pin reads
 `PENDING`, every release fails at this job and nothing at all is published, by design.
 

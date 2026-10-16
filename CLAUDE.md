@@ -596,7 +596,8 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   there only because they are environment secrets on
   the `release` environment, whose deployments are restricted to `v*.*.*` tags (repository
   settings, not workflow text). It fails (never skips) when one is missing, and refuses the APK unless
-  `tools/apk-cert-pin.mjs` finds exactly one signer equal to the SHA-256 pinned in
+  `tools/apk-cert-pin.mjs` finds one app-signing certificate across all reported SDK ranges
+  equal to the SHA-256 pinned in
   `SECURITY.md`; while that reads `PENDING`, every release fails there by design. Never
   loosen the pin to get a release out: an APK signed by another key cannot update existing
   installs. `verifyReleaseApk` (finalising `assembleRelease`) and `verifyReleaseBundle`

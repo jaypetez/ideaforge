@@ -227,7 +227,7 @@
           release&rsquo;s assets.</li>
         <li>Check the hash: <code>sha256sum --check --ignore-missing SHA256SUMS</code>.</li>
         <li>Check the signer with <code>apksigner</code> from the Android SDK build tools:
-          it must print exactly one signer whose SHA-256 digest equals the fingerprint in
+          every reported SDK range must use the one app-signing certificate whose SHA-256 digest equals the fingerprint in
           <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#release-signing-certificate">SECURITY.md</a>
           (ignore case and colons). If it does not, do not install it.</li>
         <li>Install it with <code>adb install -r</code>, as below. Opening the file on the

@@ -69,7 +69,7 @@ puts a read-only `verify` job — version triplet, `main` ancestry, a confirmed 
 through `tools/check-privacy-policy.mjs`, full `npm run test:all` ladder — in front of the
 write-enabled release job. Its read-only `android-apk` job alone receives the app-signing
 secrets; it signs the APK and fails unless `tools/apk-cert-pin.mjs` finds
-exactly one signer matching the fingerprint pinned in `SECURITY.md`, so the release job only
+one app-signing certificate across every SDK range matching the pin in `SECURITY.md`, so the release job only
 ever handles finished, verified packages. The separate `android-aab` job receives only the
 upload-key secrets and builds the bundle and its R8 mapping. `tools/check-android-bundle.sh`
 checks pinned bundletool bytes, bundle structure, actual signatures and a certificate

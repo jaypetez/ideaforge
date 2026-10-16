@@ -149,8 +149,11 @@ sha256sum --check --ignore-missing SHA256SUMS
 apksigner verify --print-certs ideaforge-VERSION.apk
 ```
 
-`apksigner` must exit 0 and print exactly one `Signer #1 certificate SHA-256 digest:` equal to
-the fingerprint above (ignore case and colons). Anything else is not an IdeaForge release:
+`apksigner` must exit 0 and report one app-signing certificate equal to the fingerprint
+above (ignore case and colons). Numbered multi-signer output is refused. For SDK-range
+labels, every reported range must use that same certificate; another key or an unknown
+label is refused, not silently ignored. `tools/apk-cert-pin.mjs` checks both supported
+formats. Anything else is not an IdeaForge release:
 do not install it. Android also refuses to update an installed release with an APK signed by
 another key.
 

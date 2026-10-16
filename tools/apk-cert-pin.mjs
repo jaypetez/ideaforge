@@ -22,7 +22,9 @@ import { resolve } from 'node:path';
 export const SECTION = '## Release signing certificate';
 // The one line in that section the workflow reads. Keep the wording in SECURITY.md in step.
 const PIN_LINE = /^Signer certificate SHA-256:\s*`([^`]*)`/m;
-const SIGNER_LINE = /^Signer #(\d+) certificate SHA-256 digest:\s*(\S+)\s*$/gm;
+const SIGNER_LINE = /^Signer ([^\r\n]+) certificate SHA-256 digest:[ \t]*([^\r\n]*)$/gm;
+const NUMBERED_SIGNER = /^#\d+$/;
+const SDK_SIGNER = /^\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)$/;
 
 /** Lowercase hex with colons and whitespace removed, or null if it is not a SHA-256. */
 export function normalizeFingerprint(text) {
@@ -32,7 +34,12 @@ export function normalizeFingerprint(text) {
 
 /** Every signer's certificate SHA-256 from `apksigner verify --print-certs` output. */
 export function parseSigners(output) {
-  return [...String(output ?? '').matchAll(SIGNER_LINE)].map((m) => m[2]);
+  return signerEntries(output).map((entry) => entry.fingerprint);
+}
+
+function signerEntries(output) {
+  return [...String(output ?? '').matchAll(SIGNER_LINE)]
+    .map((match) => ({ label: match[1], fingerprint: match[2].trim() }));
 }
 
 /**
@@ -61,16 +68,26 @@ export function readPin(securityMd) {
 export function checkPin({ apksignerOutput, securityMd }) {
   const pinned = readPin(securityMd);
   if (pinned.error) return { ok: false, message: pinned.error };
-  const signers = parseSigners(apksignerOutput);
-  if (signers.length === 0) return { ok: false, message: 'apksigner printed no signer certificate' };
-  // A release is signed by exactly one key. More than one signer is either a misconfiguration
-  // or an APK built for a key rotation nobody has planned yet; refuse rather than guess which
-  // of them the pin is meant to match.
-  if (signers.length > 1) {
-    return { ok: false, message: `the APK has ${signers.length} signers; a release must have exactly one` };
+  const entries = signerEntries(apksignerOutput);
+  if (entries.length === 0) return { ok: false, message: 'apksigner printed no signer certificate' };
+  const numbered = entries.every((entry) => NUMBERED_SIGNER.test(entry.label));
+  if (!numbered && !entries.every((entry) => SDK_SIGNER.test(entry.label))) {
+    return { ok: false, message: 'apksigner printed unknown or mixed signer labels' };
   }
-  const actual = normalizeFingerprint(signers[0]);
-  if (!actual) return { ok: false, message: `apksigner printed "${signers[0]}", which is not a SHA-256` };
+  // V3.1 prints one certificate per SDK range. All must use the same app key;
+  // numbered multi-signers and rotations to a different certificate still fail.
+  if (numbered && entries.length > 1) {
+    return { ok: false, message: `the APK has ${entries.length} signers; a release must have exactly one` };
+  }
+  const fingerprints = entries.map((entry) => normalizeFingerprint(entry.fingerprint));
+  if (fingerprints.some((fingerprint) => fingerprint === null)) {
+    return { ok: false, message: 'apksigner printed a malformed signer certificate SHA-256' };
+  }
+  const unique = [...new Set(fingerprints)];
+  if (unique.length !== 1) {
+    return { ok: false, message: `the APK uses ${unique.length} certificates across SDK ranges; a release must use one app-signing key` };
+  }
+  const actual = unique[0];
   if (actual !== pinned.pin) {
     return {
       ok: false,
