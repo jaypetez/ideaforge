@@ -58,7 +58,7 @@ npm test                            # ~1s  — purity lint + the unit suite. Run
 npm run test:docs                   # public docs, links, facts and agent wiring.
 npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
 npm run test:browser:required
-                                    # ~90s — headless Chrome on the assembled site tree.
+                                    # headless Chrome, policy checks and isolated probes.
 npm run test:all                    # unit + graph + required browser checks.
 npm run screenshots                 # ~35s — only when the UI or the README changes
 VALIDATE_MODE=handsfree \
@@ -183,6 +183,11 @@ by a fake-media pass. Record unavailable physical checks rather than claiming de
 and never run paid speech checks without an authorised key and spending cap.
 The real-app policy phase also drives Preview, Start, Resume, Pause and Exit with trusted
 input and actual playback, using only scripted model/recognition and fake speech HTTP.
+The harness logs elapsed time per probe and runs those probes sequentially. Use its exact
+`--probe` selector during development; even focused runs retain policy/accessibility checks.
+Before pushing, the clean-head `npm run test:all` gate remains mandatory. A passing
+required-browser phase inside that command is the same evidence, not a reason to run it
+again on unchanged inputs; a changed head or validation input requires fresh evidence.
 
 Add a probe by dropping a file in `test/browser/`:
 ```js
