@@ -220,6 +220,26 @@ class DriveControllerTest {
     }
 
     @Test
+    fun aSpokenPauseIsNotDisplayedOrAnnouncedAsARetainedAnswer() {
+        rig.scripts += spoken("pause")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.mode == VoiceMode.PAUSED })
+        assertEquals("a command has no answer words", "", rig.state.caption)
+        assertTrue(rig.draft().isNullOrEmpty())
+        assertTrue(rig.answered().isEmpty())
+    }
+
+    @Test
+    fun aSpokenPauseKeepsTheExistingTypedPrefixWithoutIncludingTheCommand() {
+        val id = "s_drive_00000002"
+        rig.scripts += spoken("pause")
+        rig.controller.start(rig.unsaved(id, "typed words"), "typed")
+        assertTrue(rig.until { rig.state.mode == VoiceMode.PAUSED })
+        assertEquals("typed words", rig.state.caption)
+        assertTrue(rig.until { stringOf(rig.store.get(id)?.get("draftAnswer")) == "typed words" })
+    }
+
+    @Test
     fun aFatalSpeechFailureStandsDownAndStopsTheService() {
         rig.speaker.next = { SpeakResult(SpeakStatus.FAILED, SpeakFailure.ENGINE_ERROR, "engine error") }
         rig.controller.start(rig.seeded, "typed")

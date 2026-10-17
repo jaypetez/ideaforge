@@ -167,6 +167,8 @@ class DriveController(
     /** The draft that was in the answer box when this capture began, and its source. */
     private var prefix = ""
     private var prefixSource = "typed"
+    /** Only a submitted answer may survive as a caption after its draft was cleared. */
+    private var submittedCaption = ""
     /** The question the current capture is answering, so a late draft cannot land on the next. */
     private var captureTurnId: String? = null
 
@@ -313,6 +315,7 @@ class DriveController(
         work = InterviewWork(id, store, worker, clock, writes)
         prefix = stringOf(s["draftAnswer"]).orEmpty().trim()
         prefixSource = draftSource
+        submittedCaption = ""
         // A capture id left by an earlier drive would make keepDraft think this question was
         // already answered and drop the typed draft.
         captureTurnId = null
@@ -445,7 +448,7 @@ class DriveController(
             )
         }
         keepDraft(captured, turnId)
-        _state.update { it.copy(caption = prefix.ifBlank { if (!st.listening) st.caption else "" }) }
+        _state.update { it.copy(caption = prefix.ifBlank { submittedCaption }) }
     }
 
     private fun block(detail: String) {
@@ -550,6 +553,7 @@ class DriveController(
             if (!running()) return ""
             inference.require(allowed)
             captureTurnId = session?.let(::openTurn)?.let { stringOf(it["id"]) }
+            submittedCaption = ""
             _state.update { it.copy(listening = true, confirm = confirm, caption = "", levels = emptyList()) }
             val firstWordMs = if (confirm) CONFIRM_FIRST_WORD_MS else DRIVE_FIRST_WORD_MS
             try {
@@ -631,6 +635,7 @@ class DriveController(
             session = answered
             prefix = ""
             prefixSource = "typed"
+            submittedCaption = caption
             _state.update { it.copy(caption = caption) }
             val outcome = w.turn(answered, {
                 inference.require(allowed)
@@ -697,6 +702,7 @@ class DriveController(
         override suspend fun scratch() {
             if (!running()) return
             prefix = ""
+            submittedCaption = ""
             keepDraft("", captureTurnId)
             _state.update { it.copy(caption = "") }
         }
