@@ -337,6 +337,16 @@ with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0
 require 54 accepted capture records per window. Inspect the selected test's nonzero XML
 execution and complete SHA-matching manifests/PNGs; this is not the full UX inventory.
 
+For native Interview, dispatch `-f evidence=interview` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful` with
+`uxInterviewProbe=true`. Eleven states cover seed/long/history/coverage, checklist,
+busy/save failure, the actual open IME, an actual engine wrap offer, Writing and failed
+synthesis. The wrap reuses the canonical typed walkthrough without fabricating UI state;
+the ordinary chip walkthrough still verifies its canonical export. Both windows,
+themes and three font scales require 66 accepted records per window. Inspect actual
+selected-method XML, every requested manifest record and real PNGs. The focused subset
+does not prove the full UX inventory, physical recognition or real permission UI.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

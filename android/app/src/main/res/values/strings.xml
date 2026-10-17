@@ -160,6 +160,10 @@
     <string name="notice_failed">That change could not be saved.</string>
     <!-- Interview. Wording follows index.html and src/ui/app.js where the web has it. -->
     <string name="interview_coverage">Coverage %1$d%%</string>
+    <string name="interview_coverage_show">Coverage details</string>
+    <string name="interview_coverage_hide">Hide coverage details</string>
+    <string name="interview_history_show">Show earlier (%1$d)</string>
+    <string name="interview_history_hide">Current question</string>
     <string name="interview_pill">%1$s: %2$s</string>
     <string name="level_thin">thin</string>
     <string name="level_partial">partial</string>

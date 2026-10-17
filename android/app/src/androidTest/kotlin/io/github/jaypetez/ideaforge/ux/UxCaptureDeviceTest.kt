@@ -36,6 +36,8 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.ScriptedProvider
 import io.github.jaypetez.ideaforge.core.PromptParts
+import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
+import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -721,15 +723,42 @@ class UxCaptureDeviceTest {
         captureUxEvidence(request, nativeIdeas = true)
     }
 
-    private fun captureUxEvidence(request: UxCaptureRequest, nativeIdeas: Boolean = false) {
+    @Test
+    fun requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxInterviewProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful") != true) {
+                "the selected Interview probe requires uxInterviewProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxInterviewProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "interview-seed", "interview-long", "interview-history", "interview-coverage", "bank", "busy-turn",
+            "save-failure", "interview-ime", "interview-wrap", "writing", "synthesis-failure",
+        )) { "Interview evidence requires its complete fixed state matrix" }
+        captureUxEvidence(request, nativeInterview = true)
+    }
+
+    private fun captureUxEvidence(
+        request: UxCaptureRequest, nativeIdeas: Boolean = false, nativeInterview: Boolean = false,
+    ) {
         val bundle = InstrumentationRegistry.getArguments()
         val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }) {
             "requested UX evidence needs Gradle's additionalTestOutputDir"
         }
         fixtures = UxFixtures.load(target)
         val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map { id ->
-            if (nativeIdeas && id == "ideas-loading") fixtures.state("ready").copy(id = id, surface = "library", phase = "loading")
-            else fixtures.state(id)
+            when {
+                nativeIdeas && id == "ideas-loading" -> fixtures.state("ready").copy(id = id, surface = "library", phase = "loading")
+                nativeInterview && id in setOf("interview-seed", "interview-wrap") ->
+                    fixtures.state("ready").copy(id = id, surface = "interview")
+                nativeInterview && id in setOf("interview-history", "interview-coverage", "interview-ime") ->
+                    fixtures.state("interview-long").copy(id = id)
+                else -> fixtures.state(id)
+            }
         } ?: fixtures.states
         val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
         val matrix = windows.flatMap { window ->
@@ -766,6 +795,10 @@ class UxCaptureDeviceTest {
                                 assertTrue("the read remains pending for the whole loading capture", heldLibraryRead?.count == 1L)
                                 assertTrue("loading did not become an empty or failed read", !fixtureGraph!!.sessionStore.loadState.value.ready &&
                                     fixtureGraph!!.sessionStore.loadState.value.problem == null)
+                            }
+                            if (state.id == "interview-ime") {
+                                assertTrue("reachability keeps the actual keyboard open",
+                                    activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime()))
                             }
                         } catch (e: Throwable) {
                             recorder.failed(state, config, e, activity)
@@ -886,6 +919,11 @@ class UxCaptureDeviceTest {
                 ))
             }
         }
+        if (state.id == "interview-wrap") {
+            scriptedWalkthrough(compose, target, launch = ::launchMain, settleInput = ::hideKeyboard, wrapOnly = true)
+            await("wrap-offer")
+            return listOf(tag("wrap-accept"), tag("wrap-decline"), tag("interview-back"))
+        }
         launchMain(scripted = state.id !in setOf("busy-turn", "writing", "synthesis-failure"))
         if (state.id == "fresh") {
             await("provider-groq")
@@ -948,11 +986,43 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
                 return listOf(textControl("continue", R.string.idea_continue), tag(LibraryTags.NEW)) + navigationControls()
             }
-            "interview-long", "bank" -> {
+            "interview-seed" -> {
+                compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                await("question")
+                assertEquals(SEED_QUESTION, nodeText("question"))
+                compose.onNodeWithTag("history-toggle").assertDoesNotExist()
+                return interviewControls() + tag("coverage-details")
+            }
+            "interview-long", "bank", "interview-history", "interview-coverage", "interview-ime" -> {
                 selectSession(requireNotNull(state.sessionId))
                 await("question")
                 if (state.id == "bank") compose.onNodeWithTag("degraded").assertExists()
                 else assertEquals(fixtures.text("question"), nodeText("question"))
+                when (state.id) {
+                    "interview-history" -> {
+                        revealControl("history-toggle")
+                        compose.onNodeWithTag("history-toggle").performClick()
+                        assertEquals(target.getString(R.string.interview_history_hide), nodeText("history-toggle"))
+                    }
+                    "interview-coverage" -> {
+                        revealControl("coverage-details")
+                        compose.onNodeWithTag("coverage-details").performClick()
+                        return listOf(tag("coverage-details")) + DIMENSION_IDS.map {
+                            UxControl("pill-$it", hasTestTag("pill-$it"), actionRequired = false)
+                        }
+                    }
+                    "interview-ime" -> {
+                        revealControl("answer")
+                        compose.onNodeWithTag("answer").performClick()
+                        compose.waitUntil(DEVICE_TIMEOUT) {
+                            activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime())
+                        }
+                        compose.onNodeWithTag("answer").performTextReplacement(fixtures.text("answer"))
+                        revealControl("answer")
+                        assertEquals(fixtures.text("answer"), compose.onNodeWithTag("answer").fetchSemanticsNode()
+                            .config.getOrNull(SemanticsProperties.EditableText)?.text)
+                    }
+                }
                 return interviewControls() + if (state.id == "interview-long") {
                     (fixtures.text.getValue("chips") as kotlinx.serialization.json.JsonArray).indices.map { tag("chip-$it") } +
                         UxControl("turn-status", hasTestTag("turn-status"), actionRequired = false)
@@ -1107,6 +1177,8 @@ class UxCaptureDeviceTest {
         "ready" -> "Native with a ready provider starts at Ideas; it has no separate Start screen."
         "writing" -> "Native write-up stays in the interview with a Writing busy line until it settles."
         "ideas-loading" -> "Real MainActivity Ideas while its actual SessionStore read is held pending; no empty index or synthetic UI state."
+        "interview-wrap" -> "Real MainActivity canonical typed walkthrough stopped at its actual engine wrap offer; not a fabricated presentation state."
+        "interview-ime" -> "Real MainActivity long interview with the actual native keyboard open throughout capture and reachability."
         else -> null
     }
 }

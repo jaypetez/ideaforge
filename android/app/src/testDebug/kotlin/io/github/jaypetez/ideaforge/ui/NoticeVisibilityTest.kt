@@ -166,7 +166,7 @@ class NoticeVisibilityTest {
             compose.mainClock.autoAdvance = false
             compose.runOnIdle { release.complete(Unit) }
             assertVisibleTimedNotice("controlled delayed submission failure")
-            assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
+            assertTrue("manual failure stays owned until deliberately dismissed", vm.state.value.notice != null)
             val viewport = outer.fetchSemanticsNode().boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
             if (atComposer) {
                 // Protect the visible editor, not its old content-coordinate scroll offset.

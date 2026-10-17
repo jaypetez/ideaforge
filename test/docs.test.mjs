@@ -609,8 +609,12 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both Ideas visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,
     'Ideas evidence must cover loading, empty, unavailable, normal, hundred-row, archived, no-match and long-preview states in both windows');
-  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
-    'Ideas evidence must not inherit an unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful'/g) || []).length, 2,
+    'both Interview visual devices must select the actual focused capture method');
+  assert.equal((workflow.match(/uxInterviewProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=interview-seed\+interview-long\+interview-history\+interview-coverage\+bank\+busy-turn\+save-failure\+interview-ime\+interview-wrap\+writing\+synthesis-failure/g) || []).length, 2,
+    'Interview evidence must include reader/coverage/actual IME/wrap and real failure states in both windows');
+  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
+    'Ideas/Interview evidence must not inherit an unrelated empty shell runner argument');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [

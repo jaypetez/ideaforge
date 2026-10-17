@@ -37,12 +37,14 @@ internal fun scriptedWalkthrough(
     launch: () -> Unit,
     capture: (String) -> Unit = {},
     settleInput: () -> Unit = {},
+    wrapOnly: Boolean = false,
 ) {
     val vector = Json.parseToJsonElement(target.assets.open(ScriptedProvider.ASSET).bufferedReader().use { it.readText() })
-    val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == "a chip answer" }
+    val caseName = if (wrapOnly) "typed answers" else "a chip answer"
+    val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == caseName }
     val script = ScriptedProvider.loadScript(target)
     val steps = case["input"]["steps"] as JsonArray
-    assertTrue("the case answers with a chip", steps.any { it["chip"] != null })
+    if (!wrapOnly) assertTrue("the case answers with a chip", steps.any { it["chip"] != null })
 
     fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
@@ -94,6 +96,10 @@ internal fun scriptedWalkthrough(
         if (exists("wrap-offer")) break
     }
     assertTrue("the run reached past the first few turns ($turn)", turn > 4)
+    if (wrapOnly) {
+        assertTrue("the canonical typed run reached a real wrap offer", exists("wrap-offer"))
+        return
+    }
     click(if (exists("wrap-offer")) "wrap-accept" else "write-up")
 
     compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.SCREEN), DEVICE_TIMEOUT)
