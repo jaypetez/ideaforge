@@ -58,6 +58,7 @@ class AppGraph(
     val providerCheck: ProviderCheck = ProviderCheck.Default,
     providerSource: ProviderSource = ProviderSource.FromKeyring,
     preferences: PrefsStore? = null,
+    sessionStorage: SessionStore? = null,
 ) {
     /**
      * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
@@ -72,7 +73,7 @@ class AppGraph(
 
     val idGen: IdGen by lazy { IdGen(clock) }
 
-    val sessionStore: SessionStore by lazy { SessionStore(File(context.filesDir, "sessions")) }
+    val sessionStore: SessionStore by lazy { sessionStorage ?: SessionStore(File(context.filesDir, "sessions")) }
 
     val sessionWorker: SessionWorker by lazy { SessionWorker() }
 

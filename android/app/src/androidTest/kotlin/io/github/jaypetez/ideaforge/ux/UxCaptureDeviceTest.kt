@@ -46,6 +46,7 @@ import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.KeyringKey
+import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.scriptedWalkthrough
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
@@ -71,6 +72,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -98,6 +103,8 @@ class UxCaptureDeviceTest {
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
+    private var heldLibraryRead: CountDownLatch? = null
+    private var libraryReadEntered: CountDownLatch? = null
 
     @Test
     fun requestedInferenceConsentIsProminent() {
@@ -693,11 +700,37 @@ class UxCaptureDeviceTest {
         val bundle = InstrumentationRegistry.getArguments()
         val args = bundle.keySet().associateWith { bundle.get(it).toString() }
         val request = UxCaptureRequest.from(args) ?: return
+        captureUxEvidence(request)
+    }
+
+    @Test
+    fun requestedIdeasAreCompactReachableAndTruthful() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxIdeasProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedIdeasAreCompactReachableAndTruthful") != true) {
+                "the selected Ideas probe requires uxIdeasProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxIdeasProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "ready", "empty", "unavailable", "library", "library-100", "library-archived", "filtered", "library-long", "ideas-loading",
+        )) { "Ideas evidence requires its complete fixed state matrix" }
+        captureUxEvidence(request, nativeIdeas = true)
+    }
+
+    private fun captureUxEvidence(request: UxCaptureRequest, nativeIdeas: Boolean = false) {
+        val bundle = InstrumentationRegistry.getArguments()
         val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }) {
             "requested UX evidence needs Gradle's additionalTestOutputDir"
         }
         fixtures = UxFixtures.load(target)
-        val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map(fixtures::state) ?: fixtures.states
+        val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map { id ->
+            if (nativeIdeas && id == "ideas-loading") fixtures.state("ready").copy(id = id, surface = "library", phase = "loading")
+            else fixtures.state(id)
+        } ?: fixtures.states
         val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
         val matrix = windows.flatMap { window ->
             listOf("light", "dark").flatMap { theme ->
@@ -729,6 +762,11 @@ class UxCaptureDeviceTest {
                                 nativeMapping = nativeMapping(state),
                                 labNavigationMs = if (state.id == "library-100") elapsed else null,
                             )
+                            if (state.id == "ideas-loading") {
+                                assertTrue("the read remains pending for the whole loading capture", heldLibraryRead?.count == 1L)
+                                assertTrue("loading did not become an empty or failed read", !fixtureGraph!!.sessionStore.loadState.value.ready &&
+                                    fixtureGraph!!.sessionStore.loadState.value.problem == null)
+                            }
                         } catch (e: Throwable) {
                             recorder.failed(state, config, e, activity)
                         } finally {
@@ -773,10 +811,22 @@ class UxCaptureDeviceTest {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
         val controlled = FixtureProvider(ScriptedProvider(script), state.id)
+        val gate = if (state.id == "ideas-loading") CountDownLatch(1) else null
+        heldLibraryRead = gate
+        libraryReadEntered = gate?.let { CountDownLatch(1) }
+        val storage = gate?.let {
+            val entered = checkNotNull(libraryReadEntered)
+            SessionStore(File(context.filesDir, "sessions"), readAttributes = { file ->
+                entered.countDown()
+                if (!gate.await(DEVICE_TIMEOUT, TimeUnit.MILLISECONDS)) throw IOException("controlled UX library read exceeded its capture budget")
+                Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+            })
+        }
         val graph = AppGraph(
             context, clock = Clock { fixtures.now }, keyringKey = FixtureKey(),
             providerCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
             providerSource = ProviderSource { controlled },
+            sessionStorage = storage,
         )
         fixtureGraph = graph
         app.graph = graph
@@ -797,7 +847,7 @@ class UxCaptureDeviceTest {
             val load = runCatching { graph.sessionStore.load() }
             assertTrue("the real store rejects unavailable storage", load.exceptionOrNull() is IOException)
             assertTrue("the real store reports the failed read", graph.sessionStore.loadState.value.problem != null)
-        } else {
+        } else if (state.id != "ideas-loading") {
             graph.sessionStore.load()
         }
         if (state.id == "save-failure") {
@@ -843,6 +893,15 @@ class UxCaptureDeviceTest {
         }
         await(NAVIGATION)
         when (state.id) {
+            "ideas-loading" -> {
+                compose.waitUntil(DEVICE_TIMEOUT) { libraryReadEntered?.count == 0L }
+                val label = hasText(target.getString(R.string.library_loading))
+                compose.onNode(label).assertIsDisplayed()
+                compose.onNodeWithTag(LibraryTags.ZERO).assertDoesNotExist()
+                compose.onNodeWithTag(LibraryTags.EMPTY).assertDoesNotExist()
+                compose.onNodeWithTag(LibraryTags.UNAVAILABLE).assertDoesNotExist()
+                return listOf(UxControl("library-loading", label, actionRequired = false), tag(LibraryTags.NEW)) + navigationControls()
+            }
             "ready", "empty" -> {
                 await(LibraryTags.ZERO)
                 return listOf(tag(LibraryTags.NEW)) + navigationControls()
@@ -864,9 +923,11 @@ class UxCaptureDeviceTest {
                         .performScrollToNode(hasTestTag(menu))
                     compose.onNodeWithTag(menu).assertExists("the hundredth idea's menu remains reachable")
                 }
-                return listOf(tag(LibraryTags.NEW), tag(LibraryTags.SEARCH), tag(LibraryTags.ARCHIVED)) + navigationControls()
+                return listOf(tag(LibraryTags.NEW), tag(LibraryTags.SEARCH), tag(LibraryTags.FILTERS)) + navigationControls()
             }
             "library-archived" -> {
+                await(LibraryTags.FILTERS)
+                compose.onNodeWithTag(LibraryTags.FILTERS).performScrollTo().performClick()
                 await(LibraryTags.ARCHIVED)
                 compose.onNodeWithTag(LibraryTags.ARCHIVED).performScrollTo().performClick()
                 compose.waitUntil(DEVICE_TIMEOUT) {
@@ -879,7 +940,7 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag(LibraryTags.SEARCH).performScrollTo().performTextInput("no matching UX fixture")
                 hideKeyboard()
                 await(LibraryTags.EMPTY)
-                return listOf(tag(LibraryTags.SEARCH), tag(LibraryTags.NEW)) + navigationControls()
+                return listOf(tag(LibraryTags.SEARCH), tag(LibraryTags.CLEAR), tag(LibraryTags.NEW)) + navigationControls()
             }
             "library-long" -> {
                 selectSession("ux-long-active", open = false)
@@ -958,7 +1019,8 @@ class UxCaptureDeviceTest {
         hideKeyboard()
         val card = hasTestTag(LibraryTags.CARD) and hasText(title)
         compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
-        compose.onNode(card).performClick()
+        compose.onNodeWithTag(LibraryTags.more(id)).performClick()
+        compose.onNodeWithTag(LibraryTags.details(id)).performClick()
         await(LibraryTags.DETAIL)
         if (open) {
             val action = if (stringOf(session["status"]) == "done") R.string.idea_view_result else R.string.idea_continue
@@ -1017,6 +1079,9 @@ class UxCaptureDeviceTest {
     }
 
     private fun closeFixture() {
+        heldLibraryRead?.countDown()
+        heldLibraryRead = null
+        libraryReadEntered = null
         val closing = scenario
         val graph = fixtureGraph
         scenario = null
@@ -1041,6 +1106,7 @@ class UxCaptureDeviceTest {
         "fresh" -> "Native first run is provider onboarding, not the web Start screen."
         "ready" -> "Native with a ready provider starts at Ideas; it has no separate Start screen."
         "writing" -> "Native write-up stays in the interview with a Writing busy line until it settles."
+        "ideas-loading" -> "Real MainActivity Ideas while its actual SessionStore read is held pending; no empty index or synthetic UI state."
         else -> null
     }
 }

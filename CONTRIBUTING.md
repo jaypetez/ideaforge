@@ -328,6 +328,15 @@ the existing actions instead; use it only on the unchanged pre-consent applicati
 The recorder requires the complete requested matrix and actual checkout SHA.
 Neither a focused result nor zero discovered visual tests certifies the default inventory.
 
+For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
+recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/
+filtered lists, long active detail and an actual pending SessionStore read. The injected
+store remains the graph's only store; the read is released during cleanup, not replaced
+with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0/1.3/2.0
+require 54 accepted capture records per window. Inspect the selected test's nonzero XML
+execution and complete SHA-matching manifests/PNGs; this is not the full UX inventory.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

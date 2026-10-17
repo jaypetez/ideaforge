@@ -41,13 +41,13 @@ class MainActivityTest {
     @After
     fun close() = scenario.close()
 
-    // The library's FAB is also labelled "New idea"; the bar's items are found inside the bar.
+    // The library header also has "New idea"; the bar's items are found inside the bar.
     private fun navItem(label: String) =
         compose.onNode(hasText(label) and hasAnyAncestor(hasTestTag(BOTTOM_BAR)))
 
     @Test
     fun launchesToTheLibraryWithTheBottomBar() {
-        compose.onNodeWithText("IdeaForge").assertExists()
+        compose.onNodeWithText("Your ideas").assertExists()
         compose.onNodeWithText("v${BuildConfig.VERSION_NAME}").assertExists()
         for (label in listOf("Ideas", "New idea", "Settings")) navItem(label).assertExists()
     }
