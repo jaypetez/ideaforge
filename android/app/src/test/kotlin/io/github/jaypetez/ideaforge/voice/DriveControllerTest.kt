@@ -85,6 +85,7 @@ class DriveControllerTest {
         assertEquals(CaptureState.IDLE, rig.recognizer.state.value)
         assertEquals(1, rig.speaker.cancels)
         assertTrue("draft=${rig.draft()}", rig.until { rig.draft() == "half an answer" })
+        assertEquals("the paused stage keeps the same parsed words as the saved draft", "half an answer", rig.state.caption)
 
         rig.advance(60_000)
         assertEquals("no capture after Pause", starts, rig.starts())
@@ -171,6 +172,51 @@ class DriveControllerTest {
         assertFalse("no recogniser was even built", rig.recognizerBuilt)
         assertEquals(0, rig.service.starts)
         assertTrue(rig.speaker.said.isEmpty())
+    }
+
+    @Test
+    fun theReportedBackendIsTheLastSuccessfulOutputNotAConfiguredOrCancelledAttempt() {
+        rig.speaker.next = { SpeakResult(SpeakStatus.SPOKEN, backend = SpeechBackend.HOSTED) }
+        rig.controller.start(rig.seeded, "typed")
+        assertNull("nothing has spoken yet", rig.state.lastSpeech)
+        assertTrue(rig.until { rig.state.listening })
+        assertEquals(SpeechBackend.HOSTED, rig.state.lastSpeech?.backend)
+        rig.controller.pause()
+        assertEquals("Pause does not invent a fallback", SpeechBackend.HOSTED, rig.state.lastSpeech?.backend)
+
+        val reason = "Scripted hosted failure; the device voice spoke instead."
+        rig.speaker.next = { SpeakResult(SpeakStatus.SPOKEN, backend = SpeechBackend.NATIVE, fallback = reason) }
+        rig.controller.resume()
+        assertTrue(rig.until { rig.state.listening && rig.state.lastSpeech?.fallback == reason })
+        assertEquals(SpeechBackend.NATIVE, rig.state.lastSpeech?.backend)
+
+        rig.controller.pause()
+        rig.speaker.next = { SpeakResult(SpeakStatus.CANCELLED, backend = SpeechBackend.HOSTED) }
+        rig.controller.resume()
+        rig.advance(5_000)
+        assertEquals("a cancelled attempt never claims it spoke", SpeechBackend.NATIVE, rig.state.lastSpeech?.backend)
+        assertEquals(reason, rig.state.lastSpeech?.fallback)
+    }
+
+    @Test
+    fun pausingDuringTurnWorkKeepsItsQuestionAndSubmittedCaptionWithoutRecreatingADraft() {
+        val hold = kotlinx.coroutines.CompletableDeferred<Unit>()
+        rig.model.gate = hold
+        rig.scripts += spoken("my submitted answer over")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.phase == io.github.jaypetez.ideaforge.core.runtime.DrivePhase.PROCESSING })
+        val question = rig.state.question
+        assertTrue(question.isNotEmpty())
+        assertEquals("my submitted answer", rig.state.caption)
+        rig.controller.pause()
+        assertEquals(question, rig.state.question)
+        assertEquals("my submitted answer", rig.state.caption)
+        hold.complete(Unit)
+        rig.advance(5_000)
+        assertTrue(rig.draft().isNullOrEmpty())
+        assertEquals(VoiceMode.PAUSED, rig.state.mode)
+        assertEquals("my submitted answer", rig.state.caption)
+        assertEquals(1, rig.answered().size)
     }
 
     @Test

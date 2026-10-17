@@ -111,7 +111,11 @@ class WhisperListener(
     private val allowed: suspend () -> Boolean = { true },
 ) {
     /** [onText] receives the accumulated transcript after each segment: the live caption. */
-    suspend fun listenForDrive(trigger: String, firstWordMs: Long, onText: (String) -> Unit = {}): String {
+    suspend fun listenForDrive(
+        trigger: String, firstWordMs: Long,
+        onTranscribing: (Boolean) -> Unit = {},
+        onText: (String) -> Unit = {},
+    ): String {
         val mic = source()
         if (!mic.start()) throw ListenFailure("The microphone is unavailable.", name = "AudioCaptureError")
         val frame = ShortArray(mic.sampleRate / 50) // 20 ms
@@ -155,11 +159,14 @@ class WhisperListener(
                 }
                 if (!allowed()) throw ListenFailure("Transcription was turned off.", name = "AbortError")
                 val text = try {
+                    onTranscribing(true)
                     transcribe(pcmWav(pcm.toByteArray(), mic.sampleRate), "audio/wav").trim()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     throw ListenFailure(e.message ?: "Transcription failed.", name = "TranscriptionError")
+                } finally {
+                    onTranscribing(false)
                 }
                 if (text.isNotEmpty()) answer = if (answer.isEmpty()) text else "$answer $text"
                 onText(answer)

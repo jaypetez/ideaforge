@@ -742,8 +742,28 @@ class UxCaptureDeviceTest {
         captureUxEvidence(request, nativeInterview = true)
     }
 
+    @Test
+    fun requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxVoiceProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest") != true) {
+                "the selected voice probe requires uxVoiceProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxVoiceProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "voice-ready", "voice-starting", "voice-speaking", "voice-listening", "voice-transcribing",
+            "voice-thinking", "voice-paused", "voice-recovering", "voice-blocked", "voice-complete", "voice-writing",
+            "voice-fallback", "voice-notifications-off", "voice-help",
+        )) { "Voice evidence requires its complete fixed phase/recovery inventory" }
+        captureUxEvidence(request, nativeVoice = true)
+    }
+
     private fun captureUxEvidence(
-        request: UxCaptureRequest, nativeIdeas: Boolean = false, nativeInterview: Boolean = false,
+        request: UxCaptureRequest, nativeIdeas: Boolean = false, nativeInterview: Boolean = false, nativeVoice: Boolean = false,
     ) {
         val bundle = InstrumentationRegistry.getArguments()
         val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }) {
@@ -752,6 +772,7 @@ class UxCaptureDeviceTest {
         fixtures = UxFixtures.load(target)
         val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map { id ->
             when {
+                nativeVoice -> UxFixtureActivity.requestedVoiceState(fixtures, id)
                 nativeIdeas && id == "ideas-loading" -> fixtures.state("ready").copy(id = id, surface = "library", phase = "loading")
                 nativeInterview && id in setOf("interview-seed", "interview-wrap") ->
                     fixtures.state("ready").copy(id = id, surface = "interview")
@@ -765,10 +786,17 @@ class UxCaptureDeviceTest {
             listOf("light", "dark").flatMap { theme ->
                 listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
             }
+        } + if (nativeVoice && "compact" in windows) listOf("light", "dark").map {
+            UxConfiguration("compact-landscape", it, 2f, requestedWidthDp = 640, requestedHeightDp = 400)
+        } else emptyList()
+        val requestedStates = matrix.associateWith { config ->
+            if (nativeVoice && config.window == "compact-landscape")
+                selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
+            else selected
         }
         val walkthrough = if (request.states == null) listOf("seed", "chip", "result") else emptyList()
         val expected = matrix.flatMap { config ->
-            selected.map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
+            requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
         }.toSet()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux"), expected)
         val originalGraph = app.graph
@@ -779,7 +807,7 @@ class UxCaptureDeviceTest {
             UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
-                    for (state in selected) {
+                    for (state in requestedStates.getValue(config)) {
                         try {
                             prepare(state, config)
                             val before = SystemClock.elapsedRealtimeNanos()
@@ -911,8 +939,24 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag("voice-no-level").assertExists()
                 assertEquals(fixtures.text("answer"), nodeText("voice-caption"))
             }
+            if (state.phase in setOf("transcribing", "thinking", "recovering", "paused", "blocked"))
+                assertEquals(fixtures.text("answer"), nodeText("voice-caption"))
+            if (state.phase == "transcribing")
+                assertEquals(target.getString(R.string.voice_phase_transcribing), nodeText("voice-phase"))
+            if (state.id == "voice-fallback") {
+                compose.onNodeWithTag("voice-fallback").assertExists()
+                assertEquals(target.getString(R.string.voice_backend_native), nodeText("voice-backend"))
+            }
+            if (state.id == "voice-help") {
+                compose.onNodeWithTag("voice-help-toggle").performScrollTo().performClick()
+                compose.onNodeWithTag("voice-help").assertExists()
+            }
             return buildList {
                 if (state.phase == "listening") add(UxControl("voice-no-level", hasTestTag("voice-no-level"), actionRequired = false))
+                if (state.phase == "blocked") add(tag("voice-mic-settings"))
+                if (state.id == "voice-notifications-off")
+                    add(UxControl("voice-notifications-off", hasTestTag("voice-notifications-off"), actionRequired = false))
+                add(tag("voice-help-toggle"))
                 addAll(listOf(
                 tag(if (state.phase in setOf("paused", "blocked")) "voice-resume" else "voice-pause"),
                 tag("voice-exit"),

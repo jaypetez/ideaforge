@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -101,6 +100,7 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.statusColors
 import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
+import io.github.jaypetez.ideaforge.ui.voice.VoicePermissionDialog
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
 import io.github.jaypetez.ideaforge.ui.voice.hasPermission
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissions
@@ -159,7 +159,12 @@ fun InterviewScreen(
     val voiceHere = voice != null && voice.sessionId == vm.sessionId
     val context = LocalContext.current
     val deniedMessage = stringResource(R.string.voice_mic_denied)
-    val notificationsOff = stringResource(R.string.voice_notifications_denied)
+    var microphoneHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECORD_AUDIO)) }
+    var notificationsHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        microphoneHeld = hasPermission(context, Manifest.permission.RECORD_AUDIO)
+        notificationsHeld = hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+    }
     var rationale by remember { mutableStateOf(false) }
     var permissionPermit by remember { mutableStateOf<InferencePermit?>(null) }
     LaunchedEffect(inference) {
@@ -175,16 +180,14 @@ fun InterviewScreen(
             val expected = permissionPermit ?: return@launch
             if (!vm.authorizeVoice(expected)) return@launch
             val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
+            microphoneHeld = mic
+            notificationsHeld = grants[Manifest.permission.POST_NOTIFICATIONS] ?: hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             if (drive == null) return@launch
             val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-            val started = if (attached) {
+            if (attached) {
                 if (mic) drive.resume()
-                mic
             } else {
                 beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
-            }
-            if (started && grants[Manifest.permission.POST_NOTIFICATIONS] == false) {
-                scope0.launch { snackbar.showSnackbar(notificationsOff) }
             }
         }
     }
@@ -241,26 +244,18 @@ fun InterviewScreen(
     }
 
     if (rationale) {
-        AlertDialog(
-            onDismissRequest = { rationale = false },
-            title = { Text(stringResource(R.string.voice_mic_title)) },
-            text = { Text(stringResource(R.string.voice_mic_rationale)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope0.launch {
-                        val expected = permissionPermit
-                        if (expected != null && vm.authorizeVoice(expected)) {
-                            rationale = false
-                            permissions.launch(voicePermissions())
-                        }
+        VoicePermissionDialog(
+            notificationsNeeded = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
+            onContinue = {
+                scope0.launch {
+                    val expected = permissionPermit
+                    if (expected != null && vm.authorizeVoice(expected)) {
+                        rationale = false
+                        permissions.launch(voicePermissions())
                     }
-                }, modifier = Modifier.testTag("voice-mic-continue")) {
-                    Text(stringResource(R.string.voice_mic_continue))
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { rationale = false }) { Text(stringResource(R.string.voice_mic_cancel)) }
-            },
+            onDismiss = { rationale = false },
         )
     }
 
@@ -274,12 +269,15 @@ fun InterviewScreen(
                     scope0.launch {
                         if (vm.authorizeVoice()) {
                             permissionPermit = vm.inferenceState.value.permit
-                            if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
+                            if (!hasPermission(context, Manifest.permission.RECORD_AUDIO)) rationale = true else drive.resume()
                         }
                     }
                 },
                 onExit = drive::exit,
                 modifier = Modifier.weight(1f),
+                ideaTitle = state.session?.let(::sessionDisplayTitle).orEmpty(),
+                microphoneDenied = voice.mode == VoiceMode.BLOCKED && !microphoneHeld,
+                notificationsOff = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
             )
         }
         return

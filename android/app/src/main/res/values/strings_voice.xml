@@ -14,6 +14,17 @@
     <string name="voice_phase_paused">Paused</string>
     <string name="voice_phase_blocked">Voice stopped</string>
     <string name="voice_phase_writing">Writing it up</string>
+    <string name="voice_phase_transcribing">Transcribing recorded audio</string>
+    <string name="voice_backend_unreported">Speech output not reported yet</string>
+    <string name="voice_backend_native">Last spoken: device voice</string>
+    <string name="voice_backend_hosted">Last spoken: OpenAI speech</string>
+    <string name="voice_current_question">Current question</string>
+    <string name="voice_reading_aloud">Reading aloud</string>
+    <string name="voice_live_answer">Live answer</string>
+    <string name="voice_your_words">Your words</string>
+    <string name="voice_help_show">Finish word and voice commands</string>
+    <string name="voice_help_hide">Hide voice commands</string>
+    <string name="voice_commands">End your answer with “%1$s”. Commands must be the whole utterance: “repeat”, “skip this one”, “write it up”, “scratch that”, “pause” or “exit voice”. Resume always needs a tap.</string>
     <string name="voice_listening_hint">Say “%1$s” when you’re done.</string>
     <string name="voice_confirm_hint">Listening — yes, or keep going.</string>
     <!-- Never animated around: the bars move only from the recogniser's level readings. -->
@@ -21,10 +32,14 @@
     <string name="voice_levels">Microphone level, %1$d readings</string>
     <string name="voice_deaf">No sound is reaching the recogniser. Keep IdeaForge open, or check the microphone.</string>
     <string name="voice_mic_title">Microphone access</string>
-    <string name="voice_mic_rationale">Your phone’s speech service processes audio, on-device where available. IdeaForge stores no audio. During a voice interview, listening continues with the screen off while its notification shows Pause and Exit.</string>
+    <string name="voice_mic_rationale">Microphone access is needed only for your voice interview. Your phone’s speech service processes audio, on-device where available. IdeaForge stores no audio. Listening can continue with the screen off; Pause stops capture and keeps the words already available.</string>
     <string name="voice_mic_continue">Continue</string>
     <string name="voice_mic_cancel">Not now</string>
     <string name="voice_mic_denied">Microphone access was denied, so voice stood down. You can keep typing, or allow the microphone in Settings and tap Resume.</string>
+    <string name="voice_mic_settings">Open app permission settings</string>
+    <string name="voice_mic_settings_failed">App settings could not be opened. Open Android Settings, find IdeaForge, then allow the microphone. Return here and tap Resume, or Exit to type.</string>
+    <string name="voice_notifications_title">Notification controls (optional)</string>
+    <string name="voice_notifications_rationale">Allow notifications to keep Pause, Resume and Exit available outside this screen. Refusing notifications does not block voice; the controls remain here.</string>
     <string name="voice_notifications_denied">Notifications are off, so the Pause and Exit controls stay on this screen only.</string>
     <string name="drive_channel">Voice interview</string>
     <string name="drive_channel_description">Shown while a hands-free interview is using the microphone, with Pause and Exit.</string>

@@ -125,7 +125,11 @@
                 notification with Pause and Exit keeps the interview hearing with the screen
                 off. Pause keeps the words captured so far as your draft; Exit returns to typing
                 without writing anything up. If the microphone is refused, voice stands down and
-                you keep typing. The phone&rsquo;s speech service processes audio, on-device
+                starts neither recognition nor its microphone service. <em>Open app permission
+                settings</em> offers recovery; return and tap Resume deliberately, or Exit
+                to keep typing. Notification permission is explained separately and is optional:
+                refusing it does not block voice, and the stage says the controls remain here.
+                The phone&rsquo;s speech service processes audio, on-device
                 where available; IdeaForge does not store audio. Press-to-talk is not there yet.</td>
             </tr>
             <tr>
@@ -138,8 +142,9 @@
                 OpenAI audio on the phone. Changing the key or the voice, unticking a consent
                 or Forget turns it off until the next passing check; unticking a consent or
                 Forget also stops anything being spoken and pauses a voice interview. If OpenAI fails during an
-                interview, the phone&rsquo;s voice takes over and the voice stage says so; Pause
-                never switches voices.</td>
+                interview, the phone&rsquo;s voice takes over and the voice stage says so.
+                <em>Last spoken</em> identifies the backend that actually completed the last
+                output, not a promise about the next one; Pause never switches voices.</td>
             </tr>
             <tr>
               <th scope="row">Transcription fallback</th>
@@ -151,7 +156,8 @@
                 segment and 120 seconds per answer) and transcribed. While the recogniser is
                 working, nothing is recorded or sent. Unticking the consent or Forget stops the
                 next upload and pauses the interview; Pause keeps what was already
-                transcribed as your draft.</td>
+                transcribed as your draft. Transcribing is shown only while an actual upload
+                is pending, and completed segments appear as captions.</td>
             </tr>
             <tr>
               <th scope="row">Signed release</th>
@@ -164,6 +170,13 @@
             </tr>
           </tbody>
         </table>
+        <p>The focused voice screen keeps the idea, current question and full live or retained
+          words together. Phase status is polite; microphone samples do not trigger repeated
+          announcements or a fabricated meter. Pause/Resume and Exit remain separate large
+          actions while long or enlarged text scrolls. <em>Finish word and voice commands</em>
+          explains the configured finish word and commands that must occupy the whole utterance.
+          Scripted emulator phase screenshots are layout evidence, not physical-phone voice
+          or permission validation.</p>
       </div>
       <p>
         Automated tests run on the JVM; no physical-phone result is recorded in the
