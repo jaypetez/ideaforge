@@ -30,6 +30,7 @@ import {
 } from './lib/harness.mjs';
 import { assembleSite } from './assemble-site.mjs';
 import { runBrowserPolicyChecks } from './browser-policy-check.mjs';
+import { installCaptureTheme } from '../test/browser/theme.browser.mjs';
 
 const PROBE_DIR = join(ROOT, 'test', 'browser');
 /**
@@ -391,6 +392,9 @@ async function main() {
         cdp = await connectChrome(browser);
         detachReporter = await attachReporter(cdp, active);
         await cdp.send('Page.enable');
+        if (probe === 'theme.browser.mjs') {
+          await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(${installCaptureTheme})();` });
+        }
         if (traceStream) await observeChrome(cdp, trace);
         trace('launch', { profile: browser.profile, pid: browser.child.pid });
         await cdp.send('Page.bringToFront');
