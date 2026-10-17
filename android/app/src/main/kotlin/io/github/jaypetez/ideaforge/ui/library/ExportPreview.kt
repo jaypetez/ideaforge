@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -18,6 +19,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import io.github.jaypetez.ideaforge.R
+import io.github.jaypetez.ideaforge.core.buildExport
+import io.github.jaypetez.ideaforge.core.isLowConfidence
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -27,6 +31,43 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+
+@Composable
+internal fun LibraryPreview(session: JsonElement) {
+    Column(Modifier.widthIn(max = IdeaForgeWidths.reading), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
+        if (stringOf(session["status"]) == "done" || truthy(session["synthesis"]["text"])) {
+            ExportPreview(remember(session) { buildExport(session) })
+        } else {
+            Text(stringResource(R.string.idea_no_write_up), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.idea_transcript), style = MaterialTheme.typography.titleLarge)
+            val turns = (session["turns"] as? JsonArray).orEmpty()
+            if (turns.none { truthy(it["answer"]) || truthy(it["skipped"]) }) {
+                Text(stringResource(R.string.idea_no_preview), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            for (turn in turns) {
+                Text(stringOf(turn["question"]).orEmpty(), style = MaterialTheme.typography.titleSmall)
+                if (stringOf(turn["questionSource"]) == "bank") {
+                    Text(stringResource(R.string.interview_from_checklist), style = MaterialTheme.typography.labelMedium)
+                }
+                if (truthy(turn["skipped"])) {
+                    Text(stringResource(R.string.interview_skipped), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else if (truthy(turn["answer"])) {
+                    if (isLowConfidence(turn)) {
+                        Text(stringResource(R.string.interview_from_chip), style = MaterialTheme.typography.labelMedium)
+                    } else if (stringOf(turn["answerSource"]) == "voice") {
+                        Text(stringResource(R.string.idea_dictated), style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text(stringOf(turn["answer"]).orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+        val draft = stringOf(session["draftAnswer"]).orEmpty()
+        if (draft.isNotBlank()) {
+            Text(stringResource(R.string.idea_unsent_draft), style = MaterialTheme.typography.titleMedium)
+            Text(draft, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
 
 /**
  * A read-only rendering of the export markdown: the library's detail pane and the result

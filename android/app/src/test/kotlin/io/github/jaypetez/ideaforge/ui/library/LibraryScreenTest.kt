@@ -1,8 +1,18 @@
 package io.github.jaypetez.ideaforge.ui.library
 
+import android.view.View
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -19,6 +29,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.compose.ui.unit.dp
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.archiveSession
 import io.github.jaypetez.ideaforge.core.createSession
@@ -52,11 +66,14 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowDialog
 import java.io.File
 
 // A tall compact phone: the lazy list only composes what fits, and every card must fit.
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w400dp-h1600dp")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class LibraryScreenTest {
     @get:Rule
     val tmp = TemporaryFolder()
@@ -69,6 +86,8 @@ class LibraryScreenTest {
     private val now = 5_000_000L
     private val opened = mutableListOf<LibraryItem>()
     private var newIdeas = 0
+    private var inputMode: InputModeManager? = null
+    private var owner: View? = null
 
     @Before
     fun setUp() {
@@ -104,6 +123,8 @@ class LibraryScreenTest {
         )
         compose.setContent {
             IdeaForgeTheme {
+                inputMode = LocalInputModeManager.current
+                owner = LocalView.current
                 LibraryScreen(vm, open = { opened += it }, newIdea = { newIdeas++ }, onboarding = {})
             }
         }
@@ -130,6 +151,15 @@ class LibraryScreenTest {
         compose.onNode(hasText(text) and hasAnyAncestor(isDialog()))
 
     private fun stored(id: String) = store.get(id)
+
+    private fun filters() {
+        compose.onNodeWithTag(LibraryTags.FILTERS).performClick()
+    }
+
+    private fun details(id: String) {
+        compose.onNodeWithTag(LibraryTags.more(id)).performClick()
+        compose.onNodeWithTag(LibraryTags.details(id)).performClick()
+    }
 
     // name -> title -> opening, the one display order the web and the export share.
     @Test
@@ -211,6 +241,7 @@ class LibraryScreenTest {
     @Test
     fun aTagChipFiltersAndTogglesOff() {
         show(*library())
+        filters()
         compose.onNodeWithTag(LibraryTags.tagChip("home")).performClick()
         compose.waitForIdle()
         assertEquals(2, cardCount())
@@ -226,6 +257,7 @@ class LibraryScreenTest {
     @Test
     fun theArchivedToggleShowsOnlyArchivedIdeas() {
         show(*library())
+        filters()
         compose.onNodeWithTag(LibraryTags.ARCHIVED).assertIsOff()
         compose.onNodeWithTag(LibraryTags.ARCHIVED).assert(hasContentDescription("Show archived"))
         compose.onNodeWithText("Automate my tax receipts").assertDoesNotExist()
@@ -247,6 +279,7 @@ class LibraryScreenTest {
         assertEquals(2, cardCount())
         compose.onNodeWithText("A planner for my vegetable garden").assertDoesNotExist()
 
+        filters()
         compose.onNodeWithTag(LibraryTags.ARCHIVED).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
@@ -261,6 +294,7 @@ class LibraryScreenTest {
         val before = stored(podcast)!!
         compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
         compose.onNodeWithText("Rename or tag").performClick()
+        compose.onNodeWithTag(LibraryTags.NAME).assert(hasAnyAncestor(isDialog()))
         compose.onNodeWithTag(LibraryTags.NAME).performTextInput("  The   soil   show ")
         compose.onNodeWithTag(LibraryTags.TAGS).performTextReplacement("Media, audio, media")
         compose.onNodeWithText("Save details").performClick()
@@ -275,12 +309,104 @@ class LibraryScreenTest {
         assertEquals(now.toDouble(), after["updatedAt"]!!.jsonPrimitive.content.toDouble(), 0.0)
         assertTrue(after["rev"]!!.jsonPrimitive.content.toDouble() > before["rev"]!!.jsonPrimitive.content.toDouble())
         assertEquals(podcast, vm.state.value.items.first().id)
-        // The editor lives in the detail pane; back on the list, the card has the new name.
-        compose.onNodeWithText("All ideas").performClick()
         compose.waitForIdle()
         compose.onNodeWithText("The soil show").assertExists()
         compose.onNodeWithText("Soil talk").assertDoesNotExist()
+        filters()
         compose.onNodeWithTag(LibraryTags.tagChip("audio")).assertExists()
+    }
+
+    @Test
+    fun cancellingARenameKeepsTheStoredIdeaAndReturnsToTheList() {
+        show(*library())
+        val before = stored(recipes)
+        compose.runOnIdle {
+            assertTrue(checkNotNull(inputMode).requestInputMode(InputMode.Keyboard))
+            checkNotNull(owner).requestFocus()
+        }
+        val origin = compose.onNodeWithTag(LibraryTags.more(recipes))
+        origin.performSemanticsAction(SemanticsActions.RequestFocus) { assertTrue(it()) }
+        origin.assertIsFocused().performClick()
+        compose.onNodeWithText("Rename or tag").performClick()
+        compose.onNodeWithTag(LibraryTags.NAME).performTextReplacement("Do not save this")
+        inDialog("Cancel").performClick()
+        compose.onNodeWithTag(LibraryTags.EDITOR).assertDoesNotExist()
+        origin.assertIsDisplayed().assertIsFocused()
+        assertEquals(before, stored(recipes))
+    }
+
+    @Test
+    fun backDismissesTheRenameWithoutMutatingTheIdea() {
+        show(*library())
+        val before = stored(podcast)
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithText("Rename or tag").performClick()
+        compose.onNodeWithTag(LibraryTags.NAME).performTextReplacement("Do not save this either")
+        compose.runOnIdle {
+            val dialog = checkNotNull(ShadowDialog.getLatestDialog() as? OnBackPressedDispatcherOwner)
+            dialog.onBackPressedDispatcher.onBackPressed()
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(LibraryTags.EDITOR).assertDoesNotExist()
+        assertEquals(before, stored(podcast))
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithText("Rename or tag").performClick()
+        compose.onNodeWithTag(LibraryTags.EDITOR).assertIsDisplayed()
+        inDialog("Cancel").performClick()
+    }
+
+    @Test
+    fun noMatchOffersOneActionThatClearsEveryFilter() {
+        val vm = show(*library())
+        filters()
+        compose.onNodeWithTag(LibraryTags.tagChip("home")).performClick()
+        compose.onNodeWithTag(LibraryTags.ARCHIVED).performClick()
+        compose.onNodeWithTag(LibraryTags.SEARCH).performTextInput("submarine")
+        compose.onNodeWithTag(LibraryTags.CLEAR).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(LibraryFilters(), vm.state.value.filters)
+        assertEquals(3, cardCount())
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp", fontScale = 2f)
+    fun enlargedRowsGrowAndTheirMoreTargetsRemainReachableWithoutFocusingSearch() {
+        show(*library())
+        compose.onNodeWithTag(LibraryTags.SEARCH).assertIsNotFocused()
+        compose.onAllNodesWithTag(LibraryTags.CARD).onFirst().assertHeightIsAtLeast(96.dp)
+        compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo()
+            .assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp", fontScale = 2f)
+    fun enlargedRenameDialogKeepsItsEditorsAndFullyPaintedActionsReachable() {
+        show(idea(garden, 1_000, "A planner with a complete accessible title"))
+        val before = stored(garden)
+        compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
+        compose.onNodeWithText("Rename or tag").performClick()
+        for (tag in listOf(LibraryTags.NAME, LibraryTags.TAGS)) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+                .assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        }
+        for (label in listOf("Save details", "Cancel")) {
+            inDialog(label).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNode(hasText(label) and hasAnyAncestor(isDialog()), useUnmergedTree = true)
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertTrue("the actual action text was measured", layouts.isNotEmpty())
+            for (layout in layouts) {
+                // Use the recorder's painted-line checks; MultiParagraph retains the max constraint.
+                val lines = (0 until layout.lineCount).toList()
+                val width = lines.maxOfOrNull { layout.getLineRight(it) - layout.getLineLeft(it) } ?: 0f
+                val height = lines.maxOfOrNull(layout::getLineBottom) ?: 0f
+                assertTrue("$label is fully painted at font scale 2.0: ${width}x$height in ${layout.size}",
+                    width <= layout.size.width + 1f && height <= layout.size.height + 1f &&
+                        !layout.multiParagraph.didExceedMaxLines && lines.none(layout::isLineEllipsized))
+            }
+        }
+        inDialog("Cancel").performClick()
+        assertEquals(before, stored(garden))
     }
 
     @Test
@@ -319,16 +445,53 @@ class LibraryScreenTest {
 
     // A compact width: one pane at a time.
     @Test
-    fun aCompactWindowShowsOnePaneAndACardOpensTheDetail() {
+    fun aCompactWindowShowsOnePaneAndMoreOpensTheSecondaryDetail() {
         show(*library())
         assertTrue(shown(LibraryTags.LIST))
         assertFalse(shown(LibraryTags.DETAIL))
-        compose.onNodeWithText("Soil talk").performClick()
+        details(podcast)
         compose.waitForIdle()
         assertTrue(shown(LibraryTags.DETAIL))
         assertFalse(shown(LibraryTags.LIST))
         compose.onNodeWithText("Continue").performClick()
         assertEquals(listOf(podcast), opened.map { it.id })
+    }
+
+    @Test
+    fun aCompactIdeaOpensItsPrimaryActionWithoutVisitingDetails() {
+        show(*library())
+        compose.onNodeWithText("Soil talk").performClick()
+        assertEquals(listOf(podcast), opened.map { it.id })
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h1600dp")
+    fun anActivePreviewShowsConversationWithoutInventingAFailedWriteUp() {
+        val draft = "<script>literal unsent text, not markup</script>"
+        val session = io.github.jaypetez.ideaforge.core.setDraftAnswer(library()[1], str(draft), num(now))
+        val before = io.github.jaypetez.ideaforge.core.buildExport(session)
+        show(session)
+        compose.onNodeWithText("Soil talk").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("No write-up yet").assertIsDisplayed()
+        compose.onNodeWithText("A podcast about tomatoes and soil").assertExists()
+        compose.onNodeWithText("Unsent draft").assertExists()
+        compose.onNodeWithText(draft).assertExists()
+        compose.onNode(hasText("Not generated.", substring = true)).assertDoesNotExist()
+        assertEquals(before, io.github.jaypetez.ideaforge.core.buildExport(stored(podcast)))
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h1600dp")
+    fun filtersCannotLeaveAnUnrelatedIdeaInTheSelectedPane() {
+        show(*library())
+        compose.onNodeWithText("Soil talk").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LibraryTags.SEARCH).performTextInput("vegetable")
+        compose.waitForIdle()
+        compose.onNodeWithText("Select an idea to see its summary.").assertIsDisplayed()
+        compose.onNode(hasText("Soil talk") and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL)))
+            .assertDoesNotExist()
     }
 
     @Test
@@ -355,9 +518,8 @@ class LibraryScreenTest {
     @Test
     fun aFinishedArchivedIdeaOpensItsResult() {
         show(idea(tax, 1_000, "Automate my tax receipts", archived = true, done = true))
+        filters()
         compose.onNodeWithTag(LibraryTags.ARCHIVED).performClick()
-        compose.waitForIdle()
-        compose.onNodeWithText("Automate my tax receipts").performClick()
         compose.waitForIdle()
         compose.onNodeWithText("View result").performClick()
         assertEquals(listOf(tax), opened.map { it.id })

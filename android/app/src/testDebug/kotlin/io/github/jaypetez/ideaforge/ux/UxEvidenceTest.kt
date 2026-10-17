@@ -220,6 +220,63 @@ class UxEvidenceTest {
     }
 
     @Test
+    fun aBlankFrameUsesTheExistingBudgetAndResetsConsecutiveRenderedRootProof() {
+        val bitmap = Bitmap.createBitmap(390, 844, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.WHITE)
+        var clock = 0L
+        var attempts = 0
+        val rendered = listOf(false, true, false, true, true)
+        val pixels = UxPixels(20, 30.0, 0x121316, rootSurfaceRgb = 0x121316,
+            rootSurfaceMatches = 4_000, sampledPixels = 20_000)
+        try {
+            val result = UxEvidence.requireStableTheme("dark", 100L, { clock }) {
+                clock += 10
+                if (!rendered[attempts++]) UxEvidence.requireRendered(bitmap, viewport)
+                pixels
+            }
+            assertSame(pixels, result)
+            assertEquals("neither an initial blank nor a blank between matches can certify the root", 5, attempts)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun aPermanentlyBlankFrameStillFailsWithinTheUnchangedBudget() {
+        val bitmap = Bitmap.createBitmap(390, 844, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.WHITE)
+        var clock = 0L
+        var attempts = 0
+        try {
+            val failure = assertThrows(IllegalStateException::class.java) {
+                UxEvidence.requireStableTheme("light", 40L, { clock }) {
+                    clock += 10
+                    attempts++
+                    UxEvidence.requireRendered(bitmap, viewport)
+                }
+            }
+            assertEquals(4, attempts)
+            assertEquals(40L, clock)
+            assertTrue(failure.message.orEmpty().contains("blank/unrendered app screenshot"))
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun frameSettlingDoesNotRetryUnrelatedCaptureFailures() {
+        var attempts = 0
+        val failure = IllegalStateException("screenshot pixels do not cover the measured app viewport")
+        assertSame(failure, assertThrows(IllegalStateException::class.java) {
+            UxEvidence.requireStableTheme("light", 100L, { 0L }) {
+                attempts++
+                throw failure
+            }
+        })
+        assertEquals(1, attempts)
+    }
+
+    @Test
     fun oneCorrectFrameCannotBlessALaterWrongThemeAndAStableSwappedThemeTimesOut() {
         for (briefMatch in listOf(false, true)) {
             var clock = 0L

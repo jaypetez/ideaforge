@@ -147,6 +147,8 @@ class LibraryViewModel(
 
     fun setShowArchived(show: Boolean) = filters.update { it.copy(showArchived = show) }
 
+    fun clearFilters() { filters.value = LibraryFilters() }
+
     fun noticeShown() { _notice.value = null }
 
     /** The web's "Rename or tag" form: [tagsText] is comma separated, as there. */

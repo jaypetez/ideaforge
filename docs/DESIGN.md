@@ -15,12 +15,13 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells and progressive web Start (#193) are implemented here. The native Start and
-Ideas/Interview/Voice/Result recompositions are
+shells, progressive web Start (#193), native Ideas (#198) and native Interview (#200)
+are implemented here.
+The native Start and Voice/Result recompositions are
 **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the foundations, adaptive shells and progressive web Start, not the complete reference boards.
+the implemented surfaces, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -223,7 +224,77 @@ workspace without adding a route or changing controller/service ownership. Exit 
 the actual manual navigation; caption/level updates do not rebuild shell chrome.
 Form, work, Settings, reading and answer measures remain owned by `IdeaForgeWidths`;
 Library, document metadata and voice also consume those bounds. This is shell/inset work,
-not the later Library, composer, voice or Result action-order makeover.
+not the composer, voice or Result action-order makeover.
+
+## Current native Ideas
+
+`LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea
+header. The list uses separator-based rows rather than repeated outlined cards: title,
+status/coverage/date, at most two tag names with a remaining-tag count, and the current
+action. Titles may visually ellipsize after two lines; their full literal text remains
+in semantics and the detail pane. Rows grow with enlarged text rather than using a fixed
+height.
+
+In a compact window, the row opens Continue or View result directly. More holds View
+details, Rename or tag, Archive/Restore and Delete. In a wider window, a row selects its
+detail; the detail holds the primary Continue/View result action. Filtering hides an
+unrelated selected preview immediately, while preserving search focus. A compact detail
+whose idea is removed or filtered out returns through the existing pane navigator.
+
+Search and the result count stay visible; Filters discloses tags and the archived switch.
+Collapsed active filters retain a summary and Clear filters. No-match recovery clears all
+filters, or offers Show archived when the only ideas are archived. Loading, no ideas and
+unavailable storage keep their distinct states and Retry never deletes files. Opening
+Ideas retains the pane focus-target guard instead of focusing the search editor.
+
+Rename/tag and permanent Delete use native dialogs with Cancel/Back. They return focus
+to the initiating menu control when it remains mounted, or the Ideas heading. A confirmed
+deletion moves focus off the removed row. Mutations still go through LibraryViewModel,
+the session reducers, per-session work lock and store deletion protection.
+
+`LibraryPreview` renders an active idea without synthesis as **No write-up yet** plus its
+literal conversation and unsent draft, keeping checklist, skipped and answer-provenance
+labels. It does not manufacture a failed-generation notice. Existing write-ups and
+completed ideas still use `ExportPreview`; canonical export generation is unchanged.
+The existing device workflow's `evidence=ideas` selects the focused method explicitly,
+reusing the general recorder for ready/empty/unavailable, normal/100-row/archived/filtered
+lists, the long active preview and a real pending store read. The injected store is still
+the graph's sole SessionStore, not a fake UI state. It runs in compact/expanded windows,
+both themes and all three font scales.
+It is a focused Ideas inventory, not a claim that the full UX matrix passed.
+
+## Current native Interview
+
+`InterviewScreen.kt` gives the literal current question/bridge the primary reading
+hierarchy, with a quiet source/turn line and a bounded `IdeaForgeWidths.reading` column.
+The composer starts with one line and expands; Send is primary, with separate Skip,
+Answer by voice and Write it up actions. Suggestion chips still fill the editable draft
+through the same ViewModel, preserving unchanged/edited provenance.
+
+Coverage starts as a factual percentage and Coverage details action. The disclosure
+shows dimension names and textual levels from the Kotlin contract, not confidence.
+Show earlier includes the settled exchange count; Current question closes that view.
+New turn results do not scroll a reader away from expanded earlier history. Thinking
+retains the submitted question/answer rather than replacing all context with activity.
+
+Short panes, enlarged text and expanded coverage use the existing single page scroller
+for conversation and composer. Ordinary-height, default-text interviews retain their
+lazy thread and bounded docked editor. The contextual bar still joins the scroller only
+when a short window has the real keyboard open. Full labels/actions remain reachable
+by scrolling rather than fitting an enlarged chip into a smaller lazy viewport.
+
+Manual failure notices reuse the bounded native host with an indefinite duration.
+The ViewModel retains the notice until Dismiss, so recomposition/rotation cannot consume
+it as a one-shot event. The editor's existing relocation guard also observes the actual
+notice-host height, preserving an editor that was visible before the failure without
+pulling an earlier-history reader back to it. Voice/nonfatal notification notices keep
+their existing path. No provider, turn, persistence, wrap or export policy changes.
+
+The focused `evidence=interview` device route covers seed/long/history/coverage, checklist,
+busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. The wrap
+uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
+wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
+This is a declared Interview subset, not a full-UX or physical-device result.
 
 `AdaptiveShellTest` exercises real activity routes, native window shapes, draft/selection
 recreation, same-session Ask me more and attached voice. The managed-device shell matrix
@@ -284,14 +355,16 @@ description. Warning/error status includes a localized textual prefix and a poli
 live region; the voice phase is polite and the question is a heading, not an announcement
 on every level sample.
 
-`IdeaForgeSnackbarHost` in `ui/components/NoticeHost.kt` keeps the native queue, timing,
+`IdeaForgeSnackbarHost` in `ui/components/NoticeHost.kt` keeps the native queue,
 transitions and original full message. Its message viewport is scrollable and bounded
 by a quarter of available height, at most 128dp but never less than one body line.
-A localized 48dp Dismiss action closes the actual notice. Interview/voice notices take
+A localized 48dp Dismiss action closes the actual notice. Manual Interview chooses
+indefinite duration and retains ViewModel ownership until dismissal; other existing
+notices keep their native timing. Interview/voice notices take
 layout space rather than covering their controls. A short-height Result places the same
 actions in its document scroll container; its notice reserves viewport space outside
-that scroll, as in manual Interview, so a delayed failure cannot time out unseen after
-the reader scrolls away. Ordinary-height Result keeps its existing dock and action order.
+that scroll so a delayed failure is visible even after the reader scrolls away.
+Ordinary-height Result keeps its existing dock and action order.
 
 ## Contrast and targets
 

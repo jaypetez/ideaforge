@@ -9,8 +9,14 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -28,6 +34,7 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
@@ -84,13 +91,99 @@ class InterviewScreenTest {
     private fun turn(n: Int): JsonObject = (store.get(id)!!["turns"] as JsonArray)[n - 1] as JsonObject
 
     @Test
-    fun theCoverageStripShowsSevenDimensionPills() {
+    fun coverageDetailShowsTheContractDimensionsAndTheirLevels() {
         show(ScriptedModel())
         compose.waitForIdle()
+        compose.onNodeWithTag("coverage-details").performClick()
         assertEquals(7, DIMENSION_IDS.size)
         for (d in DIMENSION_IDS) compose.onNodeWithTag("pill-$d").assertExists()
         compose.onNodeWithTag("pill-outcome").assert(hasContentDescription("What we’re making: thin"))
         compose.onNodeWithTag("coverage-percent").assertTextContains("Coverage 0%")
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun coverageStartsQuietAndRevealsTheActualDimensionLevelsOnRequest() {
+        show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("coverage-percent").assertIsDisplayed().assertTextContains("Coverage 0%")
+        for (dimension in DIMENSION_IDS) compose.onNodeWithTag("pill-$dimension").assertDoesNotExist()
+        compose.onNodeWithTag("coverage-details").performClick()
+        for (dimension in DIMENSION_IDS) compose.onNodeWithTag("pill-$dimension").assertExists()
+        compose.onNodeWithTag("pill-outcome").assert(hasContentDescription("What we’re making: thin"))
+        compose.onNodeWithTag("coverage-details").performClick()
+        for (dimension in DIMENSION_IDS) compose.onNodeWithTag("pill-$dimension").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun aDelayedTurnDoesNotPullAnEarlierHistoryReaderToTheNewQuestion() {
+        val model = ScriptedModel()
+        val dir = sevenAnswersIn(model)
+        val gate = CompletableDeferred<Unit>()
+        model.gate = gate
+        val vm = show(SessionStore(dir, io = Dispatchers.Unconfined), model)
+        compose.waitForIdle()
+        val firstQuestion = stringOf(turn(1)["question"])!!
+        compose.onNodeWithText(firstQuestion).assertDoesNotExist()
+        try {
+            compose.runOnIdle {
+                vm.onAnswerChange(answers[7])
+                vm.send()
+            }
+            compose.waitUntil(5_000) { vm.state.value.busy == Busy.Thinking }
+            compose.onNodeWithTag("history-toggle").assertIsDisplayed().performClick()
+            compose.onNodeWithTag("thread").performScrollToNode(hasText(firstQuestion))
+            compose.onNodeWithText(firstQuestion).assertIsDisplayed()
+            val before = compose.onNodeWithTag("thread").fetchSemanticsNode()
+                .config[SemanticsProperties.VerticalScrollAxisRange].value()
+            compose.runOnIdle { gate.complete(Unit) }
+            compose.waitUntil(5_000) { vm.state.value.busy == null && vm.state.value.wrapOffer != null }
+            compose.onNodeWithText(firstQuestion).assertIsDisplayed()
+            val after = compose.onNodeWithTag("thread").fetchSemanticsNode()
+                .config[SemanticsProperties.VerticalScrollAxisRange].value()
+            assertEquals("a settled turn must not move the reader's actual viewport", before, after, 0f)
+            compose.onNodeWithTag("history-toggle").assertIsDisplayed().performClick()
+            compose.onNodeWithTag("question").assertIsDisplayed()
+        } finally {
+            gate.complete(Unit)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun aRealSaveFailureStaysVisibleUntilTheReaderDismissesIt() {
+        val dir = tmp.newFolder()
+        val vm = show(SessionStore(dir, io = Dispatchers.Unconfined), ScriptedModel())
+        compose.waitForIdle()
+        assertTrue("the empty owned store is replaceable", dir.delete())
+        dir.writeText("controlled unavailable storage")
+        send(answers[0])
+        compose.onNodeWithTag("notice-message").assertIsDisplayed()
+        assertTrue("a manual failure is still owned by the ViewModel", vm.state.value.notice is InterviewNotice.Failed)
+        compose.mainClock.advanceTimeBy(12_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("notice-message").assertIsDisplayed()
+        assertTrue(vm.state.value.notice is InterviewNotice.Failed)
+        assertEquals("the user's submitted answer remains in the live session", answers[0],
+            stringOf((vm.state.value.session!!["turns"] as JsonArray).first()["answer"]))
+        compose.onNodeWithTag("notice-dismiss").performClick()
+        compose.onNodeWithTag("notice-message").assertDoesNotExist()
+        assertEquals(null, vm.state.value.notice)
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun hardwareReturnKeepsTheMultilineDraftWithoutSubmittingIt() {
+        val model = ScriptedModel()
+        val vm = show(model)
+        compose.waitForIdle()
+        compose.onNodeWithTag("answer").performTextInput("First line")
+        compose.onNodeWithTag("answer").performKeyInput { pressKey(Key.Enter) }
+        compose.onNodeWithTag("answer").performTextInput("Second line")
+        assertEquals("First line\nSecond line", vm.state.value.answer)
+        assertTrue("Return is editing, not a hidden Send", model.requests.isEmpty())
+        assertEquals(1, vm.state.value.turnCount)
     }
 
     @Test
@@ -107,7 +200,9 @@ class InterviewScreenTest {
         compose.waitForIdle()
         assertEquals("chip", stringOf(turn(2)["answerSource"]))
         // The thread says so too: the answer is marked as a suggestion taken as offered.
-        compose.waitUntilAtLeastOneExists(hasText("a suggestion, as offered"), 5_000)
+        compose.onNodeWithTag("history-toggle").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("thread").performScrollToNode(hasText("a suggestion, as offered"))
+        compose.onNodeWithText("a suggestion, as offered").assertIsDisplayed()
     }
 
     @Test
