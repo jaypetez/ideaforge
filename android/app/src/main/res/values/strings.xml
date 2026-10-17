@@ -106,6 +106,12 @@
     <string name="library_search">Search conversations</string>
     <string name="library_search_placeholder">name, tag, question, answer or prompt</string>
     <string name="library_show_archived">Show archived</string>
+    <string name="library_filters">Filters</string>
+    <string name="library_hide_filters">Hide filters</string>
+    <string name="library_filters_expanded">Expanded</string>
+    <string name="library_filters_collapsed">Collapsed</string>
+    <string name="library_clear_filters">Clear filters</string>
+    <string name="library_tag_summary">Tag: %1$s</string>
     <plurals name="library_count">
         <item quantity="one">%1$d of %2$d idea</item>
         <item quantity="other">%1$d of %2$d ideas</item>
@@ -115,6 +121,11 @@
         <item quantity="other">%1$d questions</item>
     </plurals>
     <string name="idea_meta">%1$s · %2$d%% coverage · updated %3$s</string>
+    <string name="idea_row_meta">%1$s · %2$d%% coverage · %3$s</string>
+    <plurals name="idea_more_tags">
+        <item quantity="one">%1$d more tag</item>
+        <item quantity="other">%1$d more tags</item>
+    </plurals>
     <string name="idea_unknown_date">unknown date</string>
     <string name="idea_status_active">Active</string>
     <string name="idea_status_completed">Completed</string>
@@ -122,6 +133,8 @@
     <string name="idea_more">More actions for %1$s</string>
     <string name="idea_continue">Continue</string>
     <string name="idea_view_result">View result</string>
+    <string name="idea_details">View details</string>
+    <string name="idea_open">%1$s: %2$s</string>
     <string name="idea_edit">Rename or tag</string>
     <string name="idea_archive">Archive</string>
     <string name="idea_restore">Restore</string>
@@ -135,6 +148,10 @@
     <string name="idea_delete_body">It is removed from this device and cannot be undone.</string>
     <string name="idea_select">Select an idea to see its summary.</string>
     <string name="idea_no_preview">No answers yet, so there is nothing to preview.</string>
+    <string name="idea_no_write_up">No write-up yet</string>
+    <string name="idea_transcript">Transcript</string>
+    <string name="idea_unsent_draft">Unsent draft</string>
+    <string name="idea_dictated">Dictated answer</string>
     <string name="idea_all">All ideas</string>
     <string name="notice_saved">Idea details saved.</string>
     <string name="notice_archived">Idea archived.</string>

@@ -605,6 +605,12 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'privacy and consent requests must not inherit the unrelated empty shell runner argument');
   assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
     'both consent visual devices must select the actual test method');
+  assert.equal((workflow.match(/inputs\.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful'/g) || []).length, 2,
+    'both Ideas visual devices must select the actual focused capture method');
+  assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,
+    'Ideas evidence must cover loading, empty, unavailable, normal, hundred-row, archived, no-match and long-preview states in both windows');
+  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
+    'Ideas evidence must not inherit an unrelated empty shell runner argument');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [

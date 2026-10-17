@@ -36,8 +36,8 @@ test('reference boards remain distinct from the delivered foundations, adaptive 
   assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
   const status = design.replace(/\s+/g, ' ');
-  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells and progressive web Start \(#193\) are implemented here/);
-  assert.match(status, /The native Start and Ideas\/Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
+  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells, progressive web Start \(#193\) and native Ideas \(#198\) are implemented here/);
+  assert.match(status, /The native Start and Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {

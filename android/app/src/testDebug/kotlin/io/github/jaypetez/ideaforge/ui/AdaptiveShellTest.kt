@@ -13,7 +13,9 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -98,10 +100,36 @@ class AdaptiveShellTest {
         val card = hasTestTag(LibraryTags.CARD) and hasText(title)
         compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
             .performScrollToNode(card)
-        compose.onNode(card).performClick()
+        compose.onNodeWithTag(LibraryTags.more(stringOf(session["id"])!!)).performClick()
+        compose.onNodeWithTag(LibraryTags.details(stringOf(session["id"])!!)).performClick()
         if (open) {
             val label = if (stringOf(session["status"]) == "done") "View result" else "Continue"
             compose.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick()
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun compactIdeasShowsThreeWholeRowsWithoutFocusingSearchOrStartingVoice() {
+        val graph = graph(*fixtures.sessions(fixtures.state("library")).toTypedArray())
+        var starts = 0
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { starts++ }
+            override fun stop() {}
+        }
+        ActivityScenario.launch(MainActivity::class.java).use {
+            await(LibraryTags.CARD)
+            compose.waitForIdle()
+            compose.onNodeWithTag(LibraryTags.SEARCH).assertIsNotFocused()
+            val viewport = compose.onNodeWithTag(LibraryTags.LIST).getUnclippedBoundsInRoot()
+            val rows = compose.onAllNodesWithTag(LibraryTags.CARD)
+            assertTrue("the real compact shell composes at least three ideas", rows.fetchSemanticsNodes().size >= 3)
+            for (index in 0..2) {
+                val bounds = rows[index].getUnclippedBoundsInRoot()
+                assertTrue("idea $index is completely inside the list viewport: $bounds in $viewport",
+                    bounds.top >= viewport.top && bounds.bottom <= viewport.bottom)
+            }
+            assertEquals("opening Ideas does not start the microphone service", 0, starts)
         }
     }
 

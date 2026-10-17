@@ -69,7 +69,8 @@ class ResultLayoutTest {
             compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(done["name"])!!)
             val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(done["name"])!!)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
-            compose.onNode(card).performClick()
+            compose.onNodeWithTag(LibraryTags.more(stringOf(done["id"])!!)).performClick()
+            compose.onNodeWithTag(LibraryTags.details(stringOf(done["id"])!!)).performClick()
             compose.onNode(hasText("View result") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
             scenario.onActivity { activity ->

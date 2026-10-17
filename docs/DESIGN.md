@@ -15,12 +15,12 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells and progressive web Start (#193) are implemented here. The native Start and
-Ideas/Interview/Voice/Result recompositions are
+shells, progressive web Start (#193) and native Ideas (#198) are implemented here.
+The native Start and Interview/Voice/Result recompositions are
 **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the foundations, adaptive shells and progressive web Start, not the complete reference boards.
+the implemented surfaces, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -223,7 +223,44 @@ workspace without adding a route or changing controller/service ownership. Exit 
 the actual manual navigation; caption/level updates do not rebuild shell chrome.
 Form, work, Settings, reading and answer measures remain owned by `IdeaForgeWidths`;
 Library, document metadata and voice also consume those bounds. This is shell/inset work,
-not the later Library, composer, voice or Result action-order makeover.
+not the composer, voice or Result action-order makeover.
+
+## Current native Ideas
+
+`LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea
+header. The list uses separator-based rows rather than repeated outlined cards: title,
+status/coverage/date, at most two tag names with a remaining-tag count, and the current
+action. Titles may visually ellipsize after two lines; their full literal text remains
+in semantics and the detail pane. Rows grow with enlarged text rather than using a fixed
+height.
+
+In a compact window, the row opens Continue or View result directly. More holds View
+details, Rename or tag, Archive/Restore and Delete. In a wider window, a row selects its
+detail; the detail holds the primary Continue/View result action. Filtering hides an
+unrelated selected preview immediately, while preserving search focus. A compact detail
+whose idea is removed or filtered out returns through the existing pane navigator.
+
+Search and the result count stay visible; Filters discloses tags and the archived switch.
+Collapsed active filters retain a summary and Clear filters. No-match recovery clears all
+filters, or offers Show archived when the only ideas are archived. Loading, no ideas and
+unavailable storage keep their distinct states and Retry never deletes files. Opening
+Ideas retains the pane focus-target guard instead of focusing the search editor.
+
+Rename/tag and permanent Delete use native dialogs with Cancel/Back. They return focus
+to the initiating menu control when it remains mounted, or the Ideas heading. A confirmed
+deletion moves focus off the removed row. Mutations still go through LibraryViewModel,
+the session reducers, per-session work lock and store deletion protection.
+
+`LibraryPreview` renders an active idea without synthesis as **No write-up yet** plus its
+literal conversation and unsent draft, keeping checklist, skipped and answer-provenance
+labels. It does not manufacture a failed-generation notice. Existing write-ups and
+completed ideas still use `ExportPreview`; canonical export generation is unchanged.
+The existing device workflow's `evidence=ideas` selects the focused method explicitly,
+reusing the general recorder for ready/empty/unavailable, normal/100-row/archived/filtered
+lists, the long active preview and a real pending store read. The injected store is still
+the graph's sole SessionStore, not a fake UI state. It runs in compact/expanded windows,
+both themes and all three font scales.
+It is a focused Ideas inventory, not a claim that the full UX matrix passed.
 
 `AdaptiveShellTest` exercises real activity routes, native window shapes, draft/selection
 recreation, same-session Ask me more and attached voice. The managed-device shell matrix
