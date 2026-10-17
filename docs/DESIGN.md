@@ -15,9 +15,10 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells, progressive web Start (#193), native Ideas (#198) and native Interview (#200)
+shells, progressive web Start (#193), native Ideas (#198), native Interview (#200)
+and native voice presentation (#202)
 are implemented here.
-The native Start and Voice/Result recompositions are
+The native Start and Result recompositions are
 **not yet implemented**. The guide's
 own stylesheet also keeps its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
@@ -287,14 +288,49 @@ Manual failure notices reuse the bounded native host with an indefinite duration
 The ViewModel retains the notice until Dismiss, so recomposition/rotation cannot consume
 it as a one-shot event. The editor's existing relocation guard also observes the actual
 notice-host height, preserving an editor that was visible before the failure without
-pulling an earlier-history reader back to it. Voice/nonfatal notification notices keep
-their existing path. No provider, turn, persistence, wrap or export policy changes.
+pulling an earlier-history reader back to it. Voice work notices retain their existing
+path; optional-notification status is presented separately in the stage.
+No provider, turn, persistence, wrap or export policy changes.
 
 The focused `evidence=interview` device route covers seed/long/history/coverage, checklist,
 busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. The wrap
 uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
 wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
 This is a declared Interview subset, not a full-UX or physical-device result.
+
+### Native focused voice presentation
+
+`VoiceStage.kt` separates the idea title, factual phase, last successful output backend,
+current question, spoken text and captured words. The backend is read from the controller's
+actual successful `SpeakResult`, never inferred from a configured key or claimed before
+output completes. Recorded fallback input reports Transcribing only around the actual
+upload; completed segments become captions. Pause retains the parsed draft words or the
+already-submitted caption while turn work settles, without submitting or restoring an
+answered draft. Full content scrolls inside the bounded reading column; the separated
+Pause/Resume and Exit dock keeps native targets at least 64dp high.
+
+Phase changes are polite live status. Captions remain fully readable; only settled captions
+are live regions, not each unstable partial or microphone sample. No sample means no bars.
+There is no native-speaking output waveform, fabricated activity, confidence or streaming
+claim. Finish-word and whole-utterance command help is an in-stage disclosure in every phase.
+
+Microphone rationale is separate from optional notification guidance. Only an explicit
+voice tap and Continue launch the permission request. A denied microphone stands down
+without starting a recognizer or foreground service and exposes an explicit app-permission
+Settings action with visible open-error recovery. Returning from Settings never resumes
+automatically. Notification denial stays nonfatal and is shown in the stage; Resume does
+not ask again merely because notifications remain off.
+
+The app-scope controller, epoch retirement, draft writes, service/notification actions and
+hosted consent/check/focus/cancellation rules are unchanged. Its new state observations
+are presentation only, not another session or persistence schema.
+`evidence=voice` selects the complete declared native phase/recovery subset: both themes
+and font scales 1.0/1.3/2.0 in compact and expanded windows, plus listening/paused/blocked
+at font 2.0 in a compact landscape. These are visibly labelled **isolated-component**
+production UI captures with scripted semantic state, not microphone, native-recognizer,
+permission-prompt or real-service validation. The native complete phase still leaves the
+stage for Result. Controller/service/capture tests separately exercise sequencing;
+physical behavior remains owned by #89.
 
 `AdaptiveShellTest` exercises real activity routes, native window shapes, draft/selection
 recreation, same-session Ask me more and attached voice. The managed-device shell matrix
@@ -749,9 +785,10 @@ same serialized inventory through debug-only `UxFixtures`. Real-app states navig
 `MainActivity` with private fixture files, a fixed injected clock, dummy encrypted
 credentials and scripted effects. Voice presentations use the non-exported debug-only
 `UxFixtureActivity`, visibly labelled **Isolated component** and supplying no level data.
-Native ready starts at Ideas, Writing stays in Interview, voice-ready maps to Starting,
-voice-transcribing to Thinking, and voice-complete to Result; manifests record those
-platform mappings rather than claiming identical routes/phases.
+Native ready starts at Ideas, Writing stays in Interview, voice-ready maps to Starting
+and voice-complete to Result; manifests record those platform mappings rather than
+claiming identical routes/phases. The native record fallback now has its own actual
+Transcribing status. Static phase captures still do not perform an upload.
 
 From `android\`, with JDK/SDK paths and an explicit owned `ANDROID_SERIAL`, request the
 matrix against the tested checkout:

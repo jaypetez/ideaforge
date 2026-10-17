@@ -347,6 +347,18 @@ themes and three font scales require 66 accepted records per window. Inspect act
 selected-method XML, every requested manifest record and real PNGs. The focused subset
 does not prove the full UX inventory, physical recognition or real permission UI.
 
+For native voice presentation, dispatch `-f evidence=voice` on the exact feature ref.
+It selects `UxCaptureDeviceTest#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest`
+with `uxVoiceProbe=true`. The fixed fourteen-state phase/recovery subset includes native
+Writing, last-output fallback, optional-notification status and the real command disclosure.
+Both windows/themes and three font scales require 84 records per window; compact also
+includes six font-2 listening/paused/blocked landscape records, for 174 total.
+The production rationale dialog and real permission-result callbacks have separate native
+UI tests, not a single-window phase screenshot. All phase captures are labelled isolated-component/scripted semantic
+UI, including the native completion-to-Result mapping. No microphone, actual permission
+prompt, hosted request or service is started. Inspect actual selected-method execution,
+complete exact-SHA manifests and PNGs; #89 remains the physical-device owner.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

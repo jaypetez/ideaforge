@@ -1,5 +1,7 @@
 package io.github.jaypetez.ideaforge.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -36,17 +38,24 @@ import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import io.github.jaypetez.ideaforge.usableRing
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
+import io.github.jaypetez.ideaforge.voice.Speaker
+import io.github.jaypetez.ideaforge.voice.SpeakResult
+import io.github.jaypetez.ideaforge.voice.VoiceMode
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -264,6 +273,96 @@ class AdaptiveShellTest {
             await("answer")
             assertEquals(setOf("ux-long-active"), ids(graph))
             assertEquals(0, starts)
+        }
+    }
+
+    @Test
+    fun manualNavigationAndDismissedRationaleStartNothingAndDeniedMicStandsDown() {
+        val active = fixture("ux-long-active")
+        val graph = graph(active)
+        var starts = 0
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { starts++ }
+            override fun stop() {}
+        }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            select(active)
+            await("voice-start")
+            scenario.onActivity { assertNull(shadowOf(it).lastRequestedPermission) }
+            assertNull(graph.driveController.state.value.mode)
+            compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+            await("voice-mic-rationale")
+            scenario.onActivity { assertNull(shadowOf(it).lastRequestedPermission) }
+            compose.onNode(hasText("Not now")).performClick()
+            assertEquals(0, starts)
+            assertNull(graph.driveController.state.value.mode)
+            compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+            await("voice-mic-continue")
+            compose.onNodeWithTag("voice-mic-continue").performClick()
+            compose.waitUntil(10_000) {
+                var requested = false
+                scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+                requested
+            }
+            scenario.onActivity {
+                val request = shadowOf(it).lastRequestedPermission
+                assertNotNull("only Continue requests permission", request)
+                assertTrue(Manifest.permission.RECORD_AUDIO in request.requestedPermissions)
+                it.onRequestPermissionsResult(request.requestCode, request.requestedPermissions,
+                    IntArray(request.requestedPermissions.size) { PackageManager.PERMISSION_DENIED })
+            }
+            await("voice-stage")
+            assertEquals(VoiceMode.BLOCKED, graph.driveController.state.value.mode)
+            assertEquals(0, starts)
+            compose.onNodeWithTag("voice-mic-settings").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("voice-exit").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun notificationDenialDoesNotBlockTheRealControllerOrAskAgainOnResume() {
+        val active = fixture("ux-long-active")
+        val graph = graph(active)
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        var starts = 0
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { starts++ }
+            override fun stop() {}
+        }
+        graph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+            override fun cancel() {}
+            override fun shutdown() {}
+        }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            select(active)
+            compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+            await("voice-notification-rationale")
+            compose.onNodeWithTag("voice-mic-continue").performClick()
+            compose.waitUntil(10_000) {
+                var requested = false
+                scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+                requested
+            }
+            scenario.onActivity {
+                val request = shadowOf(it).lastRequestedPermission
+                assertNotNull(request)
+                it.onRequestPermissionsResult(request.requestCode, request.requestedPermissions,
+                    request.requestedPermissions.map { p ->
+                        if (p == Manifest.permission.RECORD_AUDIO) PackageManager.PERMISSION_GRANTED else PackageManager.PERMISSION_DENIED
+                    }.toIntArray())
+            }
+            await("voice-stage")
+            assertEquals(VoiceMode.ACTIVE, graph.driveController.state.value.mode)
+            assertEquals(1, starts)
+            compose.onNodeWithTag("voice-notifications-off").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("voice-pause").performClick()
+            compose.onNodeWithTag("voice-resume").performClick()
+            compose.onNodeWithTag("voice-mic-rationale").assertDoesNotExist()
+            assertEquals(VoiceMode.ACTIVE, graph.driveController.state.value.mode)
+            compose.onNodeWithTag("voice-exit").performClick()
+            await("answer")
         }
     }
 }

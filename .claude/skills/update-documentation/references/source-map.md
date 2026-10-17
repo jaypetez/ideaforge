@@ -98,6 +98,20 @@ source wins over prose, and a generated artifact wins over a description of that
   fixed subset explicitly, including real keyboard and canonical typed-run wrap evidence;
   inspect actual execution, complete manifests and images without claiming full UX or
   physical recognition.
+- **Native voice phase/caption and permission presentation.** Sources:
+  [`VoiceStage.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/voice/VoiceStage.kt)
+  owns bounded idea/question/caption content, fixed large actions, command disclosure,
+  separate permission rationale and explicit app-settings/error recovery.
+  [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)
+  keeps permission launches tied to explicit voice intent and shows optional notification
+  denial without blocking Resume. [`DriveController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/DriveController.kt)
+  exposes actual successful `SpeakResult`, retained/submitted words and guarded live
+  transcription observations from [`WhisperListener.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/WhisperListener.kt).
+  These are presentation state, not drive work or a schema. Re-check DESIGN, native
+  voice/permission guide, contributor capture commands, localized strings, controller/
+  service/hosted/capture tests and actual `evidence=voice` manifests/PNGs. Native completion
+  maps to Result; static scripted phases never certify physical recognition, hosted
+  quality, Android permission prompts or #89.
 - **Web Settings and safe recovery.** Sources:
   [`index.html`](../../../../index.html) and
   [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state

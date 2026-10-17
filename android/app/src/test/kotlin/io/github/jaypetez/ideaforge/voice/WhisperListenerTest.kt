@@ -88,6 +88,22 @@ class WhisperListenerTest {
     }
 
     @Test
+    fun transcriptionStatusBracketsTheRealUploadAndClosesOnCancellation() = runTest {
+        val mic = FakePcm(speech())
+        val hold = CompletableDeferred<String>()
+        val status = mutableListOf<Boolean>()
+        val w = WhisperListener({ mic }, { _, _ -> hold.await() }, io = StandardTestDispatcher(testScheduler))
+        val listening = async { w.listenForDrive("over", 8000, onTranscribing = { status += it }) }
+        runCurrent()
+        assertEquals(listOf(true), status)
+        listening.cancel()
+        runCurrent()
+        assertEquals(listOf(true, false), status)
+        assertFalse(mic.open)
+        assertTrue("nothing returned after cancellation", listening.isCancelled)
+    }
+
+    @Test
     fun aMicrophoneThatWillNotOpenIsACaptureFailure() = runTest {
         try {
             listener(FakePcm(speech(), startOk = false)).listenForDrive("over", 8000)

@@ -61,7 +61,7 @@ data class VoiceStageState(
     val mode: VoiceMode? = null,
     val phase: DrivePhase? = null,
     val question: String = "",
-    /** What the recogniser has heard in this capture (settled plus unstable words). */
+    /** Live capture words, then the submitted answer or retained draft; never speech output. */
     val caption: String = "",
     /** What is being read aloud right now. */
     val said: String = "",
@@ -74,6 +74,10 @@ data class VoiceStageState(
     /** A whole recogniser session pinned at the level floor: the screen-off signature. */
     val deaf: Boolean = false,
     val writing: Boolean = false,
+    /** The last successful output, not a prediction of which backend will speak next. */
+    val lastSpeech: SpeakResult? = null,
+    /** True only while the record fallback is actually awaiting a transcription. */
+    val transcribing: Boolean = false,
     /** The word that ends an answer, for the listening hint. */
     val trigger: String = DEFAULT_TRIGGER,
     /** Set once when the run has ended; the screen consumes it with [DriveController.exitShown]. */
@@ -163,6 +167,8 @@ class DriveController(
     /** The draft that was in the answer box when this capture began, and its source. */
     private var prefix = ""
     private var prefixSource = "typed"
+    /** Only a submitted answer may survive as a caption after its draft was cleared. */
+    private var submittedCaption = ""
     /** The question the current capture is answering, so a late draft cannot land on the next. */
     private var captureTurnId: String? = null
 
@@ -201,7 +207,7 @@ class DriveController(
         if (_state.value.mode == VoiceMode.ACTIVE && sessionId == id) return
         if (_state.value.mode != null) halt()
         adopt(id, session, draftSource)
-        _state.value = VoiceStageState(sessionId = id, mode = VoiceMode.ACTIVE, question = questionOf(session))
+        _state.value = VoiceStageState(sessionId = id, mode = VoiceMode.ACTIVE, question = questionOf(session), caption = prefix)
         epoch++
         val my = epoch
         val revision = inference.state.value.revision
@@ -229,7 +235,7 @@ class DriveController(
         epoch++
         _state.value = VoiceStageState(
             sessionId = id, mode = VoiceMode.BLOCKED, phase = DrivePhase.STOPPED,
-            question = questionOf(session), detail = message,
+            question = questionOf(session), caption = prefix, detail = message,
         )
     }
 
@@ -309,6 +315,7 @@ class DriveController(
         work = InterviewWork(id, store, worker, clock, writes)
         prefix = stringOf(s["draftAnswer"]).orEmpty().trim()
         prefixSource = draftSource
+        submittedCaption = ""
         // A capture id left by an earlier drive would make keepDraft think this question was
         // already answered and drop the typed draft.
         captureTurnId = null
@@ -435,12 +442,13 @@ class DriveController(
         _state.update {
             it.copy(
                 mode = if (blocked) VoiceMode.BLOCKED else VoiceMode.PAUSED,
-                phase = DrivePhase.PAUSED, listening = false, confirm = false, levels = emptyList(),
-                caption = "", said = "", question = questionOf(session),
+                phase = DrivePhase.PAUSED, listening = false, confirm = false, levels = emptyList(), transcribing = false,
+                caption = "", said = "", question = questionOf(session).ifBlank { st.question },
                 detail = detail ?: "Microphone off. Your captured words stay here. Tap Resume when you are ready.",
             )
         }
         keepDraft(captured, turnId)
+        _state.update { it.copy(caption = prefix.ifBlank { submittedCaption }) }
     }
 
     private fun block(detail: String) {
@@ -522,6 +530,7 @@ class DriveController(
             if (!running()) return
             inference.require(allowed)
             val result = speaker().speak(text)
+            if (running() && result.status == SpeakStatus.SPOKEN) _state.update { it.copy(lastSpeech = result) }
             // Hosted speech failed live and the device voice took over: visibly, never silently.
             result.fallback?.let { reason -> if (running()) _state.update { it.copy(detail = reason) } }
             when (result.status) {
@@ -544,6 +553,7 @@ class DriveController(
             if (!running()) return ""
             inference.require(allowed)
             captureTurnId = session?.let(::openTurn)?.let { stringOf(it["id"]) }
+            submittedCaption = ""
             _state.update { it.copy(listening = true, confirm = confirm, caption = "", levels = emptyList()) }
             val firstWordMs = if (confirm) CONFIRM_FIRST_WORD_MS else DRIVE_FIRST_WORD_MS
             try {
@@ -575,7 +585,15 @@ class DriveController(
             whisperText = ""
             whisperListening = true
             try {
-                return w.listenForDrive(triggerWord, firstWordMs) { heard -> if (my == epoch) whisperText = heard }
+                return w.listenForDrive(
+                    triggerWord, firstWordMs,
+                    onTranscribing = { busy -> if (my == epoch) _state.update { it.copy(transcribing = busy) } },
+                ) { heard ->
+                    if (my == epoch) {
+                        whisperText = heard
+                        _state.update { it.copy(caption = heard) }
+                    }
+                }
             } finally {
                 if (my == epoch) whisperListening = false
             }
@@ -600,7 +618,7 @@ class DriveController(
             val said = text.trim()
             val body = listOf(prefix, said).filter { it.isNotEmpty() }.joinToString(" ")
             if (body.isEmpty()) return
-            advance(submitAnswer(s, str(body), if (said.isNotEmpty()) "voice" else prefixSource, w.now()))
+            advance(submitAnswer(s, str(body), if (said.isNotEmpty()) "voice" else prefixSource, w.now()), body)
         }
 
         override suspend fun skip() {
@@ -612,12 +630,13 @@ class DriveController(
         }
 
         /** One persisted session per turn, through the same work as a typed answer. */
-        private suspend fun advance(answered: Session) {
+        private suspend fun advance(answered: Session, caption: String = "") {
             val w = work ?: return
             session = answered
             prefix = ""
             prefixSource = "typed"
-            _state.update { it.copy(caption = "") }
+            submittedCaption = caption
+            _state.update { it.copy(caption = caption) }
             val outcome = w.turn(answered, {
                 inference.require(allowed)
                 model
@@ -683,7 +702,9 @@ class DriveController(
         override suspend fun scratch() {
             if (!running()) return
             prefix = ""
+            submittedCaption = ""
             keepDraft("", captureTurnId)
+            _state.update { it.copy(caption = "") }
         }
     }
 }
