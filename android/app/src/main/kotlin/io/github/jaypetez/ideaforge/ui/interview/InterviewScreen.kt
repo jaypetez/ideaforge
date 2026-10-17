@@ -224,6 +224,7 @@ fun InterviewScreen(
     val noticeText = state.notice?.let { noticeText(it) }
     var noticeHeight by remember { mutableStateOf(0) }
     var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
+    var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val voiceAttached = voiceHere && voice?.attached == true
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
@@ -317,7 +318,8 @@ fun InterviewScreen(
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
                     Conversation(state, vm, if (scrollWithComposer) Modifier else Modifier.weight(1f),
-                        scrollWithComposer, followCurrent = !coverageExpanded)
+                        scrollWithComposer, followCurrent = !coverageExpanded, expanded = historyExpanded,
+                        onHistoryChange = { historyExpanded = it })
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
@@ -325,6 +327,7 @@ fun InterviewScreen(
                         shortWindow = shortWindow,
                         scrollWithPage = scrollWithComposer,
                         noticeHeight = noticeHeight,
+                        readingDetails = historyExpanded || coverageExpanded,
                     )
                 }
             }
@@ -438,10 +441,9 @@ private fun Pill(pill: CoveragePill) {
 @Composable
 private fun Conversation(
     state: InterviewState, vm: InterviewViewModel, modifier: Modifier,
-    scrollWithComposer: Boolean, followCurrent: Boolean,
+    scrollWithComposer: Boolean, followCurrent: Boolean, expanded: Boolean, onHistoryChange: (Boolean) -> Unit,
 ) {
     val thread = threadOf(state)
-    var expanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val list = rememberLazyListState()
     val current = remember { BringIntoViewRequester() }
@@ -452,10 +454,11 @@ private fun Conversation(
         if (thread.isEmpty()) return
         TextButton(
             onClick = {
-                expanded = !expanded
+                val next = !expanded
+                onHistoryChange(next)
                 scope.launch {
                     if (!scrollWithComposer) list.scrollToItem(0)
-                    else if (expanded) history.bringIntoView() else current.bringIntoView()
+                    else if (next) history.bringIntoView() else current.bringIntoView()
                 }
             },
             modifier = Modifier.padding(horizontal = IdeaForgeSpacing.content)
@@ -653,15 +656,16 @@ private fun Composer(
     shortWindow: Boolean = false,
     scrollWithPage: Boolean = shortWindow,
     noticeHeight: Int = 0,
+    readingDetails: Boolean = false,
 ) {
     val editor = remember { BringIntoViewRequester() }
     var editorVisible by remember { mutableStateOf(false) }
-    val keepEditor = remember(state.notice, scrollWithPage) { scrollWithPage && editorVisible }
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(state.notice, noticeHeight) {
+    val keepEditor = remember(state.notice, scrollWithPage, readingDetails) {
+        scrollWithPage && editorVisible && !readingDetails
+    }
+    LaunchedEffect(state.notice, noticeHeight, readingDetails) {
         if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback)) {
-            // Notice consumption must not cancel preserving the previously visible editor.
-            scope.launch { editor.bringIntoView() }
+            editor.bringIntoView()
         }
     }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier.fillMaxWidth()) {

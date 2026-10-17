@@ -1037,6 +1037,7 @@ class UxCaptureDeviceTest {
             "writing", "synthesis-failure" -> {
                 selectSession(requireNotNull(state.sessionId))
                 await("write-up")
+                revealControl("write-up")
                 compose.onNodeWithTag("write-up").performClick()
                 if (state.id == "writing") {
                     await("interview-busy")
