@@ -86,6 +86,18 @@ source wins over prose, and a generated artifact wins over a description of that
   recorder for its complete declared subset, including an actual held SessionStore read
   through AppGraph's ordinary concrete-store injection. Inspect nonzero execution and every requested manifest
   record instead of treating an ATD run or full-workflow colour as visual acceptance.
+- **Native question-first Interview.** Sources:
+  [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)
+  owns counted earlier-history disclosure, reader-preserving scroll, factual coverage
+  detail, bounded reading width and keyboard-safe composer presentation. The existing
+  `InterviewViewModel`/`InterviewWork` still own draft provenance, turn identity and writes.
+  Manual notices use the existing bounded host indefinitely and stay in ViewModel state
+  until Dismiss; voice/nonfatal notification behavior is separate. Re-check DESIGN,
+  Android/interview guide wording, enlarged/short/IME action and text geometry, literal
+  content, chip provenance and once-only wrap behavior. `evidence=interview` selects the
+  fixed subset explicitly, including real keyboard and canonical typed-run wrap evidence;
+  inspect actual execution, complete manifests and images without claiming full UX or
+  physical recognition.
 - **Web Settings and safe recovery.** Sources:
   [`index.html`](../../../../index.html) and
   [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state

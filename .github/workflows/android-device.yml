@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       evidence:
-        description: Full UX inventory, native Ideas, adaptive shell, privacy-link or inference-consent matrix
+        description: Full UX inventory, native Ideas/Interview, adaptive shell, privacy-link or inference-consent matrix
         type: choice
-        options: [full, ideas, shell, privacy-before, privacy, consent-before, consent]
+        options: [full, ideas, interview, shell, privacy-before, privacy, consent-before, consent]
         default: full
 
 permissions:
@@ -82,9 +82,10 @@ jobs:
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ inputs.evidence != 'ideas' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
           ${{ inputs.evidence == 'ideas' && '-Pandroid.testInstrumentationRunnerArguments.uxIdeasProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=ready+empty+unavailable+library+library-100+library-archived+filtered+library-long+ideas-loading' || '' }}
+          ${{ inputs.evidence == 'interview' && '-Pandroid.testInstrumentationRunnerArguments.uxInterviewProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=interview-seed+interview-long+interview-history+interview-coverage+bank+busy-turn+save-failure+interview-ime+interview-wrap+writing+synthesis-failure' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
@@ -97,9 +98,10 @@ jobs:
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ inputs.evidence != 'ideas' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
           ${{ inputs.evidence == 'ideas' && '-Pandroid.testInstrumentationRunnerArguments.uxIdeasProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=ready+empty+unavailable+library+library-100+library-archived+filtered+library-long+ideas-loading' || '' }}
+          ${{ inputs.evidence == 'interview' && '-Pandroid.testInstrumentationRunnerArguments.uxInterviewProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=interview-seed+interview-long+interview-history+interview-coverage+bank+busy-turn+save-failure+interview-ime+interview-wrap+writing+synthesis-failure' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix

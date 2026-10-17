@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
+import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
@@ -76,6 +77,11 @@ class InterviewLayoutTest {
     }
 
     @Test
+    fun enlargedCoverageDetailsKeepEveryLevelAndTheComposerReachable() {
+        requireLongInterviewReachable(coverageDetails = true)
+    }
+
+    @Test
     @Config(qualifiers = "w640dp-h400dp-land", fontScale = 1.3f)
     fun aShortLandscapeKeepsTheWholeSuggestionAndTurnStatusReachable() {
         requireLongInterviewReachable()
@@ -99,7 +105,9 @@ class InterviewLayoutTest {
         requireLongInterviewReachable(requireCurrent = true, providerUnavailable = true)
     }
 
-    private fun requireLongInterviewReachable(requireCurrent: Boolean = false, providerUnavailable: Boolean = false) {
+    private fun requireLongInterviewReachable(
+        requireCurrent: Boolean = false, providerUnavailable: Boolean = false, coverageDetails: Boolean = false,
+    ) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
         val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
@@ -125,6 +133,13 @@ class InterviewLayoutTest {
                 compose.onNodeWithTag("question").assertIsDisplayed()
             }
             assertTrue("the full thread remains composed", compose.onNodeWithTag("thread").fetchSemanticsNode().layoutInfo.coordinates.size.height > 0)
+            if (coverageDetails) {
+                requireReachable("coverage-details")
+                compose.onNodeWithTag("coverage-details").performClick()
+                for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension", actionRequired = false)
+                requireReachable("coverage-details")
+                compose.onNodeWithTag("coverage-details").performClick()
+            }
             for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
                 requireReachable(tag)
             }
@@ -149,8 +164,8 @@ class InterviewLayoutTest {
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
             for (step in steps.take(3)) {
                 val previous = compose.onNodeWithTag("question").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text
-                compose.onNodeWithTag("answer").performTextReplacement(stringOf(step["text"])!!)
-                compose.onNodeWithTag("send").performClick()
+                compose.onNodeWithTag("answer").performScrollTo().performTextReplacement(stringOf(step["text"])!!)
+                compose.onNodeWithTag("send").performScrollTo().assertIsDisplayed().performClick()
                 compose.waitUntil(5_000) {
                     compose.onAllNodes(hasTestTag("question") and hasText(previous)).fetchSemanticsNodes().isEmpty() &&
                         compose.onAllNodes(hasTestTag("question")).fetchSemanticsNodes().isNotEmpty() &&
