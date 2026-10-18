@@ -202,6 +202,8 @@ class UxCaptureDeviceTest {
                                             target.getString(R.string.onboarding_checking)
                                         else "Scripted refused connection")
                                     }
+                                    revealControl(SettingsTags.STATUS)
+                                    compose.onNodeWithTag(SettingsTags.STATUS).assertIsDisplayed()
                                 }
                                 "backup-failure" -> {
                                     revealControl(BackupTags.EXPORT)
@@ -210,6 +212,8 @@ class UxCaptureDeviceTest {
                                     }
                                     await(BackupTags.STATUS)
                                     compose.waitUntil(DEVICE_TIMEOUT) { nodeText(BackupTags.STATUS).contains("Scripted backup destination") }
+                                    revealControl(BackupTags.STATUS)
+                                    compose.onNodeWithTag(BackupTags.STATUS).assertIsDisplayed()
                                 }
                                 else -> {
                                     val section = when (frame) {
