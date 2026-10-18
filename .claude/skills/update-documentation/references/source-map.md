@@ -278,6 +278,15 @@ source wins over prose, and a generated artifact wins over a description of that
   probe and native consent/work/drive/adapter tests own denial, reload, switching,
   failed-storage and retired-work proof. Positive scripted actors affirm explicitly through
   UI or the actual preference owner; unconsented countercases must remain.
+  Native `InferenceAgreement.kt` reuses the validated destination and
+  `LocalNetworkPolicy.needsCleartextWarning` for the shared onboarding/Settings HTTP
+  warning, not a new authorization gate or stored consent. `LocalNetworkPolicyTest`
+  owns loopback/private/HTTPS classification and the real guarded-client TLS connection
+  with a test-only trusted certificate. Re-check Android/privacy-policy transport copy;
+  that JVM connection is not physical-device or live LAN evidence.
+  The existing after-consent capture route also includes real Settings/onboarding
+  `http-lan` form states with the warning and agreement visible; before remains the
+  unchanged pre-consent inventory. Require complete exact-SHA manifests and actual PNGs.
   Re-check README, getting-started/providers/mobile-and-voice/Android/privacy guidance,
   SECURITY, architecture, DESIGN, canonical images and cache retirement. Failed withdrawal
   cannot promise cross-restart revocation when storage rejects the change. Local read/export

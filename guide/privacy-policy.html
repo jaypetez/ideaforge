@@ -245,8 +245,11 @@
         permits user-entered model endpoints only on loopback. Android also permits
         private-network model servers. A plain <code>http://</code> connection is not
         encrypted in transit: another machine on your LAN can receive interview text,
-        and network observers may be able to read it. Use HTTPS on that server when
-        available; a local model does not make hosted voice services local.
+        and network observers may be able to read it. Native onboarding and Settings
+        show an unencrypted HTTP warning for server addresses outside loopback.
+        Prefer HTTPS with a certificate trusted by the device and a matching server
+        name; certificate checks are not bypassed. A local model does not make hosted
+        voice services local.
       </p>
       <p>
         Credential encryption does not encrypt your interviews or exports. It does not

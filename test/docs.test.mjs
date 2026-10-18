@@ -553,6 +553,28 @@ test('the documented debug application id and APK artifact match the build and C
   assert.ok(page.includes(`expire after ${retention} days`), `guide omits the ${retention}-day retention`);
 });
 
+test('native cleartext transport guidance matches the shared warning owner', () => {
+  const policy = androidFile('providers', 'src', 'main', 'kotlin', 'io', 'github', 'jaypetez',
+    'ideaforge', 'providers', 'LocalNetworkPolicy.kt');
+  const agreement = androidFile('app', 'src', 'main', 'kotlin', 'io', 'github', 'jaypetez',
+    'ideaforge', 'ui', 'InferenceAgreement.kt');
+  const strings = androidFile('app', 'src', 'main', 'res', 'values', 'strings_inference.xml');
+  assert.match(policy, /fun needsCleartextWarning\(url: HttpUrl\)/);
+  assert.match(agreement, /LocalNetworkPolicy::needsCleartextWarning/);
+  assert.match(strings, /name="inference_local_http_warning">[^<]*not encrypted in transit/);
+  const capture = androidFile('app', 'src', 'androidTest', 'kotlin', 'io', 'github',
+    'jaypetez', 'ideaforge', 'ux', 'UxCaptureDeviceTest.kt');
+  for (const state of ['settings-http-lan', 'onboarding-http-lan']) {
+    assert.ok(capture.includes(state), `native consent capture omits ${state}`);
+  }
+  for (const page of ['android.html', 'privacy-policy.html']) {
+    const html = guide(page);
+    assert.match(html, /unencrypted HTTP warning/, `${page}: missing native warning guidance`);
+    assert.match(html, /certificate trusted by the device/, `${page}: missing HTTPS trust limit`);
+    assert.match(html, /loopback/, `${page}: missing the loopback distinction`);
+  }
+});
+
 test('the signed-APK instructions match the release workflow and SECURITY.md (#95)', () => {
   const app = androidFile('app', 'build.gradle.kts');
   const id = app.match(/applicationId = "([^"]+)"/)?.[1];

@@ -129,7 +129,8 @@ class UxCaptureDeviceTest {
                 listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
             }
         }
-        val frames = listOf("settings-connection", "onboarding-provider", "onboarding-hosted", "onboarding-local")
+        val frames = listOf("settings-connection", "onboarding-provider", "onboarding-hosted", "onboarding-local") +
+            if (phase == "after") listOf("settings-http-lan", "onboarding-http-lan") else emptyList()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
             File(outputPath, "ux-consent-$phase"),
             matrix.flatMap { config -> frames.map { "${config.id}/consent-$phase-$it" } }.toSet())
@@ -142,34 +143,53 @@ class UxCaptureDeviceTest {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
                     for (frame in frames) {
+                        val settings = frame.startsWith("settings-")
                         val state = UxState("consent-$phase-$frame",
-                            if (frame == "settings-connection") "settings" else "onboarding",
+                            if (settings) "settings" else "onboarding",
                             "real-app", phase, null, null)
                         try {
-                            val base = fixtures.state(if (frame == "settings-connection") "ready" else "fresh")
+                            val base = fixtures.state(if (settings) "ready" else "fresh")
                             prepare(base, config, inferenceAgreed = false)
                             navigate(base)
                             when (frame) {
-                                "settings-connection" -> {
+                                "settings-connection", "settings-http-lan" -> {
                                     compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
                                     await("settings-active")
+                                    if (frame == "settings-http-lan") {
+                                        await("settings-provider")
+                                        compose.onNodeWithTag("settings-provider").performScrollTo().performClick()
+                                        compose.onNodeWithTag("settings-provider-ollama").performScrollTo().performClick()
+                                        await("settings-baseurl")
+                                        compose.onNodeWithTag("settings-baseurl").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                        hideKeyboard()
+                                    }
                                 }
                                 "onboarding-provider" -> revealControl("provider-ollama")
                                 "onboarding-hosted" -> {
                                     compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
                                     await("api-key")
                                 }
-                                "onboarding-local" -> {
+                                "onboarding-local", "onboarding-http-lan" -> {
                                     compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
                                     await("model")
+                                    if (frame == "onboarding-http-lan") {
+                                        compose.onNodeWithTag("base-url").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                    }
                                     compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-local-model")
                                     hideKeyboard()
                                 }
                             }
+                            if (frame.endsWith("-http-lan")) await("local-http-warning")
                             val controls = when {
                                 frame == "onboarding-provider" -> listOf(tag("provider-ollama"))
                                 phase == "after" -> {
+                                    await("inference-consent")
                                     compose.onNodeWithTag("inference-consent").performScrollTo().assertIsDisplayed()
+                                    if (frame.endsWith("-http-lan")) {
+                                        compose.onNodeWithTag("local-http-warning").assertIsDisplayed()
+                                    }
                                     listOf(tag("inference-consent"))
                                 }
                                 else -> {

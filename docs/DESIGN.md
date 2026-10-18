@@ -727,6 +727,9 @@ with that UI; no credential, backup or session schema is introduced here.
 | Forget / delayed check | Forget revokes credentials before delayed work can restore them; ideas/preferences remain. Distinct STT/TTS/inference consents/checks stay separate. | Confirm/Cancel; status identifies what was removed, no false deletion of ideas. | Web credential epoch/keyring; native revoke/`saveIf` generation |
 | Long text / large fonts / keyboard | Full question/caption/labels/document accessible by reflow/scrolling; no forced fit, clipped CTA or page-wide sideways scroll. | Fully visible focus and owned IME/safe-area lift; no speech/share delay. | `trackComposer`, shell CSS; native scaffold/inset ownership |
 
+The current shared native inference agreement presents a URL-specific warning for
+unencrypted HTTP outside loopback, without adding another saved consent. HTTPS and
+loopback addresses do not show that LAN warning.
 The future native onboarding layout consumes #173 privacy links, #174 interview consent
 and #177 LAN warnings. Reporting delivery (#175/#183), Play listing/icon/publication
 (#179/#180/#171/#182), and physical recognition evidence (#89) keep their existing owners.

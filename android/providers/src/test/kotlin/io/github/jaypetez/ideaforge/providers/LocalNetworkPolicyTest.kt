@@ -6,8 +6,12 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.tls.HandshakeCertificates
+import okhttp3.tls.HeldCertificate
 import java.net.InetAddress
 import java.net.UnknownHostException
+import javax.net.ssl.SSLHandshakeException
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -15,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** A resolver that answers from a table and never touches the network. */
@@ -71,13 +76,68 @@ class LocalNetworkPolicyTest {
     @Test
     fun urlCheckRefusesPublicHostsAndOddNumericSpellings() {
         for (u in listOf("http://10.0.2.2:11434", "http://192.168.1.20:1234/v1", "http://[::1]:11434",
-            "http://[fe80::1]/", "http://ollama.local:11434", "http://localhost:11434")) {
+            "http://[fe80::1]/", "http://ollama.local:11434", "http://localhost:11434",
+            "https://192.168.1.20:1234/v1", "https://ollama.local:11434")) {
             LocalNetworkPolicy.check(u.toHttpUrl())
         }
         for (u in listOf("http://localhost.evil.com/v1", "http://8.8.8.8/", "http://[2001:db8::1]/",
             "http://127.1/", "http://0x7f.0.0.1/", "http://010.0.0.1/", "http://evil.com/", "https://api.openai.com/v1")) {
             val e = assertFailsWith<ProviderException>(u) { LocalNetworkPolicy.check(u.toHttpUrl()) }
             assertEquals("config", e.code, u)
+        }
+    }
+
+    @Test
+    fun cleartextWarningsDistinguishLoopbackFromPrivateNetworkTraffic() {
+        val loopback = listOf(
+            "http://localhost:11434", "http://LOCALHOST.:11434", "http://model.localhost:11434",
+            "http://model.localhost.:11434", "http://127.0.0.1", "http://127.255.255.254",
+            "http://[::1]", "http://[::ffff:127.0.0.1]",
+        )
+        val network = listOf(
+            "http://10.0.2.2:11434", "http://172.16.0.1", "http://192.168.1.20",
+            "http://100.64.0.1", "http://169.254.1.1", "http://[fd12:3456::1]",
+            "http://[fe80::1]", "http://[::ffff:192.168.0.5]", "http://ollama.local",
+        )
+        for (text in loopback + network) {
+            val url = text.toHttpUrl()
+            LocalNetworkPolicy.check(url)
+            assertEquals(text in network, LocalNetworkPolicy.needsCleartextWarning(url), text)
+            assertFalse(LocalNetworkPolicy.needsCleartextWarning(url.newBuilder().scheme("https").build()), text)
+        }
+    }
+
+    @Test
+    fun aPrivateHostnameConnectsOverTrustedHttpsThroughTheRealLocalClient() = runBlocking {
+        val certificate = HeldCertificate.Builder().commonName("ollama.local")
+            .addSubjectAlternativeName("ollama.local").build()
+        val serving = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val trusting = HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate).build()
+        MockWebServer().use { secure ->
+            secure.useHttps(serving.sslSocketFactory())
+            secure.start(InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0)
+            secure.enqueue(MockResponse.Builder().body("{}").build())
+            val dns = FakeDns(mapOf("ollama.local" to listOf("127.0.0.1")))
+            val base = OkHttpClient.Builder().sslSocketFactory(trusting.sslSocketFactory(), trusting.trustManager).build()
+            val http = ProviderHttp(NetworkPolicy.Local, ProviderHttpClients.create(NetworkPolicy.Local, base = base, dns = dns))
+            val url = "https://ollama.local:${secure.port}/api/chat"
+            LocalNetworkPolicy.check(url.toHttpUrl())
+            http.execute(http.request(url, AUTH_BEARER, "scripted-key-must-not-leave").build(), "Ollama").use {
+                assertEquals(200, it.code)
+                assertNotNull(it.handshake)
+            }
+            val request = secure.takeRequest()
+            assertNotNull(request.handshake)
+            assertNull(request.headers["authorization"])
+            assertEquals(listOf("ollama.local"), dns.asked)
+
+            secure.enqueue(MockResponse.Builder().body("{}").build())
+            val untrusted = localHttp(FakeDns(mapOf("ollama.local" to listOf("127.0.0.1"))))
+            val refused = assertFailsWith<ProviderException> {
+                untrusted.execute(untrusted.request(url).build(), "Ollama")
+            }
+            assertEquals("network", refused.code)
+            assertTrue(refused.cause is SSLHandshakeException, refused.toString())
         }
     }
 
