@@ -174,6 +174,8 @@ class AdaptiveShellTest {
             assertTrue("medium navigation is vertical", rail.height > rail.width)
             for (label in listOf("Ideas", "New idea", "Settings")) nav(label).assertIsDisplayed()
             nav("New idea").performClick()
+            await("new-idea-type")
+            compose.onNodeWithTag("new-idea-type").performClick()
             await("interview-back")
             compose.onNodeWithTag("interview-title").assertTextEquals("New idea")
             nav("New idea").assertIsSelected()

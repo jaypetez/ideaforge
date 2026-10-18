@@ -331,6 +331,15 @@ the existing actions instead; use it only on the unchanged pre-consent applicati
 The recorder requires the complete requested matrix and actual checkout SHA.
 Neither a focused result nor zero discovered visual tests certifies the default inventory.
 
+For native onboarding/entry, dispatch `-f evidence=onboarding` on the frozen feature ref.
+It selects `UxCaptureDeviceTest#requestedNativeOnboardingAndEntryKeepIntentAndRecovery`
+with `uxOnboardingProbe=true`. Its fixed ten frames cover provider/hosted/LAN setup,
+Voice/Type choice, permission-free typing, app-rationale cancellation, failed/pending
+checks, manual-model recovery and unreadable keys across both windows/themes and
+font scales. Actual XML, complete literal-SHA manifests and all PNGs are required.
+The recovery capture requires an ungranted permission, never changes permission state,
+and cancels before an OS request; output/service/checks are scripted, not phone proof.
+
 For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
 `UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
 recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/

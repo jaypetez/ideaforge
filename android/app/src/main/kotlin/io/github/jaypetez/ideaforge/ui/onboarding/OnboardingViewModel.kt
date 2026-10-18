@@ -47,7 +47,7 @@ data class OnboardingState(
     val models: List<String>? = null,
     val checking: Boolean = false,
     val failure: CheckFailure? = null,
-    /** Saved: the screen navigates to the library exactly once on this. */
+    /** Saved: the screen completes setup exactly once on this. */
     val done: Boolean = false,
     /**
      * Set when a save found the stored keyring unreadable even after reading it again: why,
@@ -56,6 +56,8 @@ data class OnboardingState(
      */
     val unreadable: String? = null,
     val agreed: Boolean = false,
+    val hasSavedSettings: Boolean = false,
+    val hasSuccessfulCheck: Boolean = false,
 ) {
     val step: Int get() = if (choice == null) 1 else 2
     val destination: InferenceDestination? get() = choice?.let {
@@ -94,9 +96,18 @@ class OnboardingViewModel(
     /** The save waiting on [replaceUnreadable]; null when none is. */
     private var pendingSave: (suspend () -> Unit)? = null
     private var replaceConfirmed = false
+    private val drafts = mutableMapOf<String, OnboardingState>()
+
+    private fun keepFields() {
+        val state = _state.value
+        state.choice?.let {
+            drafts[it.id] = state.copy(checking = false, done = false, unreadable = null)
+        }
+    }
 
     fun pick(id: String) {
         val choice = choices.firstOrNull { it.id == id } ?: return
+        keepFields()
         generation++
         work?.cancel()
         pendingSave = null
@@ -104,16 +115,20 @@ class OnboardingViewModel(
         // A record saved earlier for this provider (a re-run of onboarding) prefills the
         // address and model; never the key, which is not shown back in full anywhere.
         val saved = credsFor(keyring.state.value.ring, id)
-        _state.value = OnboardingState(
+        val hasSaved = listOf("apiKey", "baseUrl", "model", "wrapModel").any { text(saved[it]).isNotEmpty() }
+        val next = drafts[id]?.copy(choice = choice, hasSavedSettings = hasSaved) ?: OnboardingState(
             choice = choice,
             baseUrl = text(saved["baseUrl"]).ifEmpty { choice.defaultBaseUrl.orEmpty() }.takeIf { choice.local }.orEmpty(),
             model = if (choice.local) text(saved["model"]) else "",
+            hasSavedSettings = hasSaved,
         )
-        inference.select(choice.id, _state.value.destination?.id)
+        val changed = inference.select(choice.id, next.destination?.id)
+        _state.value = next.copy(agreed = next.agreed && !changed)
     }
 
     /** Back to the provider cards. Cancels a check in flight so it cannot land on step 1. */
     fun back() {
+        keepFields()
         generation++
         work?.cancel()
         pendingSave = null
@@ -128,11 +143,11 @@ class OnboardingViewModel(
         _state.update { change(it).copy(checking = false, failure = null, unreadable = null) }
     }
 
-    fun setApiKey(v: String) = edit { it.copy(apiKey = v) }
+    fun setApiKey(v: String) = edit { it.copy(apiKey = v, hasSuccessfulCheck = false) }
 
     /** A different address is a different server: the list read off the old one is a lie about it. */
     fun setBaseUrl(v: String) = edit {
-        val next = it.copy(baseUrl = v, models = null)
+        val next = it.copy(baseUrl = v, models = null, hasSuccessfulCheck = false)
         val changed = next.choice?.let { c -> inference.select(c.id, next.destination?.id) } == true
         next.copy(agreed = next.agreed && !changed)
     }
@@ -160,6 +175,8 @@ class OnboardingViewModel(
         }
         launchCheck {
             checker.check(choice, ProviderConfig(kind = choice.id, apiKey = key))
+            currentCoroutineContext().ensureActive()
+            _state.update { it.copy(hasSuccessfulCheck = true) }
             save(choice) { put("apiKey", JsonPrimitive(key)) }
         }
     }
@@ -177,7 +194,8 @@ class OnboardingViewModel(
             val names = checker.check(choice, ProviderConfig(kind = choice.id, baseUrl = base))
             currentCoroutineContext().ensureActive()
             _state.update {
-                it.copy(models = names, model = if (it.model.isBlank() && names.size == 1) names[0] else it.model)
+                it.copy(models = names, model = if (it.model.isBlank() && names.size == 1) names[0] else it.model,
+                    hasSuccessfulCheck = true)
             }
         }
     }
@@ -243,6 +261,7 @@ class OnboardingViewModel(
             throw SaveFailed(e)
         }
         currentCoroutineContext().ensureActive()
+        _state.update { it.copy(hasSavedSettings = true) }
         val job = currentCoroutineContext()[Job]
         inference.accept(inferenceDestination(inferenceConfig(keyring.state.value.ring))) {
             job?.isActive != false && _state.value.agreed && _state.value.choice?.id == choice.id

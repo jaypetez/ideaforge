@@ -2,6 +2,9 @@
 <!-- The voice stage (ui/voice/VoiceStage.kt) and the drive's notification (voice/DriveService.kt),
      worded after the web voice stage in src/ui/app.js. -->
 <resources>
+    <string name="voice_entry_cancelled">Voice was not started. You can type your answer here.</string>
+    <string name="voice_entry_denied">Microphone access was not granted. Voice was not started; you can type your answer here.</string>
+    <string name="voice_entry_interrupted">Voice setup was interrupted. Type your answer here, or retry voice from this screen.</string>
     <string name="voice_start">Answer by voice</string>
     <string name="voice_pause">Pause</string>
     <string name="voice_resume">Resume</string>

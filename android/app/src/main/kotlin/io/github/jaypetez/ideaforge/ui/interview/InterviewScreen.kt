@@ -47,9 +47,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -108,6 +110,7 @@ import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
@@ -149,6 +152,9 @@ fun InterviewScreen(
     drive: DriveController? = null,
     onBack: (() -> Unit)? = null,
     onConsent: (() -> Unit)? = null,
+    voiceOnEntry: Boolean = false,
+    onVoiceEntryConsumed: () -> Unit = {},
+    isCurrentView: () -> Boolean = { true },
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val inference by vm.inferenceState.collectAsStateWithLifecycle()
@@ -159,6 +165,15 @@ fun InterviewScreen(
     val voiceHere = voice != null && voice.sessionId == vm.sessionId
     val context = LocalContext.current
     val deniedMessage = stringResource(R.string.voice_mic_denied)
+    val entryCancelled = stringResource(R.string.voice_entry_cancelled)
+    val entryDenied = stringResource(R.string.voice_entry_denied)
+    val entryInterrupted = stringResource(R.string.voice_entry_interrupted)
+    var initialVoicePending by rememberSaveable(vm.sessionId) { mutableStateOf(voiceOnEntry) }
+    var entryVoiceInProgress by remember(vm.sessionId) { mutableStateOf(false) }
+    val voiceRequest = remember(vm.sessionId) { mutableLongStateOf(0L) }
+    var permissionRequest by remember(vm.sessionId) { mutableStateOf<Long?>(null) }
+    var screenVisible by remember(vm.sessionId) { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { screenVisible = true }
     var microphoneHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECORD_AUDIO)) }
     var notificationsHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -170,19 +185,54 @@ fun InterviewScreen(
     LaunchedEffect(inference) {
         vm.refreshConsent()
         if (inference.blocked) {
+            voiceRequest.longValue++
             rationale = false
             permissionPermit = null
+            permissionRequest = null
+            entryVoiceInProgress = false
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+        }
+    }
+    DisposableEffect(vm.sessionId) {
+        onDispose {
+            voiceRequest.longValue++
+            if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
+            initialVoicePending = false
+            entryVoiceInProgress = false
+            permissionPermit = null
+            permissionRequest = null
+            onVoiceEntryConsumed()
         }
     }
     // The answer to the permission prompt, then the tap's intent carried out.
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        scope0.launch {
-            val expected = permissionPermit ?: return@launch
-            if (!vm.authorizeVoice(expected)) return@launch
+        scope0.launch(Dispatchers.Main.immediate) {
+            val expected = permissionPermit
+            val my = permissionRequest
+            if (expected == null || my == null || my != voiceRequest.longValue) return@launch
+            permissionPermit = null
+            permissionRequest = null
+            val allowed = vm.authorizeVoice(expected)
+            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (!allowed) {
+                entryVoiceInProgress = false
+                return@launch
+            }
             val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
             microphoneHeld = mic
             notificationsHeld = grants[Manifest.permission.POST_NOTIFICATIONS] ?: hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            val fromEntry = entryVoiceInProgress
+            entryVoiceInProgress = false
+            if (!mic && fromEntry) {
+                vm.voiceNotStarted(entryDenied)
+                return@launch
+            }
             if (drive == null) return@launch
+            if (fromEntry && !vm.state.value.canAnswer) {
+                vm.voiceNotStarted(entryCancelled)
+                return@launch
+            }
             val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
             if (attached) {
                 if (mic) drive.resume()
@@ -191,18 +241,44 @@ fun InterviewScreen(
             }
         }
     }
-    val askOrStart: () -> Unit = {
-        scope0.launch {
-            if (!vm.authorizeVoice()) return@launch
+    fun requestVoice(fromEntry: Boolean) {
+        if (!fromEntry) {
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+        }
+        val my = ++voiceRequest.longValue
+        entryVoiceInProgress = fromEntry
+        vm.voiceRetry()
+        scope0.launch(Dispatchers.Main.immediate) {
+            val allowed = vm.authorizeVoice()
+            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (!allowed) {
+                entryVoiceInProgress = false
+                return@launch
+            }
+            if (fromEntry && (!screenVisible || !vm.state.value.canAnswer)) {
+                entryVoiceInProgress = false
+                vm.voiceNotStarted(entryCancelled)
+                return@launch
+            }
             permissionPermit = vm.inferenceState.value.permit
             if (drive != null) {
                 if (voicePermissionsHeld(context)) {
+                    entryVoiceInProgress = false
                     val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
                     if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
                 } else {
                     rationale = true
                 }
             }
+        }
+    }
+    val askOrStart: () -> Unit = { requestVoice(false) }
+    LaunchedEffect(voiceOnEntry, state.canAnswer, screenVisible) {
+        if (voiceOnEntry && initialVoicePending && state.canAnswer && screenVisible && isCurrentView()) {
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+            requestVoice(true)
         }
     }
 
@@ -214,7 +290,20 @@ fun InterviewScreen(
     }
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.flushDraft() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        vm.flushDraft()
+        screenVisible = false
+        if (initialVoicePending || entryVoiceInProgress) {
+            voiceRequest.longValue++
+            rationale = false
+            initialVoicePending = false
+            entryVoiceInProgress = false
+            permissionPermit = null
+            permissionRequest = null
+            onVoiceEntryConsumed()
+            vm.voiceNotStarted(entryInterrupted)
+        }
+    }
 
     LaunchedEffect(state.finished) {
         if (state.finished) {
@@ -247,15 +336,27 @@ fun InterviewScreen(
         VoicePermissionDialog(
             notificationsNeeded = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
             onContinue = {
-                scope0.launch {
+                val my = voiceRequest.longValue
+                scope0.launch(Dispatchers.Main.immediate) {
                     val expected = permissionPermit
-                    if (expected != null && vm.authorizeVoice(expected)) {
+                    if (expected != null && vm.authorizeVoice(expected) && my == voiceRequest.longValue
+                        && rationale && isCurrentView()) {
                         rationale = false
+                        permissionRequest = my
                         permissions.launch(voicePermissions())
                     }
                 }
             },
-            onDismiss = { rationale = false },
+            onDismiss = {
+                voiceRequest.longValue++
+                rationale = false
+                permissionPermit = null
+                permissionRequest = null
+                if (entryVoiceInProgress) {
+                    entryVoiceInProgress = false
+                    vm.voiceNotStarted(entryCancelled)
+                }
+            },
         )
     }
 
@@ -267,7 +368,7 @@ fun InterviewScreen(
                 onPause = drive::pause,
                 onResume = {
                     scope0.launch {
-                        if (vm.authorizeVoice()) {
+                        if (vm.authorizeVoice() && isCurrentView()) {
                             permissionPermit = vm.inferenceState.value.permit
                             if (!hasPermission(context, Manifest.permission.RECORD_AUDIO)) rationale = true else drive.resume()
                         }
@@ -356,6 +457,7 @@ private fun noticeText(n: InterviewNotice): String = when (n) {
     is InterviewNotice.Fallback -> stringResource(R.string.notice_fallback, n.detail)
     is InterviewNotice.Failed -> stringResource(R.string.notice_interview_failed, n.detail)
     is InterviewNotice.Consent -> n.detail
+    is InterviewNotice.Voice -> n.detail
 }
 
 @Composable
@@ -662,7 +764,8 @@ private fun Composer(
         scrollWithPage && editorVisible && !readingDetails
     }
     LaunchedEffect(state.notice, noticeHeight, readingDetails) {
-        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback)) {
+        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback
+                    || state.notice is InterviewNotice.Voice)) {
             editor.bringIntoView()
         }
     }

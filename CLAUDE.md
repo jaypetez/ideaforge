@@ -549,6 +549,14 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   into the *debug* assets. The release source set's `DebugProviders` returns null and
   packages neither the script nor the provider. It replaces only the interview model; it
   does not skip onboarding.
+- **New idea is an explicit mode choice, not a microphone request.** `NewIdeaRoute` opens
+  before an id is allocated; Voice/Type selection alone creates a fresh Interview entry,
+  guarded by the originating entry and admission revision. The new-entry voice flag is
+  consumed once in entry/UI saved state and uses the visible Interview's existing
+  permission/controller path. Stop/disposal retires pending setup and explains the typed
+  fallback; a stale Continue/result cannot borrow another request. Active drive work
+  stays in the app graph. Onboarding's per-provider drafts live only in its ViewModel,
+  not another keyring or backup; saved details are not a current health check.
 - **The hands-free drive lives in the app graph, not the screen, and the service only keeps
   it hearing.** `DriveController` (`voice/`) runs `DriveLoop` on the main thread and writes
   turns through `InterviewWork`, the same path as a typed answer. `DriveService` is a

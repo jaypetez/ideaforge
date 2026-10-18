@@ -162,8 +162,7 @@ Ready also presents the unchecked, provider-named inference agreement. A check o
 key cannot tick it. Its device-local record is independent of microphone and hosted-voice
 choices, and a missing/failed acknowledgement disables both start actions with explicit
 recovery. Settings Connection exposes withdrawal; local ideas remain readable/exportable.
-Android uses the same policy in its existing onboarding details and Connection form,
-without claiming the later native Start redesign is complete. Provider-kind/local-address
+Android uses the same policy in its onboarding details and Connection form. Provider-kind/local-address
 changes retire agreement; model-only changes retain it. See the
 [privacy policy](../guide/privacy-policy.html#model-requests) for storage-failure limits.
 Back/Change also retire pending Start/Continue effects without discarding entered values,
@@ -207,7 +206,8 @@ These are native window classes, not copies of the web's CSS breakpoint/rail tab
 
 The Interview and Result contextual bars retain full literal `sessionDisplayTitle` text
 in semantics while allowing a visual ellipsis. Back uses the existing navigation stack.
-Completed ideas select Ideas; New idea still mints a new id and back-stack ViewModel entry.
+Completed ideas select Ideas; New idea opens a mode choice before a deliberate selection
+mints a new id and back-stack ViewModel entry.
 The existing Material adaptive Library panes and their saved selection are retained.
 Onboarding still removes itself from the stack and prevents navigation before a usable
 keyring is available; opening Library does not focus its search field automatically.
@@ -226,6 +226,25 @@ the actual manual navigation; caption/level updates do not rebuild shell chrome.
 Form, work, Settings, reading and answer measures remain owned by `IdeaForgeWidths`;
 Library, document metadata and voice also consume those bounds. This is shell/inset work,
 not the composer, voice or Result action-order makeover.
+
+## Current native onboarding and entry
+
+`OnboardingScreen` keeps the two-step provider/configuration flow with compact progress
+text, readable hosted/local separator rows and the existing provider-specific required
+fields. A native expanded window with enough font-scaled space adds supporting provider/
+privacy information beside the bounded form; otherwise the same required content and
+actions remain in one scrollable column. Privacy policy stays in both steps' footer.
+
+`OnboardingViewModel` preserves per-provider unsaved fields through Back/Change in memory,
+while its existing generation guard cancels checks. Saved details, previous successful
+checks and current errors are not a permanent connected verdict. Manual models, local
+emulator help, unreadable-keyring confirmation and all three policy prerequisites stay.
+
+`NewIdeaRoute` offers Voice primary (at least the native voice action height), Type instead
+visible, and Cancel. Navigation/recreation/cancel allocates no id or microphone effect.
+Selection uses the existing inference admission and a fresh Interview entry. The explicit
+new-entry voice intent is consumed once; its denied/cancelled/interrupted setup leaves a
+truthful manual notice without replacing higher-priority errors or creating a second drive.
 
 ## Current native Ideas
 
@@ -512,7 +531,8 @@ Native `Roles.kt` owns `IdeaForgeSpacing`: `micro`, `tight`, `related`, `content
 large/extraLarge to dialog. Buttons, fields and chips consume the control shape explicitly.
 
 `IdeaForgeWidths` bounds native form/reading to 720dp, work to 1120dp, Settings to 1000dp
-and answer bubbles to 520dp. These are content measures, not web breakpoint copies:
+and answer bubbles to 520dp. Onboarding uses a 480dp minimum form and a 280dp supporting
+pane, scaled when deciding whether both fit. These are content measures, not web breakpoint copies:
 onboarding, Library, manual Interview, Settings, voice and Result consume them using
 native layout constraints. Enlarged action groups wrap without changing order; the
 turn-status text and unreadable-key recovery can grow/scroll. This foundation does not
@@ -522,6 +542,8 @@ replace the adaptive library panes or the later screen recompositions.
 |---|---|
 | `rail` | 80dp |
 | `form` | 720dp |
+| `formMinimum` | 480dp |
+| `support` | 280dp |
 | `work` | 1120dp |
 | `settings` | 1000dp |
 | `reading` | 720dp |
@@ -730,7 +752,7 @@ with that UI; no credential, backup or session schema is introduced here.
 The current shared native inference agreement presents a URL-specific warning for
 unencrypted HTTP outside loopback, without adding another saved consent. HTTPS and
 loopback addresses do not show that LAN warning.
-The future native onboarding layout consumes #173 privacy links, #174 interview consent
+The native onboarding layout consumes #173 privacy links, #174 interview consent
 and #177 LAN warnings. Reporting delivery (#175/#183), Play listing/icon/publication
 (#179/#180/#171/#182), and physical recognition evidence (#89) keep their existing owners.
 No design reference approves a new contact, reporting endpoint, paid call or Play URL.

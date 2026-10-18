@@ -79,6 +79,7 @@ sealed interface InterviewNotice {
     /** Saving or running the turn threw. */
     data class Failed(override val detail: String, override val cause: Throwable? = null) : InterviewNotice
     data class Consent(override val detail: String) : InterviewNotice
+    data class Voice(override val detail: String) : InterviewNotice
 }
 
 data class InterviewState(
@@ -475,6 +476,14 @@ class InterviewViewModel(
         if (error.code != "consent") throw error
         consentFailed(error)
         false
+    }
+
+    fun voiceNotStarted(detail: String) = _state.update {
+        if (it.notice == null || it.notice is InterviewNotice.Voice) it.copy(notice = InterviewNotice.Voice(detail)) else it
+    }
+
+    fun voiceRetry() = _state.update {
+        if (it.notice is InterviewNotice.Voice) it.copy(notice = null) else it
     }
 
     /**

@@ -161,6 +161,8 @@ class InterviewLayoutTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
             compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 5_000)
+            compose.onNodeWithTag("new-idea-type").performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
             for (step in steps.take(3)) {
                 val previous = compose.onNodeWithTag("question").fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)!!.single().text

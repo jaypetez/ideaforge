@@ -46,6 +46,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.NavController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -59,6 +60,7 @@ import io.github.jaypetez.ideaforge.ui.interview.InterviewViewModel
 import io.github.jaypetez.ideaforge.ui.library.LibraryScreen
 import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingScreen
+import io.github.jaypetez.ideaforge.ui.onboarding.NewIdeaChoice
 import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.ui.onboarding.startGate
 import io.github.jaypetez.ideaforge.ui.result.ResultScreen
@@ -127,25 +129,31 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
         }
     }
 
-    // No launchSingleTop: a new idea must be a new back-stack entry. Reusing the current
-    // Interview entry would hand the new sessionId the old entry's ViewModelStore, and its
-    // in-flight work, so one idea's results could land in another (a busy flag is not an
-    // identity guard). Pop any open interview first so the stack does not grow per tap.
-    fun newIdea() {
-        val action = ++admission.longValue
+    fun admitted(action: () -> Unit) {
+        val token = ++admission.longValue
         val origin = nav.currentBackStackEntry
         val revision = graph.inferenceConsent.state.value.revision
-        fun current() = admission.longValue == action && nav.currentBackStackEntry === origin
+        fun current() = admission.longValue == token && nav.currentBackStackEntry === origin
         scope.launch(Dispatchers.Main.immediate) {
             try {
                 graph.inferenceConsent.require()
                 if (!current() || revision != graph.inferenceConsent.state.value.revision) return@launch
-                nav.navigate(InterviewRoute(library.newSessionId())) {
-                    popUpTo<InterviewRoute> { inclusive = true }
-                }
+                action()
             } catch (error: ProviderException) {
                 if (error.code != "consent") throw error
                 if (current()) goTopLevel(SettingsRoute)
+            }
+        }
+    }
+
+    fun newIdea() = admitted { goTopLevel(NewIdeaRoute) }
+
+    // Allocate only after a mode is selected. Each new Interview retains its own entry/store.
+    fun createIdea(voice: Boolean, origin: NavBackStackEntry) {
+        if (nav.currentBackStackEntry !== origin) return
+        admitted {
+            nav.navigate(InterviewRoute(library.newSessionId(), voiceOnEntry = voice)) {
+                popUpTo<NewIdeaRoute> { inclusive = true }
             }
         }
     }
@@ -155,7 +163,8 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
             destination?.hierarchy?.any { it.hasRoute(LibraryRoute::class) || it.hasRoute(ResultRoute::class) } == true,
             { goTopLevel(LibraryRoute) }),
         TopLevel(R.string.nav_new_idea, R.drawable.ic_new_idea,
-            destination?.hasRoute(InterviewRoute::class) == true, ::newIdea),
+            destination?.hasRoute(InterviewRoute::class) == true || destination?.hasRoute(NewIdeaRoute::class) == true,
+            ::newIdea),
         TopLevel(R.string.nav_settings, R.drawable.ic_settings,
             destination?.hierarchy?.any { it.hasRoute(SettingsRoute::class) } == true,
             { goTopLevel(SettingsRoute) }),
@@ -215,6 +224,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                 }
                 composable<InterviewRoute> { backStack ->
                     val route = backStack.toRoute<InterviewRoute>()
+                    val voiceEntryState = backStack.savedStateHandle
                     // Keyed by the idea: this entry's ViewModel belongs to one session for its life.
                     val vm: InterviewViewModel = viewModel(key = route.sessionId, factory = InterviewViewModel.factory(route.sessionId))
                     InterviewScreen(
@@ -227,6 +237,16 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                         drive = graph.driveController,
                         onBack = { nav.popBackStack() },
                         onConsent = { goTopLevel(SettingsRoute) },
+                        voiceOnEntry = route.voiceOnEntry && voiceEntryState.get<Boolean>("voice-entry-consumed") != true,
+                        onVoiceEntryConsumed = { voiceEntryState["voice-entry-consumed"] = true },
+                        isCurrentView = { nav.currentBackStackEntry === backStack },
+                    )
+                }
+                composable<NewIdeaRoute> { choice ->
+                    NewIdeaChoice(
+                        onVoice = { createIdea(true, choice) },
+                        onType = { createIdea(false, choice) },
+                        onCancel = { if (nav.currentBackStackEntry === choice) nav.popBackStack() },
                     )
                 }
                 composable<ResultRoute> { backStack ->
@@ -255,6 +275,7 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
                             popUpTo<OnboardingRoute> { inclusive = true }
                             launchSingleTop = true
                         }
+                        newIdea()
                     }
                 }
             }

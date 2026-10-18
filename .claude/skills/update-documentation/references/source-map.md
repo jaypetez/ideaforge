@@ -71,6 +71,19 @@ source wins over prose, and a generated artifact wins over a description of that
   current web table in DESIGN, Appearance guidance and generated real screenshots.
   HTML dialog styling does not mean the existing browser-owned `window.confirm` flows
   have been replaced; later settings/recovery issues own those compositions.
+- **Native onboarding and explicit entry.** Sources:
+  `OnboardingScreen.kt` owns compact provider rows, bounded required fields and a supporting
+  pane that collapses when native window/font space cannot fit it. `OnboardingViewModel`
+  retains per-provider field drafts only in memory, not a new secret store, with existing
+  check-generation retirement and distinct saved/last-success/failure state. `AppShell.kt`
+  and `Routes.kt` own NewIdeaRoute before id allocation; Voice/Type selection uses an
+  origin-entry/admission guard and a fresh Interview. `InterviewScreen` consumes its
+  explicit voice flag once and retires pending UI permission intent on Stop/disposal;
+  the app graph/controller remain work owners. Re-check Android/getting-started/provider/
+  privacy guidance, DESIGN and architecture against tests, not an apparent ACTIVE flag.
+  `evidence=onboarding` selects the fixed real-app provider/entry/typed/rationale-cancel/
+  check-failure/loading/manual-model/unreadable subset, both windows/themes/fonts.
+  These scripted captures do not request OS permissions or prove physical voice.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive
