@@ -22,9 +22,16 @@ const MAX_REASON = 500;
 // optionally behind assignments (`A=b`, PowerShell `$x =`), a control keyword or a
 // wrapper word. Quoted text is read the same way, so inline message, title or body text
 // can be refused; pass it from a file instead.
-// Each token class stops at a separator, so a long separator-dense token stays linear.
+// Linear by construction, because this runs on every shell command: a token stops at a
+// separator, whitespace inside a prefix never crosses a line, a wrapper takes only flags,
+// numbers and flag values as arguments, and the prefix chain is bounded.
 const TOKEN = String.raw`[^\s;&|(){}]`;
-const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()\s*(?:(?:\w+=${TOKEN}*|if|elif|while|until|!|exec|command|time|env|nohup|xargs|then|do|else)\s+|\$[\w:]+\s*=\s*)*(?:${TOKEN}*/)?`;
+const SPACE = String.raw`[^\S\n]`;
+const WRAPPER = String.raw`(?:exec|command|time|env|nohup|xargs|timeout|nice|sudo|doas)` +
+  String.raw`(?:${SPACE}+(?:-${TOKEN}*(?:${SPACE}+[^\s\-;&|(){}]${TOKEN}*)?|\d${TOKEN}*)){0,3}`;
+const PREFIX = String.raw`(?:\w+=${TOKEN}*|if|elif|while|until|!|then|do|else|${WRAPPER})${SPACE}+` +
+  String.raw`|(?:\[[\w.]+\])*\$[\w:]+${SPACE}*=${SPACE}*`;
+const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()${SPACE}*(?:${PREFIX}){0,6}(?:${TOKEN}*/)?`;
 // Up to four flags, each with an optional value, may sit before the subcommand:
 // `gh pr -R owner/repo create`. Bounded, so it cannot backtrack exponentially.
 const FLAGS = String.raw`(?:-\S+\s+(?:[^\s-]\S*\s+)?){0,4}`;

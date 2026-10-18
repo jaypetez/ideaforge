@@ -32,7 +32,7 @@ Implementation owners are separate from the shared procedures:
 | [`assistant-review.mjs`](../tools/assistant-review.mjs) | Pre-PR review diff and record, and the `gh pr create` gate decision |
 | [Claude project settings](../.claude/settings.json) | `CLAUDE_PROJECT_DIR`-guarded inline bootstrap before imports |
 | [`assistant-hook.mjs`](../tools/assistant-hook.mjs) | Claude adapter and shared `copilotHook` command-hook output contracts |
-| [Copilot command hooks](../.github/hooks/ideaforge-assist.json) | Basic startup/child context and persisted prompt controls, without requiring an extension |
+| [Copilot command hooks](../.github/hooks/ideaforge-assist.json) | Basic startup/child context and persisted prompt controls, without requiring an extension, and the refuse-only `preToolUse` pre-PR review gate |
 | [`assistant-copilot.mjs`](../tools/assistant-copilot.mjs) | Optional SDK prompt/pre-tool callbacks and compaction event; no startup/child callbacks |
 | [Copilot extension entry](../.github/extensions/ideaforge-assist/extension.mjs) | Joins a supported foreground session when the native extension host loads it |
 
@@ -275,22 +275,25 @@ request, with their reason.
 Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
 `preToolUse` command hook pass the command to `prGateDecision` in
 [`assistant-review.mjs`](../tools/assistant-review.mjs). It does not parse shell:
-four review rounds kept finding quoting forms a parser missed. It joins line
+three review rounds kept finding quoting forms a parser missed. It joins line
 continuations, drops quote and backtick characters, reads backslashes as path
 separators, then looks for `gh pr create` or `gh pr new` (allowing a few flags such as
 `-R owner/repo` before the subcommand) in command position: at the start of a line,
-after `;`, `&`, `|`, a bracket or `$(`, optionally behind an assignment (`A=b`, or
-PowerShell's `$x =`), a control keyword such as `if` or `while`, or a wrapper word.
-A mention mid-sentence is not in command position and passes.
+after `;`, `&`, `|`, a bracket or `$(`, optionally behind a few prefixes: an assignment (`A=b`, or PowerShell's
+`$x =` and `[string]$x =`), a control keyword such as `if` or `while`, or a wrapper
+(`env`, `timeout`, `nice`, `sudo`, `xargs` and similar) with flag or number
+arguments. A mention mid-sentence is not in command position and passes. The matcher is
+linear in the command's length, since it runs on every shell command.
 
-For a match it abstains in a checkout that does not carry the review tool (another
-repository, or a branch from before the gate existed), since nothing could be recorded
-there. Otherwise it refuses unless the tree is clean and HEAD has a `clean` or
-`waived` record; a record it cannot read also refuses. Because the hook sees the
-checkout before the command runs, it also refuses, whatever the review state, a PR
-command whose text changes directory, commits, rebases, pulls, merges, switches or resets,
-or contains `--head` or `-H` anywhere after the PR command, even naming the current
-branch. Run `gh` in its own command from the reviewed branch.
+For a match, because the hook sees the checkout before the command runs, it first
+refuses, in any checkout and whatever the review state, a PR command whose text changes
+directory, commits, rebases, pulls, merges, switches or resets, or contains `--head` or
+`-H` anywhere after the PR command, even naming the current branch. Run `gh` in its
+own command from the reviewed branch. Only then does it look at the review: in a checkout
+that does not carry the review tool (another repository, or a branch from before the gate
+existed) it abstains, since nothing could be recorded there; otherwise it refuses unless
+the tree is clean and HEAD has a `clean` or `waived` record, and a record it cannot
+read also refuses.
 
 The cost of the blunt rule is that quoted text is read as commands too. A quoted `;`,
 `|`, `&`, bracket or line break before the PR command puts it in command position, so
@@ -312,7 +315,8 @@ cannot be read is likewise left to the normal flow.
 This is a workflow guard, not a security boundary: the same model can run the record
 command, and `gh api`, a quoted path to `gh` that contains spaces, a command handed to
 another interpreter as a string (`bash -c "…"`), PowerShell splatting (`gh @args`),
-legacy backtick substitution, or a person's own terminal are not covered.
+legacy backtick substitution, a wrapper whose arguments are not flags or numbers, more
+than a few prefixes before `gh`, or a person's own terminal are not covered.
 
 ### Child inheritance limits
 

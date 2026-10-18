@@ -99,6 +99,14 @@ test('a gh pr create or new in command position is a pull request, however it is
     '$url=gh pr new',
     'C:\\tools\\gh.exe pr create --fill',
     '.\\gh.exe pr create',
+    // Round five: wrappers that take arguments, and typed PowerShell assignment.
+    'timeout 120 gh pr create --fill',
+    'env -u GH_PAGER gh pr create',
+    'echo --fill | xargs -r gh pr create',
+    'nice -n 5 gh pr create',
+    'sudo gh pr create',
+    'sudo -u root gh pr new',
+    '[string]$url = gh pr create --fill',
   ]) assert.equal(opensPullRequest(command), true, command);
   for (const command of [
     'gh pr view 12',
@@ -140,6 +148,12 @@ test('the matcher stays linear on long flag runs and long separator-dense tokens
   assert.equal(opensPullRequest(`node -e ${';'.repeat(200000)}`), false);
   assert.equal(opensPullRequest(`curl -d ${'a=1;'.repeat(50000)}`), false);
   assert.equal(opensPullRequest(`x ${'{"a":[1,{"b":"c"}]};'.repeat(20000)}`), false);
+  // Line runs once let every line's prefix scan cross all the lines after it.
+  assert.equal(opensPullRequest(`x${'\n'.repeat(500000)}y`), false);
+  assert.equal(opensPullRequest(`cat > .env <<EOF\n${'KEY_1=value1\n'.repeat(50000)}EOF`), false);
+  // A wrapper's arguments must not be readable as the next wrapper.
+  assert.equal(opensPullRequest(`${'env -u env '.repeat(50000)}x`), false);
+  assert.equal(opensPullRequest(`${'A=1 '.repeat(100000)}x`), false);
   assert.ok(performance.now() - started < 1000, 'a pattern here backtracks super-linearly');
 });
 
@@ -238,10 +252,13 @@ test('the gate refuses an unreviewed, pending, stale or dirty HEAD and abstains 
 
 test('the gate reads the repository it runs in and fails closed when it cannot', async (t) => {
   const { repo, head } = await repository(t);
+  // The session cwd is a subdirectory of the repository; root is elsewhere. Refusing first
+  // proves it resolved the checkout, since abstaining would also return null.
+  const fromSubdirectory = () => prGateDecision({ command: 'gh pr create', cwd: join(repo, 'src'), root: ROOT });
+  assert.match(await fromSubdirectory(), /no review is recorded for HEAD/);
   await prepareReview(repo);
   await record(repo, { result: 'clean' });
-  // The session cwd is a subdirectory of the reviewed repository; root is elsewhere.
-  assert.equal(await prGateDecision({ command: 'gh pr create', cwd: join(repo, 'src'), root: ROOT }), null);
+  assert.equal(await fromSubdirectory(), null);
 
   await writeFile(join(repo, STATE_DIR, `review-${head}.json`), '{"kind":"ideaforge-pr-review","schema":2}');
   assert.match(await prGateDecision({ command: 'gh pr create', cwd: repo }), /could not check/);
