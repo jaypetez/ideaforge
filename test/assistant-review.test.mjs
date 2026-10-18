@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, STATE_DIR } from '../tools/assistant-process.mjs';
 import {
-  opensPullRequest, prGateDecision, prepareReview, recordReview, readReview,
+  opensPullRequest, namesHead, prGateDecision, prepareReview, recordReview, readReview,
 } from '../tools/assistant-review.mjs';
 import { runAssistant } from '../tools/assistant.mjs';
 import { claudeHook, copilotHook } from '../tools/assistant-hook.mjs';
@@ -154,6 +154,11 @@ test('the matcher stays linear on long flag runs and long separator-dense tokens
   // A wrapper's arguments must not be readable as the next wrapper.
   assert.equal(opensPullRequest(`${'env -u env '.repeat(50000)}x`), false);
   assert.equal(opensPullRequest(`${'A=1 '.repeat(100000)}x`), false);
+  // Every PR call once got its own scan to the end of the command for `--head`.
+  const repeated = 'gh pr create;'.repeat(80000);
+  assert.equal(opensPullRequest(repeated), true);
+  assert.equal(namesHead(repeated), false);
+  assert.equal(namesHead(`${repeated}gh pr create --head x`), true);
   assert.ok(performance.now() - started < 1000, 'a pattern here backtracks super-linearly');
 });
 

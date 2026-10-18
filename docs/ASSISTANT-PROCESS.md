@@ -280,9 +280,9 @@ continuations, drops quote and backtick characters, reads backslashes as path
 separators, then looks for `gh pr create` or `gh pr new` (allowing a few flags such as
 `-R owner/repo` before the subcommand) in command position: at the start of a line,
 after `;`, `&`, `|`, a bracket or `$(`, optionally behind a few prefixes: an assignment (`A=b`, or PowerShell's
-`$x =` and `[string]$x =`), a control keyword such as `if` or `while`, or a wrapper
-(`env`, `timeout`, `nice`, `sudo`, `xargs` and similar) with flag or number
-arguments. A mention mid-sentence is not in command position and passes. The matcher is
+`$x =` and `[string]$x =`), a control keyword such as `if` or `while`, or one of the wrappers
+`exec`, `command`, `time`, `env`, `nohup`, `xargs`, `timeout`, `nice`, `sudo` and
+`doas` with up to three flag or number arguments. A mention mid-sentence is not in command position and passes. The matcher is
 linear in the command's length, since it runs on every shell command.
 
 For a match, because the hook sees the checkout before the command runs, it first
@@ -315,8 +315,9 @@ cannot be read is likewise left to the normal flow.
 This is a workflow guard, not a security boundary: the same model can run the record
 command, and `gh api`, a quoted path to `gh` that contains spaces, a command handed to
 another interpreter as a string (`bash -c "…"`), PowerShell splatting (`gh @args`),
-legacy backtick substitution, a wrapper whose arguments are not flags or numbers, more
-than a few prefixes before `gh`, or a person's own terminal are not covered.
+legacy backtick substitution, any other wrapper word, a wrapper with more than three
+arguments or with arguments that are not flags or numbers, more than six prefixes before
+`gh`, or a person's own terminal are not covered.
 
 ### Child inheritance limits
 

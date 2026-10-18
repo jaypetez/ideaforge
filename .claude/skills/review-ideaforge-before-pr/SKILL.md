@@ -109,6 +109,7 @@ in a checkout without the review tool.
 Quoted text counts too, so pass PR bodies and commit messages from a file
 (`--body-file`, `-F`) or use `--fill`. A quoted path to `gh` that contains spaces, a
 command passed to another interpreter as a string, PowerShell splatting, legacy backtick
-substitution, a wrapper whose arguments are not flags or numbers, `gh api` and a
-person's own terminal are not covered. Hook input that
+substitution, a wrapper outside the fixed list in
+[`assistant-review.mjs`](../../../tools/assistant-review.mjs) or with more than three
+flag or number arguments, `gh api` and a person's own terminal are not covered. Hook input that
 cannot be read leaves the command to the client's normal permission flow.

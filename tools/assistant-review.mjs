@@ -35,7 +35,7 @@ const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()${SPACE}*(?:${PREFIX}){0,6}(?:$
 // Up to four flags, each with an optional value, may sit before the subcommand:
 // `gh pr -R owner/repo create`. Bounded, so it cannot backtrack exponentially.
 const FLAGS = String.raw`(?:-\S+\s+(?:[^\s-]\S*\s+)?){0,4}`;
-const PR_CREATE = new RegExp(String.raw`${COMMAND}gh(?:\.exe)?\s+pr\s+${FLAGS}(?:create|new)\b`, 'gi');
+const PR_CREATE = new RegExp(String.raw`${COMMAND}gh(?:\.exe)?\s+pr\s+${FLAGS}(?:create|new)\b`, 'i');
 const CHANGES_DIRECTORY = new RegExp(
   String.raw`${COMMAND}(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)`, 'i');
 const MOVES_HEAD = new RegExp(
@@ -47,24 +47,26 @@ const words = (command) => (typeof command === 'string'
   ? command.replace(/[\\`]\r?\n/g, ' ').replace(/['"`]/g, '').replace(/\\/g, '/')
   : '');
 
-// Each PR invocation from `gh` to the end of the whole command, flags before the
-// subcommand included. A quoted separator in its own arguments must not hide a later
-// `--head`, so a `-H` in a later command is refused as well.
-function pullRequests(command) {
+// The first PR invocation from `gh` to the end of the whole command, flags before the
+// subcommand included, or null. A quoted separator in its own arguments must not hide a
+// later `--head`, so a `-H` in a later command is refused as well. Every later invocation
+// is a suffix of this one, so reading only the first keeps the check linear.
+function firstPullRequest(command) {
   const text = words(command);
-  return [...text.matchAll(PR_CREATE)].map((match) => text.slice(match.index));
+  const match = PR_CREATE.exec(text);
+  return match ? text.slice(match.index) : null;
 }
 
 // A quoted path containing spaces, a command handed to another interpreter as a string
 // (`bash -c "…"`) and PowerShell splatting (`gh @args`) are not recognised.
-export const opensPullRequest = (command) => pullRequests(command).length > 0;
+export const opensPullRequest = (command) => firstPullRequest(command) !== null;
 
 // The hook sees the session's directory and HEAD before the command runs, not a directory
 // the command moves to, a commit it makes or a branch it switches to on the way to gh.
 export const changesDirectory = (command) => CHANGES_DIRECTORY.test(words(command));
 export const movesHead = (command) => MOVES_HEAD.test(words(command));
 // `--head` proposes a branch whose review the gate cannot see, even when it names this one.
-export const namesHead = (command) => pullRequests(command).some((call) => NAMES_HEAD.test(call));
+export const namesHead = (command) => NAMES_HEAD.test(firstPullRequest(command) ?? '');
 
 export const isDocumentation = (file) =>
   /\.md$/i.test(file) || /^(?:guide|docs)\//.test(file);
