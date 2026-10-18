@@ -27,10 +27,10 @@ diff to `.ideaforge-assist/review-<head>.diff`, and prints that absolute path, t
 files and whether documentation changed. Pass `--base REF` when the PR targets another
 branch. It refuses a dirty tree or an empty diff.
 
-## 2. Find: two reviewers who cannot see each other
+## 2. Find: reviewers who cannot see each other
 
-Dispatch both in the same turn, so neither reads the other's findings. Use the current
-client's agents:
+Dispatch two change reviewers, plus the documentation reviewer when documentation changed,
+all in the same turn, so none reads another's findings. Use the current client's agents:
 
 | Client | Change reviewer | Documentation reviewer |
 |---|---|---|
@@ -61,7 +61,8 @@ diff path and the numbered candidates, asking it to follow §6 of
 Documentation candidates go to a fresh documentation reviewer instead. Every candidate
 comes back CONFIRMED, REFUTED or UNCERTAIN, with its evidence.
 
-A clean round therefore uses two reviewers, and a round with findings at least three.
+A round always uses two change reviewers, three finders when documentation changed, and
+then one fresh challenger for each kind of candidate it produced.
 
 ## 4. Resolve
 
@@ -95,8 +96,10 @@ through [Landing a change](../../../AGENTS.md#landing-a-change).
 
 ## Limits
 
-The gate is a workflow guard, not a security boundary. It matches `gh pr create` and
-`gh pr new` in the Claude Code Bash/PowerShell tools and any Copilot CLI tool with a
-command argument. It ignores quoted text, so a quoted path to `gh` is not recognised;
-`gh api` and a person's own terminal are not covered. Hook input that cannot be read
-leaves the command to the client's normal permission flow.
+The gate is a workflow guard, not a security boundary. It matches an executed
+`gh pr create` or `gh pr new` in the Claude Code Bash/PowerShell tools and any Copilot CLI
+tool with a command argument, read as that tool's shell would. Run it from the reviewed
+checkout: a command that also changes directory is refused. A quoted path to `gh`, a
+command passed to another interpreter as a string, `gh api` and a person's own terminal
+are not covered. Hook input that cannot be read leaves the command to the client's
+normal permission flow.

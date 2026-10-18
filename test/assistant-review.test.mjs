@@ -67,7 +67,27 @@ test('only an executed gh pr create or new is a pull request, not quoted or here
     'cat <<\'EOF\' > body.md\nmentions gh pr create\nEOF\ngh pr create --body-file body.md',
     'gh pr create --title "unterminated',
     'GH PR CREATE',
+    // Each of these ran a PR past the first matcher, which stripped them as quoted data.
+    'url="$(gh pr create --fill)"',
+    'url="$(gh pr create --title "x" --fill)"',
+    'echo "PR: `gh pr create --fill`"',
+    '# don\'t wait\ngh pr create --fill\necho \'opened\'',
+    'gh pr -R owner/repo create --fill',
+    'gh pr --repo=owner/repo new',
+    'cat <<\'EOF\' | gh pr create --body-file -\nBody\nEOF',
+    'cat > b.md <<\'EOF\' && gh pr create --body-file b.md\nBody\nEOF',
   ]) assert.equal(opensPullRequest(command), true, command);
+  // PowerShell has no backslash escape, so this string ends at its own closing quote.
+  const powershell = 'Set-Location "C:\\repo\\"; gh pr create --title "x"';
+  assert.equal(opensPullRequest(powershell, 'powershell'), true);
+  assert.equal(opensPullRequest(powershell), true, 'an unknown shell is read both ways');
+  assert.equal(opensPullRequest('$url = "$(gh pr create --fill)"', 'powershell'), true);
+  assert.equal(opensPullRequest("$b = @\"\n$(gh pr create)\n\"@", 'powershell'), true);
+  assert.equal(opensPullRequest("git commit -m @'\ngh pr create\n'@", 'powershell'), false);
+  assert.equal(opensPullRequest('git commit -m "say `"gh pr create`""', 'powershell'), false);
+  assert.equal(opensPullRequest('<# gh pr create #> git status', 'powershell'), false);
+  // A command handed to another interpreter as a string is documented as unrecognised.
+  assert.equal(opensPullRequest('bash -c "gh pr create"', 'posix'), false);
   for (const command of [
     'gh pr view 12',
     'gh pr checks --watch',
@@ -75,14 +95,38 @@ test('only an executed gh pr create or new is a pull request, not quoted or here
     'git push -u origin HEAD',
     'git commit -m "explain why gh pr create is gated"',
     "git commit -m 'gh pr create'",
-    'git commit -F - <<\'EOF\'\nGate it\ngh pr create waits for review\nEOF',
-    'git commit -m "$(cat <<\'EOF\'\nGate\ngh pr create\nEOF\n)"',
     "git commit -m @'\ngh pr create\n'@",
     'mygh pr create',
     'echo gh-pr-create',
     undefined,
     { command: 'gh pr create' },
   ]) assert.equal(opensPullRequest(command), false, String(command));
+  // Heredocs are POSIX syntax; an unknown shell also reads them as PowerShell and refuses.
+  for (const command of [
+    'git commit -F - <<\'EOF\'\nGate it\ngh pr create waits for review\nEOF',
+    'git commit -m "$(cat <<\'EOF\'\nGate\ngh pr create\nEOF\n)"',
+    'git commit -m "say \\"gh pr create\\" later"',
+    'git log --grep="gh pr create"',
+    'echo hi # then gh pr create',
+  ]) assert.equal(opensPullRequest(command, 'posix'), false, command);
+});
+
+test('a PR command that changes directory first is refused, since the hook knows only the session cwd', async (t) => {
+  const { repo } = await repository(t);
+  await prepareReview(repo);
+  await recordReview(repo, { result: 'clean' });
+  assert.equal(await prGateDecision({ command: 'gh pr create --fill', shell: 'posix', cwd: repo }), null);
+  for (const [command, shell] of [
+    ['cd ../unreviewed && gh pr create --fill', 'posix'],
+    ['pushd /tmp; gh pr create', 'posix'],
+    ['Set-Location ..\\other; gh pr create', 'powershell'],
+    ['sl ..; gh pr new', 'powershell'],
+  ]) {
+    assert.match(await prGateDecision({ command, shell, cwd: repo }), /changes directory/, command);
+  }
+  assert.equal(await prGateDecision({ command: 'cd src && npm test', shell: 'posix', cwd: repo }), null);
+  assert.equal(await prGateDecision({ command: 'gh pr create --title "cd later"', shell: 'posix', cwd: repo }),
+    null, 'a quoted word is not a directory change');
 });
 
 test('the gate refuses an unreviewed, pending, stale or dirty HEAD and abstains once it passed', async (t) => {
@@ -247,6 +291,15 @@ test('the shipped pre-tool commands gate a real repository and never deny on ada
   assert.equal(garbled.status, 0, 'a non-zero exit would make Copilot deny every tool call');
   assert.equal(garbled.stdout.trim(), '{}');
   assert.match(garbled.stderr, /review gate unavailable/);
+  // Locating the repository can fail too (no checkout, dubious ownership, no git on PATH).
+  const outside = await mkdtemp(join(tmpdir(), 'ideaforge-review-outside-'));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const lost = spawnSync(action.exec, action.args, { cwd: outside, encoding: 'utf8', windowsHide: true,
+    timeout: 10000, input: JSON.stringify({ cwd: outside, toolName: 'bash',
+      toolArgs: JSON.stringify({ command: 'git status' }) }) });
+  assert.equal(lost.status, 0, 'a failed rev-parse must not deny every tool call');
+  assert.equal(lost.stdout.trim(), '{}');
+  assert.match(lost.stderr, /review gate unavailable/);
 
   await prepareReview(repo);
   await recordReview(repo, { result: 'clean' });

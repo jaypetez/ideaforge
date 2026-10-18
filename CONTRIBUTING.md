@@ -64,8 +64,9 @@ precedence where VS Code discovers both agent directories.
 
 Before any PR, the [pre-PR review](.claude/skills/review-ideaforge-before-pr/SKILL.md)
 writes the exact branch diff to a file those agents can read
-(`node tools/assistant.mjs review prepare`), has two of them review it blind, and has a
-fresh one challenge each finding. Confirmed findings are fixed and the new HEAD reviewed
+(`node tools/assistant.mjs review prepare`), has two of them review it blind (plus the
+documentation reviewer when documentation changed), and has a fresh one challenge each
+finding. Confirmed findings are fixed and the new HEAD reviewed
 again, for at most three rounds. A passing round is recorded per HEAD
 (`node tools/assistant.mjs review record --result clean`); a waiver needs the user's
 explicit request and reason. Claude Code's `PreToolUse` and Copilot CLI's `preToolUse`
@@ -99,10 +100,10 @@ the supplement use the control skill's explicit helper confirmation rather than 
 same-turn automatic refresh. A foreground CLI may ask to let `project:ideaforge-assist`
 register hooks after normal workspace trust; approve only if you trust this reviewed
 project code. A session-only choice is sufficient; do not grant unrelated tools, paths,
-URLs or secrets to enable it. These adapters read one canonical rule section and keep only
-mode metadata and pre-PR review records in the ignored `.ideaforge-assist/` directory,
-isolated by worktree, client and native session. They make no model calls and request no
-secrets. The pre-PR review gate is their only tool decision, and it only ever refuses.
+URLs or secrets to enable it. These adapters read one canonical rule section and keep
+mode metadata in the ignored `.ideaforge-assist/` directory, isolated by worktree, client
+and native session. Pre-PR review diffs and records live there too, per worktree and
+commit and shared by every session. They make no model calls and request no secrets. The pre-PR review gate is their only tool decision, and it only ever refuses.
 VS Code still discovers the shared skills; these CLI lifecycle adapters are not a claim of
 automatic mode/context support in the editor.
 

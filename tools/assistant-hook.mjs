@@ -13,11 +13,20 @@ function commandOf(args) {
   return value && typeof value.command === 'string' ? value.command : null;
 }
 
+// Quoting and escapes differ by shell; an unrecognised tool is read both ways.
+function shellOf(tool) {
+  if (/^powershell$/i.test(tool ?? '')) return 'powershell';
+  if (/^(?:bash|shell)$/i.test(tool ?? '')) return 'posix';
+  return null;
+}
+
 export async function claudeHook(event, input, { root = ROOT, env = process.env, git } = {}) {
   // Copilot also reads .claude/settings.json, but its timestamped payload uses its own adapter.
   if (Object.hasOwn(input, 'timestamp')) return '';
   if (event === 'PreToolUse') {
-    const reason = await prGateDecision({ command: input.tool_input?.command, cwd: input.cwd, root, git });
+    const reason = await prGateDecision({
+      command: input.tool_input?.command, shell: shellOf(input.tool_name), cwd: input.cwd, root, git,
+    });
     return reason ? JSON.stringify({ hookSpecificOutput: {
       hookEventName: event, permissionDecision: 'deny', permissionDecisionReason: reason,
     } }) : '';
@@ -36,7 +45,9 @@ export async function claudeHook(event, input, { root = ROOT, env = process.env,
 
 export async function copilotHook(event, input, { root = ROOT, env = process.env, git } = {}) {
   if (event === 'preToolUse') {
-    const reason = await prGateDecision({ command: commandOf(input.toolArgs), cwd: input.cwd, root, git });
+    const reason = await prGateDecision({
+      command: commandOf(input.toolArgs), shell: shellOf(input.toolName), cwd: input.cwd, root, git,
+    });
     return JSON.stringify(reason ? { permissionDecision: 'deny', permissionDecisionReason: reason } : {});
   }
   const guidance = createGuidance({ root, client: 'copilot', env, restoreFirstPrompt: false });

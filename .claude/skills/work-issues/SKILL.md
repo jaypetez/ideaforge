@@ -127,8 +127,8 @@ either. Both have happened here.
 ## 6. Independent review
 
 Commit, then run [`review-ideaforge-before-pr`](../review-ideaforge-before-pr/SKILL.md).
-It gives the exact diff to two read-only reviewers and has a third challenge their
-findings, using the current client's review agents. Fix every confirmed finding, re-run
+It gives the exact diff to at least two read-only reviewers who cannot see each
+other and has a fresh one challenge their findings, using the current client's review agents. Fix every confirmed finding, re-run
 section 5 and review the new HEAD; it stops after three rounds that still leave confirmed
 findings, and then you escalate. It records the result that lets `gh pr create` run.
 

@@ -426,8 +426,9 @@ skipped rather than passed tells you nothing. Stop at the PR unless merging was
 explicitly requested; approval and a passing check are not instructions to merge.
 
 Commit, then run the [pre-PR review](.claude/skills/review-ideaforge-before-pr/SKILL.md):
-two read-only reviewers find defects in the exact branch diff without seeing each other,
-a third tries to refute every candidate, and confirmed findings are fixed and the new HEAD
+two read-only change reviewers, plus a documentation reviewer when documentation changed,
+find defects in the exact branch diff without seeing each other, a fresh reviewer tries to
+refute every candidate, and confirmed findings are fixed and the new HEAD
 reviewed again. In Claude Code and Copilot CLI a pre-tool hook refuses `gh pr create` until
 that procedure records a passing result for the exact HEAD, so a later commit needs a new
 round. The hook is a workflow guard, not a security boundary.

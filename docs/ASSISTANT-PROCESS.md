@@ -46,8 +46,9 @@ Their read-only bodies are separate from
 The helper and adapters are repository-development utilities, outside `src/`, Android,
 the service-worker shell and the publishable tree owned by
 [`assemble-site.mjs`](../tools/assemble-site.mjs). They add no web dependency or build step.
-They do not send network requests, collect telemetry, retain source/prompts/transcripts,
-read app credentials, or make default paid model calls. Existing client/model operation
+They do not send network requests, collect telemetry, retain prompts or transcripts,
+read app credentials, or make default paid model calls. The one retained source copy is
+the [pre-PR review](#pre-pr-review-gate) diff, kept locally beside its record. Existing client/model operation
 is separate from this local utility.
 
 ## Controls
@@ -103,8 +104,14 @@ State and local configuration live only in the ignored `.ideaforge-assist/` dire
 the local configuration file is `.ideaforge-assist/config.json`.
 Session keys are hashed from the trusted repository/worktree root, client and session id;
 one worktree, client or concurrent session must not borrow another's mode. Raw untrusted
-identifiers do not become paths. Persisted records contain bounded schema/mode metadata,
+identifiers do not become paths. Mode records contain bounded schema/mode metadata,
 not prompts, source copies, transcripts, secrets or environment dumps.
+
+Pre-PR review files are the exception. `review-<head>.diff` is the full branch diff, a
+copy of source, and `review-<head>.json` is its record. Both are keyed by worktree and
+commit only, so every client and session in that worktree shares one result for a HEAD,
+and they are never pruned automatically; delete them whenever you like, at the cost of
+reviewing that HEAD again.
 
 For a new session, the default resolves in this order:
 
@@ -259,24 +266,32 @@ is unavailable, report that boundary rather than fabricating state or granting p
 
 [`review-ideaforge-before-pr`](../.claude/skills/review-ideaforge-before-pr/SKILL.md)
 prepares the exact branch diff as a file the read-only review agents can read, runs two
-of them blind and a fresh one to challenge their candidates, and records a passing result
+change reviewers blind (plus a documentation reviewer when documentation changed) and a
+fresh reviewer to challenge every candidate, and records a passing result
 for the exact HEAD in `.ideaforge-assist/`. The record is per commit; any later commit,
 amend or rebase needs another round. A waiver is recorded only on the user's explicit
 request, with their reason.
 
 Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
 `preToolUse` command hook pass the command to `prGateDecision` in
-[`assistant-review.mjs`](../tools/assistant-review.mjs). For `gh pr create` or
-`gh pr new` outside quotes and heredoc bodies, it refuses unless the tree is clean and
-HEAD has a `clean` or `waived` record; a record it cannot read also refuses. For any other
-command it gives no decision at all, so the client's normal permission flow still decides;
-it never approves, asks, or changes arguments. Copilot denies a tool whose `preToolUse`
-command exits non-zero, so that adapter reports its own failure on stderr and answers `{}`
-rather than blocking every tool. Hook input that cannot be read is likewise left to the
-normal flow.
+[`assistant-review.mjs`](../tools/assistant-review.mjs). It reads the command the way
+the tool's shell would, POSIX for Bash and PowerShell for PowerShell, and both ways when
+the tool is unrecognised, so an ambiguous command errs toward refusal. Quoted data,
+comments, heredoc bodies and here-strings are not commands; command substitutions inside
+double quotes are, because the shell runs them. For an executed `gh pr create` or
+`gh pr new`, including with flags such as `-R` before the subcommand, it refuses unless
+the tree is clean and HEAD has a `clean` or `waived` record; a record it cannot read also
+refuses. It also refuses when the same command changes directory, because the hook knows
+the session's directory, not the one `gh` would run in. For any other command it gives no
+decision at all, so the client's normal permission flow still decides; it never approves,
+asks, or changes arguments. Copilot denies a tool whose `preToolUse` command exits
+non-zero, so every failure in that adapter, including locating the repository, is
+reported on stderr and answered with `{}` rather than blocking every tool. Hook input that
+cannot be read is likewise left to the normal flow.
 
 This is a workflow guard, not a security boundary: the same model can run the record
-command, and `gh api`, a quoted path to `gh` or a person's own terminal are not covered.
+command, and `gh api`, a quoted path to `gh`, a command handed to another interpreter as
+a string (`bash -c "…"`) or a person's own terminal are not covered.
 
 ### Child inheritance limits
 
