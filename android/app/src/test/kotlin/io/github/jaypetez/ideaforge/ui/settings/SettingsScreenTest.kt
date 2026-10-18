@@ -5,6 +5,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.BuildConfig
@@ -156,6 +158,15 @@ class SettingsScreenTest {
         for (tag in listOf(HostedSpeechTags.VOICE_MARIN, HostedSpeechTags.VOICE_CEDAR,
             HostedSpeechTags.CONSENT_SYNTHETIC, HostedSpeechTags.CONSENT_TEXT, HostedSpeechTags.CONSENT_METERED)) {
             compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun voiceHitAreasHaveTheirOwnFullNativeHeightInsteadOfOffscreenExpansion() {
+        openSettings(usableRing())
+        for (tag in listOf(SettingsTags.HANDS_FREE, SettingsTags.PACE)) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         }
     }
 

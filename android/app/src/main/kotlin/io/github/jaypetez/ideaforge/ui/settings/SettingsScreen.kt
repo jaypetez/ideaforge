@@ -14,13 +14,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +35,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
@@ -406,16 +411,19 @@ private fun ModelField(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun Listening(state: SettingsState, vm: SettingsViewModel) {
     val prefs = state.prefs ?: return
     val handsFreeLabel = stringResource(R.string.pref_hands_free)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control)
+        .toggleable(prefs.handsFree, role = Role.Switch, onValueChange = { vm.setHandsFree(it) })
+        .testTag(SettingsTags.HANDS_FREE).semantics { contentDescription = handsFreeLabel },
+        verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(handsFreeLabel, style = MaterialTheme.typography.bodyLarge)
             Hint(stringResource(R.string.settings_hands_free_hint))
         }
-        Switch(checked = prefs.handsFree, onCheckedChange = { vm.setHandsFree(it) },
-            modifier = Modifier.testTag(SettingsTags.HANDS_FREE).semantics { contentDescription = handsFreeLabel })
+        Switch(checked = prefs.handsFree, onCheckedChange = null)
     }
 
     val warning = state.triggerWarning
@@ -441,6 +449,7 @@ private fun Listening(state: SettingsState, vm: SettingsViewModel) {
 
     // Dragging updates the label; only the release is written, not every step of the drag.
     var pace by remember(prefs.speechRate) { mutableFloatStateOf(prefs.speechRate.toFloat()) }
+    val interaction = remember { MutableInteractionSource() }
     val paceLabel = stringResource(R.string.settings_pace, String.format(Locale.ROOT, "%.2f", pace))
     Text(paceLabel, style = MaterialTheme.typography.bodyLarge)
     Slider(
@@ -449,7 +458,12 @@ private fun Listening(state: SettingsState, vm: SettingsViewModel) {
         onValueChangeFinished = { vm.setSpeechRate(Math.round(pace * 20) / 20.0) },
         valueRange = Prefs.MIN_RATE.toFloat()..Prefs.MAX_RATE.toFloat(),
         steps = 9,
-        modifier = Modifier.testTag(SettingsTags.PACE).semantics { contentDescription = paceLabel },
+        interactionSource = interaction,
+        thumb = {
+            SliderDefaults.Thumb(interactionSource = interaction, modifier = Modifier.height(IdeaForgeSpacing.control))
+        },
+        modifier = Modifier.testTag(SettingsTags.PACE).heightIn(min = IdeaForgeSpacing.control)
+            .semantics { contentDescription = paceLabel },
     )
 }
 
