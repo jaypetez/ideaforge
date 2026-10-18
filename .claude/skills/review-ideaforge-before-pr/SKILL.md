@@ -99,11 +99,13 @@ through [Landing a change](../../../AGENTS.md#landing-a-change).
 
 ## Limits
 
-The gate is a workflow guard, not a security boundary. It matches an executed
-`gh pr create` or `gh pr new` in the Claude Code Bash/PowerShell tools and any Copilot CLI
-tool with a command argument, read as that tool's shell would. Run it from the reviewed
-checkout, for its own HEAD: a command that also changes directory, or that names another
-branch with `--head`, is refused. A quoted path to `gh`, a
-command passed to another interpreter as a string, `gh api` and a person's own terminal
-are not covered. Hook input that cannot be read leaves the command to the client's
+The gate is a workflow guard, not a security boundary. It matches `gh pr create` or
+`gh pr new` in command position, with quotes and escapes ignored, in the Claude Code
+Bash/PowerShell tools and any Copilot CLI tool with a command argument. Run `gh` in its
+own command from the reviewed branch, without `--head`: a PR command that also changes
+directory, commits, rebases, pulls, merges or switches branch, or passes `--head`, is
+refused. A commit message or script in the same command that starts a line with the PR
+command is refused too, so pass such text from a file. A quoted path to `gh`, a command
+passed to another interpreter as a string, PowerShell splatting, legacy backtick
+substitution, `gh api` and a person's own terminal are not covered. Hook input that cannot be read leaves the command to the client's
 normal permission flow.

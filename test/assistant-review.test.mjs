@@ -59,94 +59,84 @@ async function repository(t) {
   return { repo, base, head };
 }
 
-test('only an executed gh pr create or new is a pull request, not quoted or heredoc text', () => {
+test('a gh pr create or new in command position is a pull request, however it is quoted', () => {
   for (const command of [
     'gh pr create',
     'gh  pr   create --fill',
     'gh.exe pr create --base main',
-    'C:\\Progra~1\\GitHubCLI\\gh.exe pr create',
+    '/usr/local/bin/gh pr create',
     'gh pr new --title x',
+    'GH PR CREATE',
     'npm run test:all && gh pr create --base main --fill',
     'if ($LASTEXITCODE -eq 0) { gh pr create --fill }',
-    'cat <<\'EOF\' > body.md\nmentions gh pr create\nEOF\ngh pr create --body-file body.md',
+    'GH_TOKEN=x gh pr create',
     'gh pr create --title "unterminated',
-    'GH PR CREATE',
-    // Each of these ran a PR past the first matcher, which stripped them as quoted data.
+    // Each of these got past a matcher that parsed shell quoting, across three review rounds.
     'url="$(gh pr create --fill)"',
     'url="$(gh pr create --title "x" --fill)"',
-    'echo "PR: `gh pr create --fill`"',
     '# don\'t wait\ngh pr create --fill\necho \'opened\'',
     'gh pr -R owner/repo create --fill',
     'gh pr --repo=owner/repo new',
     'cat <<\'EOF\' | gh pr create --body-file -\nBody\nEOF',
     'cat > b.md <<\'EOF\' && gh pr create --body-file b.md\nBody\nEOF',
+    'Set-Location "C:\\repo\\"; gh pr create --title "x"',
+    '$url = "$(gh pr create --fill)"',
+    '[ ${#BODY} -lt 65000 ] && gh pr create --body-file b.md',
+    'grep -qx main <<< main\ngh pr create --fill',
+    'x=$((1 << n))\ngh pr create',
+    'cat <<EOF\n$(gh pr create --fill)\nEOF',
+    'git commit -m "$(cat <<\'EOF\'\nfix a) the "parser\nEOF\n)" && gh pr create --title "x"',
+    'git commit -F - <<\\EOF\nDon\'t gate this\nEOF\ngh pr create --title \'x\'',
+    'gh pr "create" --fill',
+    "gh 'pr' new",
+    '\\gh pr create',
+    "echo $'it\\'s' && gh pr create --title 'x'",
+    'g`h pr create',
   ]) assert.equal(opensPullRequest(command), true, command);
-  // PowerShell has no backslash escape, so this string ends at its own closing quote.
-  const powershell = 'Set-Location "C:\\repo\\"; gh pr create --title "x"';
-  assert.equal(opensPullRequest(powershell, 'powershell'), true);
-  assert.equal(opensPullRequest(powershell), true, 'an unknown shell is read both ways');
-  assert.equal(opensPullRequest('$url = "$(gh pr create --fill)"', 'powershell'), true);
-  assert.equal(opensPullRequest("$b = @\"\n$(gh pr create)\n\"@", 'powershell'), true);
-  assert.equal(opensPullRequest("git commit -m @'\ngh pr create\n'@", 'powershell'), false);
-  assert.equal(opensPullRequest('git commit -m "say `"gh pr create`""', 'powershell'), false);
-  assert.equal(opensPullRequest('<# gh pr create #> git status', 'powershell'), false);
-  // A command handed to another interpreter as a string is documented as unrecognised.
-  assert.equal(opensPullRequest('bash -c "gh pr create"', 'posix'), false);
   for (const command of [
     'gh pr view 12',
     'gh pr checks --watch',
+    'gh pr list --search create',
     'gh pr created',
     'git push -u origin HEAD',
-    'git commit -m "explain why gh pr create is gated"',
-    "git commit -m 'gh pr create'",
-    "git commit -m @'\ngh pr create\n'@",
     'mygh pr create',
     'echo gh-pr-create',
+    // A mention that is not in command position: searching for it, or a sentence about it.
+    'git commit -m "explain why gh pr create is gated"',
+    'git log --grep="gh pr create"',
+    'rg "gh pr create" docs/',
+    'echo hi # then gh pr create',
+    'git commit -m "$(cat <<\'EOF\'\nGate PRs: a) parser\nThe hook refuses `gh pr create` until review.\nEOF\n)"',
+    // Documented limits: another interpreter's string, PowerShell splatting, and legacy
+    // backtick substitution, since backticks are far more often markdown in a message.
+    'echo "PR: `gh pr create --fill`"',
+    'bash -c "gh pr create"',
+    "$a = 'pr','create'; gh @a",
     undefined,
     { command: 'gh pr create' },
   ]) assert.equal(opensPullRequest(command), false, String(command));
-  // Heredocs are POSIX syntax; an unknown shell also reads them as PowerShell and refuses.
-  for (const command of [
-    'git commit -F - <<\'EOF\'\nGate it\ngh pr create waits for review\nEOF',
-    'git commit -m "$(cat <<\'EOF\'\nGate\ngh pr create\nEOF\n)"',
-    'git commit -m "say \\"gh pr create\\" later"',
-    'git log --grep="gh pr create"',
-    'echo hi # then gh pr create',
-    // A heredoc body's parens, quotes and backticks are data: an early `)` once ended the
-    // substitution and read the rest of a commit message as commands.
-    'git commit -m "$(cat <<\'EOF\'\nGate PRs: a) parser, b) docs\nThe hook refuses `gh pr create` until review.\nEOF\n)"',
-    'x=$((1 << n))\necho n',
-  ]) assert.equal(opensPullRequest(command, 'posix'), false, command);
-  for (const command of [
-    // The same body's stray quote once swallowed a real PR after it.
-    'git commit -m "$(cat <<\'EOF\'\nfix a) the "parser\nEOF\n)" && gh pr create --title "x"',
-    // In POSIX `${#var}` is not a comment.
-    '[ ${#BODY} -lt 65000 ] && gh pr create --body-file b.md',
-    // `<<<` is a here-string and `1 << n` a shift, not heredocs that hide what follows.
-    'grep -qx main <<< main\ngh pr create --fill',
-    'x=$((1 << n))\ngh pr create',
-    // An unquoted heredoc still runs its substitutions.
-    'cat <<EOF\n$(gh pr create --fill)\nEOF',
-  ]) assert.equal(opensPullRequest(command, 'posix'), true, command);
-  assert.equal(opensPullRequest('cat <<\'EOF\'\n$(gh pr create --fill)\nEOF', 'posix'), false,
-    'a quoted heredoc delimiter keeps its body literal');
+  // The documented cost: a message line that starts with the command reads as one.
+  assert.equal(opensPullRequest('git commit -F - <<\'EOF\'\nGate it\ngh pr create waits\nEOF'), true);
 });
 
 test('a long run of flags after gh pr is matched in linear time', () => {
   const started = performance.now();
-  assert.equal(opensPullRequest(`gh pr${' --a'.repeat(40)} x`, 'posix'), false);
-  assert.equal(opensPullRequest(`gh pr${' -R o/r'.repeat(40)} create`, 'posix'), true);
-  assert.ok(performance.now() - started < 1000, 'an ambiguous flag pattern backtracks exponentially');
+  assert.equal(opensPullRequest(`gh pr${' --a'.repeat(4000)} x`), false);
+  assert.equal(opensPullRequest(`gh pr${' -R o/r'.repeat(2)} create`), true);
+  assert.equal(opensPullRequest(`gh pr ${'word '.repeat(50000)}create`), false);
+  assert.ok(performance.now() - started < 1000, 'the flag pattern must not backtrack exponentially');
 });
 
-test('a PR for a branch other than the reviewed HEAD is refused', async (t) => {
+test('a PR that passes --head, wherever it sits, is refused', async (t) => {
   const { repo } = await repository(t);
   await prepareReview(repo);
   await record(repo, { result: 'clean' });
-  for (const command of ['gh pr create --head other --fill', 'gh pr create -H other', 'gh pr create --head=other']) {
-    assert.match(await prGateDecision({ command, shell: 'posix', cwd: repo }), /--head/, command);
-  }
-  assert.equal(await prGateDecision({ command: 'gh pr create --fill && curl -H x y', shell: 'posix', cwd: repo }),
+  for (const command of [
+    'gh pr create --head other --fill', 'gh pr create -H other', 'gh pr create --head=other',
+    'gh pr --head other create --fill', 'gh pr -H other create',
+    'gh pr create --head pre-pr-adversarial-review',
+  ]) assert.match(await prGateDecision({ command, cwd: repo }), /--head/, command);
+  assert.equal(await prGateDecision({ command: 'gh pr create --fill && curl -H x y', cwd: repo }),
     null, 'only the PR command\'s own arguments are read');
 });
 
@@ -163,22 +153,32 @@ test('record names the reviewed commit, so another session\'s commit cannot inhe
   assert.equal((await recordReview(repo, { head: other, result: 'clean' })).result, 'clean');
 });
 
-test('a PR command that changes directory first is refused, since the hook knows only the session cwd', async (t) => {
+test('a PR command that also moves directory or HEAD is refused, since the hook sees them before it runs', async (t) => {
   const { repo } = await repository(t);
   await prepareReview(repo);
   await record(repo, { result: 'clean' });
-  assert.equal(await prGateDecision({ command: 'gh pr create --fill', shell: 'posix', cwd: repo }), null);
-  for (const [command, shell] of [
-    ['cd ../unreviewed && gh pr create --fill', 'posix'],
-    ['pushd /tmp; gh pr create', 'posix'],
-    ['Set-Location ..\\other; gh pr create', 'powershell'],
-    ['sl ..; gh pr new', 'powershell'],
-  ]) {
-    assert.match(await prGateDecision({ command, shell, cwd: repo }), /changes directory/, command);
-  }
-  assert.equal(await prGateDecision({ command: 'cd src && npm test', shell: 'posix', cwd: repo }), null);
-  assert.equal(await prGateDecision({ command: 'gh pr create --title "cd later"', shell: 'posix', cwd: repo }),
-    null, 'a quoted word is not a directory change');
+  assert.equal(await prGateDecision({ command: 'gh pr create --fill', cwd: repo }), null);
+  for (const command of [
+    'cd ../unreviewed && gh pr create --fill',
+    'pushd /tmp; gh pr create',
+    'Set-Location ..\\other; gh pr create',
+    'sl ..; gh pr new',
+  ]) assert.match(await prGateDecision({ command, cwd: repo }), /changes directory/, command);
+  for (const command of [
+    'git pull --rebase origin main && git push -u origin HEAD && gh pr create --fill',
+    'git commit --amend --no-edit && gh pr create',
+    'git switch other && gh pr create',
+    'git -c core.editor=true rebase origin/main; gh pr create',
+    'git merge origin/main\ngh pr create',
+  ]) assert.match(await prGateDecision({ command, cwd: repo }), /commits, rebases/, command);
+  // AGENTS.md's own landing script reads, tests and pushes in the same command as gh.
+  const landing = 'test -z "$(git status --porcelain)" &&\ntested=$(git rev-parse HEAD) &&\n' +
+    'npm run test:all &&\ntest "$(git rev-parse HEAD)" = "$tested" &&\ngit push -u origin HEAD &&\n' +
+    'gh pr create --base main --fill';
+  assert.equal(await prGateDecision({ command: landing, cwd: repo }), null);
+  assert.equal(await prGateDecision({ command: 'cd src && npm test', cwd: repo }), null);
+  assert.equal(await prGateDecision({ command: 'gh pr create --title "cd later"', cwd: repo }),
+    null, 'words inside the title are not commands');
 });
 
 test('the gate refuses an unreviewed, pending, stale or dirty HEAD and abstains once it passed', async (t) => {

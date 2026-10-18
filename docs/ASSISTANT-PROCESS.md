@@ -274,16 +274,20 @@ request, with their reason.
 
 Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
 `preToolUse` command hook pass the command to `prGateDecision` in
-[`assistant-review.mjs`](../tools/assistant-review.mjs). It reads the command the way
-the tool's shell would, POSIX for Bash and PowerShell for PowerShell, and both ways when
-the tool is unrecognised, so an ambiguous command errs toward refusal. Quoted data,
-comments, quoted-delimiter heredoc bodies and single-quoted here-strings are not
-commands; command substitutions inside double quotes, unquoted heredocs and expandable
-here-strings are, because the shell runs them. For an executed `gh pr create` or
-`gh pr new`, including with flags such as `-R` before the subcommand, it refuses unless
-the tree is clean and HEAD has a `clean` or `waived` record; a record it cannot read also
-refuses. It also refuses when the same command changes directory, or names another
-branch with `--head`, because the hook can see only the session checkout's HEAD.
+[`assistant-review.mjs`](../tools/assistant-review.mjs). It does not parse shell:
+three review rounds kept finding quoting forms a parser missed. It drops quote, backtick
+and backslash characters, then looks for `gh pr create` or `gh pr new` (allowing a few
+flags such as `-R owner/repo` before the subcommand) in command position: at the start
+of a line, after `;`, `&`, `|`, a bracket or `$(`, optionally behind environment
+assignments or a wrapper word. A mention mid-sentence or as a search pattern is not in
+command position and passes. For a match it refuses unless the tree is clean and HEAD has
+a `clean` or `waived` record; a record it cannot read also refuses. Because the hook sees
+the checkout before the command runs, it also refuses a PR command that changes
+directory, commits, rebases, pulls, merges, switches or resets in the same call, or that
+passes `--head` at all, even naming the current branch; run `gh` in its own command
+from the reviewed branch. The cost of the blunt rule is that a message line in the same
+command that starts with the PR command, or a quoted `;` before one, is refused while
+HEAD is unreviewed; write such text to a file and pass it with `-F` or `--body-file`.
 Recording names the reviewed commit, and refuses when HEAD has moved since, so one
 session cannot record another session's unreviewed commit. For any other command it gives no
 decision at all, so the client's normal permission flow still decides; it never approves,
@@ -294,7 +298,8 @@ cannot be read is likewise left to the normal flow.
 
 This is a workflow guard, not a security boundary: the same model can run the record
 command, and `gh api`, a quoted path to `gh`, a command handed to another interpreter as
-a string (`bash -c "…"`) or a person's own terminal are not covered.
+a string (`bash -c "…"`), PowerShell splatting (`gh @args`), legacy backtick
+substitution, or a person's own terminal are not covered.
 
 ### Child inheritance limits
 

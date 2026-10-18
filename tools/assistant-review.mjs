@@ -15,197 +15,45 @@ const COMMIT = /^[a-f0-9]{40,64}$/;
 const DIFF_MS = 60_000;
 const MAX_REASON = 500;
 
-export const SHELLS = Object.freeze(['posix', 'powershell']);
-// Flags may sit between `pr` and its subcommand: `gh pr -R owner/repo create`. Each flag
-// token can match only one way, so a long run of flags cannot backtrack exponentially.
-const PR_CREATE = /(?:^|[^\w.-])gh(?:\.exe)?\s+pr\s+(?:-{1,2}[A-Za-z][\w-]*(?:[ =][^\s-]\S*)?\s+)*(?:create|new)\b/gi;
-const CHANGES_DIRECTORY = /(?:^|[\s;&|({])(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)/i;
+// Parsing shell to tell a quoted mention from a real call was an arms race three review
+// rounds kept finding new gaps in. The rule is blunt instead: quotes, backticks and
+// escapes are dropped, and a word counts when it is in command position,
+// after a line start, a separator, a bracket or `$(`, optionally behind env assignments or
+// a wrapper word. A commit message in the same command that starts a line or clause with
+// the PR command is refused too; write it to a file and use `git commit -F` instead.
+const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()\s*(?:(?:\w+=\S*|exec|command|time|env|nohup|then|do|else)\s+)*(?:\S*/)?`;
+// Up to four flags, each with an optional value, may sit before the subcommand:
+// `gh pr -R owner/repo create`. Bounded, so it cannot backtrack exponentially.
+const FLAGS = String.raw`(?:-\S+\s+(?:[^\s-]\S*\s+)?){0,4}`;
+const PR_CREATE = new RegExp(String.raw`${COMMAND}gh(?:\.exe)?\s+pr\s+${FLAGS}(?:create|new)\b`, 'gi');
+const CHANGES_DIRECTORY = new RegExp(
+  String.raw`${COMMAND}(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)`, 'i');
+const MOVES_HEAD = new RegExp(
+  String.raw`${COMMAND}git(?:\.exe)?\s+${FLAGS}(?:commit|rebase|pull|merge|switch|checkout|reset|am|cherry-pick|revert)\b`, 'i');
 const NAMES_HEAD = /(?:^|\s)(?:--head\b|-H)/;
 
-// A POSIX heredoc operator at `i`: its terminator, whether its body still expands
-// (an unquoted delimiter), and the operator's length. `<<<` and `1 << n` are not heredocs.
-function heredocAt(text, i) {
-  if (!text.startsWith('<<', i) || text[i + 2] === '<' || text[i - 1] === '<') return null;
-  const marker = /^<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1/.exec(text.slice(i));
-  return marker && { end: marker[2], expand: !marker[1], length: marker[0].length };
+const words = (command) => (typeof command === 'string'
+  ? command.replace(/['"`\\]/g, '')
+  : '');
+
+// Each PR invocation from `gh` to the end of its command, flags before the subcommand
+// included, so `gh pr --head x create` is seen as naming a head.
+function pullRequests(command) {
+  const text = words(command);
+  return [...text.matchAll(PR_CREATE)].map((match) =>
+    text.slice(match.index).replace(/^[\n;&|(){}$\s]+/, '').split(/[\n;&|]/, 1)[0]);
 }
 
-// From the start of the line after a heredoc operator, past each pending body in turn.
-function heredocBodies(text, start, docs) {
-  let i = start;
-  const bodies = [];
-  for (const doc of docs) {
-    const from = i;
-    let to = text.length;
-    while (i < text.length) {
-      const stop = text.indexOf('\n', i);
-      const line = text.slice(i, stop === -1 ? text.length : stop);
-      const next = stop === -1 ? text.length : stop + 1;
-      if (line.trim() === doc.end) { to = i; i = next; break; }
-      i = next;
-    }
-    bodies.push({ body: text.slice(from, to), expand: doc.expand });
-  }
-  return { next: i, bodies };
-}
+// A quoted path to gh, a command handed to another interpreter as a string
+// (`bash -c "…"`) and PowerShell splatting (`gh @args`) are not recognised.
+export const opensPullRequest = (command) => pullRequests(command).length > 0;
 
-// From `open`, just past an opening paren, the index of the paren that closes it, counting
-// parens only. Used for arithmetic, where `<<` is a shift, not a heredoc.
-function balanced(text, open) {
-  let depth = 1;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '(') depth += 1;
-    else if (text[i] === ')' && --depth === 0) return i;
-  }
-  return -1;
-}
-
-// From `open`, just past `$(`, the index of its closing paren, skipping quoted text and
-// POSIX heredoc bodies, whose parens and quotes are data; -1 when unbalanced.
-function closingParen(text, open, posix) {
-  let depth = 1;
-  const pending = [];
-  for (let i = open; i < text.length; i++) {
-    const c = text[i];
-    const doc = posix ? heredocAt(text, i) : null;
-    if (c === '\n' && pending.length) {
-      i = heredocBodies(text, i + 1, pending.splice(0)).next - 1;
-    } else if (doc) {
-      pending.push(doc);
-      i += doc.length - 1;
-    } else if (posix && text.startsWith('((', i)) {
-      const end = balanced(text, i + 1);
-      if (end === -1) return -1;
-      i = end;
-    } else if (c === "'" || c === '"') {
-      const end = text.indexOf(c, i + 1);
-      if (end === -1) return -1;
-      i = end;
-    } else if (c === '(') depth += 1;
-    else if (c === ')' && --depth === 0) return i;
-  }
-  return -1;
-}
-
-// Within an expandable body, the command substitutions the shell would run.
-function substitutions(body, shell) {
-  const posix = shell === 'posix';
-  const out = [];
-  for (let i = 0; i < body.length; i++) {
-    if (body[i] === (posix ? '\\' : '`')) i += 1;
-    else if (posix && body.startsWith('$((', i)) {
-      const end = balanced(body, i + 2);
-      if (end === -1) break;
-      i = end;
-    } else if (body.startsWith('$(', i)) {
-      const end = closingParen(body, i + 2, posix);
-      if (end === -1) { out.push(body.slice(i + 2)); break; }
-      out.push(body.slice(i + 2, end));
-      i = end;
-    } else if (posix && body[i] === '`') {
-      const end = body.indexOf('`', i + 1);
-      out.push(body.slice(i + 1, end === -1 ? body.length : end));
-      if (end === -1) break;
-      i = end;
-    }
-  }
-  return out;
-}
-
-// The text one shell would execute: quoted data, comments and quoted heredoc bodies become
-// spaces, while command substitutions inside double quotes and unquoted heredocs are kept,
-// because they run. An unterminated quote is read as a literal, erring toward refusal.
-function executedText(command, shell) {
-  const posix = shell === 'posix';
-  const escape = posix ? '\\' : '`';
-  // `{` and `}` separate words in PowerShell; in POSIX `${#var}` is not a comment.
-  const boundary = posix ? /[\s;&|()]/ : /[\s;&|(){}]/;
-  const at = (i) => i === 0 || boundary.test(command[i - 1]);
-  const run = (parts) => ` ${parts.map((part) => executedText(part, shell)).join(' ; ')} `;
-  const pending = [];
-  let out = '';
-  for (let i = 0; i < command.length;) {
-    const c = command[i];
-    const doc = posix ? heredocAt(command, i) : null;
-    if (c === '\n' && pending.length) {
-      const { next, bodies } = heredocBodies(command, i + 1, pending.splice(0));
-      out += `\n${run(bodies.filter((one) => one.expand).flatMap((one) => substitutions(one.body, shell)))}\n`;
-      i = next;
-    } else if (c === escape) {
-      out += '  ';
-      i += 2;
-    } else if (c === '#' && at(i)) {
-      while (i < command.length && command[i] !== '\n') i += 1;
-    } else if (!posix && command.startsWith('<#', i)) {
-      const end = command.indexOf('#>', i + 2);
-      out += ' ';
-      i = end === -1 ? command.length : end + 2;
-    } else if (doc) {
-      pending.push(doc);
-      out += ' ';
-      i += doc.length;
-    } else if (posix && (command.startsWith('$((', i) || (command.startsWith('((', i) && at(i)))) {
-      const end = balanced(command, i + (command[i] === '$' ? 3 : 2));
-      if (end === -1) { out += c; i += 1; continue; }
-      out += ' ';
-      i = end + 1;
-    } else if (!posix && /^@['"]\r?\n/.test(command.slice(i, i + 4))) {
-      const quote = command[i + 1];
-      const close = command.indexOf(`\n${quote}@`, i + 2);
-      if (close === -1) { out += c; i += 1; continue; }
-      if (quote === '"') out += run(substitutions(command.slice(i + 2, close), shell));
-      else out += ' ';
-      i = close + 3;
-    } else if (c === "'") {
-      const end = command.indexOf("'", i + 1);
-      if (end === -1) { out += c; i += 1; continue; }
-      out += ' ';
-      i = end + 1;
-    } else if (c === '"') {
-      let end = -1;
-      for (let j = i + 1; j < command.length; j++) {
-        if (command[j] === escape) j += 1;
-        else if (command.startsWith('$(', j)) {
-          j = closingParen(command, j + 2, posix);
-          if (j === -1) break;
-        } else if (command[j] === '"') { end = j; break; }
-      }
-      if (end === -1) { out += c; i += 1; continue; }
-      out += run(substitutions(command.slice(i + 1, end), shell));
-      i = end + 1;
-    } else {
-      out += c;
-      i += 1;
-    }
-  }
-  return out;
-}
-
-// The executed text under the tool's own shell, or under both when it is unknown, so an
-// ambiguous command errs toward refusal rather than toward an unreviewed PR.
-function executed(command, shell) {
-  if (typeof command !== 'string') return [];
-  return (SHELLS.includes(shell) ? [shell] : SHELLS).map((one) => executedText(command, one));
-}
-
-// Each executed PR invocation's arguments, up to the end of its command.
-function pullRequests(command, shell) {
-  return executed(command, shell).flatMap((text) => [...text.matchAll(PR_CREATE)]
-    .map((match) => text.slice(match.index + match[0].length).split(/[;&|\n]/, 1)[0]));
-}
-
-// Quoted data, comments and quoted heredoc bodies are not commands, so a commit message
-// or PR body that merely mentions gh is not refused. A quoted path to gh, or a command
-// handed to another interpreter as a string (`bash -c "…"`), is not recognised.
-export const opensPullRequest = (command, shell = null) => pullRequests(command, shell).length > 0;
-
-// The hook knows the session's directory, not one the command moves to on its way to gh.
-export const changesDirectory = (command, shell = null) =>
-  executed(command, shell).some((text) => CHANGES_DIRECTORY.test(text));
-
-// `--head` proposes a branch other than the HEAD whose review the gate can see.
-export const namesOtherHead = (command, shell = null) =>
-  pullRequests(command, shell).some((args) => NAMES_HEAD.test(args));
+// The hook sees the session's directory and HEAD before the command runs, not a directory
+// the command moves to, a commit it makes or a branch it switches to on the way to gh.
+export const changesDirectory = (command) => CHANGES_DIRECTORY.test(words(command));
+export const movesHead = (command) => MOVES_HEAD.test(words(command));
+// `--head` proposes a branch whose review the gate cannot see, even when it names this one.
+export const namesHead = (command) => pullRequests(command).some((call) => NAMES_HEAD.test(call));
 
 export const isDocumentation = (file) =>
   /\.md$/i.test(file) || /^(?:guide|docs)\//.test(file);
@@ -328,17 +176,19 @@ const refusal = (why) =>
 
 // Returns a deny reason, or null for "no opinion". Never an approval: the client's normal
 // permission flow still decides every command this lets through.
-export async function prGateDecision({
-  command, shell = null, cwd = null, root = ROOT, git = runGit,
-} = {}) {
-  if (!opensPullRequest(command, shell)) return null;
-  if (changesDirectory(command, shell)) {
+export async function prGateDecision({ command, cwd = null, root = ROOT, git = runGit } = {}) {
+  if (!opensPullRequest(command)) return null;
+  if (changesDirectory(command)) {
     return refusal('the same command changes directory, so the gate cannot tell which checkout ' +
-      'gh runs in; change directory in its own command, then run gh from the reviewed checkout');
+      'gh runs in; run gh in its own command from the reviewed checkout');
   }
-  if (namesOtherHead(command, shell)) {
-    return refusal('the command names its head branch with --head, but the gate can only see ' +
-      'the review of this checkout\'s HEAD; check out that branch and run gh from it');
+  if (movesHead(command)) {
+    return refusal('the same command also commits, rebases, merges or switches branch, so the ' +
+      'HEAD gh proposes is not the one checked; run gh in its own command once HEAD is reviewed');
+  }
+  if (namesHead(command)) {
+    return refusal('the command passes --head, but the gate can only see the review of this ' +
+      'checkout\'s HEAD; drop --head and run gh from the reviewed branch');
   }
   try {
     const repo = typeof cwd === 'string' && isAbsolute(cwd)
