@@ -178,6 +178,8 @@ test('a PR that passes --head, wherever it sits, is refused', async (t) => {
     // The documented cost: anything after the PR command is read too.
     'gh pr create --fill && curl -H x y',
   ]) assert.match(await prGateDecision({ command, cwd: repo }), /--head/, command);
+  // A wrapper's own flags come before the PR command and are not read: sudo's -H sets HOME.
+  assert.equal(await prGateDecision({ command: 'sudo -H gh pr create --fill', cwd: repo }), null);
 });
 
 test('the gate abstains in a checkout without the review tool, where nothing could be recorded', async (t) => {
@@ -187,6 +189,11 @@ test('the gate abstains in a checkout without the review tool, where nothing cou
   assert.equal(init.status, 0, init.stderr);
   await put(dir, 'dirty.txt', 'untracked\n');
   assert.equal(await prGateDecision({ command: 'gh pr create --fill', cwd: dir }), null);
+  // Only the review state abstains: from here a command could still reach a reviewed checkout.
+  assert.match(await prGateDecision({ command: 'cd C:/git/ideaforge && gh pr create', cwd: dir }),
+    /changes directory/);
+  assert.match(await prGateDecision({ command: 'git commit -m x && gh pr create', cwd: dir }), /commits, rebases/);
+  assert.match(await prGateDecision({ command: 'gh pr create --head other', cwd: dir }), /--head/);
 });
 
 test('record names the reviewed commit, so another session\'s commit cannot inherit it', async (t) => {

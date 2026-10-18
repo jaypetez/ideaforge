@@ -111,5 +111,5 @@ Quoted text counts too, so pass PR bodies and commit messages from a file
 command passed to another interpreter as a string, PowerShell splatting, legacy backtick
 substitution, a wrapper outside the fixed list in
 [`assistant-review.mjs`](../../../tools/assistant-review.mjs) or with more than three
-flag or number arguments, `gh api` and a person's own terminal are not covered. Hook input that
+arguments (a flag with its value, or a number), `gh api` and a person's own terminal are not covered. Hook input that
 cannot be read leaves the command to the client's normal permission flow.

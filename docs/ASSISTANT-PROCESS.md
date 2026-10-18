@@ -282,13 +282,15 @@ separators, then looks for `gh pr create` or `gh pr new` (allowing a few flags s
 after `;`, `&`, `|`, a bracket or `$(`, optionally behind a few prefixes: an assignment (`A=b`, or PowerShell's
 `$x =` and `[string]$x =`), a control keyword such as `if` or `while`, or one of the wrappers
 `exec`, `command`, `time`, `env`, `nohup`, `xargs`, `timeout`, `nice`, `sudo` and
-`doas` with up to three flag or number arguments. A mention mid-sentence is not in command position and passes. The matcher is
+`doas` with up to three arguments, each a flag (optionally followed by its value) or a
+number. A mention mid-sentence is not in command position and passes. The matcher is
 linear in the command's length, since it runs on every shell command.
 
 For a match, because the hook sees the checkout before the command runs, it first
 refuses, in any checkout and whatever the review state, a PR command whose text changes
 directory, commits, rebases, pulls, merges, switches or resets, or contains `--head` or
-`-H` anywhere after the PR command, even naming the current branch. Run `gh` in its
+`-H` anywhere from `gh` onwards (a wrapper's own flags before it, such as `sudo -H`, are
+not read), even naming the current branch. Run `gh` in its
 own command from the reviewed branch. Only then does it look at the review: in a checkout
 that does not carry the review tool (another repository, or a branch from before the gate
 existed) it abstains, since nothing could be recorded there; otherwise it refuses unless
@@ -316,7 +318,8 @@ This is a workflow guard, not a security boundary: the same model can run the re
 command, and `gh api`, a quoted path to `gh` that contains spaces, a command handed to
 another interpreter as a string (`bash -c "…"`), PowerShell splatting (`gh @args`),
 legacy backtick substitution, any other wrapper word, a wrapper with more than three
-arguments or with arguments that are not flags or numbers, more than six prefixes before
+such arguments or with a bare argument that is not a flag, a flag's value or a number
+(`sudo root gh …`), more than six prefixes before
 `gh`, or a person's own terminal are not covered.
 
 ### Child inheritance limits

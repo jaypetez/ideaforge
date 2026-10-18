@@ -35,7 +35,8 @@ const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()${SPACE}*(?:${PREFIX}){0,6}(?:$
 // Up to four flags, each with an optional value, may sit before the subcommand:
 // `gh pr -R owner/repo create`. Bounded, so it cannot backtrack exponentially.
 const FLAGS = String.raw`(?:-\S+\s+(?:[^\s-]\S*\s+)?){0,4}`;
-const PR_CREATE = new RegExp(String.raw`${COMMAND}gh(?:\.exe)?\s+pr\s+${FLAGS}(?:create|new)\b`, 'i');
+// The group is the call itself, from `gh`, without the separator and prefixes before it.
+const PR_CREATE = new RegExp(String.raw`${COMMAND}(gh(?:\.exe)?\s+pr\s+${FLAGS}(?:create|new)\b)`, 'i');
 const CHANGES_DIRECTORY = new RegExp(
   String.raw`${COMMAND}(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)`, 'i');
 const MOVES_HEAD = new RegExp(
@@ -54,7 +55,8 @@ const words = (command) => (typeof command === 'string'
 function firstPullRequest(command) {
   const text = words(command);
   const match = PR_CREATE.exec(text);
-  return match ? text.slice(match.index) : null;
+  // From `gh`, so a wrapper's own flags (`sudo -H`) are not read as the PR's.
+  return match ? text.slice(match.index + match[0].length - match[1].length) : null;
 }
 
 // A quoted path containing spaces, a command handed to another interpreter as a string
