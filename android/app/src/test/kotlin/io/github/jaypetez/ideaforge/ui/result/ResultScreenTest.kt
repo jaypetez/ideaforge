@@ -3,15 +3,22 @@ package io.github.jaypetez.ideaforge.ui.result
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.str
@@ -114,12 +121,22 @@ class ResultScreenTest {
         ResultActions.contentUri = realContentUri
     }
 
-    private fun show(session: JsonObject, synthesisFailed: Boolean = false): Pair<ResultHarness, ResultViewModel> {
+    private fun show(session: JsonObject, synthesisFailed: Boolean = false,
+        clipboardUnavailable: Boolean = false): Pair<ResultHarness, ResultViewModel> {
         val h = ResultHarness(tmp.newFolder(), Dispatchers.Unconfined, session)
         val vm = h.vm(stringOf(session["id"])!!)
         compose.setContent {
             IdeaForgeTheme {
-                ResultScreen(vm, onBack = { backs++ }, onAskMore = { askedMore++ }, synthesisFailed = synthesisFailed)
+                val actual = LocalContext.current
+                val actionContext = remember(actual, clipboardUnavailable) {
+                    if (clipboardUnavailable) object : ContextWrapper(actual) {
+                        override fun getSystemService(name: String): Any? =
+                            if (name == Context.CLIPBOARD_SERVICE) null else super.getSystemService(name)
+                    } else actual
+                }
+                CompositionLocalProvider(LocalContext provides actionContext) {
+                    ResultScreen(vm, onBack = { backs++ }, onAskMore = { askedMore++ }, synthesisFailed = synthesisFailed)
+                }
             }
         }
         compose.waitUntil(5_000) { vm.state.value.session != null }
@@ -151,6 +168,28 @@ class ResultScreenTest {
         val expected = stringOf(ResultVectors.written["title"])!!
         compose.onNodeWithTag(ResultTags.TITLE).assertTextEquals(expected)
         assertEquals(expected, vm.state.value.title("fallback"))
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp")
+    fun expandedResultGivesCopyThePrimaryActionAndKeepsSaveVisible() {
+        show(ResultVectors.written)
+        compose.onNode(hasTestTag(ResultTags.COPY) and hasAnyAncestor(hasTestTag("result-primary-action"))).assertExists()
+        compose.onNodeWithTag(ResultTags.SAVE).assertExists()
+    }
+
+    @Test
+    fun compactResultGivesShareThePrimaryActionAndKeepsCopyVisible() {
+        show(ResultVectors.written)
+        compose.onNode(hasTestTag(ResultTags.SHARE) and hasAnyAncestor(hasTestTag("result-primary-action"))).assertExists()
+        compose.onNodeWithTag(ResultTags.COPY).assertExists()
+    }
+
+    @Test
+    fun unavailableClipboardIsAnExplicitFailureRatherThanAnUncaughtClick() {
+        show(ResultVectors.written, clipboardUnavailable = true)
+        compose.onNodeWithTag(ResultTags.COPY).performClick()
+        compose.onNodeWithText("could not be copied", substring = true).assertExists()
     }
 
     // The issue's third criterion: with the wrap-up failed the result still works, its export

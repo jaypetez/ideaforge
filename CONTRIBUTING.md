@@ -348,6 +348,15 @@ and a labelled scripted backup-job failure. No file picker, hosted preview or re
 provider is invoked. Require actual selected-method XML and complete clean-SHA
 compact/expanded, light/dark, enlarged manifests/PNGs; it is not the full inventory.
 
+For native Result, `-f evidence=result` selects
+`UxCaptureDeviceTest#requestedNativeResultKeepsDocumentAndCanonicalActions` with
+`uxResultProbe=true`. Its fixed six-frame matrix covers long/scrolled/short documents,
+checklist provenance, scripted failed synthesis and a genuinely pending session-lock
+read. It captures the real MainActivity, not an isolated Result drawing, and never opens
+the chooser, clipboard or document picker. Require all 72 compact/expanded/theme/font
+records, actual selected-method XML, exact clean SHA and all PNGs before accepting it.
+Canonical output/picker cancellation and IO failures still need their action/VM tests.
+
 For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
 `UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
 recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/

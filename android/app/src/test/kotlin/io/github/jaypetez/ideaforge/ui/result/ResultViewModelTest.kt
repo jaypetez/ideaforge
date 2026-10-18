@@ -38,6 +38,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -129,6 +130,25 @@ class ResultViewModelTest {
         idle()
         assertEquals(ResultNotice.SaveFailed("disk full"), vm.state.value.notice)
         assertTrue(h.sink.outputs.isEmpty())
+    }
+
+    @Test
+    fun unreadableStorageIsNotMisreportedAsADeletedIdea() {
+        val unavailable = File(tmp.root, "unavailable-library").apply { writeText("owned read fault") }
+        val h = ResultHarness(unavailable, dispatcher)
+        val vm = h.vm()
+        idle()
+        assertFalse("failed storage is not a missing row", vm.state.value.missing)
+        assertNotNull("a read failure remains explicit", vm.state.value.notice)
+        assertFalse(vm.state.value.loading)
+        assertTrue(unavailable.delete())
+        assertTrue(unavailable.mkdirs())
+        kotlinx.coroutines.runBlocking { h.store.save(ResultVectors.written) }
+        vm.retryLoad()
+        idle()
+        assertNotNull(vm.state.value.session)
+        assertFalse(vm.state.value.loading)
+        assertEquals(exportFor(ResultVectors.written), vm.state.value.export)
     }
 
     // renderDone's #done-meta: answered-or-skipped turns, coverage, and the checklist suffix.

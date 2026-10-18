@@ -92,6 +92,15 @@ source wins over prose, and a generated artifact wins over a description of that
   `Backup.kt`/`BackupJobs` retain session-only, collision-as-copy, failed-write behavior.
   Re-check Android Voice/Your data labels, DESIGN measures, Cancel/Back focus and actual
   `evidence=settings` fixed real-app matrix, not physical/live paid speech claims.
+- **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
+  Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
+  errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and
+  reuses `exportFor`/same-session reopen. `ExportPreview` renders safe blocks, heading
+  hierarchy and local code/table horizontal scroll without changing bytes. `ResultActions`
+  retains FileProvider scope/temporary TTL, clipboard/system confirmation and the
+  Windows real-provider probe seam. Re-check Android Result/export guidance and
+  `evidence=result` actual long/scrolled/short/checklist/synthesis-failed/held-lock loading
+  captures; no native chooser/picker/physical usability claim follows from their PNGs.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive

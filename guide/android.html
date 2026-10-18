@@ -98,9 +98,12 @@
             </tr>
             <tr>
               <th scope="row">Result</th>
-              <td>The rendered refined prompt with <strong>Share .md</strong>,
-                <strong>Copy markdown</strong>, <strong>Save .md</strong> and
-                <strong>Ask me more</strong>.</td>
+              <td>A selectable rendered document with a bounded reading width and
+                question/coverage/checklist metadata. Compact windows make
+                <strong>Share .md</strong> primary with <strong>Copy markdown</strong>
+                visible; expanded windows make Copy primary with <strong>Save .md</strong>
+                visible. Share, Save and <strong>Ask me more</strong> remain reachable
+                secondary actions, not four squeezed full-size labels.</td>
             </tr>
             <tr>
               <th scope="row">Library</th>
@@ -190,6 +193,15 @@
         idea and its draft; <strong>Ask me more</strong> reopens that same idea rather than
         creating another. Wide forms and documents keep bounded reading widths. Navigation
         alone never asks for the microphone.
+      </p>
+      <p>
+        Result keeps one logical vertical document scroll. Headings, lists and quotes reflow;
+        wide code and tables scroll locally without changing the markdown exported by
+        Share, Copy or Save. Failed synthesis and checklist provenance remain explicit
+        while the transcript, open questions and coverage are preserved. Action failures
+        stay visible until dismissed; a failed library read offers a retry rather than
+        claiming the idea was deleted. Picker or share cancellation is not a success
+        message, and Ask me more still reopens the same idea.
       </p>
       <p>
         Connection setup keeps its two steps: choose a provider, then complete its required

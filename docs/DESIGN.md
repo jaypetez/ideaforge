@@ -261,6 +261,25 @@ Your data separates the session-only unencrypted backup/import actions from cred
 removal. Cancel/Back preserves the blob/generation and returns focus; confirmed Forget
 retains its synchronous revoke and generation protection, including during other checks.
 
+## Current native Result
+
+`ResultScreen` keeps one selectable document canvas bounded by the reading role. Canonical
+markdown headings have distinct native hierarchy; lists/quotes reflow and intrinsically
+wide code/tables have local horizontal scroll rather than page overflow. The safe core
+parser still supplies literal text spans, not executable HTML or a new serializer.
+Actual question/coverage/source and synthesis warnings remain above the complete export.
+
+Compact actions make Share primary/Copy visible; expanded actions make Copy primary/Save
+visible. A separate secondary row retains Share/Save and Ask me more without squeezing
+four equally bordered labels. Short enlarged windows keep the existing page-flow action
+fallback, shell insets are not reapplied, and every native action remains reachable.
+
+Only actual save success raises success feedback. Copy/share/save/reopen/read errors are
+explicit persistent statuses; a failed read is not a missing row and offers retry.
+ResultActions, exportFor, CreateDocument cancellation, FileProvider/temporary-share TTL,
+clipboard bytes and same-session reopen remain their owners, including the real-provider
+Windows test seam.
+
 ## Current native Ideas
 
 `LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea
@@ -560,6 +579,7 @@ replace the adaptive library panes or the later screen recompositions.
 | `formMinimum` | 480dp |
 | `support` | 280dp |
 | `sectionIndex` | 200dp |
+| `tableCell` | 200dp |
 | `work` | 1120dp |
 | `settings` | 1000dp |
 | `reading` | 720dp |

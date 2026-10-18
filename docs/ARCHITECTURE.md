@@ -308,6 +308,14 @@ their keyring or preference shapes, and errors cannot be replaced by success aft
 refused credential write. BackupJobs remains app-scoped; Forget keeps synchronous revoke
 and saveIf generation checks. Native dialogs preserve cancellation/focus and data boundaries.
 
+**Native Result and export.** `ResultScreen.kt` owns responsive action priority, one
+selectable reading canvas and persistent operation errors. `ResultViewModel` distinguishes
+load failure from a missing row and retains a retry; `exportFor` remains the canonical
+string for all output paths. `ExportPreview` only presents safe core blocks with native
+heading/type and local code/table scroll. It never serializes a replacement export.
+FileProvider temporary-share identity/TTL, CreateDocument and same-session reopen stay
+with ResultActions/the existing ViewModel and guards.
+
 **Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
 and the shared localized action in Settings About and the common onboarding footer.
 It uses the platform URI handler and reports a missing/blocked external handler inline

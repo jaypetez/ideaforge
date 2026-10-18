@@ -91,11 +91,15 @@ sealed interface ResultNotice {
     data class SaveFailed(val detail: String) : ResultNotice
 
     data class ReopenFailed(val detail: String) : ResultNotice
+    data class LoadFailed(val detail: String) : ResultNotice
+    data class CopyFailed(val detail: String) : ResultNotice
+    data class ShareFailed(val detail: String) : ResultNotice
 }
 
 data class ResultState(
     /** Null until the stored idea has been read. */
     val session: Session? = null,
+    val loading: Boolean = true,
     /** The idea is not in the store (deleted, or a newer build's file). */
     val missing: Boolean = false,
     val export: String = "",
@@ -137,6 +141,8 @@ class ResultViewModel(
     }
 
     private suspend fun open() {
+        _state.update { it.copy(loading = true, missing = false,
+            notice = if (it.notice is ResultNotice.LoadFailed) null else it.notice) }
         // Waits out work still running for this idea (the write-up that brought us here),
         // so what is read is what it saved.
         val stored = try {
@@ -146,19 +152,28 @@ class ResultViewModel(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            null
+        } catch (e: Exception) {
+            _state.update { it.copy(loading = false, notice = ResultNotice.LoadFailed(message(e))) }
+            return
         }
         if (stored == null) {
-            _state.update { it.copy(missing = true) }
+            _state.update { it.copy(missing = true, loading = false) }
             return
         }
         show(stored)
     }
 
     private fun show(session: Session) = _state.update {
-        it.copy(session = session, export = exportFor(session), filename = exportFilename(session), meta = doneMeta(session))
+        it.copy(session = session, loading = false, missing = false, export = exportFor(session),
+            filename = exportFilename(session), meta = doneMeta(session))
     }
+
+    fun retryLoad() {
+        if (!_state.value.loading) viewModelScope.launch { open() }
+    }
+
+    fun copyFailed(error: Exception) = _state.update { it.copy(notice = ResultNotice.CopyFailed(message(error))) }
+    fun shareFailed(error: Exception) = _state.update { it.copy(notice = ResultNotice.ShareFailed(message(error))) }
 
     /** Save .md: the export's bytes, exactly, into the document the user picked. */
     fun save(uri: Uri) {

@@ -32,6 +32,7 @@ object IdeaForgeWidths {
     val formMinimum = 480.dp
     val support = 280.dp
     val sectionIndex = 200.dp
+    val tableCell = 200.dp
     val work = 1120.dp
     val settings = 1000.dp
     val reading = 720.dp
