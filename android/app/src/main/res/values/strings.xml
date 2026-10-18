@@ -16,7 +16,7 @@
     <string name="status_error_message">Error: %1$s</string>
     <!-- Settings. Wording follows index.html and src/ui/app.js where the web has it. -->
     <string name="settings_connection">Connection</string>
-    <string name="settings_active">Answering now: %1$s</string>
+    <string name="settings_active">Saved provider: %1$s</string>
     <string name="settings_active_key">Key %1$s</string>
     <string name="settings_active_local">%1$s · %2$s</string>
     <string name="settings_no_provider">No provider is set up.</string>
@@ -35,8 +35,8 @@
     <string name="settings_check_key">Check the key</string>
     <string name="settings_check_connection">Check the connection</string>
     <string name="settings_save">Save</string>
-    <string name="settings_listening">Listening</string>
-    <string name="settings_hands_free_hint">Start interviews hands-free, so a regular driver is not re-ticking a box.</string>
+    <string name="settings_listening">Voice</string>
+    <string name="settings_hands_free_hint">Keep this device’s hands-free preference. New idea still asks you to choose Voice or Type; navigation never starts the microphone.</string>
     <string name="settings_trigger">Finish word</string>
     <string name="settings_trigger_hint">Say this when you have finished an answer, and the interview moves on by itself. You can also say “repeat that”, “skip this one”, “scratch that”, “wrap it up”, “pause voice” or “exit voice”.</string>
     <string name="settings_pace">Speaking pace: %1$s×</string>
@@ -44,8 +44,14 @@
     <string name="settings_theme_system">Follow the system</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
-    <string name="settings_data">Data</string>
+    <string name="settings_data">Your data</string>
+    <string name="settings_loading">Reading saved settings…</string>
+    <string name="settings_voice_native_summary">Device voice. Finish word: %1$s.</string>
+    <string name="settings_voice_hosted_summary">OpenAI voice ready. Finish word: %1$s.</string>
+    <string name="settings_data_summary">%1$d ideas on this device. Backups contain ideas, never keys or device preferences.</string>
+    <string name="settings_data_unavailable">The idea library is unavailable. Retry its read in Ideas; existing files are kept.</string>
     <string name="settings_forget">Forget all keys</string>
+    <string name="settings_remove_credentials">Remove credentials, keep ideas</string>
     <string name="settings_forget_hint">Deletes every saved key and provider setup from this device. Your ideas and preferences stay.</string>
     <string name="settings_forget_title">Forget all keys?</string>
     <string name="settings_forget_body">Every provider’s key and setup, and any speech keys, are deleted from this device. You will set up a provider again before the next interview.</string>

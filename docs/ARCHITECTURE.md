@@ -299,6 +299,15 @@ failure states are distinct. `OnboardingScreen` uses native window classes plus 
 available/font-scaled space for a bounded form and supporting pane; required fields and
 privacy/agreement/recovery controls remain in the scrollable form.
 
+**Native Settings.** `SettingsScreen.kt` keeps one five-section scrolling form and uses
+the same native window/font-fit decision for its narrow section index. Scroll/focus
+navigation leaves editor state intact. Summaries read the Settings/keyring/prefs/library
+owners; saved configuration is not a connectivity or voice-quality verdict.
+`HostedSpeechViewModel` keeps speech and transcription notices separate without changing
+their keyring or preference shapes, and errors cannot be replaced by success after a
+refused credential write. BackupJobs remains app-scoped; Forget keeps synchronous revoke
+and saveIf generation checks. Native dialogs preserve cancellation/focus and data boundaries.
+
 **Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
 and the shared localized action in Settings About and the common onboarding footer.
 It uses the platform URI handler and reports a missing/blocked external handler inline

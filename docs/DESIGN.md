@@ -246,6 +246,21 @@ Selection uses the existing inference admission and a fresh Interview entry. The
 new-entry voice intent is consumed once; its denied/cancelled/interrupted setup leaves a
 truthful manual notice without replacing higher-priority errors or creating a second drive.
 
+## Current native Settings
+
+`SettingsScreen` keeps Connection, Voice, Appearance, Your data and About in one
+predictable scrollable form. Summaries derive saved provider, effective permitted speech,
+theme, library availability/count and version from their owners, not a live health claim.
+An expanded window with sufficient font-scaled space adds a narrow section index; direct
+section navigation scrolls/focuses the heading without discarding editor state.
+
+Hosted speech and transcription retain their separate keys/grants/checks and now retain
+separate operation notices. Failures use semantic error status; cancellation is not a
+passing check. Both hosted voice choices are vertical native radio targets at large fonts.
+Your data separates the session-only unencrypted backup/import actions from credential
+removal. Cancel/Back preserves the blob/generation and returns focus; confirmed Forget
+retains its synchronous revoke and generation protection, including during other checks.
+
 ## Current native Ideas
 
 `LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea
@@ -544,6 +559,7 @@ replace the adaptive library panes or the later screen recompositions.
 | `form` | 720dp |
 | `formMinimum` | 480dp |
 | `support` | 280dp |
+| `sectionIndex` | 200dp |
 | `work` | 1120dp |
 | `settings` | 1000dp |
 | `reading` | 720dp |

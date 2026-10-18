@@ -7,7 +7,7 @@
     <string name="backup_title">Backup</string>
     <string name="backup_body">A backup holds every idea on this phone, with its tags, coverage and transcript. It never contains an API key or a device preference, and it opens in the IdeaForge web app too.</string>
     <string name="backup_unencrypted">The file is not encrypted: keep it like any other personal document.</string>
-    <string name="backup_export">Back up ideas</string>
-    <string name="backup_import">Import backup</string>
+    <string name="backup_export">Backup ideas</string>
+    <string name="backup_import">Import ideas</string>
     <string name="backup_working">Working…</string>
 </resources>
