@@ -86,6 +86,15 @@
     <string name="onboarding_model_label">Model</string>
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_back">Back</string>
+    <string name="new_idea_title">Start a new idea</string>
+    <string name="new_idea_body">Choose how to answer your first question. You can change to voice or typing later.</string>
+    <string name="new_idea_voice">Start with voice</string>
+    <string name="new_idea_type">Type instead</string>
+    <string name="new_idea_permissions">Voice asks for microphone access only after you choose it. Typing needs no microphone permission.</string>
+    <string name="onboarding_saved_details">Settings for this provider are saved on this device. Saved details are not a current connection check.</string>
+    <string name="onboarding_successful_check">A previous connection check succeeded.</string>
+    <string name="onboarding_support_title">Your connection, your choice</string>
+    <string name="onboarding_support_body">Interview text goes directly to the provider or private server you choose. Review its data handling and the separate agreement before continuing.</string>
     <string name="keyring_unreadable_title">Your saved keys could not be read</string>
     <string name="keyring_unreadable_body">They are still on this device. This is sometimes a passing problem with Android’s secure key storage, so try again first. Setting up a provider replaces them only if you confirm.</string>
     <string name="keyring_retry">Try again</string>

@@ -2,30 +2,35 @@ package io.github.jaypetez.ideaforge.ui.onboarding
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,9 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -46,6 +55,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.hostOf
@@ -56,6 +66,7 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedText
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeSuggestionChip as SuggestionChip
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -66,28 +77,54 @@ fun OnboardingScreen(vm: OnboardingViewModel, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.done) { if (state.done) onDone() }
     BackHandler(enabled = state.step == 2) { vm.back() }
+    val scroll = rememberScrollState()
+    LaunchedEffect(state.choice?.id) { scroll.scrollTo(0) }
+    val expanded = currentWindowAdaptiveInfoV2().windowSizeClass
+        .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val scale = LocalDensity.current.fontScale.coerceAtLeast(1f)
 
-    Column(
-        Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.form)
-            .imePadding().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content),
-        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
-    ) {
-        Text(
-            stringResource(R.string.onboarding_step, state.step),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        val choice = state.choice
-        if (choice == null) PickProvider(vm.choices, vm::pick)
-        else if (choice.local) LocalServer(choice, state, vm)
-        else HostedKey(choice, state, vm)
-        PrivacyPolicyLink()
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val supporting = expanded &&
+            maxWidth >= (IdeaForgeWidths.formMinimum + IdeaForgeWidths.support) * scale + IdeaForgeSpacing.section
+        val supportWidth = IdeaForgeWidths.support * scale
+        val width = if (supporting) IdeaForgeWidths.form + supportWidth + IdeaForgeSpacing.section else IdeaForgeWidths.form
+        Row(
+            Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = width).imePadding(),
+            horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.section),
+        ) {
+            Column(
+                Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(IdeaForgeSpacing.content),
+                verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+            ) {
+                Text(stringResource(R.string.onboarding_step, state.step),
+                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.hasSavedSettings) IdeaForgeStatusText(stringResource(R.string.onboarding_saved_details))
+                if (state.hasSuccessfulCheck) IdeaForgeStatusText(stringResource(R.string.onboarding_successful_check))
+                val choice = state.choice
+                if (choice == null) PickProvider(vm.choices, vm::pick)
+                else if (choice.local) LocalServer(choice, state, vm, inlineHelp = !supporting)
+                else HostedKey(choice, state, vm, inlineHelp = !supporting)
+                PrivacyPolicyLink()
+            }
+            if (supporting) {
+                Column(
+                    Modifier.width(supportWidth).fillMaxHeight().verticalScroll(rememberScrollState())
+                        .padding(IdeaForgeSpacing.content).testTag("onboarding-support"),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+                ) {
+                    Text(stringResource(R.string.onboarding_support_title), style = MaterialTheme.typography.titleLarge)
+                    state.choice?.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                    Text(stringResource(R.string.onboarding_support_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun PickProvider(choices: List<ProviderChoice>, pick: (String) -> Unit) {
-    Text(stringResource(R.string.onboarding_pick_title), style = MaterialTheme.typography.headlineSmall)
+    Text(stringResource(R.string.onboarding_pick_title), style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier.semantics { heading() })
     Text(stringResource(R.string.onboarding_pick_body), style = MaterialTheme.typography.bodyLarge)
 
     Section(stringResource(R.string.onboarding_hosted))
@@ -105,22 +142,26 @@ private fun PickProvider(choices: List<ProviderChoice>, pick: (String) -> Unit) 
 @Composable
 private fun Section(title: String) {
     Spacer(Modifier.padding(top = IdeaForgeSpacing.micro))
-    Text(title, style = MaterialTheme.typography.titleMedium)
+    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
 }
 
 @Composable
 private fun ProviderCard(c: ProviderChoice, pick: (String) -> Unit) {
-    Card(
-        onClick = { pick(c.id) },
-        modifier = Modifier.fillMaxWidth().testTag("provider-${c.id}").semantics { role = Role.Button },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-    ) {
-        Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
-            Text(c.label, style = MaterialTheme.typography.titleMedium)
-            describe(c)?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column {
+        Surface(
+            onClick = { pick(c.id) },
+            modifier = Modifier.fillMaxWidth().testTag("provider-${c.id}").semantics { role = Role.Button },
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(Modifier.padding(vertical = IdeaForgeSpacing.related, horizontal = IdeaForgeSpacing.tight),
+                verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
+                Text(c.label, style = MaterialTheme.typography.titleMedium)
+                describe(c)?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
+        HorizontalDivider()
     }
 }
 
@@ -140,9 +181,10 @@ private fun describe(c: ProviderChoice): String? {
 }
 
 @Composable
-private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewModel) {
-    Text(stringResource(R.string.onboarding_key_title, c.label), style = MaterialTheme.typography.headlineSmall)
-    c.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewModel, inlineHelp: Boolean) {
+    Text(stringResource(R.string.onboarding_key_title, c.label), style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier.semantics { heading() })
+    if (inlineHelp) c.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
     c.keyUrl?.let { url ->
         val uri = LocalUriHandler.current
         TextButton(onClick = { runCatching { uri.openUri(url) } }) {
@@ -150,7 +192,7 @@ private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewM
         }
     }
 
-    var shown by rememberSaveable { mutableStateOf(false) }
+    var shown by rememberSaveable(c.id) { mutableStateOf(false) }
     OutlinedTextField(
         value = s.apiKey,
         onValueChange = vm::setApiKey,
@@ -190,9 +232,10 @@ private fun HostedKey(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewM
 }
 
 @Composable
-private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewModel) {
-    Text(stringResource(R.string.onboarding_local_title, c.label), style = MaterialTheme.typography.headlineSmall)
-    c.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+private fun LocalServer(c: ProviderChoice, s: OnboardingState, vm: OnboardingViewModel, inlineHelp: Boolean) {
+    Text(stringResource(R.string.onboarding_local_title, c.label), style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier.semantics { heading() })
+    if (inlineHelp) c.note?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
 
     OutlinedTextField(
         value = s.baseUrl,
@@ -269,10 +312,35 @@ internal fun emulatorAddress(base: String): String? {
 }
 
 @Composable
+internal fun NewIdeaChoice(onVoice: () -> Unit, onType: () -> Unit, onCancel: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.form)
+            .imePadding().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content).testTag("new-idea-choice"),
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+    ) {
+        Text(stringResource(R.string.new_idea_title), style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.semantics { heading() })
+        Text(stringResource(R.string.new_idea_body), style = MaterialTheme.typography.bodyLarge)
+        Button(onClick = onVoice,
+            modifier = Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.voice).testTag("new-idea-voice")) {
+            Text(stringResource(R.string.new_idea_voice))
+        }
+        OutlinedButton(onClick = onType, modifier = Modifier.fillMaxWidth().testTag("new-idea-type")) {
+            Text(stringResource(R.string.new_idea_type))
+        }
+        Text(stringResource(R.string.new_idea_permissions), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick = onCancel, modifier = Modifier.testTag("new-idea-cancel")) {
+            Text(stringResource(R.string.action_cancel))
+        }
+    }
+}
+
+@Composable
 private fun Failure(f: CheckFailure?) {
     if (f == null) return
     OutlinedCard(
-        Modifier.fillMaxWidth().testTag("check-failure"),
+        Modifier.fillMaxWidth().testTag("check-failure").semantics { liveRegion = LiveRegionMode.Polite },
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
         Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {

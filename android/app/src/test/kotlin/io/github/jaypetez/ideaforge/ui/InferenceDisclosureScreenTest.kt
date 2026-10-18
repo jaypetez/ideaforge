@@ -30,6 +30,7 @@ import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.ui.settings.MemoryDataStore
 import io.github.jaypetez.ideaforge.ui.settings.SettingsTags
+import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -42,6 +43,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,13 +52,18 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.Shadows.shadowOf
+import java.util.concurrent.atomic.AtomicInteger
 
 private class DelayedAdmissionPreferences : DataStore<Preferences> {
     private val memory = MemoryDataStore()
     @Volatile var hold: CompletableDeferred<Unit>? = null
     @Volatile var waiting = false
     override val data: Flow<Preferences> get() = flow {
-        hold?.let { waiting = true; it.await() }
+        hold?.let {
+            waiting = true
+            try { it.await() } finally { waiting = false }
+        }
         emitAll(memory.data)
     }
     override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
@@ -143,6 +151,54 @@ class InferenceDisclosureScreenTest {
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("local-http-warning").fetchSemanticsNodes().isEmpty()
             }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h818dp", fontScale = 1f)
+    fun aCancelledLateContinueCannotLaunchPermissionsFromANewerRationale() {
+        val preferences = DelayedAdmissionPreferences()
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true,
+            preferences = PrefsStore(preferences))
+        ownedGraphs += graph
+        val starts = AtomicInteger()
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { starts.incrementAndGet() }
+            override fun stop() {}
+        }
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 10_000)
+        compose.onNode(hasText("New idea") and hasClickAction() and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-voice"), 10_000)
+        compose.onNodeWithTag("new-idea-voice").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        val held = CompletableDeferred<Unit>()
+        preferences.hold = held
+        try {
+            compose.onNodeWithTag("voice-mic-continue").performClick()
+            compose.waitUntil(10_000) {
+                var waiting = false
+                scenario!!.onActivity { waiting = preferences.waiting }
+                waiting
+            }
+            preferences.hold = null
+            compose.onNodeWithText("Not now").performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+            compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+            held.complete(Unit)
+            compose.waitUntil(10_000) {
+                var finished = false
+                scenario!!.onActivity { finished = !preferences.waiting }
+                finished
+            }
+            scenario!!.onActivity { assertNull(shadowOf(it).lastRequestedPermission) }
+            compose.onNodeWithTag("voice-mic-rationale").assertIsDisplayed()
+            assertEquals(0, starts.get())
+            compose.onNodeWithText("Not now").performClick()
+        } finally {
+            preferences.hold = null
+            held.complete(Unit)
         }
     }
 

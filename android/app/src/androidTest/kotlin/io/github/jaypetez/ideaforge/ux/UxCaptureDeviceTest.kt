@@ -57,6 +57,8 @@ import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
+import io.github.jaypetez.ideaforge.providers.ProviderErrorCode
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.Speaker
@@ -78,6 +80,7 @@ import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -88,7 +91,9 @@ import javax.crypto.spec.SecretKeySpec
  * Every real-app state uses MainActivity navigation and the existing scripted provider;
  * only voice presentations launch the labelled debug-only isolated component activity.
  * Each graph has its own private files and in-memory dummy encryption key. No user session,
- * keyring, preference, permission, microphone or real provider is read or changed.
+ * keyring, preference, microphone or real provider is read or changed. Permission state
+ * is never changed; the new-entry recovery case checks that a permission is ungranted,
+ * then cancels the app rationale without launching an OS request.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -107,6 +112,157 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
     private var heldLibraryRead: CountDownLatch? = null
     private var libraryReadEntered: CountDownLatch? = null
+
+    @Test
+    fun requestedNativeOnboardingAndEntryKeepIntentAndRecovery() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxOnboardingProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeOnboardingAndEntryKeepIntentAndRecovery") != true) {
+                "the selected onboarding probe requires uxOnboardingProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "onboarding evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("providers", "hosted", "local-lan", "entry", "typed", "voice-cancel",
+            "check-failure", "checking", "model-failure", "unreadable")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-onboarding"),
+            matrix.flatMap { config -> frames.map { "${config.id}/start-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val entry = frame in setOf("entry", "typed", "voice-cancel")
+                        val surface = if (frame in setOf("typed", "voice-cancel")) "interview" else "onboarding"
+                        val state = UxState("start-$frame", surface, "real-app", null, null, null)
+                        try {
+                            val check = ProviderCheck { _, _ ->
+                                when (frame) {
+                                    "checking" -> awaitCancellation()
+                                    "check-failure" -> throw ProviderException(ProviderErrorCode.AUTH,
+                                        "Scripted refused key. ${fixtures.text("answer")}", status = 401)
+                                    "model-failure" -> throw ProviderException(ProviderErrorCode.NETWORK,
+                                        "Scripted unavailable model list. Enter a known model manually.")
+                                    else -> error("unexpected onboarding fixture check")
+                                }
+                            }
+                            val base = fixtures.state(if (entry || frame == "unreadable") "ready" else "fresh")
+                            prepare(base, config, inferenceAgreed = entry, checker = check)
+                            val graph = checkNotNull(fixtureGraph)
+                            val starts = AtomicInteger()
+                            graph.driveService = object : DriveServiceControl {
+                                override fun start() { starts.incrementAndGet() }
+                                override fun stop() {}
+                            }
+                            graph.driveSpeaker = object : Speaker {
+                                override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+                                override fun cancel() {}
+                                override fun shutdown() {}
+                            }
+                            if (frame == "unreadable") {
+                                graph.keyringStore.file.writeBytes(byteArrayOf(1, 2, 3))
+                                runBlocking { graph.keyringStore.load() }
+                                launchMain()
+                                await("keyring-problem")
+                            } else {
+                                navigate(base)
+                                when {
+                                    entry -> {
+                                        val held = graph.sessionStore.sessions.value.map { stringOf(it["id"]) }.toSet()
+                                        compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                                        await("new-idea-choice")
+                                        assertEquals("opening the choice creates no library idea",
+                                            held, graph.sessionStore.sessions.value.map { stringOf(it["id"]) }.toSet())
+                                        assertEquals("navigation starts no service", 0, starts.get())
+                                        if (frame != "entry") {
+                                            if (frame == "voice-cancel") {
+                                                require(!voicePermissionsHeld(target)) { "recovery capture requires an ungranted permission; permissions will not be changed" }
+                                                compose.onNodeWithTag("new-idea-voice").performClick()
+                                                await("voice-mic-rationale")
+                                                compose.onNode(hasText(target.getString(R.string.voice_mic_cancel)) and hasClickAction()).performClick()
+                                            } else compose.onNodeWithTag("new-idea-type").performClick()
+                                            await("answer")
+                                            if (frame == "voice-cancel")
+                                                compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.voice_entry_cancelled)), DEVICE_TIMEOUT)
+                                            assertEquals("entry/recovery starts no service", 0, starts.get())
+                                        }
+                                    }
+                                    frame == "providers" -> revealControl("provider-ollama")
+                                    frame == "local-lan" || frame == "model-failure" -> {
+                                        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+                                        await("base-url")
+                                        compose.onNodeWithTag("base-url").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                        if (frame == "model-failure") {
+                                            revealControl("find-models")
+                                            compose.onNodeWithTag("find-models").performClick()
+                                            await("check-failure")
+                                        } else {
+                                            compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-local-model")
+                                            hideKeyboard()
+                                            await("local-http-warning")
+                                            revealControl("inference-consent")
+                                            compose.onNodeWithTag("local-http-warning").assertIsDisplayed()
+                                        }
+                                    }
+                                    else -> {
+                                        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+                                        await("api-key")
+                                        if (frame == "hosted") {
+                                            revealControl("inference-consent")
+                                        } else {
+                                            compose.onNodeWithTag("api-key").performTextInput("scripted-visual-key")
+                                            hideKeyboard()
+                                            compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+                                            compose.onNodeWithTag("check-key").performScrollTo().performClick()
+                                            if (frame == "checking")
+                                                compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.onboarding_checking)), DEVICE_TIMEOUT)
+                                            else await("check-failure")
+                                        }
+                                    }
+                                }
+                            }
+                            val controls = when (frame) {
+                                "entry" -> listOf(tag("new-idea-voice"), tag("new-idea-type"), tag("new-idea-cancel"))
+                                "typed", "voice-cancel" -> interviewControls()
+                                "providers" -> listOf(tag("provider-groq"), tag("provider-ollama"))
+                                "unreadable" -> listOf(tag("keyring-retry"), tag("keyring-setup"))
+                                "local-lan", "model-failure" -> listOf(tag("model"), tag("find-models"), tag("inference-consent"))
+                                "checking" -> listOf(textControl("back", R.string.onboarding_back))
+                                else -> listOf(tag("api-key"), tag("check-key"), tag("inference-consent"))
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeSurface = surface,
+                                nativeMapping = "Real MainActivity $frame; scripted connection/output/service, no OS permission request or live provider.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
 
     @Test
     fun requestedInferenceConsentIsProminent() {
@@ -888,7 +1044,12 @@ class UxCaptureDeviceTest {
         }
     }
 
-    private fun prepare(state: UxState, config: UxConfiguration, inferenceAgreed: Boolean = true) = runBlocking {
+    private fun prepare(
+        state: UxState,
+        config: UxConfiguration,
+        inferenceAgreed: Boolean = true,
+        checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+    ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
         val controlled = FixtureProvider(ScriptedProvider(script), state.id)
@@ -905,7 +1066,7 @@ class UxCaptureDeviceTest {
         }
         val graph = AppGraph(
             context, clock = Clock { fixtures.now }, keyringKey = FixtureKey(),
-            providerCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+            providerCheck = checker,
             providerSource = ProviderSource { controlled },
             sessionStorage = storage,
         )
@@ -1052,6 +1213,8 @@ class UxCaptureDeviceTest {
             }
             "interview-seed" -> {
                 compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                await("new-idea-type")
+                compose.onNodeWithTag("new-idea-type").performClick()
                 await("question")
                 assertEquals(SEED_QUESTION, nodeText("question"))
                 compose.onNodeWithTag("history-toggle").assertDoesNotExist()
@@ -1117,6 +1280,8 @@ class UxCaptureDeviceTest {
             }
             "busy-turn", "save-failure" -> {
                 compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                await("new-idea-type")
+                compose.onNodeWithTag("new-idea-type").performClick()
                 await("answer")
                 compose.onNodeWithTag("answer").performTextInput(fixtures.text("answer"))
                 hideKeyboard()

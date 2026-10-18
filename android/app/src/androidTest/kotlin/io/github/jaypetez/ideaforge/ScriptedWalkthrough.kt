@@ -63,6 +63,8 @@ internal fun scriptedWalkthrough(
     launch()
     compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), DEVICE_TIMEOUT)
     compose.onNode(hasText(target.getString(R.string.nav_new_idea)) and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+    compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), DEVICE_TIMEOUT)
+    compose.onNodeWithTag("new-idea-type").performClick()
 
     var turn = 1
     for (step in steps) {
