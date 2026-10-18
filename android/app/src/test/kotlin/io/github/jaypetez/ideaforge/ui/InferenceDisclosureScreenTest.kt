@@ -4,29 +4,41 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import io.github.jaypetez.ideaforge.FakeCheck
+import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.usableRing
+import io.github.jaypetez.ideaforge.core.emptyKeyring
+import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.ui.settings.MemoryDataStore
+import io.github.jaypetez.ideaforge.ui.settings.SettingsTags
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,10 +71,17 @@ class InferenceDisclosureScreenTest {
     val compose = createEmptyComposeRule()
 
     private var scenario: ActivityScenario<MainActivity>? = null
+    private val ownedGraphs = mutableListOf<AppGraph>()
 
     @After
     fun close() {
         scenario?.close()
+        runBlocking {
+            for (graph in ownedGraphs) {
+                graph.appScope.coroutineContext[Job]?.cancelAndJoin()
+                graph.mainScope.coroutineContext[Job]?.cancelAndJoin()
+            }
+        }
     }
 
     @Test
@@ -76,6 +95,55 @@ class InferenceDisclosureScreenTest {
         compose.onNodeWithText("IdeaForge sends your idea and answers to Groq", substring = true).assertExists()
         compose.onNodeWithTag("check-key").performScrollTo().assertIsNotEnabled()
         assertTrue("no check or transfer is hidden in disclosure", check.calls.isEmpty())
+    }
+
+    @Test
+    fun onboardingWarnsBeforePlainHttpLeavesTheDeviceButNotForHttpsOrLoopback() {
+        val check = FakeCheck()
+        val graph = installTestGraph(check, preferences = PrefsStore(MemoryDataStore()))
+        ownedGraphs += graph
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag("provider-ollama"), 10_000)
+        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+        compose.onNodeWithTag("base-url").performTextReplacement("http://192.168.1.20:11434/v1")
+        compose.waitUntilAtLeastOneExists(hasTestTag("local-http-warning"), 10_000)
+        compose.onNodeWithTag("local-http-warning").performScrollTo().assertIsDisplayed()
+            .assertTextContains("not encrypted", substring = true)
+        compose.onNodeWithTag("inference-consent").performScrollTo().assertIsOff()
+        assertTrue("warning does not contact a server", check.calls.isEmpty())
+        assertTrue("warning does not seed an interview", graph.sessionStore.sessions.value.isEmpty())
+
+        for (address in listOf("https://192.168.1.20:11434/v1", "http://localhost:11434/v1")) {
+            compose.onNodeWithTag("base-url").performScrollTo().performTextReplacement(address)
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("local-http-warning").fetchSemanticsNodes().isEmpty()
+            }
+        }
+    }
+
+    @Test
+    fun settingsWarnsForTheSavedLanAddressAndTracksTheEditedTransport() {
+        val check = FakeCheck()
+        val ring = withCreds(emptyKeyring(), "ollama", JsonObject(mapOf(
+            "baseUrl" to JsonPrimitive("http://192.168.1.20:11434/v1"),
+            "model" to JsonPrimitive("scripted-local-model"),
+        )))
+        val graph = installTestGraph(check, ring = ring, preferences = PrefsStore(MemoryDataStore()))
+        ownedGraphs += graph
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 10_000)
+        compose.onNode(hasText("Settings") and hasClickAction() and hasAnyAncestor(hasTestTag(NAVIGATION)))
+            .performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("local-http-warning"), 10_000)
+        compose.onNodeWithTag("local-http-warning").performScrollTo().assertIsDisplayed()
+            .assertTextContains("not encrypted", substring = true)
+        assertTrue("viewing the warning sends no request", check.calls.isEmpty())
+        for (address in listOf("https://192.168.1.20:11434/v1", "http://127.0.0.1:11434/v1")) {
+            compose.onNodeWithTag(SettingsTags.BASE_URL).performScrollTo().performTextReplacement(address)
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("local-http-warning").fetchSemanticsNodes().isEmpty()
+            }
+        }
     }
 
     @Test

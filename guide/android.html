@@ -354,6 +354,16 @@ adb install -r app-debug.apk</code></pre>
         <code>.local</code> names. A public address, or a name that resolves to one, is
         refused.
       </p>
+      <p>
+        Onboarding and Settings show an unencrypted HTTP warning for a local server
+        outside loopback, including <code>10.0.2.2</code> on an emulator. Interview text
+        sent over that connection is readable to network observers. Prefer
+        <code>https://</code> with a certificate trusted by the device and a matching
+        server name; an untrusted self-signed certificate is not accepted automatically.
+        Loopback addresses do not show the LAN warning; a tunnel or
+        <code>adb reverse</code> can still forward that connection elsewhere.
+        This warning does not replace the separate interview-text agreement.
+      </p>
       <div class="table-wrap">
         <table>
           <thead>

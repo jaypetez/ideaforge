@@ -18,10 +18,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.providers.InferenceDestination
+import io.github.jaypetez.ideaforge.providers.LocalNetworkPolicy
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
 import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Composable
 fun InferenceAgreement(
@@ -40,6 +42,14 @@ fun InferenceAgreement(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.testTag("inference-disclosure"),
         )
+        if (choice.local && destination?.address?.toHttpUrlOrNull()
+                ?.let(LocalNetworkPolicy::needsCleartextWarning) == true) {
+            IdeaForgeStatusText(
+                stringResource(R.string.inference_local_http_warning),
+                modifier = Modifier.testTag("local-http-warning"),
+                tone = StatusTone.Warning,
+            )
+        }
         Row(
             Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control)
                 .toggleable(checked, enabled = destination != null, role = Role.Checkbox, onValueChange = onChange)
