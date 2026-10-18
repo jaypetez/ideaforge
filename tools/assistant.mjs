@@ -4,6 +4,7 @@ import {
   ROOT, CLIENTS, buildMap, scanDebt, measureGain, readMode, writeMode, writeDefault, resetMode,
   trustedWorkingDirectory,
 } from './assistant-process.mjs';
+import { prepareReview, recordReview } from './assistant-review.mjs';
 
 export async function readHookInput(stream, { maxBytes = 64 * 1024, timeoutMs = 1000 } = {}) {
   return new Promise((accept, reject) => {
@@ -53,9 +54,9 @@ function parseArgs(args) {
   for (let i = 0; i < rest.length; i++) {
     const part = rest[i];
     if (part.startsWith('--')) {
-      if (!['--client', '--session', '--base'].includes(part) || i + 1 >= rest.length ||
-          rest[i + 1].startsWith('--') || Object.hasOwn(options, part.slice(2))) {
-        throw new Error('Use only --client CLIENT, --session ID or --base REF once each');
+      if (!['--client', '--session', '--base', '--result', '--reason'].includes(part) ||
+          i + 1 >= rest.length || rest[i + 1].startsWith('--') || Object.hasOwn(options, part.slice(2))) {
+        throw new Error('Use only --client CLIENT, --session ID, --base REF, --result R or --reason TEXT once each');
       }
       options[part.slice(2)] = rest[++i];
     } else positional.push(part);
@@ -65,12 +66,21 @@ function parseArgs(args) {
 
 export async function runAssistant(args, { root = ROOT, stdin = process.stdin, env = process.env } = {}) {
   const { command, positional, options } = parseArgs(args);
-  const valid = ['map', 'debt', 'gain', 'status', 'mode', 'default', 'reset'];
+  const valid = ['map', 'debt', 'gain', 'status', 'mode', 'default', 'reset', 'review'];
   if (!valid.includes(command)) throw new Error(`Use assistant ${valid.join('|')}`);
-  if (positional.length !== (['mode', 'default'].includes(command) ? 1 : 0)) {
-    throw new Error('mode/default requires one level; other commands take no positional arguments');
+  if (positional.length !== (['mode', 'default', 'review'].includes(command) ? 1 : 0)) {
+    throw new Error('mode/default requires one level and review one action; other commands take no positional arguments');
   }
-  if (options.base && command !== 'gain') throw new Error('--base is only valid for gain');
+  const action = command === 'review' ? positional[0] : null;
+  if (command === 'review' && !['prepare', 'record'].includes(action)) {
+    throw new Error('Use assistant review prepare|record');
+  }
+  if (options.base && command !== 'gain' && action !== 'prepare') {
+    throw new Error('--base is only valid for gain or review prepare');
+  }
+  if ((options.result || options.reason) && action !== 'record') {
+    throw new Error('--result/--reason is only valid for review record');
+  }
   if ((options.client || options.session) && !['status', 'mode', 'reset'].includes(command)) {
     throw new Error('--client/--session is only valid for mode, reset or status');
   }
@@ -82,6 +92,19 @@ export async function runAssistant(args, { root = ROOT, stdin = process.stdin, e
     return [...rows, ...out.unread.map((item) => `Not inspected: ${item.file}: ${item.reason}`),
       `${out.markers.length} markers, ${out.missingTriggers} with no trigger.`,
       `Unread: ${out.unread.length}; beyond file budget: ${out.omitted}.`].join('\n');
+  }
+  if (action === 'prepare') {
+    const out = await prepareReview(root, { base: options.base ?? null });
+    return [
+      `Review prepared for HEAD ${out.head} against ${out.base}.`,
+      `Diff: ${out.diff}`,
+      `Documentation changed: ${out.docsChanged ? 'yes' : 'no'}`,
+      `Files (${out.files.length}):`, ...out.files.map((file) => `  ${file}`),
+    ].join('\n');
+  }
+  if (action === 'record') {
+    const out = await recordReview(root, { result: options.result, reason: options.reason ?? null });
+    return `Review recorded for HEAD ${out.head}: ${out.result}.`;
   }
   if (command === 'gain') return JSON.stringify(await measureGain(root, { base: options.base ?? null }), null, 2);
   if (command === 'default') {

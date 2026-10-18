@@ -30,6 +30,17 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"if(process.env.CLAUDE_PROJECT_DIR){import(require('node:url').pathToFileURL(require('node:path').join(process.env.CLAUDE_PROJECT_DIR,'tools','assistant-hook.mjs')).href).then(async m=>{const a=await import(require('node:url').pathToFileURL(require('node:path').join(process.env.CLAUDE_PROJECT_DIR,'tools','assistant.mjs')).href);const s=await m.claudeHook('PreToolUse',await a.readHookInput(process.stdin,{maxBytes:1048576}));if(s)process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge assist unavailable: '+e.message+'\\n');process.exitCode=1})}\""
+          }
+        ]
+      }
     ]
   }
 }

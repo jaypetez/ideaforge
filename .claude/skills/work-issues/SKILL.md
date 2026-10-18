@@ -126,10 +126,11 @@ either. Both have happened here.
 
 ## 6. Independent review
 
-Commit, then give the exact diff (`git diff main...HEAD`) to the read-only review agent
-`ideaforge-review-claude`, and to `ideaforge-docs-review-claude` when documentation changed.
-Fix every confirmed finding, then re-run section 5. Stop after three review-and-fix rounds
-that still leave confirmed findings, and escalate.
+Commit, then run [`review-ideaforge-before-pr`](../review-ideaforge-before-pr/SKILL.md).
+It gives the exact diff to two read-only reviewers and has a third challenge their
+findings, using the current client's review agents. Fix every confirmed finding, re-run
+section 5 and review the new HEAD; it stops after three rounds that still leave confirmed
+findings, and then you escalate. It records the result that lets `gh pr create` run.
 
 ## 7. Deliver
 

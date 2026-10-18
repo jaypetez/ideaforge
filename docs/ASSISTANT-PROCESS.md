@@ -20,7 +20,8 @@ All shared procedures have one definition under `.claude/skills/`:
 | [`ideaforge-debt`](../.claude/skills/ideaforge-debt/SKILL.md) | Shortcut decisions and upgrade triggers |
 | [`ideaforge-gain`](../.claude/skills/ideaforge-gain/SKILL.md) | Reproducible local comparison facts |
 | [`ideaforge-assist-help`](../.claude/skills/ideaforge-assist-help/SKILL.md) | Read-only one-shot help body |
-| [`review-ideaforge-change`](../.claude/skills/review-ideaforge-change/SKILL.md) | Existing exact-diff defect review |
+| [`review-ideaforge-change`](../.claude/skills/review-ideaforge-change/SKILL.md) | Existing exact-diff defect review, and challenge of supplied findings |
+| [`review-ideaforge-before-pr`](../.claude/skills/review-ideaforge-before-pr/SKILL.md) | Adversarial multi-agent review recorded per HEAD before any PR |
 
 Implementation owners are separate from the shared procedures:
 
@@ -28,6 +29,7 @@ Implementation owners are separate from the shared procedures:
 |---|---|
 | [`assistant-process.mjs`](../tools/assistant-process.mjs) | State, exact controls, map/debt/gain, canonical-rule rendering and guidance lifecycle |
 | [`assistant.mjs`](../tools/assistant.mjs) | CLI and bounded stdin parsing |
+| [`assistant-review.mjs`](../tools/assistant-review.mjs) | Pre-PR review diff and record, and the `gh pr create` gate decision |
 | [Claude project settings](../.claude/settings.json) | `CLAUDE_PROJECT_DIR`-guarded inline bootstrap before imports |
 | [`assistant-hook.mjs`](../tools/assistant-hook.mjs) | Claude adapter and shared `copilotHook` command-hook output contracts |
 | [Copilot command hooks](../.github/hooks/ideaforge-assist.json) | Basic startup/child context and persisted prompt controls, without requiring an extension |
@@ -174,8 +176,10 @@ context is not the same output envelope as `SubagentStart`'s
 `hookSpecificOutput.additionalContext`.
 Output is bounded; ordinary logs must not pollute the context protocol.
 
-These are context hooks, not tool-decision or permission hooks. They must not install
-global configuration, choose a model or alter a user's request.
+The lifecycle hooks are context hooks, not tool-decision or permission hooks. They must
+not install global configuration, choose a model or alter a user's request. The one
+exception is the [pre-PR review gate](#pre-pr-review-gate), a `PreToolUse` hook that can
+only refuse.
 [Native project discovery and startup-hook execution/output](#verified-native-discovery)
 are verified. Model adherence and the remaining lifecycle cases are
 [separate pending checks](#pending-native-consumption).
@@ -225,8 +229,9 @@ file through that route alone cannot refresh guidance. The SDK's
 is actually loaded and its callback runs.
 In that host, [`assistant-copilot.mjs`](../tools/assistant-copilot.mjs) observes
 `session.compaction_complete` and restores context at the next supported prompt or
-pre-tool hook, without a background loop or `session.send`. The pre-tool hook returns
-passive context only; it does not approve/deny tools or change their arguments.
+pre-tool hook, without a background loop or `session.send`. The SDK pre-tool hook returns
+passive context only; it does not approve/deny tools or change their arguments. The
+command-hook `preToolUse` is the separate [pre-PR review gate](#pre-pr-review-gate).
 
 The programmatic SDK server has no TUI/foreground extension host. Its `extensions.list`
 result is not evidence that a project extension did or did not load in the native TUI.
@@ -249,6 +254,29 @@ These are explicit fallback procedures, not native runtime or model-adherence pr
 A manual refresh still requires the current client's normal trust and approved tools.
 It is not a way around blocked workspace execution; if trust or real session identity
 is unavailable, report that boundary rather than fabricating state or granting permission.
+
+### Pre-PR review gate
+
+[`review-ideaforge-before-pr`](../.claude/skills/review-ideaforge-before-pr/SKILL.md)
+prepares the exact branch diff as a file the read-only review agents can read, runs two
+of them blind and a fresh one to challenge their candidates, and records a passing result
+for the exact HEAD in `.ideaforge-assist/`. The record is per commit; any later commit,
+amend or rebase needs another round. A waiver is recorded only on the user's explicit
+request, with their reason.
+
+Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
+`preToolUse` command hook pass the command to `prGateDecision` in
+[`assistant-review.mjs`](../tools/assistant-review.mjs). For `gh pr create` or
+`gh pr new` outside quotes and heredoc bodies, it refuses unless the tree is clean and
+HEAD has a `clean` or `waived` record; a record it cannot read also refuses. For any other
+command it gives no decision at all, so the client's normal permission flow still decides;
+it never approves, asks, or changes arguments. Copilot denies a tool whose `preToolUse`
+command exits non-zero, so that adapter reports its own failure on stderr and answers `{}`
+rather than blocking every tool. Hook input that cannot be read is likewise left to the
+normal flow.
+
+This is a workflow guard, not a security boundary: the same model can run the record
+command, and `gh api`, a quoted path to `gh` or a person's own terminal are not covered.
 
 ### Child inheritance limits
 
@@ -540,7 +568,15 @@ resume, mode switch/Off, restored context, supported child context and the unsup
 fallback. Inspect extension load status/logs through native tools. Do not call models or
 paid providers merely to make a discovery check look end-to-end.
 When a check remains unavailable, state the exact boundary instead of converting a fixture
-pass into native proof. Assistant checks in standard tests/CI remain offline and add no
+pass into native proof.
+
+The [pre-PR review gate](#pre-pr-review-gate) has protocol coverage for both clients: the
+shipped Claude and Copilot commands are run against a real Git repository in the unit
+suite. On 2026-10-18, Claude Code `2.1.302` loaded the new `PreToolUse` entry into an
+already-running session and refused `gh pr create --help` (gh `2.87.3`) on an uncommitted
+tree with the gate's reason; nothing was sent to GitHub. Copilot CLI was not installed on
+that machine, so a native Copilot `preToolUse` refusal and Copilot's dispatch of its
+review agents as subagents remain to be observed and recorded here. Assistant checks in standard tests/CI remain offline and add no
 dependencies; no upstream installer, benchmark stack or paid evaluation is run by this
 feature.
 

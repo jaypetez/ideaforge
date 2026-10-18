@@ -2,10 +2,26 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT, createGuidance } from './assistant-process.mjs';
 import { readHookInput } from './assistant.mjs';
+import { prGateDecision } from './assistant-review.mjs';
 
-export async function claudeHook(event, input, { root = ROOT, env = process.env } = {}) {
+// Copilot documents toolArgs as unknown; its shell tools send a JSON string.
+function commandOf(args) {
+  let value = args;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { return null; }
+  }
+  return value && typeof value.command === 'string' ? value.command : null;
+}
+
+export async function claudeHook(event, input, { root = ROOT, env = process.env, git } = {}) {
   // Copilot also reads .claude/settings.json, but its timestamped payload uses its own adapter.
   if (Object.hasOwn(input, 'timestamp')) return '';
+  if (event === 'PreToolUse') {
+    const reason = await prGateDecision({ command: input.tool_input?.command, cwd: input.cwd, root, git });
+    return reason ? JSON.stringify({ hookSpecificOutput: {
+      hookEventName: event, permissionDecision: 'deny', permissionDecisionReason: reason,
+    } }) : '';
+  }
   const guidance = createGuidance({ root, client: 'claude', env, restoreFirstPrompt: false });
   let context;
   if (event === 'SessionStart') context = await guidance.start(input);
@@ -18,7 +34,11 @@ export async function claudeHook(event, input, { root = ROOT, env = process.env 
     : context;
 }
 
-export async function copilotHook(event, input, { root = ROOT, env = process.env } = {}) {
+export async function copilotHook(event, input, { root = ROOT, env = process.env, git } = {}) {
+  if (event === 'preToolUse') {
+    const reason = await prGateDecision({ command: commandOf(input.toolArgs), cwd: input.cwd, root, git });
+    return JSON.stringify(reason ? { permissionDecision: 'deny', permissionDecisionReason: reason } : {});
+  }
   const guidance = createGuidance({ root, client: 'copilot', env, restoreFirstPrompt: false });
   let context;
   if (event === 'sessionStart') context = await guidance.start(input);
@@ -33,7 +53,9 @@ export async function copilotHook(event, input, { root = ROOT, env = process.env
 
 async function main() {
   try {
-    const input = await readHookInput(process.stdin);
+    // A tool call can carry a whole PR body, far past a lifecycle event's budget.
+    const preTool = ['PreToolUse', 'preToolUse'].includes(process.argv[process.argv[2] === 'copilot' ? 3 : 2]);
+    const input = await readHookInput(process.stdin, preTool ? { maxBytes: 1024 * 1024 } : undefined);
     const text = process.argv[2] === 'copilot'
       ? await copilotHook(process.argv[3], input)
       : await claudeHook(process.argv[2], input);
@@ -41,7 +63,9 @@ async function main() {
   } catch (error) {
     // Non-blocking, but visible: a failed persona hint must not become a permission gate.
     process.stderr.write(`IdeaForge assist hook unavailable: ${error.message}\n`);
-    process.exitCode = 1;
+    // Copilot denies a tool whose preToolUse command exits non-zero; report and abstain.
+    if (process.argv[2] === 'copilot' && process.argv[3] === 'preToolUse') process.stdout.write('{}\n');
+    else process.exitCode = 1;
   }
 }
 

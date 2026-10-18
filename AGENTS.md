@@ -6,7 +6,8 @@ covers *how to iterate on it and prove it works*. Read both before changing the 
 
 Task-specific procedures are shared from `.claude/skills/`: `add-provider`,
 `android-verify`, `change-voice-and-driving`, `validate-local-model`, `update-documentation`,
-`update-readme`, `review-ideaforge-documentation`, and `review-ideaforge-change`. The
+`update-readme`, `review-ideaforge-documentation`, `review-ideaforge-change`, and
+`review-ideaforge-before-pr`, which runs before every pull request an assistant opens. The
 `release` skill is explicitly invoked; preparing its PR is not permission to merge or
 publish. The `work-issues` skill is also explicitly invoked: invoking it is the
 maintainer's permission to merge green PRs for `agent-ready` issues, and nothing more.
@@ -423,6 +424,13 @@ Every one of these has already bitten someone here.
 `main` requires a PR and a green `ci` check. Do not merge around it — a check that was
 skipped rather than passed tells you nothing. Stop at the PR unless merging was
 explicitly requested; approval and a passing check are not instructions to merge.
+
+Commit, then run the [pre-PR review](.claude/skills/review-ideaforge-before-pr/SKILL.md):
+two read-only reviewers find defects in the exact branch diff without seeing each other,
+a third tries to refute every candidate, and confirmed findings are fixed and the new HEAD
+reviewed again. In Claude Code and Copilot CLI a pre-tool hook refuses `gh pr create` until
+that procedure records a passing result for the exact HEAD, so a later commit needs a new
+round. The hook is a workflow guard, not a security boundary.
 
 In a POSIX shell (use the PowerShell pre-push check above on Windows):
 

@@ -46,7 +46,8 @@ The shared skills are:
 - `update-documentation` for the public guide and every source-derived documentation surface;
 - `update-readme` for generated screenshots, the worked example, and source-derived claims;
 - `review-ideaforge-documentation` for a high-confidence read-only documentation review;
-- `review-ideaforge-change` for a high-confidence read-only review.
+- `review-ideaforge-change` for a high-confidence read-only review;
+- `review-ideaforge-before-pr` for the adversarial review that must pass before a PR;
 - `release` for explicitly requested preparation, publication, or verification;
 - `work-issues` for explicitly invoked backlog work, one issue at a time, merging only on
   a green `ci` check.
@@ -61,14 +62,23 @@ deliberately have no shell or edit tool, so supply an attached/pasted diff or re
 PR/source-control context. Their product-qualified names avoid relying on undocumented
 precedence where VS Code discovers both agent directories.
 
+Before any PR, the [pre-PR review](.claude/skills/review-ideaforge-before-pr/SKILL.md)
+writes the exact branch diff to a file those agents can read
+(`node tools/assistant.mjs review prepare`), has two of them review it blind, and has a
+fresh one challenge each finding. Confirmed findings are fixed and the new HEAD reviewed
+again, for at most three rounds. A passing round is recorded per HEAD
+(`node tools/assistant.mjs review record --result clean`); a waiver needs the user's
+explicit request and reason. Claude Code's `PreToolUse` and Copilot CLI's `preToolUse`
+hooks refuse `gh pr create` and `gh pr new` until that record matches a clean HEAD.
+
 The [release skill](.claude/skills/release/SKILL.md) is explicitly invoked, not selected
 automatically. It separates release preparation from publication and verification; see
 [cutting a release](#cutting-a-release). Preparing a PR is not permission to merge it
 or push a production tag.
 
 The [work-issues skill](.claude/skills/work-issues/SKILL.md) is explicitly invoked too. It
-takes the next unblocked `agent-ready` issue, proves each acceptance criterion, has the
-read-only review agent check the exact diff, and squash-merges only when `ci` is green on
+takes the next unblocked `agent-ready` issue, proves each acceptance criterion, runs the
+adversarial pre-PR review on the exact diff, and squash-merges only when `ci` is green on
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
 
@@ -90,8 +100,9 @@ same-turn automatic refresh. A foreground CLI may ask to let `project:ideaforge-
 register hooks after normal workspace trust; approve only if you trust this reviewed
 project code. A session-only choice is sufficient; do not grant unrelated tools, paths,
 URLs or secrets to enable it. These adapters read one canonical rule section and keep only
-mode metadata in the ignored `.ideaforge-assist/` directory, isolated by worktree, client
-and native session. They make no model calls, request no secrets, and change no permissions.
+mode metadata and pre-PR review records in the ignored `.ideaforge-assist/` directory,
+isolated by worktree, client and native session. They make no model calls and request no
+secrets. The pre-PR review gate is their only tool decision, and it only ever refuses.
 VS Code still discovers the shared skills; these CLI lifecycle adapters are not a claim of
 automatic mode/context support in the editor.
 

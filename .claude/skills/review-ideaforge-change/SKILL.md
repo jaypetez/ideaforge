@@ -97,3 +97,25 @@ For each finding, give:
 
 Do not list style preferences, speculative risks, or praise. If there are no high-confidence
 defects, say so plainly.
+
+## 6. Challenging supplied findings
+
+When the caller supplies candidate findings with the change set, your job is to refute
+them, not to find new ones. Stay read-only and scoped to the same exact diff.
+
+For each candidate, try to break it before accepting it:
+
+- Read the cited lines in the current file and in the diff; a finding about code the diff
+  did not change, or that cites lines that do not say what it claims, is refuted.
+- Trace the failing scenario through every caller, guard, validation and fallback that
+  sits between its trigger and its harm. One check it overlooked is enough to refute it.
+- Look for an existing test that already exercises the scenario, and read its assertion.
+- Check the scenario is reachable from real input, not only from a call no caller makes.
+
+Return one verdict per candidate, in the order supplied:
+
+- **CONFIRMED**: you could not refute it; give the shortest reproduction path.
+- **REFUTED**: give the code, guard or test that defeats it, by file and line.
+- **UNCERTAIN**: name the single fact that would settle it and why you could not read it.
+
+Do not soften a verdict for agreement, and do not add findings of your own.

@@ -529,7 +529,7 @@ test('status uses a real native ID, supports hidden badges and never guesses las
 test('the shipped Claude command reads its root inside Node, including spaces and hostile shell characters', async (t) => {
   const root = await fixture(t);
   const commands = JSON.parse(await readFile(join(ROOT, '.claude', 'settings.json'), 'utf8')).hooks;
-  assert.deepEqual(Object.keys(commands), ['SessionStart', 'UserPromptSubmit', 'SubagentStart']);
+  assert.deepEqual(Object.keys(commands), ['SessionStart', 'UserPromptSubmit', 'SubagentStart', 'PreToolUse']);
   assert.match(commands.SessionStart[0].matcher, /fork/);
   for (const eventName of Object.keys(commands)) {
     const cmd = commands[eventName][0].hooks[0].command;
@@ -539,7 +539,7 @@ test('the shipped Claude command reads its root inside Node, including spaces an
   const hostile = join(root, "spaces & apostrophe' dollar$ semicolon;");
   await mkdir(join(hostile, 'tools'), { recursive: true });
   await writeFile(join(hostile, 'AGENTS.md'), RULES);
-  for (const file of ['assistant-process.mjs', 'assistant.mjs', 'assistant-hook.mjs']) {
+  for (const file of ['assistant-process.mjs', 'assistant.mjs', 'assistant-hook.mjs', 'assistant-review.mjs']) {
     await copyFile(join(ROOT, 'tools', file), join(hostile, 'tools', file));
   }
   const actual = spawnSync(commands.SubagentStart[0].hooks[0].command, {
@@ -580,7 +580,7 @@ test('the real Copilot exec manifest command consumes JSON and hostile paths as 
   const repo = join(root, "git & quote' dollar$ ;");
   await mkdir(join(repo, 'tools'), { recursive: true });
   await writeFile(join(repo, 'AGENTS.md'), RULES);
-  for (const file of ['assistant-process.mjs', 'assistant.mjs', 'assistant-hook.mjs']) {
+  for (const file of ['assistant-process.mjs', 'assistant.mjs', 'assistant-hook.mjs', 'assistant-review.mjs']) {
     await copyFile(join(ROOT, 'tools', file), join(repo, 'tools', file));
   }
   const init = spawnSync('git', ['init', '--quiet', '--template=', repo], { encoding: 'utf8', windowsHide: true });
