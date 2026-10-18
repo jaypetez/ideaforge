@@ -558,6 +558,7 @@ async function retainedIdeas(check) {
     await visit(async ({ $, requests, captures }) => {
       $('b-library').click();
       await until(() => !$('panel-library').hidden, 'retained Ideas');
+      await until(() => $('library-rows').querySelector(`[data-session-id="${session.id}"]`), `${kind}: retained idea row`);
       const card = $('library-rows').querySelector(`[data-session-id="${session.id}"]`);
       card.querySelector('.idea-actions > button:not(.idea-more)').click();
       await until(() => !$('panel-done').hidden, 'local read-only export');
