@@ -16,12 +16,15 @@ const DIFF_MS = 60_000;
 const MAX_REASON = 500;
 
 // Parsing shell to tell a quoted mention from a real call was an arms race three review
-// rounds kept finding new gaps in. The rule is blunt instead: quotes, backticks and
-// escapes are dropped, and a word counts when it is in command position,
-// after a line start, a separator, a bracket or `$(`, optionally behind env assignments or
-// a wrapper word. A commit message in the same command that starts a line or clause with
-// the PR command is refused too; write it to a file and use `git commit -F` instead.
-const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()\s*(?:(?:\w+=\S*|exec|command|time|env|nohup|then|do|else)\s+)*(?:\S*/)?`;
+// rounds kept finding new gaps in. The rule is blunt instead: line continuations are
+// joined, quotes and backticks dropped, backslashes read as path separators, and a word
+// counts in command position: after a line start, a separator, a bracket or `$(`,
+// optionally behind assignments (`A=b`, PowerShell `$x =`), a control keyword or a
+// wrapper word. Quoted text is read the same way, so inline message, title or body text
+// can be refused; pass it from a file instead.
+// Each token class stops at a separator, so a long separator-dense token stays linear.
+const TOKEN = String.raw`[^\s;&|(){}]`;
+const COMMAND = String.raw`(?:^|[\n;&|(){}]|\$\()\s*(?:(?:\w+=${TOKEN}*|if|elif|while|until|!|exec|command|time|env|nohup|xargs|then|do|else)\s+|\$[\w:]+\s*=\s*)*(?:${TOKEN}*/)?`;
 // Up to four flags, each with an optional value, may sit before the subcommand:
 // `gh pr -R owner/repo create`. Bounded, so it cannot backtrack exponentially.
 const FLAGS = String.raw`(?:-\S+\s+(?:[^\s-]\S*\s+)?){0,4}`;
@@ -30,21 +33,22 @@ const CHANGES_DIRECTORY = new RegExp(
   String.raw`${COMMAND}(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)`, 'i');
 const MOVES_HEAD = new RegExp(
   String.raw`${COMMAND}git(?:\.exe)?\s+${FLAGS}(?:commit|rebase|pull|merge|switch|checkout|reset|am|cherry-pick|revert)\b`, 'i');
-const NAMES_HEAD = /(?:^|\s)(?:--head\b|-H)/;
+// `--head`, `-H`, or `-H` combined with other short flags (`-fH`).
+const NAMES_HEAD = /(?:^|\s)(?:--head\b|-[A-Za-z]*H)/;
 
 const words = (command) => (typeof command === 'string'
-  ? command.replace(/['"`\\]/g, '')
+  ? command.replace(/[\\`]\r?\n/g, ' ').replace(/['"`]/g, '').replace(/\\/g, '/')
   : '');
 
-// Each PR invocation from `gh` to the end of its command, flags before the subcommand
-// included, so `gh pr --head x create` is seen as naming a head.
+// Each PR invocation from `gh` to the end of the whole command, flags before the
+// subcommand included. A quoted separator in its own arguments must not hide a later
+// `--head`, so a `-H` in a later command is refused as well.
 function pullRequests(command) {
   const text = words(command);
-  return [...text.matchAll(PR_CREATE)].map((match) =>
-    text.slice(match.index).replace(/^[\n;&|(){}$\s]+/, '').split(/[\n;&|]/, 1)[0]);
+  return [...text.matchAll(PR_CREATE)].map((match) => text.slice(match.index));
 }
 
-// A quoted path to gh, a command handed to another interpreter as a string
+// A quoted path containing spaces, a command handed to another interpreter as a string
 // (`bash -c "…"`) and PowerShell splatting (`gh @args`) are not recognised.
 export const opensPullRequest = (command) => pullRequests(command).length > 0;
 
@@ -194,6 +198,9 @@ export async function prGateDecision({ command, cwd = null, root = ROOT, git = r
     const repo = typeof cwd === 'string' && isAbsolute(cwd)
       ? git(cwd, ['rev-parse', '--show-toplevel']).trim()
       : root;
+    // The review CLI records only in a checkout that carries it, so another repository, or
+    // a branch from before the gate existed, has nothing this gate could ever read.
+    if (!await statOrMissing(join(repo, 'tools', 'assistant-review.mjs'))) return null;
     if (dirty(repo, git)) {
       return refusal('the working tree has uncommitted changes, so HEAD is not what was reviewed');
     }

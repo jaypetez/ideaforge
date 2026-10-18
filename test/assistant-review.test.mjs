@@ -92,6 +92,13 @@ test('a gh pr create or new in command position is a pull request, however it is
     '\\gh pr create',
     "echo $'it\\'s' && gh pr create --title 'x'",
     'g`h pr create',
+    // Round four: control keywords, PowerShell assignment and unquoted Windows paths.
+    'if gh pr create --fill; then echo ok; fi',
+    'while ! gh pr create; do sleep 1; done',
+    '$url = gh pr create --fill',
+    '$url=gh pr new',
+    'C:\\tools\\gh.exe pr create --fill',
+    '.\\gh.exe pr create',
   ]) assert.equal(opensPullRequest(command), true, command);
   for (const command of [
     'gh pr view 12',
@@ -115,16 +122,25 @@ test('a gh pr create or new in command position is a pull request, however it is
     undefined,
     { command: 'gh pr create' },
   ]) assert.equal(opensPullRequest(command), false, String(command));
-  // The documented cost: a message line that starts with the command reads as one.
-  assert.equal(opensPullRequest('git commit -F - <<\'EOF\'\nGate it\ngh pr create waits\nEOF'), true);
+  // The documented cost: quoted text is read as commands, so a message line or a quoted
+  // separator before the PR command reads as one.
+  for (const command of [
+    'git commit -F - <<\'EOF\'\nGate it\ngh pr create waits\nEOF',
+    'rg "gh pr view|gh pr create" docs/',
+    'git commit -m "Gate PRs (gh pr create) on review"',
+  ]) assert.equal(opensPullRequest(command), true, command);
 });
 
-test('a long run of flags after gh pr is matched in linear time', () => {
+test('the matcher stays linear on long flag runs and long separator-dense tokens', () => {
   const started = performance.now();
   assert.equal(opensPullRequest(`gh pr${' --a'.repeat(4000)} x`), false);
   assert.equal(opensPullRequest(`gh pr${' -R o/r'.repeat(2)} create`), true);
   assert.equal(opensPullRequest(`gh pr ${'word '.repeat(50000)}create`), false);
-  assert.ok(performance.now() - started < 1000, 'the flag pattern must not backtrack exponentially');
+  // Minified JSON or code in one token once cost O(separators × length) per command.
+  assert.equal(opensPullRequest(`node -e ${';'.repeat(200000)}`), false);
+  assert.equal(opensPullRequest(`curl -d ${'a=1;'.repeat(50000)}`), false);
+  assert.equal(opensPullRequest(`x ${'{"a":[1,{"b":"c"}]};'.repeat(20000)}`), false);
+  assert.ok(performance.now() - started < 1000, 'a pattern here backtracks super-linearly');
 });
 
 test('a PR that passes --head, wherever it sits, is refused', async (t) => {
@@ -135,9 +151,23 @@ test('a PR that passes --head, wherever it sits, is refused', async (t) => {
     'gh pr create --head other --fill', 'gh pr create -H other', 'gh pr create --head=other',
     'gh pr --head other create --fill', 'gh pr -H other create',
     'gh pr create --head pre-pr-adversarial-review',
+    // A continuation, a quoted separator or a combined short flag once hid it.
+    'gh pr create --base main \\\n  --head other \\\n  --fill',
+    'gh pr create --base main `\r\n  --head other',
+    'gh pr create --title "A & B" --head other',
+    'gh pr create -fH other',
+    // The documented cost: anything after the PR command is read too.
+    'gh pr create --fill && curl -H x y',
   ]) assert.match(await prGateDecision({ command, cwd: repo }), /--head/, command);
-  assert.equal(await prGateDecision({ command: 'gh pr create --fill && curl -H x y', cwd: repo }),
-    null, 'only the PR command\'s own arguments are read');
+});
+
+test('the gate abstains in a checkout without the review tool, where nothing could be recorded', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'ideaforge-review-other-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const init = spawnSync('git', ['init', '--quiet', '--template=', dir], { encoding: 'utf8', windowsHide: true });
+  assert.equal(init.status, 0, init.stderr);
+  await put(dir, 'dirty.txt', 'untracked\n');
+  assert.equal(await prGateDecision({ command: 'gh pr create --fill', cwd: dir }), null);
 });
 
 test('record names the reviewed commit, so another session\'s commit cannot inherit it', async (t) => {
