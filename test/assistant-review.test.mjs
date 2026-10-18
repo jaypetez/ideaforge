@@ -26,6 +26,10 @@ async function put(repo, file, text) {
 
 // No .gitignore here, so the gate's own exclusion of the state directory is what keeps the
 // tree clean after prepare; staging must exclude it the same way.
+// Record against the current HEAD, as the skill does with the SHA prepare printed.
+const record = (repo, options) =>
+  recordReview(repo, { head: git(repo, 'rev-parse', 'HEAD'), ...options });
+
 function commit(repo, message) {
   git(repo, 'add', '-A', '--', '.', `:(exclude)${STATE_DIR}`);
   git(repo, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
@@ -108,13 +112,61 @@ test('only an executed gh pr create or new is a pull request, not quoted or here
     'git commit -m "say \\"gh pr create\\" later"',
     'git log --grep="gh pr create"',
     'echo hi # then gh pr create',
+    // A heredoc body's parens, quotes and backticks are data: an early `)` once ended the
+    // substitution and read the rest of a commit message as commands.
+    'git commit -m "$(cat <<\'EOF\'\nGate PRs: a) parser, b) docs\nThe hook refuses `gh pr create` until review.\nEOF\n)"',
+    'x=$((1 << n))\necho n',
   ]) assert.equal(opensPullRequest(command, 'posix'), false, command);
+  for (const command of [
+    // The same body's stray quote once swallowed a real PR after it.
+    'git commit -m "$(cat <<\'EOF\'\nfix a) the "parser\nEOF\n)" && gh pr create --title "x"',
+    // In POSIX `${#var}` is not a comment.
+    '[ ${#BODY} -lt 65000 ] && gh pr create --body-file b.md',
+    // `<<<` is a here-string and `1 << n` a shift, not heredocs that hide what follows.
+    'grep -qx main <<< main\ngh pr create --fill',
+    'x=$((1 << n))\ngh pr create',
+    // An unquoted heredoc still runs its substitutions.
+    'cat <<EOF\n$(gh pr create --fill)\nEOF',
+  ]) assert.equal(opensPullRequest(command, 'posix'), true, command);
+  assert.equal(opensPullRequest('cat <<\'EOF\'\n$(gh pr create --fill)\nEOF', 'posix'), false,
+    'a quoted heredoc delimiter keeps its body literal');
+});
+
+test('a long run of flags after gh pr is matched in linear time', () => {
+  const started = performance.now();
+  assert.equal(opensPullRequest(`gh pr${' --a'.repeat(40)} x`, 'posix'), false);
+  assert.equal(opensPullRequest(`gh pr${' -R o/r'.repeat(40)} create`, 'posix'), true);
+  assert.ok(performance.now() - started < 1000, 'an ambiguous flag pattern backtracks exponentially');
+});
+
+test('a PR for a branch other than the reviewed HEAD is refused', async (t) => {
+  const { repo } = await repository(t);
+  await prepareReview(repo);
+  await record(repo, { result: 'clean' });
+  for (const command of ['gh pr create --head other --fill', 'gh pr create -H other', 'gh pr create --head=other']) {
+    assert.match(await prGateDecision({ command, shell: 'posix', cwd: repo }), /--head/, command);
+  }
+  assert.equal(await prGateDecision({ command: 'gh pr create --fill && curl -H x y', shell: 'posix', cwd: repo }),
+    null, 'only the PR command\'s own arguments are read');
+});
+
+test('record names the reviewed commit, so another session\'s commit cannot inherit it', async (t) => {
+  const { repo, head } = await repository(t);
+  await prepareReview(repo);
+  await put(repo, 'src/other.js', 'export {};\n');
+  const other = commit(repo, 'another session');
+  await prepareReview(repo);
+  await assert.rejects(recordReview(repo, { head, result: 'clean' }), /not the reviewed/);
+  assert.equal((await readReview(repo, other)).result, 'pending');
+  await assert.rejects(recordReview(repo, { result: 'clean' }), /full commit/);
+  await assert.rejects(recordReview(repo, { head: head.slice(0, 12), result: 'clean' }), /full commit/);
+  assert.equal((await recordReview(repo, { head: other, result: 'clean' })).result, 'clean');
 });
 
 test('a PR command that changes directory first is refused, since the hook knows only the session cwd', async (t) => {
   const { repo } = await repository(t);
   await prepareReview(repo);
-  await recordReview(repo, { result: 'clean' });
+  await record(repo, { result: 'clean' });
   assert.equal(await prGateDecision({ command: 'gh pr create --fill', shell: 'posix', cwd: repo }), null);
   for (const [command, shell] of [
     ['cd ../unreviewed && gh pr create --fill', 'posix'],
@@ -136,7 +188,7 @@ test('the gate refuses an unreviewed, pending, stale or dirty HEAD and abstains 
   assert.match(await gate(), /review-ideaforge-before-pr/);
   await prepareReview(repo);
   assert.match(await gate(), /still pending/);
-  await recordReview(repo, { result: 'clean' });
+  await record(repo, { result: 'clean' });
   assert.equal(await gate(), null);
   assert.equal((await readReview(repo, head)).result, 'clean');
 
@@ -157,7 +209,7 @@ test('the gate refuses an unreviewed, pending, stale or dirty HEAD and abstains 
 test('the gate reads the repository it runs in and fails closed when it cannot', async (t) => {
   const { repo, head } = await repository(t);
   await prepareReview(repo);
-  await recordReview(repo, { result: 'clean' });
+  await record(repo, { result: 'clean' });
   // The session cwd is a subdirectory of the reviewed repository; root is elsewhere.
   assert.equal(await prGateDecision({ command: 'gh pr create', cwd: join(repo, 'src'), root: ROOT }), null);
 
@@ -202,22 +254,22 @@ test('prepare writes the exact branch diff through Git, past the stdout buffer, 
 
 test('prepare and record refuse what a review cannot cover', async (t) => {
   const { repo } = await repository(t);
-  await assert.rejects(recordReview(repo, { result: 'clean' }), /run review prepare first/);
+  await assert.rejects(record(repo, { result: 'clean' }), /run review prepare first/);
   await put(repo, 'src/feature.js', 'dirty\n');
   await assert.rejects(prepareReview(repo), /Commit or remove every change/);
   git(repo, 'checkout', '--', 'src/feature.js');
   await prepareReview(repo);
-  await assert.rejects(recordReview(repo, { result: 'pending' }), /clean or waived/);
-  await assert.rejects(recordReview(repo, { result: 'waived' }), /user's reason/);
-  await assert.rejects(recordReview(repo, { result: 'waived', reason: 'two\nlines' }), /user's reason/);
-  await assert.rejects(recordReview(repo, { result: 'clean', reason: 'why' }), /Only a waived/);
-  const waived = await recordReview(repo, { result: 'waived', reason: ' user asked to skip ' });
+  await assert.rejects(record(repo, { result: 'pending' }), /clean or waived/);
+  await assert.rejects(record(repo, { result: 'waived' }), /user's reason/);
+  await assert.rejects(record(repo, { result: 'waived', reason: 'two\nlines' }), /user's reason/);
+  await assert.rejects(record(repo, { result: 'clean', reason: 'why' }), /Only a waived/);
+  const waived = await record(repo, { result: 'waived', reason: ' user asked to skip ' });
   assert.equal(waived.reason, 'user asked to skip');
   assert.equal(await prGateDecision({ command: 'gh pr create', cwd: repo }), null);
-  assert.equal((await recordReview(repo, { result: 'clean' })).reason, undefined);
+  assert.equal((await record(repo, { result: 'clean' })).reason, undefined);
 
   await put(repo, 'src/feature.js', 'dirty\n');
-  await assert.rejects(recordReview(repo, { result: 'clean' }), /Commit or remove every change/);
+  await assert.rejects(record(repo, { result: 'clean' }), /Commit or remove every change/);
   git(repo, 'checkout', '--', 'src/feature.js');
   git(repo, 'switch', '--quiet', 'main');
   await assert.rejects(prepareReview(repo), /nothing to review/);
@@ -230,11 +282,12 @@ test('the review CLI prepares, records and rejects misplaced options', async (t)
   assert.match(prepared, /Diff: .*review-[a-f0-9]+\.diff/);
   assert.match(prepared, /Documentation changed: no/);
   assert.match(prepared, /^ {2}src\/feature\.js$/m);
-  assert.equal(await runAssistant(['review', 'record', '--result', 'clean'], { root: repo }),
+  assert.equal(await runAssistant(['review', 'record', '--head', head, '--result', 'clean'], { root: repo }),
     `Review recorded for HEAD ${head}: clean.`);
   for (const args of [
     ['review'], ['review', 'bogus'], ['review', 'prepare', '--result', 'clean'],
-    ['review', 'record', '--base', 'main'], ['gain', '--reason', 'x'], ['review', 'record', '--force', 'x'],
+    ['review', 'record', '--base', 'main'], ['review', 'record', '--result', 'clean'],
+    ['review', 'prepare', '--head', head], ['gain', '--reason', 'x'], ['review', 'record', '--force', 'x'],
   ]) await assert.rejects(runAssistant(args, { root: repo }), undefined, args.join(' '));
 });
 
@@ -259,7 +312,7 @@ test('both adapters deny in their native envelope and abstain without approving'
   assert.equal(await copilot(JSON.stringify({ path: 'gh pr create' })), '{}');
 
   await prepareReview(repo);
-  await recordReview(repo, { result: 'clean' });
+  await record(repo, { result: 'clean' });
   assert.equal(await claude('gh pr create --fill'), '');
   assert.equal(await copilot(JSON.stringify({ command: 'gh pr create' })), '{}');
 });
@@ -302,7 +355,7 @@ test('the shipped pre-tool commands gate a real repository and never deny on ada
   assert.match(lost.stderr, /review gate unavailable/);
 
   await prepareReview(repo);
-  await recordReview(repo, { result: 'clean' });
+  await record(repo, { result: 'clean' });
   const passed = runClaude(JSON.stringify({ cwd: repo, session_id: 's', tool_name: 'Bash',
     tool_input: { command: 'gh pr create --dry-run' } }));
   assert.equal(passed.status, 0, passed.stderr);

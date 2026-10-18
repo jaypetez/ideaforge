@@ -78,20 +78,23 @@ your fix attempts to the user; do not record a result.
 
 ## 5. Record, then deliver
 
-When a round ends with no CONFIRMED finding:
+When a round ends with no CONFIRMED finding, record it against the full commit that
+step 1 printed for that round:
 
 ```sh
-node tools/assistant.mjs review record --result clean
+node tools/assistant.mjs review record --head <sha> --result clean
 ```
 
 Only when the user explicitly asks to skip or override the review:
 
 ```sh
-node tools/assistant.mjs review record --result waived --reason "the user's reason"
+node tools/assistant.mjs review record --head <sha> --result waived --reason "the user's reason"
 ```
 
 Never record `clean` while a confirmed finding stands, and never waive on your own
-judgement. Recording refuses a dirty tree or a HEAD that was not prepared. Then deliver
+judgement. Recording refuses a dirty tree, a HEAD that was not prepared, and a `--head`
+that is no longer HEAD: records are shared by every session in the worktree, so another
+session's commit must not inherit your result. Then deliver
 through [Landing a change](../../../AGENTS.md#landing-a-change).
 
 ## Limits
@@ -99,7 +102,8 @@ through [Landing a change](../../../AGENTS.md#landing-a-change).
 The gate is a workflow guard, not a security boundary. It matches an executed
 `gh pr create` or `gh pr new` in the Claude Code Bash/PowerShell tools and any Copilot CLI
 tool with a command argument, read as that tool's shell would. Run it from the reviewed
-checkout: a command that also changes directory is refused. A quoted path to `gh`, a
+checkout, for its own HEAD: a command that also changes directory, or that names another
+branch with `--head`, is refused. A quoted path to `gh`, a
 command passed to another interpreter as a string, `gh api` and a person's own terminal
 are not covered. Hook input that cannot be read leaves the command to the client's
 normal permission flow.

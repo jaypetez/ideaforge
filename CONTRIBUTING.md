@@ -68,7 +68,8 @@ writes the exact branch diff to a file those agents can read
 documentation reviewer when documentation changed), and has a fresh one challenge each
 finding. Confirmed findings are fixed and the new HEAD reviewed
 again, for at most three rounds. A passing round is recorded per HEAD
-(`node tools/assistant.mjs review record --result clean`); a waiver needs the user's
+(`node tools/assistant.mjs review record --head <sha> --result clean`, naming the commit
+that was reviewed); a waiver needs the user's
 explicit request and reason. Claude Code's `PreToolUse` and Copilot CLI's `preToolUse`
 hooks refuse `gh pr create` and `gh pr new` until that record matches a clean HEAD.
 

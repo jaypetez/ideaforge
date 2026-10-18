@@ -277,12 +277,15 @@ Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
 [`assistant-review.mjs`](../tools/assistant-review.mjs). It reads the command the way
 the tool's shell would, POSIX for Bash and PowerShell for PowerShell, and both ways when
 the tool is unrecognised, so an ambiguous command errs toward refusal. Quoted data,
-comments, heredoc bodies and here-strings are not commands; command substitutions inside
-double quotes are, because the shell runs them. For an executed `gh pr create` or
+comments, quoted-delimiter heredoc bodies and single-quoted here-strings are not
+commands; command substitutions inside double quotes, unquoted heredocs and expandable
+here-strings are, because the shell runs them. For an executed `gh pr create` or
 `gh pr new`, including with flags such as `-R` before the subcommand, it refuses unless
 the tree is clean and HEAD has a `clean` or `waived` record; a record it cannot read also
-refuses. It also refuses when the same command changes directory, because the hook knows
-the session's directory, not the one `gh` would run in. For any other command it gives no
+refuses. It also refuses when the same command changes directory, or names another
+branch with `--head`, because the hook can see only the session checkout's HEAD.
+Recording names the reviewed commit, and refuses when HEAD has moved since, so one
+session cannot record another session's unreviewed commit. For any other command it gives no
 decision at all, so the client's normal permission flow still decides; it never approves,
 asks, or changes arguments. Copilot denies a tool whose `preToolUse` command exits
 non-zero, so every failure in that adapter, including locating the repository, is

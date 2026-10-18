@@ -54,9 +54,9 @@ function parseArgs(args) {
   for (let i = 0; i < rest.length; i++) {
     const part = rest[i];
     if (part.startsWith('--')) {
-      if (!['--client', '--session', '--base', '--result', '--reason'].includes(part) ||
+      if (!['--client', '--session', '--base', '--head', '--result', '--reason'].includes(part) ||
           i + 1 >= rest.length || rest[i + 1].startsWith('--') || Object.hasOwn(options, part.slice(2))) {
-        throw new Error('Use only --client CLIENT, --session ID, --base REF, --result R or --reason TEXT once each');
+        throw new Error('Use only --client CLIENT, --session ID, --base REF, --head SHA, --result R or --reason TEXT once each');
       }
       options[part.slice(2)] = rest[++i];
     } else positional.push(part);
@@ -78,8 +78,8 @@ export async function runAssistant(args, { root = ROOT, stdin = process.stdin, e
   if (options.base && command !== 'gain' && action !== 'prepare') {
     throw new Error('--base is only valid for gain or review prepare');
   }
-  if ((options.result || options.reason) && action !== 'record') {
-    throw new Error('--result/--reason is only valid for review record');
+  if ((options.head || options.result || options.reason) && action !== 'record') {
+    throw new Error('--head/--result/--reason is only valid for review record');
   }
   if ((options.client || options.session) && !['status', 'mode', 'reset'].includes(command)) {
     throw new Error('--client/--session is only valid for mode, reset or status');
@@ -103,7 +103,9 @@ export async function runAssistant(args, { root = ROOT, stdin = process.stdin, e
     ].join('\n');
   }
   if (action === 'record') {
-    const out = await recordReview(root, { result: options.result, reason: options.reason ?? null });
+    const out = await recordReview(root, {
+      head: options.head, result: options.result, reason: options.reason ?? null,
+    });
     return `Review recorded for HEAD ${out.head}: ${out.result}.`;
   }
   if (command === 'gain') return JSON.stringify(await measureGain(root, { base: options.base ?? null }), null, 2);

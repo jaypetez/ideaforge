@@ -16,17 +16,68 @@ const DIFF_MS = 60_000;
 const MAX_REASON = 500;
 
 export const SHELLS = Object.freeze(['posix', 'powershell']);
-// Flags may sit between `pr` and its subcommand: `gh pr -R owner/repo create`.
-const PR_CREATE = /(?:^|[^\w.-])gh(?:\.exe)?\s+pr\s+(?:--?[\w-]+(?:[ =][^\s-]\S*)?\s+)*(?:create|new)\b/i;
+// Flags may sit between `pr` and its subcommand: `gh pr -R owner/repo create`. Each flag
+// token can match only one way, so a long run of flags cannot backtrack exponentially.
+const PR_CREATE = /(?:^|[^\w.-])gh(?:\.exe)?\s+pr\s+(?:-{1,2}[A-Za-z][\w-]*(?:[ =][^\s-]\S*)?\s+)*(?:create|new)\b/gi;
 const CHANGES_DIRECTORY = /(?:^|[\s;&|({])(?:cd|chdir|pushd|popd|sl|set-location|push-location|pop-location)(?=[\s;&|)}]|$)/i;
+const NAMES_HEAD = /(?:^|\s)(?:--head\b|-H)/;
 
-// From `open` (just past an opening paren), the index of its closing paren, skipping
-// quoted text roughly; -1 when unbalanced.
-function closingParen(text, open) {
+// A POSIX heredoc operator at `i`: its terminator, whether its body still expands
+// (an unquoted delimiter), and the operator's length. `<<<` and `1 << n` are not heredocs.
+function heredocAt(text, i) {
+  if (!text.startsWith('<<', i) || text[i + 2] === '<' || text[i - 1] === '<') return null;
+  const marker = /^<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1/.exec(text.slice(i));
+  return marker && { end: marker[2], expand: !marker[1], length: marker[0].length };
+}
+
+// From the start of the line after a heredoc operator, past each pending body in turn.
+function heredocBodies(text, start, docs) {
+  let i = start;
+  const bodies = [];
+  for (const doc of docs) {
+    const from = i;
+    let to = text.length;
+    while (i < text.length) {
+      const stop = text.indexOf('\n', i);
+      const line = text.slice(i, stop === -1 ? text.length : stop);
+      const next = stop === -1 ? text.length : stop + 1;
+      if (line.trim() === doc.end) { to = i; i = next; break; }
+      i = next;
+    }
+    bodies.push({ body: text.slice(from, to), expand: doc.expand });
+  }
+  return { next: i, bodies };
+}
+
+// From `open`, just past an opening paren, the index of the paren that closes it, counting
+// parens only. Used for arithmetic, where `<<` is a shift, not a heredoc.
+function balanced(text, open) {
   let depth = 1;
   for (let i = open; i < text.length; i++) {
+    if (text[i] === '(') depth += 1;
+    else if (text[i] === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+// From `open`, just past `$(`, the index of its closing paren, skipping quoted text and
+// POSIX heredoc bodies, whose parens and quotes are data; -1 when unbalanced.
+function closingParen(text, open, posix) {
+  let depth = 1;
+  const pending = [];
+  for (let i = open; i < text.length; i++) {
     const c = text[i];
-    if (c === "'" || c === '"') {
+    const doc = posix ? heredocAt(text, i) : null;
+    if (c === '\n' && pending.length) {
+      i = heredocBodies(text, i + 1, pending.splice(0)).next - 1;
+    } else if (doc) {
+      pending.push(doc);
+      i += doc.length - 1;
+    } else if (posix && text.startsWith('((', i)) {
+      const end = balanced(text, i + 1);
+      if (end === -1) return -1;
+      i = end;
+    } else if (c === "'" || c === '"') {
       const end = text.indexOf(c, i + 1);
       if (end === -1) return -1;
       i = end;
@@ -36,17 +87,22 @@ function closingParen(text, open) {
   return -1;
 }
 
-// Within an expandable string body, the command substitutions the shell would run.
+// Within an expandable body, the command substitutions the shell would run.
 function substitutions(body, shell) {
+  const posix = shell === 'posix';
   const out = [];
   for (let i = 0; i < body.length; i++) {
-    if (body[i] === (shell === 'posix' ? '\\' : '`')) i += 1;
-    else if (body.startsWith('$(', i)) {
-      const end = closingParen(body, i + 2);
+    if (body[i] === (posix ? '\\' : '`')) i += 1;
+    else if (posix && body.startsWith('$((', i)) {
+      const end = balanced(body, i + 2);
+      if (end === -1) break;
+      i = end;
+    } else if (body.startsWith('$(', i)) {
+      const end = closingParen(body, i + 2, posix);
       if (end === -1) { out.push(body.slice(i + 2)); break; }
       out.push(body.slice(i + 2, end));
       i = end;
-    } else if (shell === 'posix' && body[i] === '`') {
+    } else if (posix && body[i] === '`') {
       const end = body.indexOf('`', i + 1);
       out.push(body.slice(i + 1, end === -1 ? body.length : end));
       if (end === -1) break;
@@ -56,29 +112,25 @@ function substitutions(body, shell) {
   return out;
 }
 
-// The text one shell would execute: quoted data, comments and heredoc bodies become
-// spaces, while command substitutions inside double quotes are kept, because they run.
-// An unterminated quote is read as a literal so a malformed line errs toward refusal.
+// The text one shell would execute: quoted data, comments and quoted heredoc bodies become
+// spaces, while command substitutions inside double quotes and unquoted heredocs are kept,
+// because they run. An unterminated quote is read as a literal, erring toward refusal.
 function executedText(command, shell) {
   const posix = shell === 'posix';
   const escape = posix ? '\\' : '`';
-  const at = (i) => i === 0 || /[\s;&|(){}]/.test(command[i - 1]);
+  // `{` and `}` separate words in PowerShell; in POSIX `${#var}` is not a comment.
+  const boundary = posix ? /[\s;&|()]/ : /[\s;&|(){}]/;
+  const at = (i) => i === 0 || boundary.test(command[i - 1]);
   const run = (parts) => ` ${parts.map((part) => executedText(part, shell)).join(' ; ')} `;
-  const heredocs = [];
+  const pending = [];
   let out = '';
   for (let i = 0; i < command.length;) {
     const c = command[i];
-    if (c === '\n' && heredocs.length) {
-      out += '\n';
-      i += 1;
-      for (const end of heredocs.splice(0)) {
-        while (i < command.length) {
-          const stop = command.indexOf('\n', i);
-          const line = command.slice(i, stop === -1 ? command.length : stop);
-          i = stop === -1 ? command.length : stop + 1;
-          if (line.trim() === end) break;
-        }
-      }
+    const doc = posix ? heredocAt(command, i) : null;
+    if (c === '\n' && pending.length) {
+      const { next, bodies } = heredocBodies(command, i + 1, pending.splice(0));
+      out += `\n${run(bodies.filter((one) => one.expand).flatMap((one) => substitutions(one.body, shell)))}\n`;
+      i = next;
     } else if (c === escape) {
       out += '  ';
       i += 2;
@@ -88,11 +140,15 @@ function executedText(command, shell) {
       const end = command.indexOf('#>', i + 2);
       out += ' ';
       i = end === -1 ? command.length : end + 2;
-    } else if (posix && command.startsWith('<<', i) && command[i + 2] !== '<') {
-      const marker = /^<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1/.exec(command.slice(i));
-      if (marker) heredocs.push(marker[2]);
+    } else if (doc) {
+      pending.push(doc);
       out += ' ';
-      i += marker ? marker[0].length : 2;
+      i += doc.length;
+    } else if (posix && (command.startsWith('$((', i) || (command.startsWith('((', i) && at(i)))) {
+      const end = balanced(command, i + (command[i] === '$' ? 3 : 2));
+      if (end === -1) { out += c; i += 1; continue; }
+      out += ' ';
+      i = end + 1;
     } else if (!posix && /^@['"]\r?\n/.test(command.slice(i, i + 4))) {
       const quote = command[i + 1];
       const close = command.indexOf(`\n${quote}@`, i + 2);
@@ -110,7 +166,7 @@ function executedText(command, shell) {
       for (let j = i + 1; j < command.length; j++) {
         if (command[j] === escape) j += 1;
         else if (command.startsWith('$(', j)) {
-          j = closingParen(command, j + 2);
+          j = closingParen(command, j + 2, posix);
           if (j === -1) break;
         } else if (command[j] === '"') { end = j; break; }
       }
@@ -132,15 +188,24 @@ function executed(command, shell) {
   return (SHELLS.includes(shell) ? [shell] : SHELLS).map((one) => executedText(command, one));
 }
 
-// Quoted data, comments and heredoc bodies are not commands, so a commit message or PR
-// body that merely mentions gh is not refused. A quoted path to gh, or a command handed
-// to another interpreter as a string (`bash -c "…"`), is not recognised.
-export const opensPullRequest = (command, shell = null) =>
-  executed(command, shell).some((text) => PR_CREATE.test(text));
+// Each executed PR invocation's arguments, up to the end of its command.
+function pullRequests(command, shell) {
+  return executed(command, shell).flatMap((text) => [...text.matchAll(PR_CREATE)]
+    .map((match) => text.slice(match.index + match[0].length).split(/[;&|\n]/, 1)[0]));
+}
+
+// Quoted data, comments and quoted heredoc bodies are not commands, so a commit message
+// or PR body that merely mentions gh is not refused. A quoted path to gh, or a command
+// handed to another interpreter as a string (`bash -c "…"`), is not recognised.
+export const opensPullRequest = (command, shell = null) => pullRequests(command, shell).length > 0;
 
 // The hook knows the session's directory, not one the command moves to on its way to gh.
 export const changesDirectory = (command, shell = null) =>
   executed(command, shell).some((text) => CHANGES_DIRECTORY.test(text));
+
+// `--head` proposes a branch other than the HEAD whose review the gate can see.
+export const namesOtherHead = (command, shell = null) =>
+  pullRequests(command, shell).some((args) => NAMES_HEAD.test(args));
 
 export const isDocumentation = (file) =>
   /\.md$/i.test(file) || /^(?:guide|docs)\//.test(file);
@@ -225,7 +290,15 @@ export async function prepareReview(root = ROOT, { base = null, git = runGit } =
   return { ...review, files, diff };
 }
 
-export async function recordReview(root = ROOT, { result, reason = null, git = runGit } = {}) {
+// `head` is the commit the round reviewed, as prepare printed it. Records are shared by
+// every session in the worktree, so recording whatever HEAD is current could pass a commit
+// another session prepared but nobody reviewed.
+export async function recordReview(root = ROOT, {
+  head: reviewed, result, reason = null, git = runGit,
+} = {}) {
+  if (typeof reviewed !== 'string' || !COMMIT.test(reviewed)) {
+    throw new Error('Record names the full commit the round reviewed, as review prepare printed it');
+  }
   if (!PASSING.has(result)) throw new Error('Record a review result of clean or waived');
   if (result === 'waived') {
     if (typeof reason !== 'string' || !reason.trim() || reason.length > MAX_REASON ||
@@ -235,6 +308,9 @@ export async function recordReview(root = ROOT, { result, reason = null, git = r
   } else if (reason !== null) throw new Error('Only a waived review takes a reason');
   requireClean(root, git);
   const head = headOf(root, git);
+  if (head !== reviewed) {
+    throw new Error(`HEAD is ${head}, not the reviewed ${reviewed}; review the current HEAD instead`);
+  }
   const review = await readReview(root, head);
   if (!review) throw new Error(`No review was prepared for HEAD ${head}; run review prepare first`);
   const next = { ...review, result };
@@ -248,7 +324,7 @@ const refusal = (why) =>
   `IdeaForge opens a pull request only after the adversarial pre-PR review passes: ${why}. ` +
   `Run the ${REVIEW_SKILL} skill, which records its result for HEAD, then retry. Only when ` +
   'the user explicitly asked to skip review, record `node tools/assistant.mjs review record ' +
-  '--result waived --reason "<their reason>"` instead.';
+  '--head <sha> --result waived --reason "<their reason>"` instead.';
 
 // Returns a deny reason, or null for "no opinion". Never an approval: the client's normal
 // permission flow still decides every command this lets through.
@@ -259,6 +335,10 @@ export async function prGateDecision({
   if (changesDirectory(command, shell)) {
     return refusal('the same command changes directory, so the gate cannot tell which checkout ' +
       'gh runs in; change directory in its own command, then run gh from the reviewed checkout');
+  }
+  if (namesOtherHead(command, shell)) {
+    return refusal('the command names its head branch with --head, but the gate can only see ' +
+      'the review of this checkout\'s HEAD; check out that branch and run gh from it');
   }
   try {
     const repo = typeof cwd === 'string' && isAbsolute(cwd)
