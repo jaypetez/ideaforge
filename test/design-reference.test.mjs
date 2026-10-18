@@ -36,8 +36,8 @@ test('reference boards remain distinct from the delivered foundations, adaptive 
   assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
   const status = design.replace(/\s+/g, ' ');
-  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells, progressive web Start \(#193\), native Ideas \(#198\), native Interview \(#200\) and native voice presentation \(#202\) are implemented here/);
-  assert.match(status, /The native Start and Result recompositions are \*\*not yet implemented\*\*/);
+  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells, progressive web Start \(#193\), native Ideas \(#198\), native Interview \(#200\), native voice presentation \(#202\) and native Start \(#195\), Settings \(#196\) and Result \(#204\) are implemented here/);
+  assert.match(status, /guide's own Focus Studio migration is \*\*not yet implemented\*\*/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {

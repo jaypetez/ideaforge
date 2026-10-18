@@ -15,12 +15,11 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells, progressive web Start (#193), native Ideas (#198), native Interview (#200)
-and native voice presentation (#202)
+shells, progressive web Start (#193), native Ideas (#198), native Interview (#200),
+native voice presentation (#202) and native Start (#195), Settings (#196) and Result (#204)
 are implemented here.
-The native Start and Result recompositions are
-**not yet implemented**. The guide's
-own stylesheet also keeps its earlier values until
+The guide's own Focus Studio migration is **not yet implemented**; its stylesheet keeps
+its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
 the implemented surfaces, not the complete reference boards.
 
@@ -274,7 +273,8 @@ visible. A separate secondary row retains Share/Save and Ask me more without squ
 four equally bordered labels. Short enlarged windows keep the existing page-flow action
 fallback, shell insets are not reapplied, and every native action remains reachable.
 
-Only actual save success raises success feedback. Copy/share/save/reopen/read errors are
+Only completed Save produces the `Saved` notice; Copy retains the SDK-dependent app or
+system confirmation policy. Copy/share/save/reopen/read errors are
 explicit persistent statuses; a failed read is not a missing row and offers retry.
 ResultActions, exportFor, CreateDocument cancellation, FileProvider/temporary-share TTL,
 clipboard bytes and same-session reopen remain their owners, including the real-provider

@@ -118,7 +118,7 @@ fun ResultScreen(
         }
     }
     val noticeText = state.notice?.let { noticeText(it) }
-    LaunchedEffect(state.notice) {
+    LaunchedEffect(state.notice, state.noticeAttempt) {
         if (state.notice == ResultNotice.Saved && noticeText != null) {
             vm.noticeShown()
             say(noticeText)

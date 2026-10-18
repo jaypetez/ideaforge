@@ -16,6 +16,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -190,6 +194,19 @@ class ResultScreenTest {
         show(ResultVectors.written, clipboardUnavailable = true)
         compose.onNodeWithTag(ResultTags.COPY).performClick()
         compose.onNodeWithText("could not be copied", substring = true).assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h700dp")
+    fun anIdenticalClipboardRetryRevealsItsRetainedErrorAgain() {
+        show(ResultVectors.written, clipboardUnavailable = true)
+        compose.onNodeWithTag(ResultTags.COPY).performClick()
+        compose.onNodeWithTag(ResultTags.ERROR).assertIsDisplayed()
+        compose.onNodeWithTag(ResultTags.CONTENT)
+            .performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, 100_000f) }
+        compose.onNodeWithTag(ResultTags.ERROR).assertIsNotDisplayed()
+        compose.onNodeWithTag(ResultTags.COPY).performClick()
+        compose.onNodeWithTag(ResultTags.ERROR).assertIsDisplayed()
     }
 
     // The issue's third criterion: with the wrap-up failed the result still works, its export

@@ -32,6 +32,7 @@ import io.github.jaypetez.ideaforge.ux.UxEvidence
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -85,7 +86,10 @@ class ResultLayoutTest {
             val inContent = hasAnyAncestor(hasTestTag(ResultTags.CONTENT))
             compose.onNodeWithTag(ResultTags.SHARE).assert(if (inline) inContent else !inContent)
 
-            val scrollMatcher = SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollBy) and hasAnyAncestor(hasTestTag(ResultTags.SCREEN))
+            val scrollMatcher = SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange) and
+                hasAnyAncestor(hasTestTag(ResultTags.SCREEN))
+            assertEquals("one logical vertical Result document scroll",
+                1, compose.onAllNodes(scrollMatcher).fetchSemanticsNodes().size)
             val viewport = compose.onNode(scrollMatcher).fetchSemanticsNode()
             assertTrue("the real Result document viewport must not collapse to zero", viewport.boundsInWindow.height > 0f)
             val output = compose.onNodeWithTag(ResultTags.OUTPUT).fetchSemanticsNode()
