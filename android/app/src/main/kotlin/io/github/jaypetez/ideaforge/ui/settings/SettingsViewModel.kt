@@ -80,6 +80,7 @@ data class SettingsState(
     /** The finish word as typed; null when the field shows what is stored. */
     val triggerDraft: String? = null,
     val confirmingForget: Boolean = false,
+    val forgetting: Boolean = false,
     /** Forget all ran. With no usable provider left, the screen routes to onboarding. */
     val forgotten: Boolean = false,
     val inferenceDestination: InferenceDestination? = null,
@@ -113,6 +114,7 @@ private data class Local(
     val unreadable: String? = null,
     val triggerDraft: String? = null,
     val confirmingForget: Boolean = false,
+    val forgetting: Boolean = false,
     val forgotten: Boolean = false,
 )
 
@@ -153,6 +155,7 @@ class SettingsViewModel(
                 unreadable = l.unreadable,
                 triggerDraft = l.triggerDraft,
                 confirmingForget = l.confirmingForget,
+                forgetting = l.forgetting,
                 forgotten = l.forgotten,
                 inferenceDestination = destination,
                 inferenceAgreed = destination != null && (editor?.agreement ?: inference.allowed(destination, prefs)),
@@ -443,7 +446,7 @@ class SettingsViewModel(
         runCatching { onForget() }
         val previous = work
         previous?.cancel()
-        local.update { it.copy(confirmingForget = false, checking = true, failure = null, notice = null, unreadable = null) }
+        local.update { it.copy(confirmingForget = false, forgetting = true, checking = true, failure = null, notice = null, unreadable = null) }
         return viewModelScope.launch {
             try {
                 // Both hosted consents belonged to keys that are about to stop existing.
@@ -459,7 +462,7 @@ class SettingsViewModel(
             } catch (ex: Exception) {
                 local.update { it.copy(failure = CheckFailure("The keys could not all be deleted.", ex.message.orEmpty())) }
             } finally {
-                local.update { it.copy(checking = false) }
+                local.update { it.copy(checking = false, forgetting = false) }
             }
         }.also { forgetJob = it }
     }

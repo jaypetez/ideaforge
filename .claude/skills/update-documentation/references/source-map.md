@@ -84,6 +84,14 @@ source wins over prose, and a generated artifact wins over a description of that
   `evidence=onboarding` selects the fixed real-app provider/entry/typed/rationale-cancel/
   check-failure/loading/manual-model/unreadable subset, both windows/themes/fonts.
   These scripted captures do not request OS permissions or prove physical voice.
+- **Native Settings and safe operations.** Sources: `SettingsScreen.kt` owns the five
+  sections, actual-state summaries and font-fit native index with scroll/heading focus.
+  `SettingsViewModel` and existing keyring/prefs owners keep independent connection
+  edits and synchronous Forget retirement. `HostedSpeechSettings.kt` keeps separate
+  speech/transcription notices, explicit failure status and all consent/check guards.
+  `Backup.kt`/`BackupJobs` retain session-only, collision-as-copy, failed-write behavior.
+  Re-check Android Voice/Your data labels, DESIGN measures, Cancel/Back focus and actual
+  `evidence=settings` fixed real-app matrix, not physical/live paid speech claims.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive

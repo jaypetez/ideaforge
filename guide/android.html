@@ -111,7 +111,7 @@
             </tr>
             <tr>
               <th scope="row">Settings</th>
-              <td>Connection, Listening, Appearance, Data (backup and import) and About.
+              <td>Connection, Voice, Appearance, Your data (backup and import) and About.
                 Appearance offers System, Light and Dark; the saved choice applies before
                 the app first renders. Android 12 and later use the system&rsquo;s wallpaper
                 colours; other devices use the built-in neutral/petrol light and dark
@@ -121,7 +121,7 @@
               <th scope="row">Voice input</th>
               <td>Hands-free only. <em>Answer by voice</em> on the interview screen asks for the
                 microphone (and, on Android 13 and later, notifications), then reads each
-                question aloud and listens until you say your finish word from Listening. A
+                question aloud and listens until you say your finish word from Voice. A
                 notification with Pause and Exit keeps the interview hearing with the screen
                 off. Pause keeps the words captured so far as your draft; Exit returns to typing
                 without writing anything up. If the microphone is refused, voice stands down and
@@ -135,8 +135,8 @@
             <tr>
               <th scope="row">Spoken replies</th>
               <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
-                its suggestions, at the speaking pace from Listening. Optional OpenAI speech
-                (Marin or Cedar) is in Settings under Listening: it needs its own OpenAI key
+                its suggestions, at the speaking pace from Voice. Optional OpenAI speech
+                (Marin or Cedar) is in Settings under Voice: it needs its own OpenAI key
                 (never your interview key), three consents (an AI-generated voice, the spoken
                 text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
                 OpenAI audio on the phone. Changing the key or the voice, unticking a consent
@@ -218,7 +218,22 @@
         interview. An active idea without a write-up shows <strong>No write-up yet</strong>,
         its conversation and any unsent draft, not a generation error. Rename/tag and
         Delete have separate dialogs: Cancel or Back keeps the idea unchanged. Delete is
-        permanent; Archive can be reversed. Backup and import remain in Settings under Data.
+        permanent; Archive can be reversed. Backup and import remain in Settings under Your data.
+      </p>
+      <p>
+        Settings keeps all five sections in one scrolling form. Expanded windows add a
+        narrow section index; large fonts fall back to one column when the index and form
+        cannot both fit. Summaries identify the saved provider, permitted speech backend,
+        current theme and library state, not a generic connected verdict. Index navigation
+        preserves unsaved fields. Speech and transcription report their own outcomes;
+        a failed check stays an error beside its action, not a successful toast.
+      </p>
+      <p>
+        <strong>Your data</strong> separates <strong>Backup ideas</strong> /
+        <strong>Import ideas</strong> from <strong>Forget all keys</strong>. Forget asks
+        explicitly and revokes before pending writes can restore credentials; ideas and
+        ordinary device preferences stay. Cancel or Back changes nothing and returns focus
+        to its action. Connection and speech operations keep their independent grants.
       </p>
       <p>
         <strong>Connection</strong> also holds the inference agreement. Existing installations
@@ -424,8 +439,8 @@ adb install -r app-debug.apk</code></pre>
       <h2 id="backups">Move ideas between Android and the web</h2>
       <p>
         Android and the web app use the same backup file. On Android, under
-        <strong>Settings &rarr; Data</strong>, choose <strong>Back up ideas</strong> or
-        <strong>Import backup</strong>. On the web, <strong>Settings &rarr; Your data</strong>
+        <strong>Settings &rarr; Your data</strong>, choose <strong>Backup ideas</strong> or
+        <strong>Import ideas</strong>. On the web, <strong>Settings &rarr; Your data</strong>
         offers <strong>Backup ideas</strong> and <strong>Import ideas</strong>. Move the file however
         you like: a cloud drive, email to yourself, or <code>adb push</code>.
       </p>

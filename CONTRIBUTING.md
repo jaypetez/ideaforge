@@ -340,6 +340,14 @@ font scales. Actual XML, complete literal-SHA manifests and all PNGs are require
 The recovery capture requires an ungranted permission, never changes permission state,
 and cancels before an OS request; output/service/checks are scripted, not phone proof.
 
+For native Settings, `-f evidence=settings` selects
+`UxCaptureDeviceTest#requestedNativeSettingsKeepSectionsAndDataBoundaries` with
+`uxSettingsProbe=true`. The fixed matrix records all five sections, separate hosted
+consents, unchanged Cancel/Forget data, actual held/refused scripted connection checks
+and a labelled scripted backup-job failure. No file picker, hosted preview or real
+provider is invoked. Require actual selected-method XML and complete clean-SHA
+compact/expanded, light/dark, enlarged manifests/PNGs; it is not the full inventory.
+
 For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
 `UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
 recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/

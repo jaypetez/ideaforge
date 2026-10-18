@@ -101,7 +101,7 @@ test('DESIGN records native content measures and all system-family typography ro
   const widths = roles.match(/object IdeaForgeWidths \{([\s\S]*?)\n\}/)?.[1];
   assert.ok(widths, 'native content-width owner is missing');
   const values = [...widths.matchAll(/val (\w+) = (\d+)\.dp/g)];
-  assert.equal(values.length, 8, 'check every native content measure, supporting pane and adaptive rail');
+  assert.equal(values.length, 9, 'check every native content measure, supporting/index pane and adaptive rail');
   for (const [, name, value] of values) {
     assert.ok(design.includes(`| \`${name}\` | ${value}dp |`), `native ${name} width drift`);
   }

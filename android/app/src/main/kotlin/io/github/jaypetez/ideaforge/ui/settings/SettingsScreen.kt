@@ -2,18 +2,22 @@ package io.github.jaypetez.ideaforge.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -30,6 +34,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,10 +42,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -49,13 +62,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.window.core.layout.WindowSizeClass
 import io.github.jaypetez.ideaforge.BuildConfig
+import io.github.jaypetez.ideaforge.IdeaForgeApp
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.maskKey
@@ -71,7 +87,10 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
 import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
+import io.github.jaypetez.ideaforge.voice.hostedSpeechReady
+import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.roundToInt
 
 object SettingsTags {
     const val PROVIDER = "settings-provider"
@@ -95,8 +114,16 @@ object SettingsTags {
     fun theme(value: String) = "settings-theme-$value"
 }
 
+private enum class SettingsPart(val title: Int, val id: String) {
+    Connection(R.string.settings_connection, "connection"),
+    Voice(R.string.settings_listening, "voice"),
+    Appearance(R.string.settings_appearance, "appearance"),
+    Data(R.string.settings_data, "data"),
+    About(R.string.settings_about, "about"),
+}
+
 /**
- * Settings: Connection, Listening, Appearance, Data, About. [onNoProvider] runs once Forget
+ * Settings: Connection, Voice, Appearance, Your data, About. [onNoProvider] runs once Forget
  * has left no provider that could start an interview; the shell sends the user to onboarding.
  */
 @Composable
@@ -105,37 +132,104 @@ fun SettingsScreen(
     vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val graph = (LocalContext.current.applicationContext as IdeaForgeApp).graph
+    val sessions by graph.sessionStore.sessions.collectAsStateWithLifecycle()
+    val library by graph.sessionStore.loadState.collectAsStateWithLifecycle()
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val offsets = remember { mutableStateMapOf<SettingsPart, Int>() }
+    val focus = remember { SettingsPart.entries.associateWith { FocusRequester() } }
+    val prefs = state.prefs
+    val voice = if (prefs != null && hostedSpeechReady(state.ring, prefs))
+        stringResource(R.string.settings_voice_hosted_summary, prefs.effectiveTrigger)
+    else if (prefs != null) stringResource(R.string.settings_voice_native_summary, prefs.effectiveTrigger)
+    else stringResource(R.string.settings_loading)
+    val theme = when (prefs?.theme) {
+        Prefs.THEME_SYSTEM -> stringResource(R.string.settings_theme_system)
+        Prefs.THEME_LIGHT -> stringResource(R.string.settings_theme_light)
+        Prefs.THEME_DARK -> stringResource(R.string.settings_theme_dark)
+        else -> stringResource(R.string.settings_loading)
+    }
+    val data = when {
+        library.problem != null -> stringResource(R.string.settings_data_unavailable)
+        !library.ready -> stringResource(R.string.settings_loading)
+        else -> stringResource(R.string.settings_data_summary, sessions.size)
+    }
+    val summaries = mapOf(
+        SettingsPart.Connection to (state.active?.label ?: stringResource(R.string.settings_no_provider)),
+        SettingsPart.Voice to voice,
+        SettingsPart.Appearance to theme,
+        SettingsPart.Data to data,
+        SettingsPart.About to stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+    )
     LaunchedEffect(state.needsOnboarding) { if (state.needsOnboarding) onNoProvider() }
     // A finish word typed and then left by navigating away is still kept.
     DisposableEffect(vm) { onDispose { vm.commitTrigger() } }
 
-    // Scrolls: in landscape or at a large font scale the sections are taller than the space
-    // above the bottom bar, and the lower buttons would otherwise be out of reach.
-    Column(
-        Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.settings)
-            .verticalScroll(rememberScrollState()).imePadding().padding(IdeaForgeSpacing.content),
-        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.section),
-    ) {
-        Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall)
-        Section(R.string.settings_connection) { Connection(state, vm) }
-        Section(R.string.settings_listening) {
-            Listening(state, vm)
-            HostedSpeechSection()
+    val expanded = currentWindowAdaptiveInfoV2().windowSizeClass
+        .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val scale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val indexWidth = IdeaForgeWidths.sectionIndex * scale
+        val splitBound = IdeaForgeWidths.form + indexWidth + IdeaForgeSpacing.section
+        val indexed = expanded && minOf(maxWidth, splitBound) >=
+            IdeaForgeWidths.formMinimum * scale + indexWidth + IdeaForgeSpacing.section
+        Row(
+            Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = if (indexed) splitBound else IdeaForgeWidths.settings).imePadding(),
+            horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.section),
+        ) {
+            if (indexed) {
+                Column(Modifier.width(indexWidth).fillMaxHeight().verticalScroll(rememberScrollState())
+                    .padding(IdeaForgeSpacing.content).testTag("settings-index"),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
+                    for (part in SettingsPart.entries) {
+                        TextButton(onClick = {
+                            val offset = offsets[part]
+                            if (offset != null) scope.launch {
+                                scroll.scrollTo(offset)
+                                focus.getValue(part).requestFocus()
+                            }
+                        }, enabled = part in offsets, modifier = Modifier.fillMaxWidth().testTag("settings-index-${part.id}")) {
+                            Text(stringResource(part.title))
+                        }
+                    }
+                }
+            }
+            Column(
+                Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).padding(IdeaForgeSpacing.content)
+                    .testTag("settings-content"),
+                verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.section),
+            ) {
+                Text(stringResource(R.string.screen_settings), style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.semantics { heading() })
+                for (part in SettingsPart.entries) {
+                    Section(part, summaries.getValue(part), focus.getValue(part),
+                        Modifier.onGloballyPositioned { offsets[part] = it.positionInParent().y.roundToInt() }) {
+                        when (part) {
+                            SettingsPart.Connection -> Connection(state, vm)
+                            SettingsPart.Voice -> { Listening(state, vm); HostedSpeechSection() }
+                            SettingsPart.Appearance -> Appearance(state, vm)
+                            SettingsPart.Data -> { BackupSection(); if (state.canForget) Forget(state, vm) }
+                            SettingsPart.About -> About()
+                        }
+                    }
+                }
+            }
         }
-        Section(R.string.settings_appearance) { Appearance(state, vm) }
-        Section(R.string.settings_data) {
-            BackupSection()
-            if (state.canForget) Forget(state, vm)
-        }
-        Section(R.string.settings_about) { About() }
     }
 }
 
 @Composable
-private fun Section(title: Int, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
+private fun Section(part: SettingsPart, summary: String, focus: FocusRequester,
+    modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
         HorizontalDivider()
-        Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(part.title), style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.testTag("settings-section-${part.id}").focusRequester(focus).focusable()
+                .semantics { heading() })
+        Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("settings-summary-${part.id}"))
         content()
     }
 }
@@ -387,18 +481,32 @@ private fun Appearance(state: SettingsState, vm: SettingsViewModel) {
 
 @Composable
 private fun Forget(state: SettingsState, vm: SettingsViewModel) {
+    val focus = remember { FocusRequester() }
+    var restoreFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(state.confirmingForget, restoreFocus) {
+        if (!state.confirmingForget && restoreFocus) {
+            restoreFocus = false
+            focus.requestFocus()
+        }
+    }
+    fun cancel() {
+        restoreFocus = true
+        vm.cancelForget()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.error)
+        Text(stringResource(R.string.settings_remove_credentials), style = MaterialTheme.typography.titleMedium)
+        Hint(stringResource(R.string.settings_forget_hint))
         OutlinedButton(
             onClick = vm::askForget,
-            enabled = !state.checking,
+            enabled = !state.forgetting,
             contentColor = MaterialTheme.colorScheme.error,
-            modifier = Modifier.testTag(SettingsTags.FORGET),
+            modifier = Modifier.testTag(SettingsTags.FORGET).focusRequester(focus),
         ) { Text(stringResource(R.string.settings_forget)) }
-        Hint(stringResource(R.string.settings_forget_hint))
     }
     if (state.confirmingForget) {
         AlertDialog(
-            onDismissRequest = vm::cancelForget,
+            onDismissRequest = ::cancel,
             title = { Text(stringResource(R.string.settings_forget_title)) },
             text = { Text(stringResource(R.string.settings_forget_body)) },
             confirmButton = {
@@ -406,7 +514,7 @@ private fun Forget(state: SettingsState, vm: SettingsViewModel) {
                     Text(stringResource(R.string.settings_forget), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = vm::cancelForget) { Text(stringResource(R.string.action_cancel)) } },
+            dismissButton = { TextButton(onClick = ::cancel) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 }
