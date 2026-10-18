@@ -31,6 +31,7 @@ import io.github.jaypetez.ideaforge.installUnreadableGraph
 import io.github.jaypetez.ideaforge.providers.httpError
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.runBlocking
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -86,6 +87,24 @@ class OnboardingFlowTest {
     }
 
     @Test
+    fun onlyRecordedProviderValuesCanBeCalledSavedAndTheyAreNotACheck() {
+        val check = FakeCheck()
+        val graph = installTestGraph(check, preferences = PrefsStore(MemoryDataStore()))
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("A previous connection check succeeded.", substring = true).assertDoesNotExist()
+        runBlocking { graph.keyringStore.save(usableRing()) }
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertExists()
+        compose.onNodeWithText("A previous connection check succeeded.", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("check-key").performScrollTo().assertIsNotEnabled()
+        assertTrue("saved values never run a new check", check.calls.isEmpty())
+    }
+
+    @Test
     fun backAndChangeKeepTheUnsubmittedFieldsWithoutCheckingOrSavingThem() {
         val check = FakeCheck()
         val graph = installTestGraph(check, preferences = PrefsStore(MemoryDataStore()))
@@ -96,6 +115,7 @@ class OnboardingFlowTest {
         scenario!!.recreate()
         waitFor(hasTestTag("api-key"))
         expectRetainedKey()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Back").performScrollTo().performClick()
         compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
         expectRetainedKey()

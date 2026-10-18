@@ -115,11 +115,12 @@ class OnboardingViewModel(
         // A record saved earlier for this provider (a re-run of onboarding) prefills the
         // address and model; never the key, which is not shown back in full anywhere.
         val saved = credsFor(keyring.state.value.ring, id)
-        val next = drafts[id]?.copy(choice = choice, hasSavedSettings = saved.isNotEmpty()) ?: OnboardingState(
+        val hasSaved = listOf("apiKey", "baseUrl", "model", "wrapModel").any { text(saved[it]).isNotEmpty() }
+        val next = drafts[id]?.copy(choice = choice, hasSavedSettings = hasSaved) ?: OnboardingState(
             choice = choice,
             baseUrl = text(saved["baseUrl"]).ifEmpty { choice.defaultBaseUrl.orEmpty() }.takeIf { choice.local }.orEmpty(),
             model = if (choice.local) text(saved["model"]) else "",
-            hasSavedSettings = saved.isNotEmpty(),
+            hasSavedSettings = hasSaved,
         )
         val changed = inference.select(choice.id, next.destination?.id)
         _state.value = next.copy(agreed = next.agreed && !changed)
