@@ -2,6 +2,10 @@ package io.github.jaypetez.ideaforge.ui.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
@@ -11,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -81,33 +87,46 @@ internal fun LibraryPreview(session: JsonElement) {
 fun ExportPreview(markdown: String, modifier: Modifier = Modifier) {
     val blocks = remember(markdown) { renderBlocks(str(markdown)) }
     val type = MaterialTheme.typography
-    Column(Modifier.widthIn(max = IdeaForgeWidths.reading).then(modifier), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+    Column(Modifier.widthIn(max = IdeaForgeWidths.reading).then(modifier), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
         for (block in blocks) {
             when (val kind = stringOf(block["type"])) {
                 "hr" -> HorizontalDivider()
-                "pre" -> Text(stringOf(block["text"]).orEmpty(), style = type.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                "pre" -> Text(stringOf(block["text"]).orEmpty(),
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    softWrap = false, style = type.bodyLarge.copy(fontFamily = FontFamily.Monospace))
                 "list" -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                     val ordered = truthy(block["ordered"])
                     items(block["items"]).forEachIndexed { i, item ->
                         val marker = if (ordered) "${i + 1}. " else "• "
-                        Text(spans(item, marker), style = type.bodyMedium)
+                        Text(spans(item, marker), style = type.bodyLarge)
                     }
                 }
-                "table" -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
-                    // Each cell is a span list; the preview keeps the words, not the emphasis.
-                    Text(row(block["head"]), style = type.labelLarge)
-                    for (cells in items(block["rows"])) Text(row(cells), style = type.bodyMedium)
+                "table" -> Column(Modifier.horizontalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
+                    Row {
+                        for (cell in items(block["head"]))
+                            Text(spans(cell), Modifier.width(IdeaForgeWidths.tableCell).padding(end = IdeaForgeSpacing.related),
+                                style = type.labelLarge)
+                    }
+                    HorizontalDivider()
+                    for (cells in items(block["rows"])) Row {
+                        for (cell in items(cells))
+                            Text(spans(cell), Modifier.width(IdeaForgeWidths.tableCell).padding(end = IdeaForgeSpacing.related),
+                                style = type.bodyLarge)
+                    }
                 }
                 "quote" -> Text(
                     spans(block["spans"]),
                     Modifier.padding(start = IdeaForgeSpacing.related),
-                    style = type.bodyMedium,
+                    style = type.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                "h1", "h2" -> Text(spans(block["spans"]), style = type.titleLarge)
+                "h1" -> Text(spans(block["spans"]), Modifier.semantics { heading() }, style = type.headlineMedium)
+                "h2" -> Text(spans(block["spans"]), Modifier.semantics { heading() }, style = type.titleLarge)
                 else -> Text(
                     spans(block["spans"]),
-                    style = if (kind != null && kind.startsWith("h")) type.titleMedium else type.bodyMedium,
+                    modifier = if (kind != null && kind.startsWith("h")) Modifier.semantics { heading() } else Modifier,
+                    style = if (kind != null && kind.startsWith("h")) type.titleMedium else type.bodyLarge,
                 )
             }
         }
@@ -115,9 +134,6 @@ fun ExportPreview(markdown: String, modifier: Modifier = Modifier) {
 }
 
 private fun items(value: JsonElement?): List<JsonElement> = (value as? JsonArray).orEmpty()
-
-private fun row(cells: JsonElement?): String =
-    items(cells).joinToString(" · ") { cell -> items(cell).joinToString("") { stringOf(it["text"]).orEmpty() } }
 
 private fun spans(value: JsonElement?, prefix: String = ""): AnnotatedString = buildAnnotatedString {
     append(prefix)

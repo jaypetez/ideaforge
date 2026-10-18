@@ -9,6 +9,7 @@ import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -69,6 +71,8 @@ import io.github.jaypetez.ideaforge.voice.Speaker
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -116,6 +120,118 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
     private var heldLibraryRead: CountDownLatch? = null
     private var libraryReadEntered: CountDownLatch? = null
+
+    @Test
+    fun requestedNativeResultKeepsDocumentAndCanonicalActions() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxResultProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeResultKeepsDocumentAndCanonicalActions") != true) {
+                "the selected Result probe requires uxResultProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "Result evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("long", "long-scrolled", "short", "checklist", "synthesis-failure", "loading")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-result"),
+            matrix.flatMap { config -> frames.map { "${config.id}/result-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState("result-$frame", "result", "real-app", null, null, null)
+                        var release: CompletableDeferred<Unit>? = null
+                        try {
+                            val base = fixtures.state(if (frame == "synthesis-failure") "synthesis-failure" else "result-long")
+                            prepare(base, config)
+                            val graph = checkNotNull(fixtureGraph)
+                            var id = requireNotNull(base.sessionId)
+                            if (frame == "short") {
+                                val short = fixtures.datasets.getValue("mixed").first { stringOf(it["status"]) == "done" }
+                                check(runBlocking { graph.sessionStore.insert(short) })
+                                id = requireNotNull(stringOf(short["id"]))
+                            } else if (frame == "checklist") {
+                                val done = requireNotNull(graph.sessionStore.get(id))
+                                val turns = (done["turns"] as kotlinx.serialization.json.JsonArray).mapIndexed { index, turn ->
+                                    if (index == 0) kotlinx.serialization.json.JsonObject((turn as kotlinx.serialization.json.JsonObject) +
+                                        ("questionSource" to JsonPrimitive("bank"))) else turn
+                                }
+                                runBlocking { graph.sessionStore.save(kotlinx.serialization.json.JsonObject(done +
+                                    ("turns" to kotlinx.serialization.json.JsonArray(turns)))) }
+                            }
+                            if (frame == "synthesis-failure") {
+                                navigate(base)
+                                await(ResultTags.SYNTHESIS_FAILED)
+                                revealControl(ResultTags.SYNTHESIS_FAILED)
+                            } else {
+                                launchMain()
+                                await(NAVIGATION)
+                                if (frame == "loading") {
+                                    val entered = CompletableDeferred<Unit>()
+                                    val gate = CompletableDeferred<Unit>()
+                                    release = gate
+                                    graph.appScope.launch {
+                                        graph.sessionWorker.exclusive(id) {
+                                            entered.complete(Unit)
+                                            gate.await()
+                                        }
+                                    }
+                                    runBlocking { entered.await() }
+                                }
+                                selectSession(id)
+                                await(ResultTags.SCREEN)
+                                if (frame == "loading") {
+                                    compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.result_loading)), DEVICE_TIMEOUT)
+                                } else {
+                                    await(ResultTags.OUTPUT)
+                                    if (frame == "checklist")
+                                        assertTrue("checklist provenance is explicit", nodeText(ResultTags.META).contains("checklist"))
+                                    else compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
+                                    if (frame == "long-scrolled") {
+                                        compose.onNodeWithTag(ResultTags.CONTENT)
+                                            .performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, 100_000f) }
+                                        compose.waitUntil(DEVICE_TIMEOUT) {
+                                            compose.onNodeWithTag(ResultTags.CONTENT).fetchSemanticsNode().config
+                                                .getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.value?.invoke()?.let { it > 0f } == true
+                                        }
+                                    }
+                                }
+                            }
+                            val controls = if (frame == "loading")
+                                listOf(UxControl("loading", hasText(target.getString(R.string.result_loading)), actionRequired = false))
+                            else resultControls()
+                            recorder.capture(state, config, checkNotNull(activity), controls, nativeSurface = "result",
+                                nativeMapping = "Real MainActivity Result $frame; canonical stored export, scripted synthesis or held session lock; no chooser/clipboard/file picker or live model.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            release?.complete(Unit)
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
 
     @Test
     fun requestedNativeSettingsKeepSectionsAndDataBoundaries() {

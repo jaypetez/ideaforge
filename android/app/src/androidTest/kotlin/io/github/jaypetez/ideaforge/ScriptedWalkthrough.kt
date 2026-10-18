@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -113,7 +114,8 @@ internal fun scriptedWalkthrough(
     assertTrue("the export has ## headings", headings.isNotEmpty())
     val output = hasAnyAncestor(hasTestTag(ResultTags.OUTPUT))
     for (heading in headings) {
-        compose.onNode(hasText(heading) and output).assertExists("the result shows the \"## $heading\" section")
+        compose.onNode(hasText(heading) and output and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertExists("the result shows the \"## $heading\" section")
     }
     capture("result")
 }

@@ -17,6 +17,10 @@
     <string name="result_saved">Saved.</string>
     <string name="result_save_failed">The file could not be saved (%1$s).</string>
     <string name="result_share_failed">The share sheet failed (%1$s).</string>
+    <string name="result_copy_failed">The markdown could not be copied (%1$s).</string>
+    <string name="result_load_failed">The idea could not be read. Its stored files are kept (%1$s).</string>
+    <string name="result_loading">Reading the saved idea…</string>
+    <string name="result_retry">Try reading again</string>
     <string name="result_reopen_failed">The idea could not be reopened (%1$s).</string>
     <string name="result_missing">This idea is no longer in the library.</string>
 </resources>

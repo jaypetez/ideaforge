@@ -635,6 +635,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both Settings devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'settings' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true'/g) || []).length, 2,
     'both Settings devices must opt into the complete matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
+    'both Result devices must select the actual focused method');
+  assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,
+    'both Result devices must explicitly opt into the full subset');
   assert.equal((workflow.match(/inputs\.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful'/g) || []).length, 2,
     'both Ideas visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,
@@ -647,8 +651,8 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both voice visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxVoiceProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=voice-ready\+voice-starting\+voice-speaking\+voice-listening\+voice-transcribing\+voice-thinking\+voice-paused\+voice-recovering\+voice-blocked\+voice-complete\+voice-writing\+voice-fallback\+voice-notifications-off\+voice-help/g) || []).length, 2,
     'voice evidence must include every declared native phase and recovery presentation');
-  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && inputs\.evidence != 'voice' && inputs\.evidence != 'onboarding' && inputs\.evidence != 'settings' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
-    'Settings/Onboarding/Ideas/Interview/voice evidence must not inherit an unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && inputs\.evidence != 'voice' && inputs\.evidence != 'onboarding' && inputs\.evidence != 'settings' && inputs\.evidence != 'result' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
+    'Result/Settings/Onboarding/Ideas/Interview/voice evidence must not inherit an unrelated empty shell runner argument');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [

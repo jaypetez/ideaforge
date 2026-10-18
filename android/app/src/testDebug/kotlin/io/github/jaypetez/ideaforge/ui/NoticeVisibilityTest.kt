@@ -101,22 +101,24 @@ class NoticeVisibilityTest {
             compose.onNodeWithTag(ResultTags.SAVE).performScrollTo().assertIsDisplayed()
             compose.runOnIdle { vm.save(Uri.parse("content://documents/controlled.md")) }
             assertNull("the save has not completed while I/O is held", vm.state.value.notice)
+            compose.onNodeWithTag(ResultTags.ERROR).assertDoesNotExist()
             compose.onNodeWithTag(ResultTags.META).performScrollTo().assertIsDisplayed()
             val content = compose.onNodeWithTag(ResultTags.CONTENT)
-            val before = content.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
-            compose.mainClock.autoAdvance = false
             scheduler.runCurrent()
-            assertVisibleTimedNotice("controlled delayed document failure")
-            assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
-            assertEquals("a visible region needs no forced document scroll", before,
-                content.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value(), 1f)
+            compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.ERROR), 5_000)
+            compose.onNodeWithTag(ResultTags.ERROR).assertIsDisplayed()
+            compose.onNode(androidx.compose.ui.test.hasText("controlled delayed document failure", substring = true)).assertExists()
+            assertTrue("an error persists until explicit dismissal",
+                vm.state.value.notice is io.github.jaypetez.ideaforge.ui.result.ResultNotice.SaveFailed)
             assertTrue("the document retains a nonzero viewport", content.fetchSemanticsNode().boundsInWindow.height > 0f)
             compose.mainClock.autoAdvance = true
             for (tag in listOf(ResultTags.SHARE, ResultTags.COPY, ResultTags.SAVE, ResultTags.ASK_MORE)) {
                 revealAction(tag)
             }
-            compose.onNodeWithTag("notice-dismiss").assertIsDisplayed()
-            dismissNotice()
+            compose.onNodeWithTag(ResultTags.ERROR).performScrollTo().assertIsDisplayed()
+            compose.onNode(androidx.compose.ui.test.hasText("Dismiss") and
+                hasAnyAncestor(hasTestTag(ResultTags.ERROR))).performClick()
+            assertNull("explicit dismissal clears only the displayed operation error", vm.state.value.notice)
         } finally {
             harness.writes.cancel()
         }
