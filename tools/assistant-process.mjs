@@ -42,7 +42,7 @@ export function parseControl(prompt) {
   throw new Error('Use /ideaforge-assist [lite|full|ultra|off|default LEVEL|reset]');
 }
 
-async function statOrMissing(file) {
+export async function statOrMissing(file) {
   try {
     return await lstat(file);
   } catch (error) {
@@ -51,7 +51,7 @@ async function statOrMissing(file) {
   }
 }
 
-async function stateDirectory(root, create = false) {
+export async function stateDirectory(root, create = false) {
   const path = join(await realpath(root), STATE_DIR);
   const stat = await statOrMissing(path);
   if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) {
@@ -67,7 +67,7 @@ async function stateDirectory(root, create = false) {
   return path;
 }
 
-async function readJson(file) {
+export async function readJson(file) {
   const stat = await statOrMissing(file);
   if (!stat) return null;
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_JSON) {
@@ -107,7 +107,7 @@ export async function readConfig(root, env = process.env) {
   };
 }
 
-async function writeJson(root, file, value) {
+export async function writeJson(root, file, value) {
   const dir = await stateDirectory(root, true);
   if (dirname(file) !== dir) throw new Error('Assistant write escaped its state directory');
   const existing = await statOrMissing(file);
@@ -215,9 +215,9 @@ export async function trustedWorkingDirectory(root, cwd) {
   return actualCwd;
 }
 
-export function runGit(root, args) {
+export function runGit(root, args, { timeout = 3000 } = {}) {
   const out = spawnSync('git', ['-C', root, ...args], {
-    encoding: 'utf8', windowsHide: true, timeout: 3000, maxBuffer: 2 * 1024 * 1024,
+    encoding: 'utf8', windowsHide: true, timeout, maxBuffer: 2 * 1024 * 1024,
   });
   if (out.error) throw new Error(`Assistant Git command failed: ${args[0]}`, { cause: out.error });
   if (out.status !== 0) throw new Error(`Assistant Git ${args[0]} failed: ${out.stderr.trim()}`);

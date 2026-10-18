@@ -20,7 +20,8 @@ All shared procedures have one definition under `.claude/skills/`:
 | [`ideaforge-debt`](../.claude/skills/ideaforge-debt/SKILL.md) | Shortcut decisions and upgrade triggers |
 | [`ideaforge-gain`](../.claude/skills/ideaforge-gain/SKILL.md) | Reproducible local comparison facts |
 | [`ideaforge-assist-help`](../.claude/skills/ideaforge-assist-help/SKILL.md) | Read-only one-shot help body |
-| [`review-ideaforge-change`](../.claude/skills/review-ideaforge-change/SKILL.md) | Existing exact-diff defect review |
+| [`review-ideaforge-change`](../.claude/skills/review-ideaforge-change/SKILL.md) | Existing exact-diff defect review, and challenge of supplied findings |
+| [`review-ideaforge-before-pr`](../.claude/skills/review-ideaforge-before-pr/SKILL.md) | Adversarial multi-agent review recorded per HEAD before any PR |
 
 Implementation owners are separate from the shared procedures:
 
@@ -28,9 +29,10 @@ Implementation owners are separate from the shared procedures:
 |---|---|
 | [`assistant-process.mjs`](../tools/assistant-process.mjs) | State, exact controls, map/debt/gain, canonical-rule rendering and guidance lifecycle |
 | [`assistant.mjs`](../tools/assistant.mjs) | CLI and bounded stdin parsing |
+| [`assistant-review.mjs`](../tools/assistant-review.mjs) | Pre-PR review diff and record, and the `gh pr create` gate decision |
 | [Claude project settings](../.claude/settings.json) | `CLAUDE_PROJECT_DIR`-guarded inline bootstrap before imports |
 | [`assistant-hook.mjs`](../tools/assistant-hook.mjs) | Claude adapter and shared `copilotHook` command-hook output contracts |
-| [Copilot command hooks](../.github/hooks/ideaforge-assist.json) | Basic startup/child context and persisted prompt controls, without requiring an extension |
+| [Copilot command hooks](../.github/hooks/ideaforge-assist.json) | Basic startup/child context and persisted prompt controls, without requiring an extension, and the refuse-only `preToolUse` pre-PR review gate |
 | [`assistant-copilot.mjs`](../tools/assistant-copilot.mjs) | Optional SDK prompt/pre-tool callbacks and compaction event; no startup/child callbacks |
 | [Copilot extension entry](../.github/extensions/ideaforge-assist/extension.mjs) | Joins a supported foreground session when the native extension host loads it |
 
@@ -44,8 +46,9 @@ Their read-only bodies are separate from
 The helper and adapters are repository-development utilities, outside `src/`, Android,
 the service-worker shell and the publishable tree owned by
 [`assemble-site.mjs`](../tools/assemble-site.mjs). They add no web dependency or build step.
-They do not send network requests, collect telemetry, retain source/prompts/transcripts,
-read app credentials, or make default paid model calls. Existing client/model operation
+They do not send network requests, collect telemetry, retain prompts or transcripts,
+read app credentials, or make default paid model calls. The one retained source copy is
+the [pre-PR review](#pre-pr-review-gate) diff, kept locally beside its record. Existing client/model operation
 is separate from this local utility.
 
 ## Controls
@@ -101,8 +104,14 @@ State and local configuration live only in the ignored `.ideaforge-assist/` dire
 the local configuration file is `.ideaforge-assist/config.json`.
 Session keys are hashed from the trusted repository/worktree root, client and session id;
 one worktree, client or concurrent session must not borrow another's mode. Raw untrusted
-identifiers do not become paths. Persisted records contain bounded schema/mode metadata,
+identifiers do not become paths. Mode records contain bounded schema/mode metadata,
 not prompts, source copies, transcripts, secrets or environment dumps.
+
+Pre-PR review files are the exception. `review-<head>.diff` is the full branch diff, a
+copy of source, and `review-<head>.json` is its record. Both are keyed by worktree and
+commit only, so every client and session in that worktree shares one result for a HEAD,
+and they are never pruned automatically; delete them whenever you like, at the cost of
+reviewing that HEAD again.
 
 For a new session, the default resolves in this order:
 
@@ -174,8 +183,10 @@ context is not the same output envelope as `SubagentStart`'s
 `hookSpecificOutput.additionalContext`.
 Output is bounded; ordinary logs must not pollute the context protocol.
 
-These are context hooks, not tool-decision or permission hooks. They must not install
-global configuration, choose a model or alter a user's request.
+The lifecycle hooks are context hooks, not tool-decision or permission hooks. They must
+not install global configuration, choose a model or alter a user's request. The one
+exception is the [pre-PR review gate](#pre-pr-review-gate), a `PreToolUse` hook that can
+only refuse.
 [Native project discovery and startup-hook execution/output](#verified-native-discovery)
 are verified. Model adherence and the remaining lifecycle cases are
 [separate pending checks](#pending-native-consumption).
@@ -225,8 +236,9 @@ file through that route alone cannot refresh guidance. The SDK's
 is actually loaded and its callback runs.
 In that host, [`assistant-copilot.mjs`](../tools/assistant-copilot.mjs) observes
 `session.compaction_complete` and restores context at the next supported prompt or
-pre-tool hook, without a background loop or `session.send`. The pre-tool hook returns
-passive context only; it does not approve/deny tools or change their arguments.
+pre-tool hook, without a background loop or `session.send`. The SDK pre-tool hook returns
+passive context only; it does not approve/deny tools or change their arguments. The
+command-hook `preToolUse` is the separate [pre-PR review gate](#pre-pr-review-gate).
 
 The programmatic SDK server has no TUI/foreground extension host. Its `extensions.list`
 result is not evidence that a project extension did or did not load in the native TUI.
@@ -249,6 +261,66 @@ These are explicit fallback procedures, not native runtime or model-adherence pr
 A manual refresh still requires the current client's normal trust and approved tools.
 It is not a way around blocked workspace execution; if trust or real session identity
 is unavailable, report that boundary rather than fabricating state or granting permission.
+
+### Pre-PR review gate
+
+[`review-ideaforge-before-pr`](../.claude/skills/review-ideaforge-before-pr/SKILL.md)
+prepares the exact branch diff as a file the read-only review agents can read, runs two
+change reviewers blind (plus a documentation reviewer when documentation changed) and a
+fresh reviewer to challenge every candidate, and records a passing result
+for the exact HEAD in `.ideaforge-assist/`. The record is per commit; any later commit,
+amend or rebase needs another round. A waiver is recorded only on the user's explicit
+request, with their reason.
+
+Claude Code's `PreToolUse` hook (matcher `Bash|PowerShell`) and Copilot CLI's
+`preToolUse` command hook pass the command to `prGateDecision` in
+[`assistant-review.mjs`](../tools/assistant-review.mjs). It does not parse shell:
+three review rounds kept finding quoting forms a parser missed. It joins line
+continuations, drops quote and backtick characters, reads backslashes as path
+separators, then looks for `gh pr create` or `gh pr new` (allowing a few flags such as
+`-R owner/repo` before the subcommand) in command position: at the start of a line,
+after `;`, `&`, `|`, a bracket or `$(`, optionally behind a few prefixes: an assignment (`A=b`, or PowerShell's
+`$x =` and `[string]$x =`), a control keyword such as `if` or `while`, or one of the wrappers
+`exec`, `command`, `time`, `env`, `nohup`, `xargs`, `timeout`, `nice`, `sudo` and
+`doas` with up to three arguments, each a flag (optionally followed by its value) or a
+number. A mention mid-sentence is not in command position and passes. The matcher is
+linear in the command's length, since it runs on every shell command.
+
+For a match, because the hook sees the checkout before the command runs, it first
+refuses, in any checkout and whatever the review state, a PR command whose text changes
+directory, commits, rebases, pulls, merges, switches or resets, or contains `--head` or
+`-H` anywhere from `gh` onwards (a wrapper's own flags before it, such as `sudo -H`, are
+not read), even naming the current branch. Run `gh` in its
+own command from the reviewed branch. Only then does it look at the review: in a checkout
+that does not carry the review tool (another repository, or a branch from before the gate
+existed) it abstains, since nothing could be recorded there; otherwise it refuses unless
+the tree is clean and HEAD has a `clean` or `waived` record, and a record it cannot
+read also refuses.
+
+The cost of the blunt rule is that quoted text is read as commands too. A quoted `;`,
+`|`, `&`, bracket or line break before the PR command puts it in command position, so
+a search pattern such as `"gh pr view|gh pr create"` or a message such as
+`"Gate (gh pr create)"` is refused while HEAD is unreviewed. Inline title, body or
+message text that starts a line or clause with `cd` or a HEAD-moving `git` command, or
+contains `--head` or `-H`, refuses the PR even after a clean review. Pass PR bodies and
+commit messages from a file (`--body-file`, `-F`) or use `--fill`, and put scripts
+that mention these commands in a file rather than inline.
+
+Recording names the reviewed commit, and refuses when HEAD has moved since, so one
+session cannot record another session's unreviewed commit. For any other command it gives no
+decision at all, so the client's normal permission flow still decides; it never approves,
+asks, or changes arguments. Copilot denies a tool whose `preToolUse` command exits
+non-zero, so every failure in that adapter, including locating the repository, is
+reported on stderr and answered with `{}` rather than blocking every tool. Hook input that
+cannot be read is likewise left to the normal flow.
+
+This is a workflow guard, not a security boundary: the same model can run the record
+command, and `gh api`, a quoted path to `gh` that contains spaces, a command handed to
+another interpreter as a string (`bash -c "…"`), PowerShell splatting (`gh @args`),
+legacy backtick substitution, any other wrapper word, a wrapper with more than three
+such arguments or with a bare argument that is not a flag, a flag's value or a number
+(`sudo root gh …`), more than six prefixes before
+`gh`, or a person's own terminal are not covered.
 
 ### Child inheritance limits
 
@@ -540,7 +612,15 @@ resume, mode switch/Off, restored context, supported child context and the unsup
 fallback. Inspect extension load status/logs through native tools. Do not call models or
 paid providers merely to make a discovery check look end-to-end.
 When a check remains unavailable, state the exact boundary instead of converting a fixture
-pass into native proof. Assistant checks in standard tests/CI remain offline and add no
+pass into native proof.
+
+The [pre-PR review gate](#pre-pr-review-gate) has protocol coverage for both clients: the
+shipped Claude and Copilot commands are run against a real Git repository in the unit
+suite. On 2026-10-18, Claude Code `2.1.302` loaded the new `PreToolUse` entry into an
+already-running session and refused `gh pr create --help` (gh `2.87.3`) on an uncommitted
+tree with the gate's reason; nothing was sent to GitHub. Copilot CLI was not installed on
+that machine, so a native Copilot `preToolUse` refusal and Copilot's dispatch of its
+review agents as subagents remain to be observed and recorded here. Assistant checks in standard tests/CI remain offline and add no
 dependencies; no upstream installer, benchmark stack or paid evaluation is run by this
 feature.
 
