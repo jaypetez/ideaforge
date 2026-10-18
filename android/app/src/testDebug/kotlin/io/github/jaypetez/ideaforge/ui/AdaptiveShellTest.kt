@@ -59,6 +59,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -325,13 +326,17 @@ class AdaptiveShellTest {
         val graph = graph(active)
         shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.RECORD_AUDIO)
         shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        var starts = 0
+        val starts = AtomicInteger()
+        val spoken = AtomicInteger()
         graph.driveService = object : DriveServiceControl {
-            override fun start() { starts++ }
+            override fun start() { starts.incrementAndGet() }
             override fun stop() {}
         }
         graph.driveSpeaker = object : Speaker {
-            override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+            override suspend fun speak(text: String): SpeakResult {
+                spoken.incrementAndGet()
+                return awaitCancellation()
+            }
             override fun cancel() {}
             override fun shutdown() {}
         }
@@ -354,13 +359,26 @@ class AdaptiveShellTest {
                     }.toIntArray())
             }
             await("voice-stage")
+            // ACTIVE precedes admission; activity-thread reads also drain posted Robolectric work.
+            compose.waitUntil(10_000) {
+                var observed = 0
+                scenario.onActivity { observed = spoken.get() }
+                observed == 1
+            }
             assertEquals(VoiceMode.ACTIVE, graph.driveController.state.value.mode)
-            assertEquals(1, starts)
+            assertEquals(1, starts.get())
             compose.onNodeWithTag("voice-notifications-off").performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("voice-pause").performClick()
             compose.onNodeWithTag("voice-resume").performClick()
+            compose.waitUntil(10_000) {
+                var observed = 0
+                scenario.onActivity { observed = spoken.get() }
+                observed == 2
+            }
             compose.onNodeWithTag("voice-mic-rationale").assertDoesNotExist()
+            compose.onNodeWithTag("voice-notification-rationale").assertDoesNotExist()
             assertEquals(VoiceMode.ACTIVE, graph.driveController.state.value.mode)
+            assertEquals(1, starts.get())
             compose.onNodeWithTag("voice-exit").performClick()
             await("answer")
         }
