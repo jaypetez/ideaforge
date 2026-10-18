@@ -20,6 +20,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -187,6 +189,14 @@ class ResultScreenTest {
         show(ResultVectors.written)
         compose.onNode(hasTestTag(ResultTags.SHARE) and hasAnyAncestor(hasTestTag("result-primary-action"))).assertExists()
         compose.onNodeWithTag(ResultTags.COPY).assertExists()
+    }
+
+    @Test
+    fun documentHeadingRemainsDistinctFromAnIdenticalTableCell() {
+        show(ResultVectors.written)
+        val heading = hasText("What good looks like") and hasAnyAncestor(hasTestTag(ResultTags.OUTPUT)) and
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        compose.onNode(heading).assertExists()
     }
 
     @Test
