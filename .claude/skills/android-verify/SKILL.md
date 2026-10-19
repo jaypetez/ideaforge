@@ -45,6 +45,28 @@ Use these selectors while correcting a failure, preserving warm Gradle state. Ro
 `clean`, `--rerun-tasks`, cache deletion or daemon shutdown defeats incremental validation;
 the worktree-removal shutdown in section 6 is a different operation.
 
+## 1a. Native readiness during development
+
+Before the final gate, inspect the changed states using focused tests and the existing
+[capture routes](../../../CONTRIBUTING.md#development-ux-evidence):
+
+- Check truthful absent/saved fields against actual stored values, not a nonempty default
+  credential map.
+- Measure native interactive targets (`touchBoundsInRoot`), not only paint bounds. Inspect
+  clipped labels and controls at the requested windows and enlarged font scales.
+- Capture visible named errors/loading while the affected field or operation is on screen,
+  not a preceding field or an off-screen summary.
+- Use semantic selectors that distinguish headings from table cells or repeated text.
+  Check affected capture drivers and the canonical walkthrough, including its chip/export
+  consumers, before freezing the head.
+
+Keep emulator jobs sequential; preserve the existing device ownership and cleanup rules.
+A focused capture is not a full-matrix pass. For final acceptance, inspect actual
+selected-test execution, complete requested profile/SHA manifests and the PNGs on a
+rendering-enabled image; ATD semantics are not visual evidence. Use the
+[backlog workflow](../work-issues/SKILL.md#5-prove-it) for its focused/review/final ordering,
+not another implementation worker or a new evidence runner.
+
 ## 2. The whole Android gate
 
 ```sh
@@ -54,9 +76,10 @@ the worktree-removal shutdown in section 6 is a different operation.
 This is exactly what CI runs (section 7). `check` covers every module's configured unit
 tests and Android lint (`abortOnError`). The APK lands in
 `android/app/build/outputs/apk/debug/`.
-Run this whole gate on the final reviewed head, not after every focused fix. Retain its
-command/result and tested SHA; changed sources, fixtures or validation inputs invalidate
-the corresponding evidence. The web pre-push `npm run test:all` gate is still required.
+Run this whole gate on the clean final reviewed head, not after every focused fix. Retain
+its command/result and tested SHA; any changed head, including test-only changes, fixtures
+or validation inputs invalidates the corresponding evidence. The web pre-push
+`npm run test:all` gate is still required.
 
 ## 3. Golden vectors: the contract with the JavaScript core
 

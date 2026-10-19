@@ -483,6 +483,16 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and
   [`CONTRIBUTING.md`](../../../../CONTRIBUTING.md). Re-check the development guide, skills,
   and review adapters.
+- **Backlog execution and evidence ordering.** Sources:
+  [`work-issues`](../../work-issues/SKILL.md) owns explicit invocation, requested-scope
+  preflight, the single-issue/direct and multi-issue/coordinator-worker boundary, persistent
+  review state, compact evidence handoff and guarded merge;
+  [`android-verify`](../../android-verify/SKILL.md) owns native readiness and validation.
+  Re-check `AGENTS.md`, `CONTRIBUTING.md`, `docs/ASSISTANT-PROCESS.md` and
+  [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs).
+  Commands and actual CI gates still come from `package.json` and `ci.yml`; ordinary client
+  task tools do not imply new hooks, permissions, model settings or emulator parallelism.
+  Contract/discovery checks do not prove model adherence or a measured speedup.
 - **Optional browser MCP.** Source:
   [`.mcp.json`](../../../../.mcp.json) and
   [`tools/playwright-mcp.mjs`](../../../../tools/playwright-mcp.mjs). Re-check the

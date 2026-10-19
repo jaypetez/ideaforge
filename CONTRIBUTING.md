@@ -72,6 +72,16 @@ read-only review agent check the exact diff, and squash-merges only when `ci` is
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
 
+Single-issue work stays direct. An explicitly requested multi-issue run uses a lean
+coordinator and one fresh sequential implementation worker per issue through the client's
+ordinary task tool, not fleet mode or a new custom agent. The worker owns implementation,
+reviews, final exact-head evidence, draft PR and actual acceptance; the coordinator verifies
+the compact handoff and real results, then owns the unchanged guarded merge and closeout.
+Same-issue corrections return to the same worker; the next starts only on verified green
+main within the requested queue/dependencies. See the skill for the canonical protocol and
+the [child guidance limits](docs/ASSISTANT-PROCESS.md#child-inheritance-limits) for unsupported
+lifecycle hooks. This changes neither model settings nor emulator concurrency.
+
 The skill separates focused development proof from one clean-head final validation.
 It records the reviewed diff, review/fix round and tested SHA so resume does not restart
 completed work; three unsuccessful rounds escalate rather than loop. Native-only changes

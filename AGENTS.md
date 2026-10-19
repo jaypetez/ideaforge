@@ -118,6 +118,9 @@ for source checks. Stop at a green PR unless merge/publication was explicitly re
 
 Run the cheapest rung that can disprove your change, and only climb when it passes. Rungs 1–3
 are sub-second; do not skip them to get to the interesting one.
+The explicitly invoked [backlog workflow](.claude/skills/work-issues/SKILL.md) owns issue
+sequencing, fresh multi-issue workers and focused/review/final phases; this ladder remains
+the validation contract, not a second phase schedule.
 
 **1 · Purity lint — `npm run lint:purity`**
 Fails if `src/core/` or `src/runtime/` references `window`, `document`, `localStorage`,

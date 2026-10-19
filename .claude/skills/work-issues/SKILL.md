@@ -17,9 +17,6 @@ explicitly:
 - `/work-issues --max 5` works up to five issues in a row.
 - `/loop /work-issues` keeps going, self-paced, until nothing is ready.
 
-For long runs, a fresh context per issue is better than one long conversation. A shell loop
-over `claude -p "/work-issues"` gives each issue its own context.
-
 Invoking this skill **is** the maintainer's permission to merge green PRs that close
 `agent-ready` issues, which is the one thing it adds to the normal rule in
 [AGENTS.md](../../../AGENTS.md#landing-a-change). It is not permission to tag, release,
@@ -28,6 +25,46 @@ secrets. The [release skill](../release/SKILL.md) remains a separate, explicit a
 
 Read [AGENTS.md](../../../AGENTS.md) and [CLAUDE.md](../../../CLAUDE.md) before the first
 issue of a run. They are the working loop and the invariants; this file only sequences them.
+
+## Execution boundary
+
+A single-issue invocation runs directly, without an extra coordinator or implementation
+worker. Only an explicitly requested multi-issue run (`--max`, a requested queue, or
+`/loop /work-issues`) uses the current client's ordinary task/subagent tool to dispatch
+one fresh implementation worker per issue. Workers run sequentially with one active issue:
+no fleet, parallel issue implementation or parallel emulator jobs. Do not change model,
+effort, hooks, permissions or required gates, or add an orchestrator or custom worker agent.
+
+| Owner in a multi-issue run | Responsibility |
+|---|---|
+| Coordinator | Preflight actual green main and the requested queue/dependencies (sections 1–2), claim one issue and create its branch (section 3), verify the evidence handoff, then own the literal-SHA merge gate and closeout (sections 8–10). |
+| Issue worker | Own the complete scoped implementation, affected callers/fixtures/docs, focused regressions, independent code/docs reviews and corrections, clean-head final inventory, draft PR, actual CI/native acceptance and image inspection (sections 4–7). |
+
+The worker may use the existing read-only independent review adapters. The worker must not
+spawn another implementation worker or coordinator, pick another issue, or merge. Merge
+authority from the original invocation stays with the coordinator, not the delegated packet.
+
+Send a bounded dispatch packet: issue body and acceptance criteria; worktree, branch and
+base SHA; owning instructions and skills; inherited mode (Full by default) and the
+[canonical lean guidance](../../../AGENTS.md#lean-coding), not earlier transcripts.
+For dispatches without child lifecycle hooks, include that canonical section in the prompt;
+preserve the [general-purpose fallback](../../../docs/ASSISTANT-PROCESS.md#child-inheritance-limits)
+and the review adapters' read-only limits.
+
+Return a compact persistent handoff from the per-issue record: exact tested SHA and
+commands/results; review verdicts and combined code/docs round; actual CI/device run IDs
+and attempts; artifact/profile/SHA provenance (including any evidence helper's source);
+unresolved errors and the next action. Use references to bounded artifacts, not raw
+source/log/history dumps. The coordinator verifies the actual required `ci` and acceptance
+results against that SHA, but does not redo the worker's exploration, reviews, tests or
+screenshots.
+
+Send same-issue follow-ups to the same worker with its combined review round and current
+failure state; never restart context to evade review limits. The next worker starts only
+after the coordinator verifies actual green merged main and the remaining requested
+dependencies (or rechecks unchanged green main after an escalation). If fresh worker
+contexts are unavailable, or the same worker cannot be continued, report the limitation
+and stop rather than silently replacing it with an unbounded conversation.
 
 ## The labels this skill reads and writes
 
@@ -48,17 +85,24 @@ Stop the whole run, rather than one issue, if any of these fail.
 git status --porcelain                       # must print nothing
 git switch main && git pull --ff-only
 gh api user --jq .login                      # the maintainer account the run acts as
-gh run list --workflow CI --branch main --limit 1 --json conclusion,headSha
+gh run list --workflow CI --branch main --commit "$(git rev-parse HEAD)" --limit 1 \
+  --json databaseId,attempt,headSha,status,conclusion
 ```
 
 - The working tree must be clean. Never stash, reset or discard someone else's work to make
   it so; stop and report.
-- The latest `CI` run on `main` must be `success`. Building on a red `main` makes every
-  later failure ambiguous.
+- The latest `CI` run for the actual updated main SHA must have matching `headSha`,
+  status `completed` and conclusion `success`. Pending, missing, cancelled and skipped
+  are not green. Red main stops the run; do not silently start a CI-repair project.
 - If an open issue already carries `agent-in-progress`, resume it (section 4 onwards on its
-  existing branch and PR) instead of claiming another.
+  existing branch and PR) only within this run's scope, preserving the recorded review/
+  failure state and, for a multi-issue run, the same worker. If another run owns the claim
+  or it is outside the requested scope, stop and report instead of claiming another.
 
 ## 2. Pick the next issue
+
+Preflight the requested queue and dependency closure before claiming anything. Respect an
+explicit issue list, order and maximum count; do not substitute an unrelated ready issue.
 
 ```sh
 gh issue list --state open --label agent-ready --limit 200 \
@@ -70,13 +114,18 @@ Then drop every issue with an open blocker. Read blockers from both sources, bec
 may be the only one present:
 
 ```sh
-gh api graphql -F n=42 -f query='query($n:Int!){repository(owner:"jaypetez",name:"ideaforge"){issue(number:$n){blockedBy(first:50){nodes{number state}}}}}'
+gh api graphql -F n=42 -f query='query($n:Int!){repository(owner:"jaypetez",name:"ideaforge"){issue(number:$n){blockedBy(first:50){nodes{number state} pageInfo{hasNextPage endCursor}}}}}'
 gh issue view 42 --json body --jq .body     # "Blocked by #N" lines
 ```
 
-Order what remains by milestone (`M1` before `M2` and so on), then priority (`P0` first),
-then issue number. Take the first. If none remains, report what is blocked and on what, and
-stop.
+Follow transitive open blockers for the requested queue, inspecting both sources; paginate
+incomplete listings rather than assuming the first page is the closure. Disclose
+outside-request prerequisites before implementation: they require explicit authorisation,
+not extra repair projects silently added to the requested issue count.
+
+Within the requested scope and order, sort remaining choices by milestone (`M1` before `M2`
+and so on), then priority (`P0` first), then issue number. Take the first. If none remains,
+report what is blocked and on what, and stop.
 
 ## 3. Claim it
 
@@ -88,11 +137,17 @@ git switch -c issue/42-short-slug main
 Comment on the issue with a short plan: the approach, the files you expect to touch, and
 how each acceptance criterion will be proved. If the issue is ambiguous enough that a
 reasonable plan needs a product decision, escalate (section 9) now rather than guessing.
+For a multi-issue run, the coordinator now sends the dispatch packet to one fresh worker
+on this branch. For one issue, continue directly.
 
 ## 4. Implement
 
 - Treat the issue body as the specification. The acceptance criteria are the definition of
   done. The "Invariants at risk" section names the CLAUDE.md rules to re-read.
+- Map the owning code and every affected caller, test, fixture, configuration and
+  documentation surface before choosing the implementation; use AGENTS.md's lean ladder.
+- Batch independent file/range reads and GitHub metadata queries. Keep known inspect/act/
+  verify steps together; investigate separately when a result determines the next action.
 - Use the area skill when one applies:
   [change-voice-and-driving](../change-voice-and-driving/SKILL.md),
   [add-provider](../add-provider/SKILL.md),
@@ -101,14 +156,21 @@ reasonable plan needs a product decision, escalate (section 9) now rather than g
   [update-documentation](../update-documentation/SKILL.md) (which invokes
   [update-readme](../update-readme/SKILL.md)), or
   [validate-local-model](../validate-local-model/SKILL.md).
-- Climb the test ladder in AGENTS.md from the cheapest rung. Write the test that would have
-  caught the bug, or that fails without the feature, before trusting the change.
+- Climb the test ladder in AGENTS.md from the cheapest rung. Where practical, first show
+  a meaningful regression failing for the intended bug or absent feature, then implement.
+- Bring acceptance risks forward before final validation: truthful absent/saved fields,
+  actual native touch targets, visible named errors/loading, semantic selectors and affected
+  walkthroughs. Inspect changed states during focused development, not first after the final
+  gates. Use [native readiness](../android-verify/SKILL.md#1a-native-readiness-during-development)
+  for native geometry, captures and walkthrough consumers.
 - Keep the change to the issue. An unrelated defect found on the way gets its own issue
   (labelled, with acceptance criteria), not a drive-by fix.
 - Public behaviour changes update documentation in the same PR. Documentation is one
   synchronized surface.
-- Keep a per-issue record in the session workspace: acceptance evidence, command/result,
-  tested SHA, review round and reviewed diff, CI run/attempt, and the current failure.
+- Keep one per-issue record in the session workspace: phase, acceptance evidence,
+  command/result, tested SHA, review round and reviewed diff, CI/device run/attempt,
+  artifact/profile provenance, and the current failure. Update it at phase changes or
+  failures, not every routine command. Do not commit it, raw logs or private timing data.
   Restore that record after compaction or resume instead of restarting completed phases.
   Existing browser elapsed logs, Gradle reports and GitHub job timestamps distinguish
   validation from model/tool waiting; do not infer model speed from total issue time.
@@ -131,7 +193,7 @@ collect the final inventory once on the clean final head in section 7.
 |---|---|
 | Anything | `npm run test:all` (includes `npm test`, graph and required-browser checks), plus `npm run test:docs` |
 | Web UI, README or its generated artifacts | `npm run screenshots`, then open the changed images, light and dark |
-| `android/` | `./gradlew check :app:assembleDebug` in `android/` (`gradlew.bat` on Windows), plus the emulator smoke run in [android-verify](../android-verify/SKILL.md) when an emulator is available |
+| `android/` or regenerated golden vectors | `./gradlew check :app:assembleDebug` in `android/` (`gradlew.bat` on Windows), plus the emulator smoke run in [android-verify](../android-verify/SKILL.md) when an emulator is available |
 | `.github/workflows/` | `npm run test:docs`, and read the workflow run on the PR |
 
 Native-only visible changes need their native acceptance evidence, not regeneration of
@@ -149,7 +211,8 @@ needs correction or section 9 escalation, not retries until green.
 Commit, then give the exact diff (`git diff main...HEAD`) to the client's matching read-only
 code review adapter, plus its documentation review adapter when documentation changed; see
 [the client table](../../../CONTRIBUTING.md#coding-assistants). The caller owns validation:
-review agents do not run commands or repeat the test ladder.
+the issue worker in a multi-issue run, not its coordinator. Review agents do not run commands
+or repeat the test ladder.
 
 Fix every confirmed finding and run the focused regression checks. Re-review the changed
 diff and affected consumers, carrying forward unresolved findings. Count combined code/docs
@@ -162,12 +225,15 @@ review context invalidates that verdict; do not reuse it for an unseen diff.
 
 ## 7. Deliver
 
-After review corrections and generated artifacts are settled, complete section 5's final
-inventory and validate/push exactly as AGENTS.md requires. The `test:all` below supplies the
-unit, graph and required-browser evidence together; do not precede it with another full
-browser run merely to mark section 5 complete. Stage and commit generated artifacts before
-the clean-head gate. Any later head, working-tree, fixture or validation-input change
-invalidates affected evidence and requires final validation again before pushing.
+Once review corrections are complete and code, documentation and capture drivers are
+settled, complete section 5's final inventory and validate/push exactly as AGENTS.md requires.
+The `test:all` below supplies the unit, graph and required-browser evidence together; do not
+precede it with another full browser run merely to mark section 5 complete. Stage and commit
+generated artifacts, including them in the reviewed diff, before the clean-head gate. Any
+later head, working-tree, fixture or validation-input change, including test-only changes,
+invalidates corresponding proof and requires final validation again before pushing. Neither
+an old-SHA pass nor a focused capture can substitute for the required final inventory on the
+new head.
 
 ```sh
 test -z "$(git status --porcelain)" &&
@@ -187,12 +253,13 @@ calls, so the merge gate needs it as a literal value. Record each command's resu
 CI run/attempt alongside that SHA. Do not rerun a passed gate on unchanged inputs merely
 while waiting, or push metadata-only checkpoints just to start another CI run.
 
-Open the PR using the repository's template. Its body must contain `Closes #42`, a checklist mapping each acceptance
-criterion to its evidence, and a summary of the commands run with their results. End it
-with the attribution line the session's instructions require.
+Open a draft PR using the repository's template, preserving its headings, comments and
+checklists. Its body must contain `Closes #42`, a checklist mapping each acceptance criterion
+to its evidence, and a summary of the commands run with their results. End it with the
+attribution line the session's instructions require.
 
 ```sh
-gh pr create --base main --title "Short imperative title (#42)" --body-file pr-body.md
+gh pr create --draft --base main --title "Short imperative title (#42)" --body-file pr-body.md
 ```
 
 Write `pr-body.md` in the scratchpad, not the repository.
@@ -216,7 +283,20 @@ for i in $(seq 1 120); do
 done
 ```
 
-Run it in the background when the client allows that; a full run is several minutes.
+Use one bounded watcher per required run/check; run it in the background when useful and
+the client allows it, then consume completion/output once. A timeout is a pending result to
+report, not a pass or a reason to start duplicate watchers.
+
+Complete actual CI/native acceptance required by the issue, not just dispatch or build
+success. Record the real run IDs/attempts and tested SHA; for native evidence, verify
+nonzero selected-test execution, the requested profiles/matrices and artifact provenance,
+and inspect the required PNGs. Verify uploaded evidence by reading it back. Reuse valid
+existing evidence helpers with their source identity; a helper in a retained worktree is
+not proof that it shipped on main.
+
+Keep the PR draft while evidence or findings remain unresolved. In a multi-issue run the
+worker returns the handoff; the coordinator verifies it against the real results, then uses
+`gh pr ready 99` before section 8. A direct single-issue caller performs both roles.
 
 ## 8. Merge gate
 
@@ -225,6 +305,9 @@ The maintainer account is an `always` bypass actor on **both** rulesets: `main r
 check and the up-to-date rule). So `--admin` gets past all of them at once, and the check
 below is the only thing standing between a merge and an untested commit. Never weaken it,
 split it, or run the merge without it.
+
+In a multi-issue run, only the coordinator executes this gate, using the verified handoff's
+literal tested SHA and actual required `ci` result. A worker report alone is not the gate.
 
 It is one command, in a POSIX shell (Git Bash on Windows), so nothing can change between
 the check and the merge. Put in the PR number and the literal SHA you validated:
@@ -256,6 +339,9 @@ head moves after the check. Never use `--no-verify`, never force-push, never pus
 `main` directly, and never edit a ruleset or a required check to get a PR through.
 
 ## 9. Close out, or escalate
+
+The coordinator owns closeout in a multi-issue run; a worker reports escalation rather than
+selecting another issue.
 
 **After a merge:**
 
