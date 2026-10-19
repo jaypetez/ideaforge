@@ -25,6 +25,7 @@ dependencies {
     // The vector loader (Vectors.kt) is shared from :core's test fixtures.
     testImplementation(testFixtures(project(":core")))
     testImplementation(libs.okhttp.mockwebserver3)
+    testImplementation(libs.okhttp.tls)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlin.test)

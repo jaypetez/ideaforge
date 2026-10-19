@@ -71,6 +71,77 @@ source wins over prose, and a generated artifact wins over a description of that
   current web table in DESIGN, Appearance guidance and generated real screenshots.
   HTML dialog styling does not mean the existing browser-owned `window.confirm` flows
   have been replaced; later settings/recovery issues own those compositions.
+- **Native onboarding and explicit entry.** Sources:
+  `OnboardingScreen.kt` owns compact provider rows, bounded required fields and a supporting
+  pane that collapses when native window/font space cannot fit it. `OnboardingViewModel`
+  retains per-provider field drafts only in memory, not a new secret store, with existing
+  check-generation retirement and distinct saved/last-success/failure state. `AppShell.kt`
+  and `Routes.kt` own NewIdeaRoute before id allocation; Voice/Type selection uses an
+  origin-entry/admission guard and a fresh Interview. `InterviewScreen` consumes its
+  explicit voice flag once and retires pending UI permission intent on Stop/disposal;
+  the app graph/controller remain work owners. Re-check Android/getting-started/provider/
+  privacy guidance, DESIGN and architecture against tests, not an apparent ACTIVE flag.
+  `evidence=onboarding` selects the fixed real-app provider/entry/typed/rationale-cancel/
+  check-failure/loading/manual-model/unreadable subset, both windows/themes/fonts.
+  These scripted captures do not request OS permissions or prove physical voice.
+- **Native Settings and safe operations.** Sources: `SettingsScreen.kt` owns the five
+  sections, actual-state summaries and font-fit native index with scroll/heading focus.
+  `SettingsViewModel` and existing keyring/prefs owners keep independent connection
+  edits and synchronous Forget retirement. `HostedSpeechSettings.kt` keeps separate
+  speech/transcription notices, explicit failure status and all consent/check guards.
+  `Backup.kt`/`BackupJobs` retain session-only, collision-as-copy, failed-write behavior.
+  Re-check Android Voice/Your data labels, DESIGN measures, Cancel/Back focus and actual
+  `evidence=settings` fixed real-app matrix, not physical/live paid speech claims.
+- **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
+  Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
+  errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and
+  reuses `exportFor`/same-session reopen. `ExportPreview` renders safe blocks, heading
+  hierarchy and local code/table horizontal scroll without changing bytes. `ResultActions`
+  retains FileProvider scope/temporary TTL, clipboard/system confirmation and the
+  Windows real-provider probe seam. Re-check Android Result/export guidance and
+  `evidence=result` actual long/scrolled/short/checklist/synthesis-failed/held-lock loading
+  captures; no native chooser/picker/physical usability claim follows from their PNGs.
+- **Native Ideas rows, filters and previews.** Sources:
+  [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
+  owns compact direct Continue/View result, secondary More/details, native adaptive
+  selection, filter disclosure/recovery and rename/delete dialogs.
+  [`LibraryViewModel.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryViewModel.kt)
+  keeps filter state and the existing reducer/store mutation path.
+  [`ExportPreview.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/ExportPreview.kt)
+  owns the literal unsynthesized conversation/draft presentation separately from canonical
+  export rendering. Re-check DESIGN, the Android guide, full title semantics, compact
+  action versus expanded selection, empty/loading/unavailable distinctions, focus/IME,
+  actual compact/expanded light/dark/font evidence, and unchanged export bytes.
+  `android-device.yml`'s `evidence=ideas` uses the focused Ideas method and existing
+  recorder for its complete declared subset, including an actual held SessionStore read
+  through AppGraph's ordinary concrete-store injection. Inspect nonzero execution and every requested manifest
+  record instead of treating an ATD run or full-workflow colour as visual acceptance.
+- **Native question-first Interview.** Sources:
+  [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)
+  owns counted earlier-history disclosure, reader-preserving scroll, factual coverage
+  detail, bounded reading width and keyboard-safe composer presentation. The existing
+  `InterviewViewModel`/`InterviewWork` still own draft provenance, turn identity and writes.
+  Manual notices use the existing bounded host indefinitely and stay in ViewModel state
+  until Dismiss; voice/nonfatal notification behavior is separate. Re-check DESIGN,
+  Android/interview guide wording, enlarged/short/IME action and text geometry, literal
+  content, chip provenance and once-only wrap behavior. `evidence=interview` selects the
+  fixed subset explicitly, including real keyboard and canonical typed-run wrap evidence;
+  inspect actual execution, complete manifests and images without claiming full UX or
+  physical recognition.
+- **Native voice phase/caption and permission presentation.** Sources:
+  [`VoiceStage.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/voice/VoiceStage.kt)
+  owns bounded idea/question/caption content, fixed large actions, command disclosure,
+  separate permission rationale and explicit app-settings/error recovery.
+  [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)
+  keeps permission launches tied to explicit voice intent and shows optional notification
+  denial without blocking Resume. [`DriveController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/DriveController.kt)
+  exposes actual successful `SpeakResult`, retained/submitted words and guarded live
+  transcription observations from [`WhisperListener.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/WhisperListener.kt).
+  These are presentation state, not drive work or a schema. Re-check DESIGN, native
+  voice/permission guide, contributor capture commands, localized strings, controller/
+  service/hosted/capture tests and actual `evidence=voice` manifests/PNGs. Native completion
+  maps to Result; static scripted phases never certify physical recognition, hosted
+  quality, Android permission prompts or #89.
 - **Web Settings and safe recovery.** Sources:
   [`index.html`](../../../../index.html) and
   [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state
@@ -241,6 +312,15 @@ source wins over prose, and a generated artifact wins over a description of that
   probe and native consent/work/drive/adapter tests own denial, reload, switching,
   failed-storage and retired-work proof. Positive scripted actors affirm explicitly through
   UI or the actual preference owner; unconsented countercases must remain.
+  Native `InferenceAgreement.kt` reuses the validated destination and
+  `LocalNetworkPolicy.needsCleartextWarning` for the shared onboarding/Settings HTTP
+  warning, not a new authorization gate or stored consent. `LocalNetworkPolicyTest`
+  owns loopback/private/HTTPS classification and the real guarded-client TLS connection
+  with a test-only trusted certificate. Re-check Android/privacy-policy transport copy;
+  that JVM connection is not physical-device or live LAN evidence.
+  The existing after-consent capture route also includes real Settings/onboarding
+  `http-lan` form states with the warning and agreement visible; before remains the
+  unchanged pre-consent inventory. Require complete exact-SHA manifests and actual PNGs.
   Re-check README, getting-started/providers/mobile-and-voice/Android/privacy guidance,
   SECURITY, architecture, DESIGN, canonical images and cache retirement. Failed withdrawal
   cannot promise cross-restart revocation when storage rejects the change. Local read/export
@@ -407,6 +487,16 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and
   [`CONTRIBUTING.md`](../../../../CONTRIBUTING.md). Re-check the development guide, skills,
   and review adapters.
+- **Backlog execution and evidence ordering.** Sources:
+  [`work-issues`](../../work-issues/SKILL.md) owns explicit invocation, requested-scope
+  preflight, the single-issue/direct and multi-issue/coordinator-worker boundary, persistent
+  review state, compact evidence handoff and guarded merge;
+  [`android-verify`](../../android-verify/SKILL.md) owns native readiness and validation.
+  Re-check `AGENTS.md`, `CONTRIBUTING.md`, `docs/ASSISTANT-PROCESS.md` and
+  [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs).
+  Commands and actual CI gates still come from `package.json` and `ci.yml`; ordinary client
+  task tools do not imply new hooks, permissions, model settings or emulator parallelism.
+  Contract/discovery checks do not prove model adherence or a measured speedup.
 - **Optional browser MCP.** Source:
   [`.mcp.json`](../../../../.mcp.json) and
   [`tools/playwright-mcp.mjs`](../../../../tools/playwright-mcp.mjs). Re-check the

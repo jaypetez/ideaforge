@@ -333,19 +333,25 @@ internal class UxCaptureRecorder(
                 "isolated fixture has no committed root rendering context"
             } else activity
             val expected = expectedRootSurface(configuration, context)
-            val windowPixels = if (attempts != null) {
-                val windowBitmap = compose.onRoot().captureToImage().asAndroidBitmap()
-                UxEvidence.requireRendered(windowBitmap,
-                    UxBounds(0f, 0f, windowBitmap.width.toFloat(), windowBitmap.height.toFloat()), expected)
-            } else null
             val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
             val attemptPath = if (attempts == null) relative else relative.removeSuffix(".png") + "-root-attempt-${++attempt}.png"
+            var pixelSource = "UiAutomation display"
             try {
                 val file = File(output, attemptPath)
                 check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
                 file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $attemptPath" } }
                 latestFile = file
                 val pixels = UxEvidence.requireRendered(bitmap, safe, expected)
+                val windowPixels = if (attempts != null) {
+                    pixelSource = "Compose window PixelCopy"
+                    val windowBitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+                    try {
+                        UxEvidence.requireRendered(windowBitmap,
+                            UxBounds(0f, 0f, windowBitmap.width.toFloat(), windowBitmap.height.toFloat()), expected)
+                    } finally {
+                        windowBitmap.recycle()
+                    }
+                } else null
                 attempts?.add(buildJsonObject {
                     put("attempt", attempt)
                     put("artifact", attemptPath)
@@ -368,6 +374,16 @@ internal class UxCaptureRecorder(
                     }
                 })
                 return pixels
+            } catch (error: UxEvidence.UnrenderedFrame) {
+                attempts?.add(buildJsonObject {
+                    put("attempt", attempt)
+                    put("artifact", attemptPath)
+                    put("expectedRootSurfaceRgb", "#%06X".format(expected and 0x00FFFFFF))
+                    put("rootIdentityPassed", false)
+                    put("failureSource", pixelSource)
+                    put("failure", error.message.orEmpty())
+                })
+                throw error
             } finally {
                 bitmap.recycle()
             }

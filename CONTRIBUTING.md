@@ -72,6 +72,23 @@ read-only review agent check the exact diff, and squash-merges only when `ci` is
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
 
+Single-issue work stays direct. An explicitly requested multi-issue run uses a lean
+coordinator and one fresh sequential implementation worker per issue through the client's
+ordinary task tool, not fleet mode or a new custom agent. The worker owns implementation,
+reviews, final exact-head evidence, draft PR and actual acceptance; the coordinator verifies
+the compact handoff and real results, then owns the unchanged guarded merge and closeout.
+Same-issue corrections return to the same worker; the next starts only on verified green
+main within the requested queue/dependencies. See the skill for the canonical protocol and
+the [child guidance limits](docs/ASSISTANT-PROCESS.md#child-inheritance-limits) for unsupported
+lifecycle hooks. This changes neither model settings nor emulator concurrency.
+
+The skill separates focused development proof from one clean-head final validation.
+It records the reviewed diff, review/fix round and tested SHA so resume does not restart
+completed work; three unsuccessful rounds escalate rather than loop. Native-only changes
+use native visual evidence, not regeneration of unchanged web screenshots. Full pre-push
+checks and the exact-head `ci` gate still apply; see the skill for evidence invalidation
+and the [shared test ladder](AGENTS.md#the-ladder) for focused commands.
+
 The [lean coding contract](AGENTS.md#lean-coding) is adapted from Ponytail without copying
 its many-client distribution. Full guidance is automatic in the two CLI clients after
 normal workspace trust; `/ideaforge-assist lite`, `full`, `ultra` or `off` selects the
@@ -323,10 +340,70 @@ For inference-disclosure integration, `-f evidence=consent` selects
 `UxCaptureDeviceTest#requestedInferenceConsentIsProminent` with `uxInferenceProbe=after`.
 It requests Settings Connection, provider selection and hosted/local provider details
 on both visual devices, in both themes at font scales 1.0/1.3/2.0.
+The after matrix also includes `settings-http-lan` and `onboarding-http-lan`: real
+form edits to a private HTTP server, with the warning and separate agreement visible.
+These are scripted form captures, not a live LAN connection or physical-device result.
 `-f evidence=consent-before` requires the agreement controls to be absent and records
 the existing actions instead; use it only on the unchanged pre-consent application.
 The recorder requires the complete requested matrix and actual checkout SHA.
 Neither a focused result nor zero discovered visual tests certifies the default inventory.
+
+For native onboarding/entry, dispatch `-f evidence=onboarding` on the frozen feature ref.
+It selects `UxCaptureDeviceTest#requestedNativeOnboardingAndEntryKeepIntentAndRecovery`
+with `uxOnboardingProbe=true`. Its fixed ten frames cover provider/hosted/LAN setup,
+Voice/Type choice, permission-free typing, app-rationale cancellation, failed/pending
+checks, manual-model recovery and unreadable keys across both windows/themes and
+font scales. Actual XML, complete literal-SHA manifests and all PNGs are required.
+The recovery capture requires an ungranted permission, never changes permission state,
+and cancels before an OS request; output/service/checks are scripted, not phone proof.
+
+For native Settings, `-f evidence=settings` selects
+`UxCaptureDeviceTest#requestedNativeSettingsKeepSectionsAndDataBoundaries` with
+`uxSettingsProbe=true`. The fixed matrix records all five sections, separate hosted
+consents, unchanged Cancel/Forget data, actual held/refused scripted connection checks
+and a labelled scripted backup-job failure. No file picker, hosted preview or real
+provider is invoked. Require actual selected-method XML and complete clean-SHA
+compact/expanded, light/dark, enlarged manifests/PNGs; it is not the full inventory.
+
+For native Result, `-f evidence=result` selects
+`UxCaptureDeviceTest#requestedNativeResultKeepsDocumentAndCanonicalActions` with
+`uxResultProbe=true`. Its fixed six-frame matrix covers long/scrolled/short documents,
+checklist provenance, scripted failed synthesis and a genuinely pending session-lock
+read. It captures the real MainActivity, not an isolated Result drawing, and never opens
+the chooser, clipboard or document picker. Require all 72 compact/expanded/theme/font
+records, actual selected-method XML, exact clean SHA and all PNGs before accepting it.
+Canonical output/picker cancellation and IO failures still need their action/VM tests.
+
+For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
+recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/
+filtered lists, long active detail and an actual pending SessionStore read. The injected
+store remains the graph's only store; the read is released during cleanup, not replaced
+with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0/1.3/2.0
+require 54 accepted capture records per window. Inspect the selected test's nonzero XML
+execution and complete SHA-matching manifests/PNGs; this is not the full UX inventory.
+
+For native Interview, dispatch `-f evidence=interview` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful` with
+`uxInterviewProbe=true`. Eleven states cover seed/long/history/coverage, checklist,
+busy/save failure, the actual open IME, an actual engine wrap offer, Writing and failed
+synthesis. The wrap reuses the canonical typed walkthrough without fabricating UI state;
+the ordinary chip walkthrough still verifies its canonical export. Both windows,
+themes and three font scales require 66 accepted records per window. Inspect actual
+selected-method XML, every requested manifest record and real PNGs. The focused subset
+does not prove the full UX inventory, physical recognition or real permission UI.
+
+For native voice presentation, dispatch `-f evidence=voice` on the exact feature ref.
+It selects `UxCaptureDeviceTest#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest`
+with `uxVoiceProbe=true`. The fixed fourteen-state phase/recovery subset includes native
+Writing, last-output fallback, optional-notification status and the real command disclosure.
+Both windows/themes and three font scales require 84 records per window; compact also
+includes six font-2 listening/paused/blocked landscape records, for 174 total.
+The production rationale dialog and real permission-result callbacks have separate native
+UI tests, not a single-window phase screenshot. All phase captures are labelled isolated-component/scripted semantic
+UI, including the native completion-to-Result mapping. No microphone, actual permission
+prompt, hosted request or service is started. Inspect actual selected-method execution,
+complete exact-SHA manifests and PNGs; #89 remains the physical-device owner.
 
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`

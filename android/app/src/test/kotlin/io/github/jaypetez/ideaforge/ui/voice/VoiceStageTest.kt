@@ -1,9 +1,18 @@
 package io.github.jaypetez.ideaforge.ui.voice
 
 import android.app.Application
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.provider.Settings
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsAtLeast
@@ -20,12 +29,20 @@ import io.github.jaypetez.ideaforge.core.runtime.DrivePhase
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeTheme
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import io.github.jaypetez.ideaforge.voice.VoiceStageState
+import io.github.jaypetez.ideaforge.voice.SpeakResult
+import io.github.jaypetez.ideaforge.voice.SpeakStatus
+import io.github.jaypetez.ideaforge.voice.SpeechBackend
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -90,6 +107,128 @@ class VoiceStageTest {
     }
 
     @Test
+    fun aPausedStageShowsTheRetainedAnswerRatherThanDiscardedSpeechOutput() {
+        show(listening.copy(mode = VoiceMode.PAUSED, listening = false, caption = "My captured answer stays here."))
+        compose.onNodeWithTag("voice-caption").assertTextContains("My captured answer stays here.")
+        compose.onNodeWithTag("voice-caption-label").assertTextContains("Your words")
+        compose.onNodeWithTag("voice-levels").assertDoesNotExist()
+    }
+
+    @Test
+    fun theStageNamesItsContextWithoutPretendingAnUnreportedBackendSpoke() {
+        show(listening)
+        compose.onNodeWithTag("voice-context").assertTextContains("Voice interview")
+        compose.onNodeWithTag("voice-backend").assertTextContains("Speech output not reported yet")
+    }
+
+    @Test
+    fun pausedUsersCanReadTheFinishWordAndWholeUtteranceCommands() {
+        show(listening.copy(mode = VoiceMode.PAUSED, listening = false, trigger = "all done"))
+        compose.onNodeWithTag("voice-help-toggle").performScrollTo().performClick()
+        compose.onNodeWithTag("voice-help").performScrollTo()
+            .assertTextContains("all done", substring = true)
+            .assertTextContains("whole utterance", substring = true)
+            .assertTextContains("exit voice", substring = true)
+        compose.onNodeWithTag("voice-resume").assertIsDisplayed()
+        compose.onNodeWithTag("voice-exit").assertIsDisplayed()
+    }
+
+    @Test
+    fun backendAndTranscribingLabelsDescribeReportedWorkAndDoNotAnimateSamples() {
+        val state = mutableStateOf(listening.copy(lastSpeech = SpeakResult(SpeakStatus.SPOKEN, backend = SpeechBackend.HOSTED)))
+        compose.setContent { IdeaForgeTheme { Surface {
+            VoiceStage(state.value, {}, {}, {}, ideaTitle = "Remember names")
+        } } }
+        compose.onNodeWithTag("voice-context").assertTextContains("Remember names")
+        compose.onNodeWithTag("voice-backend").assertTextContains("Last spoken: OpenAI speech")
+        compose.onNodeWithTag("voice-phase").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.runOnIdle {
+            state.value = state.value.copy(caption = "The first recorded segment", transcribing = true,
+                lastSpeech = SpeakResult(SpeakStatus.SPOKEN, fallback = "Scripted fallback to device voice."))
+        }
+        compose.onNodeWithTag("voice-phase").assertTextContains("Transcribing recorded audio")
+        compose.onNodeWithTag("voice-backend").assertTextContains("Last spoken: device voice")
+        compose.onNodeWithTag("voice-fallback").performScrollTo().assertTextContains("Scripted fallback", substring = true)
+        compose.onNodeWithTag("voice-caption").assertTextContains("The first recorded segment")
+        compose.onNodeWithTag("voice-levels").assertDoesNotExist()
+        assertNull("live partials are readable without repeated automatic announcements",
+            compose.onNodeWithTag("voice-caption").fetchSemanticsNode().config.getOrNull(SemanticsProperties.LiveRegion))
+    }
+
+    @Test
+    fun microphoneRecoveryOpensOnlyThisAppsSettingsOnADeliberateTap() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent { IdeaForgeTheme { Surface {
+            VoiceStage(listening.copy(mode = VoiceMode.BLOCKED, listening = false), {}, {}, {},
+                microphoneDenied = true, notificationsOff = true)
+        } } }
+        assertNull(shadowOf(context).nextStartedActivity)
+        compose.onNodeWithTag("voice-mic-settings").performScrollTo().performClick()
+        val intent = shadowOf(context).nextStartedActivity
+        assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intent.action)
+        assertEquals("package:${context.packageName}", intent.data.toString())
+        compose.onNodeWithTag("voice-notifications-off").performScrollTo()
+            .assertTextContains("controls stay on this screen only", substring = true)
+        compose.onNodeWithTag("voice-resume").assertIsDisplayed()
+    }
+
+    @Test
+    fun missingSettingsHandlerShowsRecoveryInsteadOfPretendingSettingsOpened() {
+        val context = object : ContextWrapper(RuntimeEnvironment.getApplication()) {
+            override fun startActivity(intent: Intent) { throw ActivityNotFoundException("controlled unavailable Settings") }
+        }
+        compose.setContent { CompositionLocalProvider(LocalContext provides context) { IdeaForgeTheme { Surface {
+            VoiceStage(listening.copy(mode = VoiceMode.BLOCKED, listening = false), {}, {}, {}, microphoneDenied = true)
+        } } } }
+        compose.onNodeWithTag("voice-mic-settings").performScrollTo().performClick()
+        compose.onNodeWithTag("voice-mic-settings-failed").assertIsDisplayed().assertTextContains("could not be opened", substring = true)
+        compose.onNodeWithTag("voice-resume").assertIsDisplayed()
+        compose.onNodeWithTag("voice-exit").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp-land", fontScale = 2f)
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun enlargedLandscapeKeepsBothActionsAndTheEndOfTheFullCaption() {
+        val caption = "A full answer that remains readable without truncation. ".repeat(20) + "The final words."
+        show(listening.copy(mode = VoiceMode.PAUSED, listening = false, caption = caption))
+        compose.onNodeWithTag("voice-caption").performScrollTo().assertTextContains("The final words.", substring = true)
+        val text = compose.onNodeWithTag("voice-caption").fetchSemanticsNode()
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.runOnUiThread {
+            text.config[androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts)
+        }
+        assertTrue(layouts.isNotEmpty())
+        for (layout in layouts) {
+            assertTrue(!layout.multiParagraph.didExceedMaxLines)
+            for (line in 0 until layout.lineCount) {
+                assertTrue(!layout.isLineEllipsized(line))
+                assertTrue("line $line: painted ${layout.getLineRight(line) - layout.getLineLeft(line)}px, layout ${layout.size.width}px",
+                    layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f)
+                assertTrue("line $line: bottom ${layout.getLineBottom(line)}px, layout ${layout.size.height}px",
+                    layout.getLineBottom(line) <= layout.size.height + 1f)
+            }
+        }
+        for (tag in listOf("voice-resume", "voice-exit"))
+            compose.onNodeWithTag(tag).assertIsDisplayed().assertHeightIsAtLeast(64.dp)
+    }
+
+    @Test
+    fun thePermissionExplanationKeepsNotificationsExplicitlyOptionalAndSeparate() {
+        var starts = 0
+        compose.setContent { IdeaForgeTheme {
+            VoicePermissionDialog(true, onContinue = { starts++ }, onDismiss = {})
+        } }
+        assertEquals(0, starts)
+        compose.onNodeWithTag("voice-mic-rationale").assertTextContains("Microphone access is needed only", substring = true)
+        compose.onNodeWithTag("voice-notification-rationale").performScrollTo()
+            .assertTextContains("does not block voice", substring = true)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        assertEquals(1, starts)
+    }
+
+    @Test
     fun voiceActionsUseSixtyFourDpTargetsAndNativeButtonRoles() {
         show(listening)
         for (tag in listOf("voice-pause", "voice-exit")) {
@@ -103,7 +242,7 @@ class VoiceStageTest {
     fun enlargedFullCaptionsScrollWhileResumeAndExitRemainReachable() {
         show(listening.copy(mode = VoiceMode.PAUSED, listening = false,
             question = "Who is this for, including the people whose accessibility needs and long descriptions must remain visible?",
-            said = "A full spoken caption with enough detail to require several lines on a compact screen. ".repeat(12)))
+            caption = "A full captured answer with enough detail to require several lines on a compact screen. ".repeat(12)))
         compose.onNodeWithTag("voice-caption").performScrollTo().assertIsDisplayed()
         for (tag in listOf("voice-resume", "voice-exit")) {
             compose.onNodeWithTag(tag).assertIsDisplayed().assertHeightIsAtLeast(64.dp).assertWidthIsAtLeast(48.dp)

@@ -91,17 +91,22 @@ sealed interface ResultNotice {
     data class SaveFailed(val detail: String) : ResultNotice
 
     data class ReopenFailed(val detail: String) : ResultNotice
+    data class LoadFailed(val detail: String) : ResultNotice
+    data class CopyFailed(val detail: String) : ResultNotice
+    data class ShareFailed(val detail: String) : ResultNotice
 }
 
 data class ResultState(
     /** Null until the stored idea has been read. */
     val session: Session? = null,
+    val loading: Boolean = true,
     /** The idea is not in the store (deleted, or a newer build's file). */
     val missing: Boolean = false,
     val export: String = "",
     val filename: String = "",
     val meta: DoneMeta? = null,
     val notice: ResultNotice? = null,
+    val noticeAttempt: Long = 0,
     /** "Ask me more" is saving the reopened idea. */
     val reopening: Boolean = false,
     /** The reopened idea is saved: go to its interview. */
@@ -137,6 +142,8 @@ class ResultViewModel(
     }
 
     private suspend fun open() {
+        _state.update { it.copy(loading = true, missing = false,
+            notice = if (it.notice is ResultNotice.LoadFailed) null else it.notice) }
         // Waits out work still running for this idea (the write-up that brought us here),
         // so what is read is what it saved.
         val stored = try {
@@ -146,18 +153,32 @@ class ResultViewModel(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            null
+        } catch (e: Exception) {
+            _state.update { it.copy(loading = false, notice = ResultNotice.LoadFailed(message(e)),
+                noticeAttempt = it.noticeAttempt + 1) }
+            return
         }
         if (stored == null) {
-            _state.update { it.copy(missing = true) }
+            _state.update { it.copy(missing = true, loading = false) }
             return
         }
         show(stored)
     }
 
     private fun show(session: Session) = _state.update {
-        it.copy(session = session, export = exportFor(session), filename = exportFilename(session), meta = doneMeta(session))
+        it.copy(session = session, loading = false, missing = false, export = exportFor(session),
+            filename = exportFilename(session), meta = doneMeta(session))
+    }
+
+    fun retryLoad() {
+        if (!_state.value.loading) viewModelScope.launch { open() }
+    }
+
+    fun copyFailed(error: Exception) = _state.update {
+        it.copy(notice = ResultNotice.CopyFailed(message(error)), noticeAttempt = it.noticeAttempt + 1)
+    }
+    fun shareFailed(error: Exception) = _state.update {
+        it.copy(notice = ResultNotice.ShareFailed(message(error)), noticeAttempt = it.noticeAttempt + 1)
     }
 
     /** Save .md: the export's bytes, exactly, into the document the user picked. */
@@ -172,7 +193,7 @@ class ResultViewModel(
             } catch (e: Exception) {
                 ResultNotice.SaveFailed(message(e))
             }
-            _state.update { it.copy(notice = notice) }
+            _state.update { it.copy(notice = notice, noticeAttempt = it.noticeAttempt + 1) }
         }
     }
 
@@ -215,7 +236,8 @@ class ResultViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(reopening = false, notice = ResultNotice.ReopenFailed(message(e))) }
+                _state.update { it.copy(reopening = false, notice = ResultNotice.ReopenFailed(message(e)),
+                    noticeAttempt = it.noticeAttempt + 1) }
                 return@launch
             }
             val saved = (outcome as? SessionWorker.Outcome.Committed)?.value

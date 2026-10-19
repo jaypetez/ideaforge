@@ -57,6 +57,10 @@ data class UxPixels(
 
 /** Shared assertions used by the device recorder and regression tests, not screenshot goldens. */
 object UxEvidence {
+    class UnrenderedFrame(colours: Int) : IllegalStateException(
+        "blank/unrendered app screenshot ($colours distinct sampled colours); ATD is not visual evidence",
+    )
+
     fun finish(primaryError: Throwable?, cleanup: List<() -> Unit>, finalize: (List<Throwable>) -> Unit) {
         val errors = mutableListOf<Throwable>()
         primaryError?.let(errors::add)
@@ -124,7 +128,7 @@ object UxEvidence {
                 count++
             }
         }
-        check(colours.size >= 8) { "blank/unrendered app screenshot (${colours.size} distinct sampled colours); ATD is not visual evidence" }
+        if (colours.size < 8) throw UnrenderedFrame(colours.size)
         return UxPixels(colours.size, luma / count, colours.maxBy { it.value }.key, bitmap.width, bitmap.height,
             rootSurfaceRgb, rootMatches, count)
     }
@@ -140,10 +144,18 @@ object UxEvidence {
     fun requireStableTheme(theme: String, deadlineMs: Long, now: () -> Long, sample: () -> UxPixels): UxPixels {
         var consecutive = 0
         var previousRoot: Int? = null
-        var last: UxPixels? = null
+        var last: String? = null
         while (now() < deadlineMs) {
-            val pixels = sample()
-            last = pixels
+            val pixels = try {
+                sample()
+            } catch (error: UnrenderedFrame) {
+                // Semantics may settle before the display presents its first app frame.
+                last = error.message
+                consecutive = 0
+                previousRoot = null
+                continue
+            }
+            last = pixels.toString()
             if (now() > deadlineMs) break
             if (runCatching { requireTheme(theme, pixels) }.isSuccess) {
                 consecutive = if (previousRoot == pixels.rootSurfaceRgb) consecutive + 1 else 1

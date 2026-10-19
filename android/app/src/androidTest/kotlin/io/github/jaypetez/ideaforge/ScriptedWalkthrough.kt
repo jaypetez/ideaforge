@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -37,12 +38,14 @@ internal fun scriptedWalkthrough(
     launch: () -> Unit,
     capture: (String) -> Unit = {},
     settleInput: () -> Unit = {},
+    wrapOnly: Boolean = false,
 ) {
     val vector = Json.parseToJsonElement(target.assets.open(ScriptedProvider.ASSET).bufferedReader().use { it.readText() })
-    val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == "a chip answer" }
+    val caseName = if (wrapOnly) "typed answers" else "a chip answer"
+    val case = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == caseName }
     val script = ScriptedProvider.loadScript(target)
     val steps = case["input"]["steps"] as JsonArray
-    assertTrue("the case answers with a chip", steps.any { it["chip"] != null })
+    if (!wrapOnly) assertTrue("the case answers with a chip", steps.any { it["chip"] != null })
 
     fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
@@ -61,6 +64,8 @@ internal fun scriptedWalkthrough(
     launch()
     compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), DEVICE_TIMEOUT)
     compose.onNode(hasText(target.getString(R.string.nav_new_idea)) and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+    compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), DEVICE_TIMEOUT)
+    compose.onNodeWithTag("new-idea-type").performClick()
 
     var turn = 1
     for (step in steps) {
@@ -94,6 +99,10 @@ internal fun scriptedWalkthrough(
         if (exists("wrap-offer")) break
     }
     assertTrue("the run reached past the first few turns ($turn)", turn > 4)
+    if (wrapOnly) {
+        assertTrue("the canonical typed run reached a real wrap offer", exists("wrap-offer"))
+        return
+    }
     click(if (exists("wrap-offer")) "wrap-accept" else "write-up")
 
     compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.SCREEN), DEVICE_TIMEOUT)
@@ -105,7 +114,8 @@ internal fun scriptedWalkthrough(
     assertTrue("the export has ## headings", headings.isNotEmpty())
     val output = hasAnyAncestor(hasTestTag(ResultTags.OUTPUT))
     for (heading in headings) {
-        compose.onNode(hasText(heading) and output).assertExists("the result shows the \"## $heading\" section")
+        compose.onNode(hasText(heading) and output and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertExists("the result shows the \"## $heading\" section")
     }
     capture("result")
 }

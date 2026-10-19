@@ -128,8 +128,18 @@ class WhisperFallbackTest {
         )
         rig.controller.start(rig.seeded, "typed")
         assertTrue("second upload in flight", rig.until { uploads == 2 })
+        assertTrue("the phase reflects a real pending upload", rig.state.transcribing)
+        assertEquals("the accumulated segment is the live caption", "the first part", rig.state.caption)
+        assertTrue("recorded input does not fabricate recognizer levels", rig.state.levels.isEmpty())
         rig.controller.pause()
+        assertFalse(rig.state.transcribing)
+        assertEquals("the first part", rig.state.caption)
         assertTrue("draft=${rig.draft()}", rig.until { rig.draft() == "the first part" })
+        second.complete("retired words over")
+        rig.advance(30_000)
+        assertEquals("a retired upload cannot replace the paused caption", "the first part", rig.state.caption)
+        assertEquals("the first part", rig.draft())
+        assertTrue(rig.answered().isEmpty())
     }
 
 }

@@ -11,6 +11,21 @@ const BOOT_MS = 4000;
 const KEY = 'ideaforge.prefs';
 const settle = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** CDP pre-document fixture: set once when the root appears, never repair app boot later. */
+export function installCaptureTheme() {
+  const theme = new URL(location.href).searchParams.get('capture-theme');
+  if (theme === null) return;
+  if (theme !== 'light' && theme !== 'dark') throw new Error(`invalid capture theme: ${theme}`);
+  const paint = () => {
+    if (!document.documentElement) return;
+    document.documentElement.dataset.theme = theme;
+    observer.disconnect();
+  };
+  const observer = new MutationObserver(paint);
+  observer.observe(document, { childList: true });
+  paint();
+}
+
 async function until(predicate, ms = 4000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -21,12 +36,10 @@ async function until(predicate, ms = 4000) {
 }
 
 /**
- * Load the app in an iframe, calling `early(doc)` at the first moment the probe can see the
- * new document — usually mid-<head>, before theme-boot.js has run, which is as close as a
- * probe gets to the harness's addScriptToEvaluateOnNewDocument — and `withBody(doc)` at the
- * first moment it has a <body>, the earliest anything could be painted.
+ * Observe a new app document and its first visible body. Capture setup belongs to CDP,
+ * not this parent's observation order; afterLoad deliberately lets the classic script win.
  */
-function loadFrame(src, early = () => {}, withBody = () => {}) {
+function loadFrame(src, early = () => {}, withBody = () => {}, { afterLoad = false } = {}) {
   return new Promise((resolve, reject) => {
     const frame = document.createElement('iframe');
     frame.width = 900;
@@ -37,7 +50,7 @@ function loadFrame(src, early = () => {}, withBody = () => {}) {
     let bodied = false;
     const watch = () => {
       const doc = frame.contentDocument;
-      if (doc && doc.documentElement && /index\.html$/.test(doc.URL)) {
+      if (doc && doc.documentElement && new URL(doc.URL).pathname.endsWith('/index.html')) {
         if (!seen) { seen = true; early(doc); }
         if (!bodied && doc.body) { bodied = true; withBody(doc); }
       }
@@ -47,7 +60,7 @@ function loadFrame(src, early = () => {}, withBody = () => {}) {
     frame.onerror = () => reject(new Error(`iframe failed to load ${src}`));
     frame.src = src;
     document.body.append(frame);
-    watch();
+    if (!afterLoad) watch();
   });
 }
 
@@ -74,15 +87,21 @@ export default async function run(check) {
 
 /** What tools/screenshots.mjs does: set dataset.theme first, in a profile with nothing stored. */
 async function harnessUntouched(check) {
+  const { THEME_COLOURS } = await import('/src/ui/theme.js');
   for (const preset of ['dark', 'light']) {
     store(null);
-    const frame = await loadFrame('/index.html', (doc) => { doc.documentElement.dataset.theme = preset; });
+    const frame = await loadFrame(`/index.html?capture-theme=${preset}`, (doc) => {
+      const colours = [...doc.querySelectorAll('meta[name="theme-color"]')].map((meta) => meta.content);
+      check(`a deliberately late parent observes the ${preset} capture and chrome already set`,
+        doc.documentElement.dataset.theme === preset && colours.length === 2
+          && colours.every((colour) => colour === THEME_COLOURS[preset]),
+        `${doc.documentElement.dataset.theme} / ${colours.join()}`);
+    }, () => {}, { afterLoad: true });
     const doc = frame.contentDocument;
     try {
       await settle(BOOT_MS);
       check(`with nothing stored, the app leaves a harness-set ${preset} theme alone through boot`,
         doc.documentElement.dataset.theme === preset, String(doc.documentElement.dataset.theme));
-      const { THEME_COLOURS } = await import('/src/ui/theme.js');
       const colours = [...doc.querySelectorAll('meta[name="theme-color"]')].map((meta) => meta.content);
       check(`…and the browser chrome agrees with that explicit ${preset} capture theme`,
         colours.every((colour) => colour === THEME_COLOURS[preset]), colours.join());

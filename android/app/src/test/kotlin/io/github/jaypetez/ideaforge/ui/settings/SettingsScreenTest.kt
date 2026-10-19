@@ -4,11 +4,14 @@ import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -16,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.BuildConfig
@@ -26,6 +30,7 @@ import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -33,8 +38,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertArrayEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -107,6 +114,63 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun allFiveSectionsHaveUsefulActualStateSummaries() {
+        openSettings(usableRing())
+        for (section in listOf("connection", "voice", "appearance", "data", "about")) {
+            compose.onNodeWithTag("settings-section-$section").assertExists()
+            compose.onNodeWithTag("settings-summary-$section").assertExists()
+        }
+        compose.onNodeWithTag("settings-summary-connection").assertTextContains("Groq", substring = true)
+        compose.onNodeWithTag("settings-summary-appearance").assertTextContains("system", substring = true, ignoreCase = true)
+        compose.onNodeWithTag("settings-summary-about").assertTextContains(BuildConfig.VERSION_NAME, substring = true)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp")
+    fun expandedIndexKeepsTheFormBoundedAndNavigatesToItsSection() {
+        openSettings(usableRing())
+        compose.onNodeWithTag("settings-index").assertIsDisplayed()
+        val index = compose.onNodeWithTag("settings-index").getUnclippedBoundsInRoot()
+        val field = compose.onNodeWithTag(SettingsTags.KEY).getUnclippedBoundsInRoot()
+        assertTrue(index.right <= field.left)
+        assertTrue(field.right - field.left <= IdeaForgeWidths.form)
+        compose.onNodeWithTag("settings-index-appearance").performClick()
+        compose.onNodeWithTag("settings-section-appearance").assertIsDisplayed()
+        compose.onNodeWithTag(SettingsTags.theme(Prefs.THEME_SYSTEM)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun enlargedSettingsUsesOneColumnAndKeepsEverySectionReachable() {
+        openSettings(usableRing())
+        compose.onNodeWithTag("settings-index").assertDoesNotExist()
+        for (id in listOf("connection", "voice", "appearance", "data", "about")) {
+            compose.onNodeWithTag("settings-section-$id").performScrollTo().assertIsDisplayed()
+        }
+        compose.onNodeWithTag(SettingsTags.FORGET).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp", fontScale = 2f)
+    fun bothHostedVoiceChoicesRemainReachableAtEnlargedText() {
+        openSettings(usableRing())
+        compose.onNodeWithTag(HostedSpeechTags.HOSTED).performScrollTo().performClick()
+        for (tag in listOf(HostedSpeechTags.VOICE_MARIN, HostedSpeechTags.VOICE_CEDAR,
+            HostedSpeechTags.CONSENT_SYNTHETIC, HostedSpeechTags.CONSENT_TEXT, HostedSpeechTags.CONSENT_METERED)) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun voiceHitAreasHaveTheirOwnFullNativeHeightInsteadOfOffscreenExpansion() {
+        openSettings(usableRing())
+        for (tag in listOf(SettingsTags.HANDS_FREE, SettingsTags.PACE)) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        }
+    }
+
+    @Test
     fun theTriggerWarningAppearsForRiskyWordsAndGoesForSafeOnes() {
         openSettings(usableRing())
         compose.onNodeWithTag(SettingsTags.TRIGGER).performScrollTo()
@@ -139,6 +203,21 @@ class SettingsScreenTest {
         assertFalse("the keyring file is gone", graph.keyringStore.file.exists())
         assertNull(key.keys[0])
         assertNull(key.keys[1])
+    }
+
+    @Test
+    fun cancellingForgetKeepsTheBlobAndReturnsFocusToItsOwnAction() {
+        val graph = openSettings(usableRing())
+        val before = graph.keyringStore.file.readBytes()
+        val generation = graph.keyringStore.generation.value
+        compose.onNodeWithTag(SettingsTags.FORGET).performScrollTo().performClick()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasTestTag(SettingsTags.FORGET_CONFIRM)).fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithTag(SettingsTags.FORGET).assertIsDisplayed().assertIsFocused()
+        assertArrayEquals(before, graph.keyringStore.file.readBytes())
+        assertEquals(generation, graph.keyringStore.generation.value)
     }
 
     @Test

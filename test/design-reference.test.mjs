@@ -36,8 +36,8 @@ test('reference boards remain distinct from the delivered foundations, adaptive 
   assert.doesNotMatch(design, /not yet migrated|earlier scheme until/);
   assert.match(design, /#F5F7FA/);
   const status = design.replace(/\s+/g, ' ');
-  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells and progressive web Start \(#193\) are implemented here/);
-  assert.match(status, /The native Start and Ideas\/Interview\/Voice\/Result recompositions are \*\*not yet implemented\*\*/);
+  assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells, progressive web Start \(#193\), native Ideas \(#198\), native Interview \(#200\), native voice presentation \(#202\) and native Start \(#195\), Settings \(#196\) and Result \(#204\) are implemented here/);
+  assert.match(status, /guide's own Focus Studio migration is \*\*not yet implemented\*\*/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {
@@ -101,7 +101,7 @@ test('DESIGN records native content measures and all system-family typography ro
   const widths = roles.match(/object IdeaForgeWidths \{([\s\S]*?)\n\}/)?.[1];
   assert.ok(widths, 'native content-width owner is missing');
   const values = [...widths.matchAll(/val (\w+) = (\d+)\.dp/g)];
-  assert.equal(values.length, 6, 'check every native content measure and the adaptive rail');
+  assert.equal(values.length, 10, 'check every native content measure, table/index/support and adaptive rail');
   for (const [, name, value] of values) {
     assert.ok(design.includes(`| \`${name}\` | ${value}dp |`), `native ${name} width drift`);
   }

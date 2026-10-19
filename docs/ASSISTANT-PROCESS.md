@@ -266,6 +266,29 @@ task or authority to broaden work. Restricted review agents retain their supplie
 diff, no-shell/no-edit tools and passive review-only guidance. A fallback prompt does not
 prove automatic inheritance for an unsupported dispatch.
 
+### Backlog worker contexts
+
+The explicitly invoked [backlog skill](../.claude/skills/work-issues/SKILL.md#execution-boundary)
+owns the direct single-issue path and the coordinator/fresh sequential worker boundary for
+an explicitly requested multi-issue run. Use the current client's ordinary task/subagent
+facility; this is not an extension, custom worker agent, fleet or permission to delegate
+ordinary one-shot tasks. The worker may use the existing read-only review adapters but may
+not recursively delegate implementation, take another issue or merge.
+
+Carry the actual inherited mode and canonical lean section in the bounded issue packet;
+apply the [child fallback](#child-inheritance-limits) when lifecycle hooks are unsupported,
+rather than assuming that a fresh worker received guidance automatically. Keep same-issue
+follow-ups and the persistent combined review/failure state with that worker. The canonical
+skill owns the evidence handoff and coordinator's actual CI/literal-SHA merge verification;
+do not duplicate the worker's exploration or final inventory in the coordinator.
+
+Contract tests protect these documented boundaries and references, not model adherence or
+measured speedups. Verify the canonical skill on actual merged main before claiming the
+process is deployed. Any comparison on a later issue needs its own authorisation and
+bounded, overlap-aware evidence; a fresh context or smaller coordinator alone is not a
+performance result. No model/effort setting, hook, gate or emulator concurrency is changed
+by this protocol.
+
 ### Optional statusline
 
 Native custom status commands accept JSON on stdin and return display text on stdout.

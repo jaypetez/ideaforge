@@ -49,6 +49,8 @@ import io.github.jaypetez.ideaforge.providers.STT_PRESETS
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
+import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.SpeakStatus
@@ -102,11 +104,14 @@ data class HostedSpeechState(
     val enabled: Boolean = false,
     val checking: Boolean = false,
     val notice: String? = null,
+    val noticeFailed: Boolean = false,
     /** "groq", "openai" or null (off). */
     val sttKind: String? = null,
     val sttKeyDraft: String = "",
     val sttSavedKey: String = "",
     val audioConsent: Boolean = false,
+    val sttNotice: String? = null,
+    val sttNoticeFailed: Boolean = false,
 ) {
     val consented: Boolean get() = consentSynthetic && consentText && consentMetered
     val canCheck: Boolean get() = hosted && consented
@@ -119,9 +124,12 @@ private data class SpeechLocal(
     val consents: Triple<Boolean, Boolean, Boolean>? = null,
     val checking: Boolean = false,
     val notice: String? = null,
+    val noticeFailed: Boolean = false,
     val sttKind: String? = null,
     val sttKindSet: Boolean = false,
     val sttKeyDraft: String = "",
+    val sttNotice: String? = null,
+    val sttNoticeFailed: Boolean = false,
 )
 
 class HostedSpeechViewModel(
@@ -166,10 +174,13 @@ class HostedSpeechViewModel(
             enabled = enabled,
             checking = l.checking,
             notice = l.notice,
+            noticeFailed = l.noticeFailed,
             sttKind = if (l.sttKindSet) l.sttKind else stringOf(stt["kind"])?.takeIf { it in STT_PRESETS },
             sttKeyDraft = l.sttKeyDraft,
             sttSavedKey = maskKey(stringOf(stt["apiKey"])),
             audioConsent = prefs.hostedTranscriptionAllowed,
+            sttNotice = l.sttNotice,
+            sttNoticeFailed = l.sttNoticeFailed,
         )
     }
 
@@ -185,31 +196,36 @@ class HostedSpeechViewModel(
     )
 
     /** Keyring writes refuse an unreadable ring: saving would replace every other record. */
-    private suspend fun saveRing(next: JsonElement, generation: Long = keyring.generation.value): Boolean {
+    private suspend fun saveRing(next: JsonElement, generation: Long = keyring.generation.value,
+        report: (String) -> Unit = { note(it, failed = true) }): Boolean {
         if (keyring.state.value.status == KeyringState.Status.UNREADABLE) {
-            note("The saved keys could not be read, so nothing was changed. Fix the connection first.")
+            report("The saved keys could not be read, so nothing was changed. Fix the connection first.")
             return false
         }
         // Refused when a Forget began after [generation] was read: writing now would put a
         // deleted key back on disk.
         if (!keyring.saveIf(generation, next)) {
-            note("The keys were deleted meanwhile, so nothing was saved.")
+            report("The keys were deleted meanwhile, so nothing was saved.")
             return false
         }
         return true
     }
 
-    private fun note(text: String?) = local.update { it.copy(notice = text) }
+    private fun note(text: String?, failed: Boolean = false) =
+        local.update { it.copy(notice = text, noticeFailed = failed) }
+
+    private fun sttNote(text: String?, failed: Boolean = false) =
+        local.update { it.copy(sttNotice = text, sttNoticeFailed = failed) }
 
     /** Drop the check's vouching: `verified` false for the saved record, kind as given. */
-    private suspend fun invalidate(kind: String, voice: String = now().voice) {
+    private suspend fun invalidate(kind: String, voice: String = now().voice): Boolean {
         epoch++
         check?.cancel()
-        saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), voice, verified = false)))
+        return saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), voice, verified = false)))
     }
 
     fun chooseHosted(on: Boolean): Job = viewModelScope.launch {
-        local.update { it.copy(hosted = on, notice = null) }
+        local.update { it.copy(hosted = on, notice = null, noticeFailed = false) }
         if (!on) revoke(kind = "browser", "Replies use the device voice.")
     }
 
@@ -218,15 +234,17 @@ class HostedSpeechViewModel(
         local.update { it.copy(keyDraft = v) }
         val typed = v.trim()
         if (typed.isEmpty() || typed == savedTtsKey() || tts()["verified"] != JsonPrimitive(true)) return null
-        return viewModelScope.launch { invalidate("openai") ; note("The key changed. Check and preview again to enable OpenAI speech.") }
+        return viewModelScope.launch {
+            if (invalidate("openai")) note("The key changed. Check and preview again to enable OpenAI speech.")
+        }
     }
 
     fun setVoice(v: String): Job? {
         val voice = if (v == "cedar") "cedar" else "marin"
         if (voice == now().voice) return null
         return viewModelScope.launch {
-            invalidate(if (now().hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice)
-            note("The voice changed. Check and preview again to enable OpenAI speech.")
+            if (invalidate(if (now().hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice))
+                note("The voice changed. Check and preview again to enable OpenAI speech.")
         }
     }
 
@@ -247,8 +265,8 @@ class HostedSpeechViewModel(
         check?.cancel()
         val allowedSaved = prefsStore.update { it.copy(hostedSpeechAllowed = false) }
         if (wasEnabled) runCatching { onRevoke("Hosted speech is disabled. Tap Resume to continue with the device voice.") }
-        saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), now().voice, verified = false)))
-        note(if (allowedSaved) message else "$message Its permission preference could not be updated.")
+        if (!saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), now().voice, verified = false)))) return
+        note(if (allowedSaved) message else "$message Its permission preference could not be updated.", failed = !allowedSaved)
     }
 
     /** Check and preview; pressed again while checking, it cancels (never a pass). */
@@ -256,19 +274,19 @@ class HostedSpeechViewModel(
         if (check?.isActive == true) {
             epoch++
             check?.cancel()
-            local.update { it.copy(checking = false, notice = "Preview cancelled.") }
+            local.update { it.copy(checking = false, notice = "Preview cancelled.", noticeFailed = false) }
             return null
         }
         val s = now()
         val key = s.keyDraft.trim().ifEmpty { savedTtsKey() }
         if (!s.hosted || key.isEmpty() || !s.consented) {
-            note("Enter a separate speech key and confirm all three statements first.")
+            note("Enter a separate speech key and confirm all three statements first.", failed = true)
             return null
         }
         val my = ++epoch
         val generation = keyring.generation.value
         val voice = s.voice
-        local.update { it.copy(checking = true, notice = "Checking one short, metered speech sample…") }
+        local.update { it.copy(checking = true, notice = "Checking one short, metered speech sample…", noticeFailed = false) }
         return viewModelScope.launch {
             try {
                 val rate = prefsStore.current().speechRate
@@ -280,6 +298,7 @@ class HostedSpeechViewModel(
                     note(
                         if (result.status == SpeakStatus.CANCELLED) "Preview cancelled."
                         else "The voice check failed: ${result.message ?: "no audio played"}. OpenAI speech has not been enabled.",
+                        failed = result.status != SpeakStatus.CANCELLED,
                     )
                     return@launch
                 }
@@ -287,7 +306,7 @@ class HostedSpeechViewModel(
                 if (my != epoch || keyring.generation.value != generation) return@launch
                 if (!prefsStore.update { it.copy(hostedSpeechAllowed = true) }) {
                     saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = false)))
-                    note("The preview played, but permission could not be saved. The device voice remains active.")
+                    note("The preview played, but permission could not be saved. The device voice remains active.", failed = true)
                     return@launch
                 }
                 if (keyring.generation.value != generation) {
@@ -300,7 +319,7 @@ class HostedSpeechViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (my == epoch) note("The voice check failed: ${e.message}")
+                if (my == epoch) note("The voice check failed: ${e.message}", failed = true)
             } finally {
                 if (my == epoch) local.update { it.copy(checking = false) }
             }
@@ -309,9 +328,12 @@ class HostedSpeechViewModel(
 
     // ---- Transcription fallback -----------------------------------------------------------
 
-    fun setSttKind(kind: String?) = local.update { it.copy(sttKind = kind?.takeIf { k -> k in STT_PRESETS }, sttKindSet = true) }
+    fun setSttKind(kind: String?) = local.update {
+        it.copy(sttKind = kind?.takeIf { k -> k in STT_PRESETS }, sttKindSet = true,
+            sttNotice = null, sttNoticeFailed = false)
+    }
 
-    fun setSttKey(v: String) = local.update { it.copy(sttKeyDraft = v) }
+    fun setSttKey(v: String) = local.update { it.copy(sttKeyDraft = v, sttNotice = null, sttNoticeFailed = false) }
 
     fun setAudioConsent(on: Boolean): Job = viewModelScope.launch { prefsStore.update { it.copy(hostedTranscriptionAllowed = on) } }
 
@@ -327,16 +349,16 @@ class HostedSpeechViewModel(
         val sameKind = s.sttKind != null && s.sttKind == stringOf(stt["kind"])
         val key = s.sttKeyDraft.trim().ifEmpty { if (sameKind) stringOf(stt["apiKey"]).orEmpty() else "" }
         if (s.sttKind != null && key.isEmpty()) {
-            note("Transcription needs its own key.")
+            sttNote("Transcription needs its own key.", failed = true)
             return
         }
         val rec = JsonObject(
             linkedMapOf("kind" to (s.sttKind?.let(::JsonPrimitive) ?: JsonNull), "apiKey" to JsonPrimitive(if (s.sttKind == null) "" else key)),
         )
-        if (!saveRing(withStt(ring(), rec), generation)) return
+        if (!saveRing(withStt(ring(), rec), generation, report = { sttNote(it, failed = true) })) return
         if (s.sttKind == null) prefsStore.update { it.copy(hostedTranscriptionAllowed = false) }
         local.update { it.copy(sttKeyDraft = "", sttKindSet = false) }
-        note(if (s.sttKind == null) "Transcription is off." else "Transcription saved. It is used only when the speech recogniser is missing or cannot recognise your language.")
+        sttNote(if (s.sttKind == null) "Transcription is off." else "Transcription saved. It is used only when the speech recogniser is missing or cannot recognise your language.")
     }
 
     companion object {
@@ -373,6 +395,7 @@ object HostedSpeechTags {
     const val STT_KEY = "stt-key"
     const val AUDIO_CONSENT = "stt-consent"
     const val STT_SAVE = "stt-save"
+    const val STT_NOTICE = "stt-notice"
 }
 
 @Composable
@@ -398,7 +421,7 @@ fun HostedSpeechSection(vm: HostedSpeechViewModel = viewModel(factory = HostedSp
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth().testTag(HostedSpeechTags.KEY),
         )
-        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content)) {
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Choice(stringResource(R.string.speech_voice_marin), s.voice == "marin", HostedSpeechTags.VOICE_MARIN) { vm.setVoice("marin") }
             Choice(stringResource(R.string.speech_voice_cedar), s.voice == "cedar", HostedSpeechTags.VOICE_CEDAR) { vm.setVoice("cedar") }
         }
@@ -421,7 +444,8 @@ fun HostedSpeechSection(vm: HostedSpeechViewModel = viewModel(factory = HostedSp
         )
     }
     s.notice?.let {
-        Text(it, Modifier.testTag(HostedSpeechTags.NOTICE).semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodySmall)
+        IdeaForgeStatusText(it, Modifier.testTag(HostedSpeechTags.NOTICE),
+            tone = if (s.noticeFailed) StatusTone.Error else StatusTone.Neutral)
     }
 
     Text(stringResource(R.string.stt_title), style = MaterialTheme.typography.bodyLarge)
@@ -447,6 +471,10 @@ fun HostedSpeechSection(vm: HostedSpeechViewModel = viewModel(factory = HostedSp
     }
     OutlinedButton(onClick = { vm.saveTranscription() }, modifier = Modifier.testTag(HostedSpeechTags.STT_SAVE)) {
         Text(stringResource(R.string.stt_save))
+    }
+    s.sttNotice?.let {
+        IdeaForgeStatusText(it, Modifier.testTag(HostedSpeechTags.STT_NOTICE),
+            tone = if (s.sttNoticeFailed) StatusTone.Error else StatusTone.Neutral)
     }
 }
 

@@ -32,6 +32,7 @@ import io.github.jaypetez.ideaforge.ux.UxEvidence
 import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,7 +70,8 @@ class ResultLayoutTest {
             compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(done["name"])!!)
             val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(done["name"])!!)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
-            compose.onNode(card).performClick()
+            compose.onNodeWithTag(LibraryTags.more(stringOf(done["id"])!!)).performClick()
+            compose.onNodeWithTag(LibraryTags.details(stringOf(done["id"])!!)).performClick()
             compose.onNode(hasText("View result") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
             scenario.onActivity { activity ->
@@ -84,7 +86,10 @@ class ResultLayoutTest {
             val inContent = hasAnyAncestor(hasTestTag(ResultTags.CONTENT))
             compose.onNodeWithTag(ResultTags.SHARE).assert(if (inline) inContent else !inContent)
 
-            val scrollMatcher = SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollBy) and hasAnyAncestor(hasTestTag(ResultTags.SCREEN))
+            val scrollMatcher = SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange) and
+                hasAnyAncestor(hasTestTag(ResultTags.SCREEN))
+            assertEquals("one logical vertical Result document scroll",
+                1, compose.onAllNodes(scrollMatcher).fetchSemanticsNodes().size)
             val viewport = compose.onNode(scrollMatcher).fetchSemanticsNode()
             assertTrue("the real Result document viewport must not collapse to zero", viewport.boundsInWindow.height > 0f)
             val output = compose.onNodeWithTag(ResultTags.OUTPUT).fetchSemanticsNode()

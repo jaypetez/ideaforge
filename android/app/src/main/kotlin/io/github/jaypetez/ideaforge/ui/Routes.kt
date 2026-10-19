@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
 data object LibraryRoute
 
 @Serializable
-data class InterviewRoute(val sessionId: String)
+data object NewIdeaRoute
+
+@Serializable
+data class InterviewRoute(val sessionId: String, val voiceOnEntry: Boolean = false)
 
 /**
  * [synthesisFailed]: the interview's write-up call just failed (or returned nothing usable),

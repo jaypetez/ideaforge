@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       evidence:
-        description: Full UX inventory, adaptive shell, privacy-link or inference-consent matrix
+        description: Full UX inventory, native onboarding/Settings/Result/Ideas/Interview/voice or focused policy matrix
         type: choice
-        options: [full, shell, privacy-before, privacy, consent-before, consent]
+        options: [full, onboarding, settings, result, ideas, interview, voice, shell, privacy-before, privacy, consent-before, consent]
         default: full
 
 permissions:
@@ -82,8 +82,14 @@ jobs:
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'result' && '-Pandroid.testInstrumentationRunnerArguments.uxResultProbe=true' || '' }}
+          ${{ inputs.evidence == 'settings' && '-Pandroid.testInstrumentationRunnerArguments.uxSettingsProbe=true' || '' }}
+          ${{ inputs.evidence == 'onboarding' && '-Pandroid.testInstrumentationRunnerArguments.uxOnboardingProbe=true' || '' }}
+          ${{ inputs.evidence == 'ideas' && '-Pandroid.testInstrumentationRunnerArguments.uxIdeasProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=ready+empty+unavailable+library+library-100+library-archived+filtered+library-long+ideas-loading' || '' }}
+          ${{ inputs.evidence == 'interview' && '-Pandroid.testInstrumentationRunnerArguments.uxInterviewProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=interview-seed+interview-long+interview-history+interview-coverage+bank+busy-turn+save-failure+interview-ime+interview-wrap+writing+synthesis-failure' || '' }}
+          ${{ inputs.evidence == 'voice' && '-Pandroid.testInstrumentationRunnerArguments.uxVoiceProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=voice-ready+voice-starting+voice-speaking+voice-listening+voice-transcribing+voice-thinking+voice-paused+voice-recovering+voice-blocked+voice-complete+voice-writing+voice-fallback+voice-notifications-off+voice-help' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
@@ -96,8 +102,14 @@ jobs:
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'result' && '-Pandroid.testInstrumentationRunnerArguments.uxResultProbe=true' || '' }}
+          ${{ inputs.evidence == 'settings' && '-Pandroid.testInstrumentationRunnerArguments.uxSettingsProbe=true' || '' }}
+          ${{ inputs.evidence == 'onboarding' && '-Pandroid.testInstrumentationRunnerArguments.uxOnboardingProbe=true' || '' }}
+          ${{ inputs.evidence == 'ideas' && '-Pandroid.testInstrumentationRunnerArguments.uxIdeasProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=ready+empty+unavailable+library+library-100+library-archived+filtered+library-long+ideas-loading' || '' }}
+          ${{ inputs.evidence == 'interview' && '-Pandroid.testInstrumentationRunnerArguments.uxInterviewProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=interview-seed+interview-long+interview-history+interview-coverage+bank+busy-turn+save-failure+interview-ime+interview-wrap+writing+synthesis-failure' || '' }}
+          ${{ inputs.evidence == 'voice' && '-Pandroid.testInstrumentationRunnerArguments.uxVoiceProbe=true -Pandroid.testInstrumentationRunnerArguments.uxCaptureStates=voice-ready+voice-starting+voice-speaking+voice-listening+voice-transcribing+voice-thinking+voice-paused+voice-recovering+voice-blocked+voice-complete+voice-writing+voice-fallback+voice-notifications-off+voice-help' || '' }}
           ${{ inputs.evidence == 'privacy-before' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=before' || inputs.evidence == 'privacy' && '-Pandroid.testInstrumentationRunnerArguments.uxPrivacyProbe=after' || '' }}
           ${{ inputs.evidence == 'consent-before' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=before' || inputs.evidence == 'consent' && '-Pandroid.testInstrumentationRunnerArguments.uxInferenceProbe=after' || '' }}
           -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix
