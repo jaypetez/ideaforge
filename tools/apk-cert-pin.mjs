@@ -22,9 +22,10 @@ import { resolve } from 'node:path';
 export const SECTION = '## Release signing certificate';
 // The one line in that section the workflow reads. Keep the wording in SECURITY.md in step.
 const PIN_LINE = /^Signer certificate SHA-256:\s*`([^`]*)`/m;
-const SIGNER_LINE = /^Signer ([^\r\n]+) certificate SHA-256 digest:[ \t]*([^\r\n]*)$/gm;
-const NUMBERED_SIGNER = /^#\d+$/;
-const SDK_SIGNER = /^\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)$/;
+// Capture unknown labels too, so a new format cannot hide another app certificate.
+const SIGNER_LINE = /^([^\r\n]+) certificate SHA-256 digest:[ \t]*([^\r\n]*)$/gm;
+const NUMBERED_SIGNER = /^Signer #\d+$/;
+const SDK_SIGNER = /^Signer \(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)$/;
 
 /** Lowercase hex with colons and whitespace removed, or null if it is not a SHA-256. */
 export function normalizeFingerprint(text) {
@@ -39,7 +40,8 @@ export function parseSigners(output) {
 
 function signerEntries(output) {
   return [...String(output ?? '').matchAll(SIGNER_LINE)]
-    .map((match) => ({ label: match[1], fingerprint: match[2].trim() }));
+    .map((match) => ({ label: match[1], fingerprint: match[2].trim() }))
+    .filter((entry) => entry.label !== 'Source Stamp Signer');
 }
 
 /**
@@ -71,12 +73,13 @@ export function checkPin({ apksignerOutput, securityMd }) {
   const entries = signerEntries(apksignerOutput);
   if (entries.length === 0) return { ok: false, message: 'apksigner printed no signer certificate' };
   const numbered = entries.every((entry) => NUMBERED_SIGNER.test(entry.label));
-  if (!numbered && !entries.every((entry) => SDK_SIGNER.test(entry.label))) {
+  const v2 = entries.every((entry) => entry.label === 'V2 Signer:');
+  if (!numbered && !v2 && !entries.every((entry) => SDK_SIGNER.test(entry.label))) {
     return { ok: false, message: 'apksigner printed unknown or mixed signer labels' };
   }
   // V3.1 prints one certificate per SDK range. All must use the same app key;
   // numbered multi-signers and rotations to a different certificate still fail.
-  if (numbered && entries.length > 1) {
+  if ((numbered || v2) && entries.length > 1) {
     return { ok: false, message: `the APK has ${entries.length} signers; a release must have exactly one` };
   }
   const fingerprints = entries.map((entry) => normalizeFingerprint(entry.fingerprint));
@@ -85,7 +88,7 @@ export function checkPin({ apksignerOutput, securityMd }) {
   }
   const unique = [...new Set(fingerprints)];
   if (unique.length !== 1) {
-    return { ok: false, message: `the APK uses ${unique.length} certificates across SDK ranges; a release must use one app-signing key` };
+    return { ok: false, message: `the APK uses ${unique.length} certificates across signers or SDK ranges; a release must use one app-signing key` };
   }
   const actual = unique[0];
   if (actual !== pinned.pin) {

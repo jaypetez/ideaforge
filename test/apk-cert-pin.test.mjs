@@ -30,6 +30,7 @@ const signerBlock = (n, hex) => [
 const apksigner = (...hexes) => `${hexes.map((h, i) => signerBlock(i + 1, h)).join('\n')}\n`;
 const sdkSigner = (min, max, hex, dev = false) =>
   `Signer (minSdkVersion=${min}${dev ? ' (dev release=true)' : ''}, maxSdkVersion=${max}) certificate SHA-256 digest: ${hex}\n`;
+const v2Signer = (hex) => `V2 Signer: certificate SHA-256 digest: ${hex}\n`;
 
 const security = (pin, { before = '', after = '' } = {}) => [
   '# Security', '', before, '',
@@ -59,6 +60,36 @@ test('SDK-labelled apksigner output accepts one certificate across platform rang
   ]) {
     assert.deepEqual(checkPin({ apksignerOutput: output, securityMd: security(FP) }),
       { ok: true, fingerprint: FP });
+  }
+});
+
+test('V2-labelled apksigner output accepts the pinned certificate', () => {
+  for (const output of [
+    v2Signer(FP),
+    v2Signer(colons(FP)).replace(/\n/g, '\r\n'),
+    v2Signer(FP) + `Source Stamp Signer certificate SHA-256 digest: ${OTHER}\n`,
+  ]) {
+    assert.deepEqual(checkPin({ apksignerOutput: output, securityMd: security(FP) }),
+      { ok: true, fingerprint: FP });
+  }
+  assert.deepEqual(parseSigners(v2Signer(FP)), [FP]);
+});
+
+test('V2-labelled reports cannot hide another signer or malformed and mixed labels', () => {
+  for (const output of [
+    v2Signer(OTHER),
+    v2Signer(''),
+    v2Signer('malformed'),
+    v2Signer(FP) + v2Signer(FP),
+    v2Signer(FP) + v2Signer(OTHER),
+    v2Signer(OTHER) + apksigner(FP),
+    apksigner(FP) + v2Signer(OTHER),
+    v2Signer(FP) + sdkSigner(28, 2147483647, FP),
+    v2Signer(FP) + `V9 Signer: certificate SHA-256 digest: ${FP}\n`,
+    apksigner(FP) + `V9 Signer: certificate SHA-256 digest: ${OTHER}\n`,
+    apksigner(FP) + `Future Signer: certificate SHA-256 digest: ${OTHER}\n`,
+  ]) {
+    assert.equal(checkPin({ apksignerOutput: output, securityMd: security(FP) }).ok, false, output);
   }
 });
 
@@ -163,6 +194,10 @@ test('the CLI exits 0 on a match and 1 with a GitHub error annotation otherwise'
     assert.equal(r.status, 0, r.stdout + r.stderr);
 
     writeFileSync(out, sdkSigner(33, 2147483647, FP) + sdkSigner(28, 32, colons(FP)));
+    r = run();
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+
+    writeFileSync(out, v2Signer(colons(FP)));
     r = run();
     assert.equal(r.status, 0, r.stdout + r.stderr);
 

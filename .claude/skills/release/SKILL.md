@@ -247,8 +247,8 @@ gh release download "$TAG" --repo jaypetez/ideaforge --dir "$SCRATCH" --pattern 
 Require a published stable release and all six expected uploaded assets. Verify both
 archives, APK, AAB and nonempty `mapping.txt` against `SHA256SUMS`, accepting only those five payload filenames.
 Check the APK's signer with `apksigner verify --print-certs` and require the pinned
-app-signing certificate in every reported SDK range (`node tools/apk-cert-pin.mjs` on the saved output does
-that comparison for both numbered and SDK-range labels, refusing another certificate or
+app-signing certificate in every reported signer or SDK range (`node tools/apk-cert-pin.mjs` on the saved output does
+that comparison for legacy numbered, V2-labelled and SDK-range labels, refusing another certificate or
 unknown labels). Never install it as part of verification. Inspect
 both archives with standard-library/platform tools: require the `ideaforge-VERSION/`
 prefix and matching `package.json`/`src/version.js` contents. Reject unsafe archive paths

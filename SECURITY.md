@@ -150,10 +150,10 @@ apksigner verify --print-certs ideaforge-VERSION.apk
 ```
 
 `apksigner` must exit 0 and report one app-signing certificate equal to the fingerprint
-above (ignore case and colons). Numbered multi-signer output is refused. For SDK-range
+above (ignore case and colons). Numbered and V2-labelled multi-signer output is refused. For SDK-range
 labels, every reported range must use that same certificate; another key or an unknown
-label is refused, not silently ignored. `tools/apk-cert-pin.mjs` checks both supported
-formats. Anything else is not an IdeaForge release:
+or mixed label is refused, not silently ignored. `tools/apk-cert-pin.mjs` checks legacy
+numbered, V2-labelled and SDK-range formats. Anything else is not an IdeaForge release:
 do not install it. Android also refuses to update an installed release with an APK signed by
 another key.
 
