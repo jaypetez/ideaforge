@@ -139,6 +139,41 @@ class HostedSpeechViewModelTest {
         assertFalse(runBlocking { prefs.current() }.hostedSpeechAllowed)
     }
 
+    @Test
+    fun transcriptionStatusNeverOverwritesTheIndependentSpeechFailure() {
+        answer = { SpeakResult(SpeakStatus.FAILED, SpeakFailure.ENGINE_ERROR, "controlled speech failure",
+            backend = SpeechBackend.HOSTED) }
+        join(vm.chooseHosted(true))
+        vm.setKey(SPEECH)
+        consentAll()
+        join(vm.checkAndPreview())
+        val failed = settle { it.noticeFailed }.notice
+        vm.setSttKind("groq")
+        join(vm.saveTranscription())
+        val state = settle { it.sttNoticeFailed }
+        assertEquals(failed, state.notice)
+        assertTrue(state.noticeFailed)
+        assertTrue(state.sttNotice!!.contains("own key"))
+        assertFalse(ready())
+        vm.setSttKey("scripted-stt-key")
+        join(vm.saveTranscription())
+        val saved = settle { it.sttNotice?.contains("saved") == true }
+        assertFalse(saved.sttNoticeFailed)
+        assertEquals(failed, saved.notice)
+        assertEquals(INFERENCE, stringOf(ring()["byKind"]["openai"]["apiKey"]))
+    }
+
+    @Test
+    fun unreadableKeysCannotBeReportedAsASuccessfulVoiceChange() {
+        vm.state
+        keyring.file.writeBytes(byteArrayOf(1, 2, 3))
+        runBlocking { keyring.load() }
+        join(vm.chooseHosted(false))
+        val failed = settle { it.noticeFailed }
+        assertTrue(failed.notice!!.contains("could not be read"))
+        assertFalse(failed.enabled)
+    }
+
     // Acceptance: a fallback never passes the check, even if it "spoke".
     @Test
     fun aFallbackThatSpokeIsNotAPass() {

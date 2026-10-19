@@ -9,6 +9,7 @@ import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -36,6 +38,8 @@ import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.ScriptedProvider
 import io.github.jaypetez.ideaforge.core.PromptParts
+import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
+import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -46,6 +50,8 @@ import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.KeyringKey
+import io.github.jaypetez.ideaforge.data.SessionStore
+import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.scriptedWalkthrough
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
@@ -54,12 +60,19 @@ import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ui.settings.SettingsTags
+import io.github.jaypetez.ideaforge.ui.settings.HostedSpeechTags
+import io.github.jaypetez.ideaforge.ui.settings.BackupTags
+import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
+import io.github.jaypetez.ideaforge.providers.ProviderErrorCode
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.Speaker
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -71,6 +84,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -81,7 +99,9 @@ import javax.crypto.spec.SecretKeySpec
  * Every real-app state uses MainActivity navigation and the existing scripted provider;
  * only voice presentations launch the labelled debug-only isolated component activity.
  * Each graph has its own private files and in-memory dummy encryption key. No user session,
- * keyring, preference, permission, microphone or real provider is read or changed.
+ * keyring, preference, microphone or real provider is read or changed. Permission state
+ * is never changed; the new-entry recovery case checks that a permission is ungranted,
+ * then cancels the app rationale without launching an OS request.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -98,6 +118,409 @@ class UxCaptureDeviceTest {
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
+    private var heldLibraryRead: CountDownLatch? = null
+    private var libraryReadEntered: CountDownLatch? = null
+
+    @Test
+    fun requestedNativeResultKeepsDocumentAndCanonicalActions() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxResultProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeResultKeepsDocumentAndCanonicalActions") != true) {
+                "the selected Result probe requires uxResultProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "Result evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("long", "long-scrolled", "short", "checklist", "synthesis-failure", "loading")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-result"),
+            matrix.flatMap { config -> frames.map { "${config.id}/result-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState("result-$frame", "result", "real-app", null, null, null)
+                        var release: CompletableDeferred<Unit>? = null
+                        try {
+                            val base = fixtures.state(if (frame == "synthesis-failure") "synthesis-failure" else "result-long")
+                            prepare(base, config)
+                            val graph = checkNotNull(fixtureGraph)
+                            var id = requireNotNull(base.sessionId)
+                            if (frame == "short") {
+                                val short = fixtures.datasets.getValue("mixed").first { stringOf(it["status"]) == "done" }
+                                check(runBlocking { graph.sessionStore.insert(short) })
+                                id = requireNotNull(stringOf(short["id"]))
+                            } else if (frame == "checklist") {
+                                val done = requireNotNull(graph.sessionStore.get(id))
+                                val turns = (done["turns"] as kotlinx.serialization.json.JsonArray).mapIndexed { index, turn ->
+                                    if (index == 0) kotlinx.serialization.json.JsonObject((turn as kotlinx.serialization.json.JsonObject) +
+                                        ("questionSource" to JsonPrimitive("bank"))) else turn
+                                }
+                                runBlocking { graph.sessionStore.save(kotlinx.serialization.json.JsonObject(done +
+                                    ("turns" to kotlinx.serialization.json.JsonArray(turns)))) }
+                            }
+                            if (frame == "synthesis-failure") {
+                                navigate(base)
+                                await(ResultTags.SYNTHESIS_FAILED)
+                                revealControl(ResultTags.SYNTHESIS_FAILED)
+                            } else {
+                                launchMain()
+                                await(NAVIGATION)
+                                if (frame == "loading") {
+                                    val entered = CompletableDeferred<Unit>()
+                                    val gate = CompletableDeferred<Unit>()
+                                    release = gate
+                                    graph.appScope.launch {
+                                        graph.sessionWorker.exclusive(id) {
+                                            entered.complete(Unit)
+                                            gate.await()
+                                        }
+                                    }
+                                    runBlocking { entered.await() }
+                                }
+                                selectSession(id)
+                                await(ResultTags.SCREEN)
+                                if (frame == "loading") {
+                                    compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.result_loading)), DEVICE_TIMEOUT)
+                                } else {
+                                    await(ResultTags.OUTPUT)
+                                    if (frame == "checklist")
+                                        assertTrue("checklist provenance is explicit", nodeText(ResultTags.META).contains("checklist"))
+                                    else compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
+                                    if (frame == "long-scrolled") {
+                                        compose.onNodeWithTag(ResultTags.CONTENT)
+                                            .performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, 100_000f) }
+                                        compose.waitUntil(DEVICE_TIMEOUT) {
+                                            compose.onNodeWithTag(ResultTags.CONTENT).fetchSemanticsNode().config
+                                                .getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.value?.invoke()?.let { it > 0f } == true
+                                        }
+                                    }
+                                }
+                            }
+                            val controls = if (frame == "loading")
+                                listOf(UxControl("loading", hasText(target.getString(R.string.result_loading)), actionRequired = false))
+                            else resultControls()
+                            recorder.capture(state, config, checkNotNull(activity), controls, nativeSurface = "result",
+                                nativeMapping = "Real MainActivity Result $frame; canonical stored export, scripted synthesis or held session lock; no chooser/clipboard/file picker or live model.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            release?.complete(Unit)
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
+
+    @Test
+    fun requestedNativeSettingsKeepSectionsAndDataBoundaries() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxSettingsProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeSettingsKeepSectionsAndDataBoundaries") != true) {
+                "the selected Settings probe requires uxSettingsProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "Settings evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
+            "cancel-forget", "about", "connection-failure", "checking", "backup-failure")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-settings"),
+            matrix.flatMap { config -> frames.map { "${config.id}/settings-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState("settings-$frame", "settings", "real-app", null, null, null)
+                        try {
+                            val checker = ProviderCheck { _, _ ->
+                                when (frame) {
+                                    "checking" -> awaitCancellation()
+                                    "connection-failure" -> throw ProviderException(ProviderErrorCode.AUTH,
+                                        "Scripted refused connection. ${fixtures.text("answer")}", status = 401)
+                                    else -> error("unexpected Settings fixture check")
+                                }
+                            }
+                            val base = fixtures.state("ready")
+                            prepare(base, config, inferenceAgreed = frame != "connection-lan", checker = checker)
+                            navigate(base)
+                            compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+                            await(SettingsTags.PROVIDER)
+                            when (frame) {
+                                "connection-lan" -> {
+                                    compose.onNodeWithTag(SettingsTags.PROVIDER).performScrollTo().performClick()
+                                    compose.onNodeWithTag(SettingsTags.provider("ollama")).performScrollTo().performClick()
+                                    await(SettingsTags.BASE_URL)
+                                    compose.onNodeWithTag(SettingsTags.BASE_URL).performScrollTo()
+                                        .performTextReplacement("http://192.168.1.20:11434/v1")
+                                    hideKeyboard()
+                                    await("local-http-warning")
+                                    revealControl("inference-consent")
+                                    compose.onNodeWithTag("local-http-warning").assertIsDisplayed()
+                                }
+                                "hosted-consents" -> {
+                                    revealControl(HostedSpeechTags.HOSTED)
+                                    compose.onNodeWithTag(HostedSpeechTags.HOSTED).performClick()
+                                    await(HostedSpeechTags.CONSENT_METERED)
+                                    revealControl(HostedSpeechTags.CONSENT_SYNTHETIC)
+                                }
+                                "cancel-forget" -> {
+                                    val graph = checkNotNull(fixtureGraph)
+                                    val bytes = graph.keyringStore.file.readBytes()
+                                    val generation = graph.keyringStore.generation.value
+                                    revealControl(SettingsTags.FORGET)
+                                    compose.onNodeWithTag(SettingsTags.FORGET).performClick()
+                                    await(SettingsTags.FORGET_CONFIRM)
+                                    compose.onNode(hasText(target.getString(R.string.action_cancel)) and hasClickAction()).performClick()
+                                    compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.FORGET_CONFIRM) }
+                                    assertTrue("Cancel keeps the credential blob", bytes.contentEquals(graph.keyringStore.file.readBytes()))
+                                    assertEquals("Cancel does not revoke", generation, graph.keyringStore.generation.value)
+                                }
+                                "connection-failure", "checking" -> {
+                                    revealControl(SettingsTags.CHECK)
+                                    compose.onNodeWithTag(SettingsTags.CHECK).performClick()
+                                    await(SettingsTags.STATUS)
+                                    compose.waitUntil(DEVICE_TIMEOUT) {
+                                        nodeText(SettingsTags.STATUS).contains(if (frame == "checking")
+                                            target.getString(R.string.onboarding_checking)
+                                        else "Scripted refused connection")
+                                    }
+                                    revealControl(SettingsTags.STATUS)
+                                    compose.onNodeWithTag(SettingsTags.STATUS).assertIsDisplayed()
+                                }
+                                "backup-failure" -> {
+                                    revealControl(BackupTags.EXPORT)
+                                    checkNotNull(fixtureGraph).backupJobs.launch {
+                                        throw IOException("Scripted backup destination failure. Existing ideas and keys are unchanged.")
+                                    }
+                                    await(BackupTags.STATUS)
+                                    compose.waitUntil(DEVICE_TIMEOUT) { nodeText(BackupTags.STATUS).contains("Scripted backup destination") }
+                                    revealControl(BackupTags.STATUS)
+                                    compose.onNodeWithTag(BackupTags.STATUS).assertIsDisplayed()
+                                }
+                                else -> {
+                                    val section = when (frame) {
+                                        "voice" -> "voice"
+                                        "appearance" -> "appearance"
+                                        "data" -> "data"
+                                        else -> "about"
+                                    }
+                                    revealControl("settings-section-$section")
+                                }
+                            }
+                            val controls = when (frame) {
+                                "voice" -> listOf(tag(SettingsTags.HANDS_FREE), tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE))
+                                "hosted-consents" -> listOf(tag(HostedSpeechTags.VOICE_MARIN), tag(HostedSpeechTags.VOICE_CEDAR),
+                                    tag(HostedSpeechTags.CONSENT_SYNTHETIC), tag(HostedSpeechTags.CONSENT_TEXT), tag(HostedSpeechTags.CONSENT_METERED))
+                                "appearance" -> Prefs.THEMES.map { tag(SettingsTags.theme(it)) }
+                                "data", "backup-failure" -> listOf(tag(BackupTags.EXPORT), tag(BackupTags.IMPORT), tag(SettingsTags.FORGET))
+                                "cancel-forget" -> listOf(tag(SettingsTags.FORGET))
+                                "about" -> listOf(textControl("privacy", R.string.privacy_policy))
+                                "checking" -> listOf(tag(SettingsTags.FORGET))
+                                "connection-lan" -> listOf(tag("inference-consent"))
+                                else -> listOf(tag(SettingsTags.PROVIDER), tag(SettingsTags.CHECK), tag(SettingsTags.SAVE))
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls, nativeSurface = "settings",
+                                nativeMapping = "Real MainActivity Settings $frame; scripted connection/backup error, no file picker, hosted preview or real provider.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally { closeFixture() }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
+
+    @Test
+    fun requestedNativeOnboardingAndEntryKeepIntentAndRecovery() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxOnboardingProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeOnboardingAndEntryKeepIntentAndRecovery") != true) {
+                "the selected onboarding probe requires uxOnboardingProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "onboarding evidence has a fixed complete matrix" }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("providers", "hosted", "local-lan", "entry", "typed", "voice-cancel",
+            "check-failure", "checking", "model-failure", "unreadable")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
+            File(outputPath, "ux-onboarding"),
+            matrix.flatMap { config -> frames.map { "${config.id}/start-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val entry = frame in setOf("entry", "typed", "voice-cancel")
+                        val surface = if (frame in setOf("typed", "voice-cancel")) "interview" else "onboarding"
+                        val state = UxState("start-$frame", surface, "real-app", null, null, null)
+                        try {
+                            val check = ProviderCheck { _, _ ->
+                                when (frame) {
+                                    "checking" -> awaitCancellation()
+                                    "check-failure" -> throw ProviderException(ProviderErrorCode.AUTH,
+                                        "Scripted refused key. ${fixtures.text("answer")}", status = 401)
+                                    "model-failure" -> throw ProviderException(ProviderErrorCode.NETWORK,
+                                        "Scripted unavailable model list. Enter a known model manually.")
+                                    else -> error("unexpected onboarding fixture check")
+                                }
+                            }
+                            val base = fixtures.state(if (entry || frame == "unreadable") "ready" else "fresh")
+                            prepare(base, config, inferenceAgreed = entry, checker = check)
+                            val graph = checkNotNull(fixtureGraph)
+                            val starts = AtomicInteger()
+                            graph.driveService = object : DriveServiceControl {
+                                override fun start() { starts.incrementAndGet() }
+                                override fun stop() {}
+                            }
+                            graph.driveSpeaker = object : Speaker {
+                                override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+                                override fun cancel() {}
+                                override fun shutdown() {}
+                            }
+                            if (frame == "unreadable") {
+                                graph.keyringStore.file.writeBytes(byteArrayOf(1, 2, 3))
+                                runBlocking { graph.keyringStore.load() }
+                                launchMain()
+                                await("keyring-problem")
+                            } else {
+                                navigate(base)
+                                when {
+                                    entry -> {
+                                        val held = graph.sessionStore.sessions.value.map { stringOf(it["id"]) }.toSet()
+                                        compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                                        await("new-idea-choice")
+                                        assertEquals("opening the choice creates no library idea",
+                                            held, graph.sessionStore.sessions.value.map { stringOf(it["id"]) }.toSet())
+                                        assertEquals("navigation starts no service", 0, starts.get())
+                                        if (frame != "entry") {
+                                            if (frame == "voice-cancel") {
+                                                require(!voicePermissionsHeld(target)) { "recovery capture requires an ungranted permission; permissions will not be changed" }
+                                                compose.onNodeWithTag("new-idea-voice").performClick()
+                                                await("voice-mic-rationale")
+                                                compose.onNode(hasText(target.getString(R.string.voice_mic_cancel)) and hasClickAction()).performClick()
+                                            } else compose.onNodeWithTag("new-idea-type").performClick()
+                                            await("answer")
+                                            if (frame == "voice-cancel")
+                                                compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.voice_entry_cancelled)), DEVICE_TIMEOUT)
+                                            assertEquals("entry/recovery starts no service", 0, starts.get())
+                                        }
+                                    }
+                                    frame == "providers" -> revealControl("provider-ollama")
+                                    frame == "local-lan" || frame == "model-failure" -> {
+                                        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+                                        await("base-url")
+                                        compose.onNodeWithTag("base-url").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                        if (frame == "model-failure") {
+                                            revealControl("find-models")
+                                            compose.onNodeWithTag("find-models").performClick()
+                                            await("check-failure")
+                                        } else {
+                                            compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-local-model")
+                                            hideKeyboard()
+                                            await("local-http-warning")
+                                            revealControl("inference-consent")
+                                            compose.onNodeWithTag("local-http-warning").assertIsDisplayed()
+                                        }
+                                    }
+                                    else -> {
+                                        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+                                        await("api-key")
+                                        if (frame == "hosted") {
+                                            revealControl("inference-consent")
+                                        } else {
+                                            compose.onNodeWithTag("api-key").performTextInput("scripted-visual-key")
+                                            hideKeyboard()
+                                            compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+                                            compose.onNodeWithTag("check-key").performScrollTo().performClick()
+                                            if (frame == "checking")
+                                                compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.onboarding_checking)), DEVICE_TIMEOUT)
+                                            else await("check-failure")
+                                        }
+                                    }
+                                }
+                            }
+                            val controls = when (frame) {
+                                "entry" -> listOf(tag("new-idea-voice"), tag("new-idea-type"), tag("new-idea-cancel"))
+                                "typed", "voice-cancel" -> interviewControls()
+                                "providers" -> listOf(tag("provider-groq"), tag("provider-ollama"))
+                                "unreadable" -> listOf(tag("keyring-retry"), tag("keyring-setup"))
+                                "local-lan", "model-failure" -> listOf(tag("model"), tag("find-models"), tag("inference-consent"))
+                                "checking" -> listOf(textControl("back", R.string.onboarding_back))
+                                else -> listOf(tag("api-key"), tag("check-key"), tag("inference-consent"))
+                            }
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeSurface = surface,
+                                nativeMapping = "Real MainActivity $frame; scripted connection/output/service, no OS permission request or live provider.")
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally {
+                            closeFixture()
+                        }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
 
     @Test
     fun requestedInferenceConsentIsProminent() {
@@ -120,7 +543,8 @@ class UxCaptureDeviceTest {
                 listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
             }
         }
-        val frames = listOf("settings-connection", "onboarding-provider", "onboarding-hosted", "onboarding-local")
+        val frames = listOf("settings-connection", "onboarding-provider", "onboarding-hosted", "onboarding-local") +
+            if (phase == "after") listOf("settings-http-lan", "onboarding-http-lan") else emptyList()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
             File(outputPath, "ux-consent-$phase"),
             matrix.flatMap { config -> frames.map { "${config.id}/consent-$phase-$it" } }.toSet())
@@ -133,34 +557,53 @@ class UxCaptureDeviceTest {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
                     for (frame in frames) {
+                        val settings = frame.startsWith("settings-")
                         val state = UxState("consent-$phase-$frame",
-                            if (frame == "settings-connection") "settings" else "onboarding",
+                            if (settings) "settings" else "onboarding",
                             "real-app", phase, null, null)
                         try {
-                            val base = fixtures.state(if (frame == "settings-connection") "ready" else "fresh")
+                            val base = fixtures.state(if (settings) "ready" else "fresh")
                             prepare(base, config, inferenceAgreed = false)
                             navigate(base)
                             when (frame) {
-                                "settings-connection" -> {
+                                "settings-connection", "settings-http-lan" -> {
                                     compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
                                     await("settings-active")
+                                    if (frame == "settings-http-lan") {
+                                        await("settings-provider")
+                                        compose.onNodeWithTag("settings-provider").performScrollTo().performClick()
+                                        compose.onNodeWithTag("settings-provider-ollama").performScrollTo().performClick()
+                                        await("settings-baseurl")
+                                        compose.onNodeWithTag("settings-baseurl").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                        hideKeyboard()
+                                    }
                                 }
                                 "onboarding-provider" -> revealControl("provider-ollama")
                                 "onboarding-hosted" -> {
                                     compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
                                     await("api-key")
                                 }
-                                "onboarding-local" -> {
+                                "onboarding-local", "onboarding-http-lan" -> {
                                     compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
                                     await("model")
+                                    if (frame == "onboarding-http-lan") {
+                                        compose.onNodeWithTag("base-url").performScrollTo()
+                                            .performTextReplacement("http://192.168.1.20:11434/v1")
+                                    }
                                     compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-local-model")
                                     hideKeyboard()
                                 }
                             }
+                            if (frame.endsWith("-http-lan")) await("local-http-warning")
                             val controls = when {
                                 frame == "onboarding-provider" -> listOf(tag("provider-ollama"))
                                 phase == "after" -> {
+                                    await("inference-consent")
                                     compose.onNodeWithTag("inference-consent").performScrollTo().assertIsDisplayed()
+                                    if (frame.endsWith("-http-lan")) {
+                                        compose.onNodeWithTag("local-http-warning").assertIsDisplayed()
+                                    }
                                     listOf(tag("inference-consent"))
                                 }
                                 else -> {
@@ -693,20 +1136,101 @@ class UxCaptureDeviceTest {
         val bundle = InstrumentationRegistry.getArguments()
         val args = bundle.keySet().associateWith { bundle.get(it).toString() }
         val request = UxCaptureRequest.from(args) ?: return
+        captureUxEvidence(request)
+    }
+
+    @Test
+    fun requestedIdeasAreCompactReachableAndTruthful() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxIdeasProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedIdeasAreCompactReachableAndTruthful") != true) {
+                "the selected Ideas probe requires uxIdeasProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxIdeasProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "ready", "empty", "unavailable", "library", "library-100", "library-archived", "filtered", "library-long", "ideas-loading",
+        )) { "Ideas evidence requires its complete fixed state matrix" }
+        captureUxEvidence(request, nativeIdeas = true)
+    }
+
+    @Test
+    fun requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxInterviewProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful") != true) {
+                "the selected Interview probe requires uxInterviewProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxInterviewProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "interview-seed", "interview-long", "interview-history", "interview-coverage", "bank", "busy-turn",
+            "save-failure", "interview-ime", "interview-wrap", "writing", "synthesis-failure",
+        )) { "Interview evidence requires its complete fixed state matrix" }
+        captureUxEvidence(request, nativeInterview = true)
+    }
+
+    @Test
+    fun requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("uxVoiceProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest") != true) {
+                "the selected voice probe requires uxVoiceProbe=true and its complete capture inventory"
+            }
+            return
+        }
+        require(probe == "true") { "uxVoiceProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states?.toSet() == setOf(
+            "voice-ready", "voice-starting", "voice-speaking", "voice-listening", "voice-transcribing",
+            "voice-thinking", "voice-paused", "voice-recovering", "voice-blocked", "voice-complete", "voice-writing",
+            "voice-fallback", "voice-notifications-off", "voice-help",
+        )) { "Voice evidence requires its complete fixed phase/recovery inventory" }
+        captureUxEvidence(request, nativeVoice = true)
+    }
+
+    private fun captureUxEvidence(
+        request: UxCaptureRequest, nativeIdeas: Boolean = false, nativeInterview: Boolean = false, nativeVoice: Boolean = false,
+    ) {
+        val bundle = InstrumentationRegistry.getArguments()
         val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }) {
             "requested UX evidence needs Gradle's additionalTestOutputDir"
         }
         fixtures = UxFixtures.load(target)
-        val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map(fixtures::state) ?: fixtures.states
+        val selected = if (request.mode == "walkthrough") emptyList() else request.states?.map { id ->
+            when {
+                nativeVoice -> UxFixtureActivity.requestedVoiceState(fixtures, id)
+                nativeIdeas && id == "ideas-loading" -> fixtures.state("ready").copy(id = id, surface = "library", phase = "loading")
+                nativeInterview && id in setOf("interview-seed", "interview-wrap") ->
+                    fixtures.state("ready").copy(id = id, surface = "interview")
+                nativeInterview && id in setOf("interview-history", "interview-coverage", "interview-ime") ->
+                    fixtures.state("interview-long").copy(id = id)
+                else -> fixtures.state(id)
+            }
+        } ?: fixtures.states
         val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
         val matrix = windows.flatMap { window ->
             listOf("light", "dark").flatMap { theme ->
                 listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
             }
+        } + if (nativeVoice && "compact" in windows) listOf("light", "dark").map {
+            UxConfiguration("compact-landscape", it, 2f, requestedWidthDp = 640, requestedHeightDp = 400)
+        } else emptyList()
+        val requestedStates = matrix.associateWith { config ->
+            if (nativeVoice && config.window == "compact-landscape")
+                selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
+            else selected
         }
         val walkthrough = if (request.states == null) listOf("seed", "chip", "result") else emptyList()
         val expected = matrix.flatMap { config ->
-            selected.map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
+            requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
         }.toSet()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux"), expected)
         val originalGraph = app.graph
@@ -717,7 +1241,7 @@ class UxCaptureDeviceTest {
             UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
-                    for (state in selected) {
+                    for (state in requestedStates.getValue(config)) {
                         try {
                             prepare(state, config)
                             val before = SystemClock.elapsedRealtimeNanos()
@@ -729,6 +1253,15 @@ class UxCaptureDeviceTest {
                                 nativeMapping = nativeMapping(state),
                                 labNavigationMs = if (state.id == "library-100") elapsed else null,
                             )
+                            if (state.id == "ideas-loading") {
+                                assertTrue("the read remains pending for the whole loading capture", heldLibraryRead?.count == 1L)
+                                assertTrue("loading did not become an empty or failed read", !fixtureGraph!!.sessionStore.loadState.value.ready &&
+                                    fixtureGraph!!.sessionStore.loadState.value.problem == null)
+                            }
+                            if (state.id == "interview-ime") {
+                                assertTrue("reachability keeps the actual keyboard open",
+                                    activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime()))
+                            }
                         } catch (e: Throwable) {
                             recorder.failed(state, config, e, activity)
                         } finally {
@@ -769,14 +1302,31 @@ class UxCaptureDeviceTest {
         }
     }
 
-    private fun prepare(state: UxState, config: UxConfiguration, inferenceAgreed: Boolean = true) = runBlocking {
+    private fun prepare(
+        state: UxState,
+        config: UxConfiguration,
+        inferenceAgreed: Boolean = true,
+        checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+    ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
         val controlled = FixtureProvider(ScriptedProvider(script), state.id)
+        val gate = if (state.id == "ideas-loading") CountDownLatch(1) else null
+        heldLibraryRead = gate
+        libraryReadEntered = gate?.let { CountDownLatch(1) }
+        val storage = gate?.let {
+            val entered = checkNotNull(libraryReadEntered)
+            SessionStore(File(context.filesDir, "sessions"), readAttributes = { file ->
+                entered.countDown()
+                if (!gate.await(DEVICE_TIMEOUT, TimeUnit.MILLISECONDS)) throw IOException("controlled UX library read exceeded its capture budget")
+                Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+            })
+        }
         val graph = AppGraph(
             context, clock = Clock { fixtures.now }, keyringKey = FixtureKey(),
-            providerCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+            providerCheck = checker,
             providerSource = ProviderSource { controlled },
+            sessionStorage = storage,
         )
         fixtureGraph = graph
         app.graph = graph
@@ -797,7 +1347,7 @@ class UxCaptureDeviceTest {
             val load = runCatching { graph.sessionStore.load() }
             assertTrue("the real store rejects unavailable storage", load.exceptionOrNull() is IOException)
             assertTrue("the real store reports the failed read", graph.sessionStore.loadState.value.problem != null)
-        } else {
+        } else if (state.id != "ideas-loading") {
             graph.sessionStore.load()
         }
         if (state.id == "save-failure") {
@@ -828,13 +1378,34 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag("voice-no-level").assertExists()
                 assertEquals(fixtures.text("answer"), nodeText("voice-caption"))
             }
+            if (state.phase in setOf("transcribing", "thinking", "recovering", "paused", "blocked"))
+                assertEquals(fixtures.text("answer"), nodeText("voice-caption"))
+            if (state.phase == "transcribing")
+                assertEquals(target.getString(R.string.voice_phase_transcribing), nodeText("voice-phase"))
+            if (state.id == "voice-fallback") {
+                compose.onNodeWithTag("voice-fallback").assertExists()
+                assertEquals(target.getString(R.string.voice_backend_native), nodeText("voice-backend"))
+            }
+            if (state.id == "voice-help") {
+                compose.onNodeWithTag("voice-help-toggle").performScrollTo().performClick()
+                compose.onNodeWithTag("voice-help").assertExists()
+            }
             return buildList {
                 if (state.phase == "listening") add(UxControl("voice-no-level", hasTestTag("voice-no-level"), actionRequired = false))
+                if (state.phase == "blocked") add(tag("voice-mic-settings"))
+                if (state.id == "voice-notifications-off")
+                    add(UxControl("voice-notifications-off", hasTestTag("voice-notifications-off"), actionRequired = false))
+                add(tag("voice-help-toggle"))
                 addAll(listOf(
                 tag(if (state.phase in setOf("paused", "blocked")) "voice-resume" else "voice-pause"),
                 tag("voice-exit"),
                 ))
             }
+        }
+        if (state.id == "interview-wrap") {
+            scriptedWalkthrough(compose, target, launch = ::launchMain, settleInput = ::hideKeyboard, wrapOnly = true)
+            await("wrap-offer")
+            return listOf(tag("wrap-accept"), tag("wrap-decline"), tag("interview-back"))
         }
         launchMain(scripted = state.id !in setOf("busy-turn", "writing", "synthesis-failure"))
         if (state.id == "fresh") {
@@ -843,6 +1414,15 @@ class UxCaptureDeviceTest {
         }
         await(NAVIGATION)
         when (state.id) {
+            "ideas-loading" -> {
+                compose.waitUntil(DEVICE_TIMEOUT) { libraryReadEntered?.count == 0L }
+                val label = hasText(target.getString(R.string.library_loading))
+                compose.onNode(label).assertIsDisplayed()
+                compose.onNodeWithTag(LibraryTags.ZERO).assertDoesNotExist()
+                compose.onNodeWithTag(LibraryTags.EMPTY).assertDoesNotExist()
+                compose.onNodeWithTag(LibraryTags.UNAVAILABLE).assertDoesNotExist()
+                return listOf(UxControl("library-loading", label, actionRequired = false), tag(LibraryTags.NEW)) + navigationControls()
+            }
             "ready", "empty" -> {
                 await(LibraryTags.ZERO)
                 return listOf(tag(LibraryTags.NEW)) + navigationControls()
@@ -864,9 +1444,11 @@ class UxCaptureDeviceTest {
                         .performScrollToNode(hasTestTag(menu))
                     compose.onNodeWithTag(menu).assertExists("the hundredth idea's menu remains reachable")
                 }
-                return listOf(tag(LibraryTags.NEW), tag(LibraryTags.SEARCH), tag(LibraryTags.ARCHIVED)) + navigationControls()
+                return listOf(tag(LibraryTags.NEW), tag(LibraryTags.SEARCH), tag(LibraryTags.FILTERS)) + navigationControls()
             }
             "library-archived" -> {
+                await(LibraryTags.FILTERS)
+                compose.onNodeWithTag(LibraryTags.FILTERS).performScrollTo().performClick()
                 await(LibraryTags.ARCHIVED)
                 compose.onNodeWithTag(LibraryTags.ARCHIVED).performScrollTo().performClick()
                 compose.waitUntil(DEVICE_TIMEOUT) {
@@ -879,7 +1461,7 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag(LibraryTags.SEARCH).performScrollTo().performTextInput("no matching UX fixture")
                 hideKeyboard()
                 await(LibraryTags.EMPTY)
-                return listOf(tag(LibraryTags.SEARCH), tag(LibraryTags.NEW)) + navigationControls()
+                return listOf(tag(LibraryTags.SEARCH), tag(LibraryTags.CLEAR), tag(LibraryTags.NEW)) + navigationControls()
             }
             "library-long" -> {
                 selectSession("ux-long-active", open = false)
@@ -887,11 +1469,45 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertDoesNotExist()
                 return listOf(textControl("continue", R.string.idea_continue), tag(LibraryTags.NEW)) + navigationControls()
             }
-            "interview-long", "bank" -> {
+            "interview-seed" -> {
+                compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                await("new-idea-type")
+                compose.onNodeWithTag("new-idea-type").performClick()
+                await("question")
+                assertEquals(SEED_QUESTION, nodeText("question"))
+                compose.onNodeWithTag("history-toggle").assertDoesNotExist()
+                return interviewControls() + tag("coverage-details")
+            }
+            "interview-long", "bank", "interview-history", "interview-coverage", "interview-ime" -> {
                 selectSession(requireNotNull(state.sessionId))
                 await("question")
                 if (state.id == "bank") compose.onNodeWithTag("degraded").assertExists()
                 else assertEquals(fixtures.text("question"), nodeText("question"))
+                when (state.id) {
+                    "interview-history" -> {
+                        revealControl("history-toggle")
+                        compose.onNodeWithTag("history-toggle").performClick()
+                        assertEquals(target.getString(R.string.interview_history_hide), nodeText("history-toggle"))
+                    }
+                    "interview-coverage" -> {
+                        revealControl("coverage-details")
+                        compose.onNodeWithTag("coverage-details").performClick()
+                        return listOf(tag("coverage-details")) + DIMENSION_IDS.map {
+                            UxControl("pill-$it", hasTestTag("pill-$it"), actionRequired = false)
+                        }
+                    }
+                    "interview-ime" -> {
+                        revealControl("answer")
+                        compose.onNodeWithTag("answer").performClick()
+                        compose.waitUntil(DEVICE_TIMEOUT) {
+                            activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime())
+                        }
+                        compose.onNodeWithTag("answer").performTextReplacement(fixtures.text("answer"))
+                        revealControl("answer")
+                        assertEquals(fixtures.text("answer"), compose.onNodeWithTag("answer").fetchSemanticsNode()
+                            .config.getOrNull(SemanticsProperties.EditableText)?.text)
+                    }
+                }
                 return interviewControls() + if (state.id == "interview-long") {
                     (fixtures.text.getValue("chips") as kotlinx.serialization.json.JsonArray).indices.map { tag("chip-$it") } +
                         UxControl("turn-status", hasTestTag("turn-status"), actionRequired = false)
@@ -906,6 +1522,7 @@ class UxCaptureDeviceTest {
             "writing", "synthesis-failure" -> {
                 selectSession(requireNotNull(state.sessionId))
                 await("write-up")
+                revealControl("write-up")
                 compose.onNodeWithTag("write-up").performClick()
                 if (state.id == "writing") {
                     await("interview-busy")
@@ -921,6 +1538,8 @@ class UxCaptureDeviceTest {
             }
             "busy-turn", "save-failure" -> {
                 compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                await("new-idea-type")
+                compose.onNodeWithTag("new-idea-type").performClick()
                 await("answer")
                 compose.onNodeWithTag("answer").performTextInput(fixtures.text("answer"))
                 hideKeyboard()
@@ -958,7 +1577,8 @@ class UxCaptureDeviceTest {
         hideKeyboard()
         val card = hasTestTag(LibraryTags.CARD) and hasText(title)
         compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
-        compose.onNode(card).performClick()
+        compose.onNodeWithTag(LibraryTags.more(id)).performClick()
+        compose.onNodeWithTag(LibraryTags.details(id)).performClick()
         await(LibraryTags.DETAIL)
         if (open) {
             val action = if (stringOf(session["status"]) == "done") R.string.idea_view_result else R.string.idea_continue
@@ -1017,6 +1637,9 @@ class UxCaptureDeviceTest {
     }
 
     private fun closeFixture() {
+        heldLibraryRead?.countDown()
+        heldLibraryRead = null
+        libraryReadEntered = null
         val closing = scenario
         val graph = fixtureGraph
         scenario = null
@@ -1041,6 +1664,9 @@ class UxCaptureDeviceTest {
         "fresh" -> "Native first run is provider onboarding, not the web Start screen."
         "ready" -> "Native with a ready provider starts at Ideas; it has no separate Start screen."
         "writing" -> "Native write-up stays in the interview with a Writing busy line until it settles."
+        "ideas-loading" -> "Real MainActivity Ideas while its actual SessionStore read is held pending; no empty index or synthetic UI state."
+        "interview-wrap" -> "Real MainActivity canonical typed walkthrough stopped at its actual engine wrap offer; not a fabricated presentation state."
+        "interview-ime" -> "Real MainActivity long interview with the actual native keyboard open throughout capture and reachability."
         else -> null
     }
 }

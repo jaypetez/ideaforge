@@ -553,6 +553,28 @@ test('the documented debug application id and APK artifact match the build and C
   assert.ok(page.includes(`expire after ${retention} days`), `guide omits the ${retention}-day retention`);
 });
 
+test('native cleartext transport guidance matches the shared warning owner', () => {
+  const policy = androidFile('providers', 'src', 'main', 'kotlin', 'io', 'github', 'jaypetez',
+    'ideaforge', 'providers', 'LocalNetworkPolicy.kt');
+  const agreement = androidFile('app', 'src', 'main', 'kotlin', 'io', 'github', 'jaypetez',
+    'ideaforge', 'ui', 'InferenceAgreement.kt');
+  const strings = androidFile('app', 'src', 'main', 'res', 'values', 'strings_inference.xml');
+  assert.match(policy, /fun needsCleartextWarning\(url: HttpUrl\)/);
+  assert.match(agreement, /LocalNetworkPolicy::needsCleartextWarning/);
+  assert.match(strings, /name="inference_local_http_warning">[^<]*not encrypted in transit/);
+  const capture = androidFile('app', 'src', 'androidTest', 'kotlin', 'io', 'github',
+    'jaypetez', 'ideaforge', 'ux', 'UxCaptureDeviceTest.kt');
+  for (const state of ['settings-http-lan', 'onboarding-http-lan']) {
+    assert.ok(capture.includes(state), `native consent capture omits ${state}`);
+  }
+  for (const page of ['android.html', 'privacy-policy.html']) {
+    const html = guide(page);
+    assert.match(html, /unencrypted HTTP warning/, `${page}: missing native warning guidance`);
+    assert.match(html, /certificate trusted by the device/, `${page}: missing HTTPS trust limit`);
+    assert.match(html, /loopback/, `${page}: missing the loopback distinction`);
+  }
+});
+
 test('the signed-APK instructions match the release workflow and SECURITY.md (#95)', () => {
   const app = androidFile('app', 'build.gradle.kts');
   const id = app.match(/applicationId = "([^"]+)"/)?.[1];
@@ -605,6 +627,32 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'privacy and consent requests must not inherit the unrelated empty shell runner argument');
   assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
     'both consent visual devices must select the actual test method');
+  assert.equal((workflow.match(/inputs\.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery'/g) || []).length, 2,
+    'both onboarding devices must select the actual focused entry method');
+  assert.equal((workflow.match(/inputs\.evidence == 'onboarding' && '-Pandroid\.testInstrumentationRunnerArguments\.uxOnboardingProbe=true'/g) || []).length, 2,
+    'both onboarding devices must explicitly opt into the fixed matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries'/g) || []).length, 2,
+    'both Settings devices must select the actual focused method');
+  assert.equal((workflow.match(/inputs\.evidence == 'settings' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true'/g) || []).length, 2,
+    'both Settings devices must opt into the complete matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
+    'both Result devices must select the actual focused method');
+  assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,
+    'both Result devices must explicitly opt into the full subset');
+  assert.equal((workflow.match(/inputs\.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful'/g) || []).length, 2,
+    'both Ideas visual devices must select the actual focused capture method');
+  assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,
+    'Ideas evidence must cover loading, empty, unavailable, normal, hundred-row, archived, no-match and long-preview states in both windows');
+  assert.equal((workflow.match(/inputs\.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful'/g) || []).length, 2,
+    'both Interview visual devices must select the actual focused capture method');
+  assert.equal((workflow.match(/uxInterviewProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=interview-seed\+interview-long\+interview-history\+interview-coverage\+bank\+busy-turn\+save-failure\+interview-ime\+interview-wrap\+writing\+synthesis-failure/g) || []).length, 2,
+    'Interview evidence must include reader/coverage/actual IME/wrap and real failure states in both windows');
+  assert.equal((workflow.match(/inputs\.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest'/g) || []).length, 2,
+    'both voice visual devices must select the actual focused capture method');
+  assert.equal((workflow.match(/uxVoiceProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=voice-ready\+voice-starting\+voice-speaking\+voice-listening\+voice-transcribing\+voice-thinking\+voice-paused\+voice-recovering\+voice-blocked\+voice-complete\+voice-writing\+voice-fallback\+voice-notifications-off\+voice-help/g) || []).length, 2,
+    'voice evidence must include every declared native phase and recovery presentation');
+  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && inputs\.evidence != 'voice' && inputs\.evidence != 'onboarding' && inputs\.evidence != 'settings' && inputs\.evidence != 'result' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
+    'Result/Settings/Onboarding/Ideas/Interview/voice evidence must not inherit an unrelated empty shell runner argument');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [

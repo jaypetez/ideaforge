@@ -5,8 +5,10 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -14,17 +16,22 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.FakeCheck
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.credsFor
 import io.github.jaypetez.ideaforge.data.KeyringState
+import io.github.jaypetez.ideaforge.data.PrefsStore
+import io.github.jaypetez.ideaforge.ui.settings.MemoryDataStore
+import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.installUnreadableGraph
 import io.github.jaypetez.ideaforge.providers.httpError
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.runBlocking
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -64,6 +71,101 @@ class OnboardingFlowTest {
 
     private val library = hasText("No ideas yet. Start one with New idea.")
 
+    private fun cancelModeChoice() {
+        waitFor(hasTestTag("new-idea-choice"))
+        compose.onNodeWithTag("new-idea-voice").assertIsDisplayed()
+        compose.onNodeWithTag("new-idea-type").assertIsDisplayed()
+        compose.onNodeWithTag("new-idea-cancel").performClick()
+        waitFor(library)
+    }
+
+    private fun expectRetainedKey() {
+        compose.onNodeWithText("Show").performClick()
+        assertEquals("scripted-unsaved-provider-key",
+            compose.onNodeWithTag("api-key").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+        compose.onNodeWithText("Hide").performClick()
+    }
+
+    @Test
+    fun onlyRecordedProviderValuesCanBeCalledSavedAndTheyAreNotACheck() {
+        val check = FakeCheck()
+        val graph = installTestGraph(check, preferences = PrefsStore(MemoryDataStore()))
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("A previous connection check succeeded.", substring = true).assertDoesNotExist()
+        runBlocking { graph.keyringStore.save(usableRing()) }
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertExists()
+        compose.onNodeWithText("A previous connection check succeeded.", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("check-key").performScrollTo().assertIsNotEnabled()
+        assertTrue("saved values never run a new check", check.calls.isEmpty())
+    }
+
+    @Test
+    fun backAndChangeKeepTheUnsubmittedFieldsWithoutCheckingOrSavingThem() {
+        val check = FakeCheck()
+        val graph = installTestGraph(check, preferences = PrefsStore(MemoryDataStore()))
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithTag("api-key").performTextInput("scripted-unsaved-provider-key")
+        scenario!!.recreate()
+        waitFor(hasTestTag("api-key"))
+        expectRetainedKey()
+        compose.onNodeWithText("Settings for this provider are saved", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        expectRetainedKey()
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+        compose.onNodeWithTag("base-url").performTextReplacement("http://192.168.1.30:11434/v1")
+        compose.onNodeWithTag("model").performScrollTo().performTextInput("scripted-unsaved-model")
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        expectRetainedKey()
+        compose.onNodeWithText("Back").performScrollTo().performClick()
+        compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+        assertEquals("http://192.168.1.30:11434/v1",
+            compose.onNodeWithTag("base-url").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+        assertEquals("scripted-unsaved-model",
+            compose.onNodeWithTag("model").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+        assertTrue(check.calls.isEmpty())
+        assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp")
+    fun expandedOnboardingHasASeparateSupportingInformationPane() {
+        installTestGraph(FakeCheck())
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+        compose.onNodeWithTag("onboarding-support").assertIsDisplayed()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithTag("onboarding-support").assertIsDisplayed()
+        compose.onNodeWithTag("api-key").assertIsDisplayed()
+        val field = compose.onNodeWithTag("api-key").getUnclippedBoundsInRoot()
+        val supporting = compose.onNodeWithTag("onboarding-support").getUnclippedBoundsInRoot()
+        assertTrue("required fields keep a bounded reading width", field.right - field.left <= IdeaForgeWidths.form)
+        assertTrue("support is beside, not over, the required form", supporting.left >= field.right)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun enlargedExpandedFormsUseOneScrollableColumnWhenBothPanesCannotFit() {
+        installTestGraph(FakeCheck())
+        launch()
+        waitFor(hasTestTag("provider-groq"))
+        compose.onNodeWithTag("onboarding-support").assertDoesNotExist()
+        compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+        compose.onNodeWithTag("api-key").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("inference-consent").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("check-key").performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithText("Privacy policy").performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+    }
+
     @Test
     @Config(qualifiers = "w320dp-h640dp", fontScale = 2f)
     fun privacyPolicyFooterOpensFromBothOnboardingStepsWithEnlargedText() {
@@ -88,7 +190,7 @@ class OnboardingFlowTest {
     }
 
     @Test
-    fun aHostedKeyReachesTheLibraryInTwoSteps() {
+    fun aHostedKeyOffersAModeChoiceAfterTwoConnectionSteps() {
         val check = FakeCheck()
         val graph = installTestGraph(check)
         launch()
@@ -105,7 +207,7 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
         compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
-        waitFor(library)
+        cancelModeChoice()
         compose.onNodeWithText("Ideas").assertExists()
         assertEquals(listOf("groq"), check.calls.map { it.first })
         assertEquals("gsk_live_test_key_1234", check.calls.single().second.apiKey)
@@ -158,13 +260,13 @@ class OnboardingFlowTest {
         compose.onNodeWithText("http://localhost:11434/v1").assertExists()
         compose.onNodeWithText("so its server is http://10.0.2.2:11434/v1", substring = true).assertExists()
 
-        compose.onNodeWithTag("find-models").performClick()
+        compose.onNodeWithTag("find-models").performScrollTo().performClick()
         waitFor(hasText("2 models installed."))
         compose.onNodeWithTag("model-qwen2.5:7b-instruct").performScrollTo().performClick()
         compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
         compose.onNodeWithTag("finish-local").performScrollTo().performClick()
 
-        waitFor(library)
+        cancelModeChoice()
         val config = check.calls.single().second
         assertEquals("ollama", config.kind)
         assertEquals("", config.apiKey)
@@ -257,7 +359,7 @@ class OnboardingFlowTest {
         assertArrayEquals("the unreadable keyring was overwritten", before, graph.keyringStore.file.readBytes())
 
         compose.onNodeWithTag("replace-unreadable").performScrollTo().performClick()
-        waitFor(library)
+        cancelModeChoice()
         val ring = graph.keyringStore.state.value.ring
         assertEquals(JsonPrimitive("anthropic"), ring["active"])
         assertEquals(JsonPrimitive("sk-ant-new-key"), credsFor(ring, "anthropic")["apiKey"])
@@ -279,7 +381,7 @@ class OnboardingFlowTest {
         compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
         compose.onNodeWithTag("check-key").performScrollTo().performClick()
 
-        waitFor(library)
+        cancelModeChoice()
         val ring = graph.keyringStore.state.value.ring
         assertEquals(JsonPrimitive("anthropic"), ring["active"])
         assertEquals(JsonPrimitive("gsk_returning_user_key_0001"), credsFor(ring, "groq")["apiKey"])

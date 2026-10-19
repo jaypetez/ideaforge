@@ -48,6 +48,15 @@ import java.net.UnknownHostException
  * plain http; that file is not the gate, this is.
  */
 object LocalNetworkPolicy {
+    /** Presentation only: [check] still decides whether the request is permitted. */
+    fun needsCleartextWarning(url: HttpUrl): Boolean {
+        if (url.isHttps) return false
+        val normalized = url.newBuilder().host(url.host.removeSuffix(".")).build()
+        if (isLoopback(normalized.toString())) return false
+        val mappedLoopback = ':' in url.host && literal("[${url.host}]")?.isLoopbackAddress == true
+        return !mappedLoopback
+    }
+
     /** True for an address inside one of the private ranges listed above. */
     fun isLocalAddress(address: InetAddress): Boolean {
         val b = address.address.map { it.toInt() and 0xFF }

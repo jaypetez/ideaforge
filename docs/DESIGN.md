@@ -15,12 +15,13 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells and progressive web Start (#193) are implemented here. The native Start and
-Ideas/Interview/Voice/Result recompositions are
-**not yet implemented**. The guide's
-own stylesheet also keeps its earlier values until
+shells, progressive web Start (#193), native Ideas (#198), native Interview (#200),
+native voice presentation (#202) and native Start (#195), Settings (#196) and Result (#204)
+are implemented here.
+The guide's own Focus Studio migration is **not yet implemented**; its stylesheet keeps
+its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
-the foundations, adaptive shells and progressive web Start, not the complete reference boards.
+the implemented surfaces, not the complete reference boards.
 
 ## Current shipped tokens
 
@@ -160,8 +161,7 @@ Ready also presents the unchecked, provider-named inference agreement. A check o
 key cannot tick it. Its device-local record is independent of microphone and hosted-voice
 choices, and a missing/failed acknowledgement disables both start actions with explicit
 recovery. Settings Connection exposes withdrawal; local ideas remain readable/exportable.
-Android uses the same policy in its existing onboarding details and Connection form,
-without claiming the later native Start redesign is complete. Provider-kind/local-address
+Android uses the same policy in its onboarding details and Connection form. Provider-kind/local-address
 changes retire agreement; model-only changes retain it. See the
 [privacy policy](../guide/privacy-policy.html#model-requests) for storage-failure limits.
 Back/Change also retire pending Start/Continue effects without discarding entered values,
@@ -205,7 +205,8 @@ These are native window classes, not copies of the web's CSS breakpoint/rail tab
 
 The Interview and Result contextual bars retain full literal `sessionDisplayTitle` text
 in semantics while allowing a visual ellipsis. Back uses the existing navigation stack.
-Completed ideas select Ideas; New idea still mints a new id and back-stack ViewModel entry.
+Completed ideas select Ideas; New idea opens a mode choice before a deliberate selection
+mints a new id and back-stack ViewModel entry.
 The existing Material adaptive Library panes and their saved selection are retained.
 Onboarding still removes itself from the stack and prevents navigation before a usable
 keyring is available; opening Library does not focus its search field automatically.
@@ -223,7 +224,166 @@ workspace without adding a route or changing controller/service ownership. Exit 
 the actual manual navigation; caption/level updates do not rebuild shell chrome.
 Form, work, Settings, reading and answer measures remain owned by `IdeaForgeWidths`;
 Library, document metadata and voice also consume those bounds. This is shell/inset work,
-not the later Library, composer, voice or Result action-order makeover.
+not the composer, voice or Result action-order makeover.
+
+## Current native onboarding and entry
+
+`OnboardingScreen` keeps the two-step provider/configuration flow with compact progress
+text, readable hosted/local separator rows and the existing provider-specific required
+fields. A native expanded window with enough font-scaled space adds supporting provider/
+privacy information beside the bounded form; otherwise the same required content and
+actions remain in one scrollable column. Privacy policy stays in both steps' footer.
+
+`OnboardingViewModel` preserves per-provider unsaved fields through Back/Change in memory,
+while its existing generation guard cancels checks. Saved details, previous successful
+checks and current errors are not a permanent connected verdict. Manual models, local
+emulator help, unreadable-keyring confirmation and all three policy prerequisites stay.
+
+`NewIdeaRoute` offers Voice primary (at least the native voice action height), Type instead
+visible, and Cancel. Navigation/recreation/cancel allocates no id or microphone effect.
+Selection uses the existing inference admission and a fresh Interview entry. The explicit
+new-entry voice intent is consumed once; its denied/cancelled/interrupted setup leaves a
+truthful manual notice without replacing higher-priority errors or creating a second drive.
+
+## Current native Settings
+
+`SettingsScreen` keeps Connection, Voice, Appearance, Your data and About in one
+predictable scrollable form. Summaries derive saved provider, effective permitted speech,
+theme, library availability/count and version from their owners, not a live health claim.
+An expanded window with sufficient font-scaled space adds a narrow section index; direct
+section navigation scrolls/focuses the heading without discarding editor state.
+
+Hosted speech and transcription retain their separate keys/grants/checks and now retain
+separate operation notices. Failures use semantic error status; cancellation is not a
+passing check. Both hosted voice choices are vertical native radio targets at large fonts.
+Your data separates the session-only unencrypted backup/import actions from credential
+removal. Cancel/Back preserves the blob/generation and returns focus; confirmed Forget
+retains its synchronous revoke and generation protection, including during other checks.
+
+## Current native Result
+
+`ResultScreen` keeps one selectable document canvas bounded by the reading role. Canonical
+markdown headings have distinct native hierarchy; lists/quotes reflow and intrinsically
+wide code/tables have local horizontal scroll rather than page overflow. The safe core
+parser still supplies literal text spans, not executable HTML or a new serializer.
+Actual question/coverage/source and synthesis warnings remain above the complete export.
+
+Compact actions make Share primary/Copy visible; expanded actions make Copy primary/Save
+visible. A separate secondary row retains Share/Save and Ask me more without squeezing
+four equally bordered labels. Short enlarged windows keep the existing page-flow action
+fallback, shell insets are not reapplied, and every native action remains reachable.
+
+Only completed Save produces the `Saved` notice; Copy retains the SDK-dependent app or
+system confirmation policy. Copy/share/save/reopen/read errors are
+explicit persistent statuses; a failed read is not a missing row and offers retry.
+ResultActions, exportFor, CreateDocument cancellation, FileProvider/temporary-share TTL,
+clipboard bytes and same-session reopen remain their owners, including the real-provider
+Windows test seam.
+
+## Current native Ideas
+
+`LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea
+header. The list uses separator-based rows rather than repeated outlined cards: title,
+status/coverage/date, at most two tag names with a remaining-tag count, and the current
+action. Titles may visually ellipsize after two lines; their full literal text remains
+in semantics and the detail pane. Rows grow with enlarged text rather than using a fixed
+height.
+
+In a compact window, the row opens Continue or View result directly. More holds View
+details, Rename or tag, Archive/Restore and Delete. In a wider window, a row selects its
+detail; the detail holds the primary Continue/View result action. Filtering hides an
+unrelated selected preview immediately, while preserving search focus. A compact detail
+whose idea is removed or filtered out returns through the existing pane navigator.
+
+Search and the result count stay visible; Filters discloses tags and the archived switch.
+Collapsed active filters retain a summary and Clear filters. No-match recovery clears all
+filters, or offers Show archived when the only ideas are archived. Loading, no ideas and
+unavailable storage keep their distinct states and Retry never deletes files. Opening
+Ideas retains the pane focus-target guard instead of focusing the search editor.
+
+Rename/tag and permanent Delete use native dialogs with Cancel/Back. They return focus
+to the initiating menu control when it remains mounted, or the Ideas heading. A confirmed
+deletion moves focus off the removed row. Mutations still go through LibraryViewModel,
+the session reducers, per-session work lock and store deletion protection.
+
+`LibraryPreview` renders an active idea without synthesis as **No write-up yet** plus its
+literal conversation and unsent draft, keeping checklist, skipped and answer-provenance
+labels. It does not manufacture a failed-generation notice. Existing write-ups and
+completed ideas still use `ExportPreview`; canonical export generation is unchanged.
+The existing device workflow's `evidence=ideas` selects the focused method explicitly,
+reusing the general recorder for ready/empty/unavailable, normal/100-row/archived/filtered
+lists, the long active preview and a real pending store read. The injected store is still
+the graph's sole SessionStore, not a fake UI state. It runs in compact/expanded windows,
+both themes and all three font scales.
+It is a focused Ideas inventory, not a claim that the full UX matrix passed.
+
+## Current native Interview
+
+`InterviewScreen.kt` gives the literal current question/bridge the primary reading
+hierarchy, with a quiet source/turn line and a bounded `IdeaForgeWidths.reading` column.
+The composer starts with one line and expands; Send is primary, with separate Skip,
+Answer by voice and Write it up actions. Suggestion chips still fill the editable draft
+through the same ViewModel, preserving unchanged/edited provenance.
+
+Coverage starts as a factual percentage and Coverage details action. The disclosure
+shows dimension names and textual levels from the Kotlin contract, not confidence.
+Show earlier includes the settled exchange count; Current question closes that view.
+New turn results do not scroll a reader away from expanded earlier history. Thinking
+retains the submitted question/answer rather than replacing all context with activity.
+
+Short panes, enlarged text and expanded coverage use the existing single page scroller
+for conversation and composer. Ordinary-height, default-text interviews retain their
+lazy thread and bounded docked editor. The contextual bar still joins the scroller only
+when a short window has the real keyboard open. Full labels/actions remain reachable
+by scrolling rather than fitting an enlarged chip into a smaller lazy viewport.
+
+Manual failure notices reuse the bounded native host with an indefinite duration.
+The ViewModel retains the notice until Dismiss, so recomposition/rotation cannot consume
+it as a one-shot event. The editor's existing relocation guard also observes the actual
+notice-host height, preserving an editor that was visible before the failure without
+pulling an earlier-history reader back to it. Voice work notices retain their existing
+path; optional-notification status is presented separately in the stage.
+No provider, turn, persistence, wrap or export policy changes.
+
+The focused `evidence=interview` device route covers seed/long/history/coverage, checklist,
+busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. The wrap
+uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
+wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
+This is a declared Interview subset, not a full-UX or physical-device result.
+
+### Native focused voice presentation
+
+`VoiceStage.kt` separates the idea title, factual phase, last successful output backend,
+current question, spoken text and captured words. The backend is read from the controller's
+actual successful `SpeakResult`, never inferred from a configured key or claimed before
+output completes. Recorded fallback input reports Transcribing only around the actual
+upload; completed segments become captions. Pause retains the parsed draft words or the
+already-submitted caption while turn work settles, without submitting or restoring an
+answered draft. Full content scrolls inside the bounded reading column; the separated
+Pause/Resume and Exit dock keeps native targets at least 64dp high.
+
+Phase changes are polite live status. Captions remain fully readable; only settled captions
+are live regions, not each unstable partial or microphone sample. No sample means no bars.
+There is no native-speaking output waveform, fabricated activity, confidence or streaming
+claim. Finish-word and whole-utterance command help is an in-stage disclosure in every phase.
+
+Microphone rationale is separate from optional notification guidance. Only an explicit
+voice tap and Continue launch the permission request. A denied microphone stands down
+without starting a recognizer or foreground service and exposes an explicit app-permission
+Settings action with visible open-error recovery. Returning from Settings never resumes
+automatically. Notification denial stays nonfatal and is shown in the stage; Resume does
+not ask again merely because notifications remain off.
+
+The app-scope controller, epoch retirement, draft writes, service/notification actions and
+hosted consent/check/focus/cancellation rules are unchanged. Its new state observations
+are presentation only, not another session or persistence schema.
+`evidence=voice` selects the complete declared native phase/recovery subset: both themes
+and font scales 1.0/1.3/2.0 in compact and expanded windows, plus listening/paused/blocked
+at font 2.0 in a compact landscape. These are visibly labelled **isolated-component**
+production UI captures with scripted semantic state, not microphone, native-recognizer,
+permission-prompt or real-service validation. The native complete phase still leaves the
+stage for Result. Controller/service/capture tests separately exercise sequencing;
+physical behavior remains owned by #89.
 
 `AdaptiveShellTest` exercises real activity routes, native window shapes, draft/selection
 recreation, same-session Ask me more and attached voice. The managed-device shell matrix
@@ -284,14 +444,16 @@ description. Warning/error status includes a localized textual prefix and a poli
 live region; the voice phase is polite and the question is a heading, not an announcement
 on every level sample.
 
-`IdeaForgeSnackbarHost` in `ui/components/NoticeHost.kt` keeps the native queue, timing,
+`IdeaForgeSnackbarHost` in `ui/components/NoticeHost.kt` keeps the native queue,
 transitions and original full message. Its message viewport is scrollable and bounded
 by a quarter of available height, at most 128dp but never less than one body line.
-A localized 48dp Dismiss action closes the actual notice. Interview/voice notices take
+A localized 48dp Dismiss action closes the actual notice. Manual Interview chooses
+indefinite duration and retains ViewModel ownership until dismissal; other existing
+notices keep their native timing. Interview/voice notices take
 layout space rather than covering their controls. A short-height Result places the same
 actions in its document scroll container; its notice reserves viewport space outside
-that scroll, as in manual Interview, so a delayed failure cannot time out unseen after
-the reader scrolls away. Ordinary-height Result keeps its existing dock and action order.
+that scroll so a delayed failure is visible even after the reader scrolls away.
+Ordinary-height Result keeps its existing dock and action order.
 
 ## Contrast and targets
 
@@ -403,7 +565,8 @@ Native `Roles.kt` owns `IdeaForgeSpacing`: `micro`, `tight`, `related`, `content
 large/extraLarge to dialog. Buttons, fields and chips consume the control shape explicitly.
 
 `IdeaForgeWidths` bounds native form/reading to 720dp, work to 1120dp, Settings to 1000dp
-and answer bubbles to 520dp. These are content measures, not web breakpoint copies:
+and answer bubbles to 520dp. Onboarding uses a 480dp minimum form and a 280dp supporting
+pane, scaled when deciding whether both fit. These are content measures, not web breakpoint copies:
 onboarding, Library, manual Interview, Settings, voice and Result consume them using
 native layout constraints. Enlarged action groups wrap without changing order; the
 turn-status text and unreadable-key recovery can grow/scroll. This foundation does not
@@ -413,6 +576,10 @@ replace the adaptive library panes or the later screen recompositions.
 |---|---|
 | `rail` | 80dp |
 | `form` | 720dp |
+| `formMinimum` | 480dp |
+| `support` | 280dp |
+| `sectionIndex` | 200dp |
+| `tableCell` | 200dp |
 | `work` | 1120dp |
 | `settings` | 1000dp |
 | `reading` | 720dp |
@@ -618,7 +785,10 @@ with that UI; no credential, backup or session schema is introduced here.
 | Forget / delayed check | Forget revokes credentials before delayed work can restore them; ideas/preferences remain. Distinct STT/TTS/inference consents/checks stay separate. | Confirm/Cancel; status identifies what was removed, no false deletion of ideas. | Web credential epoch/keyring; native revoke/`saveIf` generation |
 | Long text / large fonts / keyboard | Full question/caption/labels/document accessible by reflow/scrolling; no forced fit, clipped CTA or page-wide sideways scroll. | Fully visible focus and owned IME/safe-area lift; no speech/share delay. | `trackComposer`, shell CSS; native scaffold/inset ownership |
 
-The future native onboarding layout consumes #173 privacy links, #174 interview consent
+The current shared native inference agreement presents a URL-specific warning for
+unencrypted HTTP outside loopback, without adding another saved consent. HTTPS and
+loopback addresses do not show that LAN warning.
+The native onboarding layout consumes #173 privacy links, #174 interview consent
 and #177 LAN warnings. Reporting delivery (#175/#183), Play listing/icon/publication
 (#179/#180/#171/#182), and physical recognition evidence (#89) keep their existing owners.
 No design reference approves a new contact, reporting endpoint, paid call or Play URL.
@@ -676,9 +846,10 @@ same serialized inventory through debug-only `UxFixtures`. Real-app states navig
 `MainActivity` with private fixture files, a fixed injected clock, dummy encrypted
 credentials and scripted effects. Voice presentations use the non-exported debug-only
 `UxFixtureActivity`, visibly labelled **Isolated component** and supplying no level data.
-Native ready starts at Ideas, Writing stays in Interview, voice-ready maps to Starting,
-voice-transcribing to Thinking, and voice-complete to Result; manifests record those
-platform mappings rather than claiming identical routes/phases.
+Native ready starts at Ideas, Writing stays in Interview, voice-ready maps to Starting
+and voice-complete to Result; manifests record those platform mappings rather than
+claiming identical routes/phases. The native record fallback now has its own actual
+Transcribing status. Static phase captures still do not perform an upload.
 
 From `android\`, with JDK/SDK paths and an explicit owned `ANDROID_SERIAL`, request the
 matrix against the tested checkout:

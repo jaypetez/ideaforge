@@ -2,7 +2,6 @@ package io.github.jaypetez.ideaforge.ui.interview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,24 +33,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -101,6 +102,7 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.statusColors
 import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
+import io.github.jaypetez.ideaforge.ui.voice.VoicePermissionDialog
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
 import io.github.jaypetez.ideaforge.ui.voice.hasPermission
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissions
@@ -108,6 +110,7 @@ import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
@@ -137,8 +140,8 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
     }
 
 /**
- * The typed interview: a coverage strip, the thread so far, the open question with its
- * bridge and suggestion chips, and a composer docked above the keyboard.
+ * The current question and keyboard-safe composer, with optional earlier conversation
+ * and factual coverage detail.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -149,6 +152,9 @@ fun InterviewScreen(
     drive: DriveController? = null,
     onBack: (() -> Unit)? = null,
     onConsent: (() -> Unit)? = null,
+    voiceOnEntry: Boolean = false,
+    onVoiceEntryConsumed: () -> Unit = {},
+    isCurrentView: () -> Boolean = { true },
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val inference by vm.inferenceState.collectAsStateWithLifecycle()
@@ -159,47 +165,120 @@ fun InterviewScreen(
     val voiceHere = voice != null && voice.sessionId == vm.sessionId
     val context = LocalContext.current
     val deniedMessage = stringResource(R.string.voice_mic_denied)
-    val notificationsOff = stringResource(R.string.voice_notifications_denied)
+    val entryCancelled = stringResource(R.string.voice_entry_cancelled)
+    val entryDenied = stringResource(R.string.voice_entry_denied)
+    val entryInterrupted = stringResource(R.string.voice_entry_interrupted)
+    var initialVoicePending by rememberSaveable(vm.sessionId) { mutableStateOf(voiceOnEntry) }
+    var entryVoiceInProgress by remember(vm.sessionId) { mutableStateOf(false) }
+    val voiceRequest = remember(vm.sessionId) { mutableLongStateOf(0L) }
+    var permissionRequest by remember(vm.sessionId) { mutableStateOf<Long?>(null) }
+    var screenVisible by remember(vm.sessionId) { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { screenVisible = true }
+    var microphoneHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECORD_AUDIO)) }
+    var notificationsHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        microphoneHeld = hasPermission(context, Manifest.permission.RECORD_AUDIO)
+        notificationsHeld = hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+    }
     var rationale by remember { mutableStateOf(false) }
     var permissionPermit by remember { mutableStateOf<InferencePermit?>(null) }
     LaunchedEffect(inference) {
         vm.refreshConsent()
         if (inference.blocked) {
+            voiceRequest.longValue++
             rationale = false
             permissionPermit = null
+            permissionRequest = null
+            entryVoiceInProgress = false
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+        }
+    }
+    DisposableEffect(vm.sessionId) {
+        onDispose {
+            voiceRequest.longValue++
+            if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
+            initialVoicePending = false
+            entryVoiceInProgress = false
+            permissionPermit = null
+            permissionRequest = null
+            onVoiceEntryConsumed()
         }
     }
     // The answer to the permission prompt, then the tap's intent carried out.
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        scope0.launch {
-            val expected = permissionPermit ?: return@launch
-            if (!vm.authorizeVoice(expected)) return@launch
+        scope0.launch(Dispatchers.Main.immediate) {
+            val expected = permissionPermit
+            val my = permissionRequest
+            if (expected == null || my == null || my != voiceRequest.longValue) return@launch
+            permissionPermit = null
+            permissionRequest = null
+            val allowed = vm.authorizeVoice(expected)
+            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (!allowed) {
+                entryVoiceInProgress = false
+                return@launch
+            }
             val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
+            microphoneHeld = mic
+            notificationsHeld = grants[Manifest.permission.POST_NOTIFICATIONS] ?: hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            val fromEntry = entryVoiceInProgress
+            entryVoiceInProgress = false
+            if (!mic && fromEntry) {
+                vm.voiceNotStarted(entryDenied)
+                return@launch
+            }
             if (drive == null) return@launch
+            if (fromEntry && !vm.state.value.canAnswer) {
+                vm.voiceNotStarted(entryCancelled)
+                return@launch
+            }
             val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-            val started = if (attached) {
+            if (attached) {
                 if (mic) drive.resume()
-                mic
             } else {
                 beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
             }
-            if (started && grants[Manifest.permission.POST_NOTIFICATIONS] == false) {
-                scope0.launch { snackbar.showSnackbar(notificationsOff) }
-            }
         }
     }
-    val askOrStart: () -> Unit = {
-        scope0.launch {
-            if (!vm.authorizeVoice()) return@launch
+    fun requestVoice(fromEntry: Boolean) {
+        if (!fromEntry) {
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+        }
+        val my = ++voiceRequest.longValue
+        entryVoiceInProgress = fromEntry
+        vm.voiceRetry()
+        scope0.launch(Dispatchers.Main.immediate) {
+            val allowed = vm.authorizeVoice()
+            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (!allowed) {
+                entryVoiceInProgress = false
+                return@launch
+            }
+            if (fromEntry && (!screenVisible || !vm.state.value.canAnswer)) {
+                entryVoiceInProgress = false
+                vm.voiceNotStarted(entryCancelled)
+                return@launch
+            }
             permissionPermit = vm.inferenceState.value.permit
             if (drive != null) {
                 if (voicePermissionsHeld(context)) {
+                    entryVoiceInProgress = false
                     val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
                     if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
                 } else {
                     rationale = true
                 }
             }
+        }
+    }
+    val askOrStart: () -> Unit = { requestVoice(false) }
+    LaunchedEffect(voiceOnEntry, state.canAnswer, screenVisible) {
+        if (voiceOnEntry && initialVoicePending && state.canAnswer && screenVisible && isCurrentView()) {
+            initialVoicePending = false
+            onVoiceEntryConsumed()
+            requestVoice(true)
         }
     }
 
@@ -211,7 +290,20 @@ fun InterviewScreen(
     }
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.flushDraft() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        vm.flushDraft()
+        screenVisible = false
+        if (initialVoicePending || entryVoiceInProgress) {
+            voiceRequest.longValue++
+            rationale = false
+            initialVoicePending = false
+            entryVoiceInProgress = false
+            permissionPermit = null
+            permissionRequest = null
+            onVoiceEntryConsumed()
+            vm.voiceNotStarted(entryInterrupted)
+        }
+    }
 
     LaunchedEffect(state.finished) {
         if (state.finished) {
@@ -220,36 +312,50 @@ fun InterviewScreen(
             onFinished(state.writeUpFailed)
         }
     }
-    // Shown from a scope that outlives the notice: clearing it must not cancel the snackbar.
     val scope = rememberCoroutineScope()
     val noticeText = state.notice?.let { noticeText(it) }
-    LaunchedEffect(state.notice) {
-        if (noticeText != null) {
-            vm.noticeShown()
-            scope.launch { snackbar.showSnackbar(noticeText) }
+    var noticeHeight by remember { mutableStateOf(0) }
+    var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
+    var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
+    val voiceAttached = voiceHere && voice?.attached == true
+    LaunchedEffect(state.notice, voiceAttached) {
+        val notice = state.notice
+        if (notice != null && noticeText != null) {
+            if (voiceAttached) {
+                // Voice retains its existing one-shot notification path.
+                vm.noticeShown()
+                scope.launch { snackbar.showSnackbar(noticeText) }
+            } else {
+                snackbar.showSnackbar(noticeText, duration = SnackbarDuration.Indefinite)
+                if (vm.state.value.notice == notice) vm.noticeShown()
+            }
         }
     }
 
     if (rationale) {
-        AlertDialog(
-            onDismissRequest = { rationale = false },
-            title = { Text(stringResource(R.string.voice_mic_title)) },
-            text = { Text(stringResource(R.string.voice_mic_rationale)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope0.launch {
-                        val expected = permissionPermit
-                        if (expected != null && vm.authorizeVoice(expected)) {
-                            rationale = false
-                            permissions.launch(voicePermissions())
-                        }
+        VoicePermissionDialog(
+            notificationsNeeded = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
+            onContinue = {
+                val my = voiceRequest.longValue
+                scope0.launch(Dispatchers.Main.immediate) {
+                    val expected = permissionPermit
+                    if (expected != null && vm.authorizeVoice(expected) && my == voiceRequest.longValue
+                        && rationale && isCurrentView()) {
+                        rationale = false
+                        permissionRequest = my
+                        permissions.launch(voicePermissions())
                     }
-                }, modifier = Modifier.testTag("voice-mic-continue")) {
-                    Text(stringResource(R.string.voice_mic_continue))
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { rationale = false }) { Text(stringResource(R.string.voice_mic_cancel)) }
+            onDismiss = {
+                voiceRequest.longValue++
+                rationale = false
+                permissionPermit = null
+                permissionRequest = null
+                if (entryVoiceInProgress) {
+                    entryVoiceInProgress = false
+                    vm.voiceNotStarted(entryCancelled)
+                }
             },
         )
     }
@@ -262,14 +368,17 @@ fun InterviewScreen(
                 onPause = drive::pause,
                 onResume = {
                     scope0.launch {
-                        if (vm.authorizeVoice()) {
+                        if (vm.authorizeVoice() && isCurrentView()) {
                             permissionPermit = vm.inferenceState.value.permit
-                            if (voice.mode == VoiceMode.BLOCKED && !voicePermissionsHeld(context)) rationale = true else drive.resume()
+                            if (!hasPermission(context, Manifest.permission.RECORD_AUDIO)) rationale = true else drive.resume()
                         }
                     }
                 },
                 onExit = drive::exit,
                 modifier = Modifier.weight(1f),
+                ideaTitle = state.session?.let(::sessionDisplayTitle).orEmpty(),
+                microphoneDenied = voice.mode == VoiceMode.BLOCKED && !microphoneHeld,
+                notificationsOff = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
             )
         }
         return
@@ -283,14 +392,15 @@ fun InterviewScreen(
             // An open IME can leave less than one editor plus wrapped action rows.
             // Scroll the real content instead of weighting the editor down to zero.
             val shortWindow = bodyHeight < 240.dp * LocalDensity.current.fontScale
+            val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded
             // A fixed bar can leave less height than one enlarged editor above the IME.
             val scrollHeader = shortWindow && WindowInsets.isImeVisible
             val scroll = rememberScrollState()
             Column(Modifier.fillMaxSize()) {
                 if (!scrollHeader) InterviewHeader(state, onBack)
-                SnackbarHost(snackbar)
-                Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.work)
-                    .let { if (shortWindow) it.verticalScroll(scroll) else it }) {
+                SnackbarHost(snackbar, Modifier.onSizeChanged { noticeHeight = it.height })
+                Column(Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = IdeaForgeWidths.reading)
+                    .let { if (scrollWithComposer) it.verticalScroll(scroll) else it }) {
                     if (scrollHeader) InterviewHeader(state, onBack)
                     if (state.consentRequired) {
                         Column(Modifier.fillMaxWidth().padding(IdeaForgeSpacing.content)) {
@@ -300,18 +410,23 @@ fun InterviewScreen(
                             }
                         }
                     }
-                    CoverageStrip(state)
+                    CoverageStrip(state, coverageExpanded) { coverageExpanded = !coverageExpanded }
                     if (state.busy != null) {
                         LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
                     } else {
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
-                    Conversation(state, vm, if (shortWindow) Modifier else Modifier.weight(1f), scrollWithComposer = shortWindow)
+                    Conversation(state, vm, if (scrollWithComposer) Modifier else Modifier.weight(1f),
+                        scrollWithComposer, followCurrent = !coverageExpanded, expanded = historyExpanded,
+                        onHistoryChange = { historyExpanded = it })
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
-                        modifier = if (shortWindow) Modifier else Modifier.heightIn(max = composerMaxHeight),
+                        modifier = if (scrollWithComposer) Modifier else Modifier.heightIn(max = composerMaxHeight),
                         shortWindow = shortWindow,
+                        scrollWithPage = scrollWithComposer,
+                        noticeHeight = noticeHeight,
+                        readingDetails = historyExpanded || coverageExpanded,
                     )
                 }
             }
@@ -342,24 +457,35 @@ private fun noticeText(n: InterviewNotice): String = when (n) {
     is InterviewNotice.Fallback -> stringResource(R.string.notice_fallback, n.detail)
     is InterviewNotice.Failed -> stringResource(R.string.notice_interview_failed, n.detail)
     is InterviewNotice.Consent -> n.detail
+    is InterviewNotice.Voice -> n.detail
 }
 
 @Composable
-private fun CoverageStrip(state: InterviewState) {
+@OptIn(ExperimentalLayoutApi::class)
+private fun CoverageStrip(state: InterviewState, expanded: Boolean, toggle: () -> Unit) {
     val pct = state.session?.let(::coveragePercent) ?: 0
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight)
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.micro)
             .testTag("coverage-strip"),
-        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            stringResource(R.string.interview_coverage, pct),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.testTag("coverage-percent"),
-        )
-        for (pill in pillsOf(state)) Pill(pill)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+            Text(
+                stringResource(R.string.interview_coverage, pct),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f).testTag("coverage-percent"),
+            )
+            TextButton(onClick = toggle, modifier = Modifier.testTag("coverage-details")) {
+                Text(stringResource(if (expanded) R.string.interview_coverage_hide else R.string.interview_coverage_show))
+            }
+        }
+        if (expanded) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+                verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+                for (pill in pillsOf(state)) Pill(pill)
+            }
+        }
     }
 }
 
@@ -403,7 +529,7 @@ private fun Pill(pill: CoveragePill) {
             },
         )
         Text(
-            pill.label,
+            description,
             style = MaterialTheme.typography.labelLarge,
             color = if (probing) scheme.onSurface else scheme.onSurfaceVariant,
             fontStyle = if (probing) FontStyle.Normal else FontStyle.Italic,
@@ -413,48 +539,78 @@ private fun Pill(pill: CoveragePill) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Conversation(state: InterviewState, vm: InterviewViewModel, modifier: Modifier, scrollWithComposer: Boolean) {
+private fun Conversation(
+    state: InterviewState, vm: InterviewViewModel, modifier: Modifier,
+    scrollWithComposer: Boolean, followCurrent: Boolean, expanded: Boolean, onHistoryChange: (Boolean) -> Unit,
+) {
     val thread = threadOf(state)
+    val scope = rememberCoroutineScope()
+    val list = rememberLazyListState()
+    val current = remember { BringIntoViewRequester() }
+    val wrap = remember { BringIntoViewRequester() }
+    val history = remember { BringIntoViewRequester() }
+    @Composable
+    fun HistoryControl() {
+        if (thread.isEmpty()) return
+        TextButton(
+            onClick = {
+                val next = !expanded
+                onHistoryChange(next)
+                scope.launch {
+                    if (!scrollWithComposer) list.scrollToItem(0)
+                    else if (next) history.bringIntoView() else current.bringIntoView()
+                }
+            },
+            modifier = Modifier.padding(horizontal = IdeaForgeSpacing.content)
+                .bringIntoViewRequester(history).testTag("history-toggle"),
+        ) {
+            Text(if (expanded) stringResource(R.string.interview_history_hide)
+                else stringResource(R.string.interview_history_show, thread.size))
+        }
+    }
     // A short window has one page scroller. A nested lazy viewport can scroll a chip
     // into its own bounds while leaving it clipped behind the contextual bar.
     if (scrollWithComposer) {
-        val current = remember { BringIntoViewRequester() }
-        val wrap = remember { BringIntoViewRequester() }
         LaunchedEffect(state.openTurn?.get("n"), state.wrapOffer) {
-            if (state.busy != null || state.notice != null && state.notice !is InterviewNotice.NoProvider) return@LaunchedEffect
+            if (!followCurrent || expanded || state.busy != null || state.notice != null && state.notice !is InterviewNotice.NoProvider) return@LaunchedEffect
             if (state.wrapOffer != null) wrap.bringIntoView() else current.bringIntoView()
         }
         Column(
-            modifier.fillMaxWidth().testTag("thread")
-                .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+            modifier.fillMaxWidth().testTag("thread"),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
-            for (entry in thread) ThreadItem(entry)
-            Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
-                OpenQuestion(state, vm)
-            }
-            state.wrapOffer?.let {
-                Box(Modifier.fillMaxWidth().bringIntoViewRequester(wrap)) { WrapOffer(it, vm) }
+            HistoryControl()
+            Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+                verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
+                if (expanded) for (entry in thread) ThreadItem(entry)
+                Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
+                    OpenQuestion(state, vm)
+                }
+                state.wrapOffer?.let {
+                    Box(Modifier.fillMaxWidth().bringIntoViewRequester(wrap)) { WrapOffer(it, vm) }
+                }
             }
         }
         return
     }
-    val list = rememberLazyListState()
-    // Keep the open question in view as the thread grows.
-    LaunchedEffect(thread.size, state.busy, state.wrapOffer) {
-        val last = list.layoutInfo.totalItemsCount - 1
-        if (last >= 0) list.animateScrollToItem(last)
+    LaunchedEffect(state.openTurn?.get("n"), state.wrapOffer) {
+        if (followCurrent && !expanded && state.busy == null) list.scrollToItem(if (state.wrapOffer != null) 1 else 0)
     }
-    LazyColumn(
-        modifier.fillMaxWidth().testTag("thread"),
-        state = list,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
-        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
-    ) {
-        items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
-        item(key = "open") { OpenQuestion(state, vm) }
-        state.wrapOffer?.let { offer ->
-            item(key = "wrap") { WrapOffer(offer, vm) }
+    Column(modifier.fillMaxWidth()) {
+        HistoryControl()
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth().testTag("thread"),
+            state = list,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
+        ) {
+            if (expanded) items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
+            item(key = "open") {
+                Box(Modifier.fillMaxWidth().testTag("current-turn")) { OpenQuestion(state, vm) }
+            }
+            state.wrapOffer?.let { offer ->
+                item(key = "wrap") { WrapOffer(offer, vm) }
+            }
         }
     }
 }
@@ -464,7 +620,11 @@ private fun OpenQuestion(state: InterviewState, vm: InterviewViewModel) {
     val open = state.openTurn
     when {
         state.session == null -> Text(stringResource(R.string.interview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        state.busy != null -> BusyLine(state.busy)
+        state.busy != null -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
+            BusyLine(state.busy)
+            if (open != null) QuestionCard(state, open, vm)
+            else threadOf(state).lastOrNull()?.let { ThreadItem(it) }
+        }
         open != null -> QuestionCard(state, open, vm)
     }
 }
@@ -522,36 +682,32 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
         )
     }
     Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
-        Card(
+        Column(
             Modifier.fillMaxWidth().testTag("question-card"),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
-            Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
-                if (bridge.isNotEmpty()) {
-                    Text(bridge, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("bridge"))
-                }
-                Text(
-                    question,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.testTag("question").semantics {
-                        heading()
-                        liveRegion = LiveRegionMode.Polite
-                    },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Column(Modifier.fillMaxWidth().testTag("turnline"), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
-                    Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth().testTag("turn-status"))
-                    if (state.degraded) {
-                        IdeaForgeStatusText(
-                            stringResource(R.string.interview_from_checklist),
-                            Modifier.testTag("degraded"),
-                            tone = StatusTone.Warning, style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+            Column(Modifier.fillMaxWidth().testTag("turnline"), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
+                Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().testTag("turn-status"))
+                if (state.degraded) {
+                    IdeaForgeStatusText(
+                        stringResource(R.string.interview_from_checklist),
+                        Modifier.testTag("degraded"),
+                        tone = StatusTone.Warning, style = MaterialTheme.typography.labelMedium,
+                    )
                 }
             }
+            if (bridge.isNotEmpty()) {
+                Text(bridge, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("bridge"))
+            }
+            Text(
+                question,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.testTag("question").semantics {
+                    heading()
+                    liveRegion = LiveRegionMode.Polite
+                },
+            )
         }
         if (chips.isNotEmpty()) {
             val label = stringResource(R.string.interview_suggestions)
@@ -577,7 +733,7 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
 private fun WrapOffer(offer: String, vm: InterviewViewModel) {
     Card(
         Modifier.fillMaxWidth().testTag("wrap-offer"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(Modifier.padding(IdeaForgeSpacing.content), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             Text(offer, style = MaterialTheme.typography.bodyLarge)
@@ -598,18 +754,22 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
 private fun Composer(
     state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
+    scrollWithPage: Boolean = shortWindow,
+    noticeHeight: Int = 0,
+    readingDetails: Boolean = false,
 ) {
     val editor = remember { BringIntoViewRequester() }
     var editorVisible by remember { mutableStateOf(false) }
-    val keepEditor = shortWindow && editorVisible
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(state.notice) {
-        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback)) {
-            // Notice consumption must not cancel preserving the previously visible editor.
-            scope.launch { editor.bringIntoView() }
+    val keepEditor = remember(state.notice, scrollWithPage, readingDetails) {
+        scrollWithPage && editorVisible && !readingDetails
+    }
+    LaunchedEffect(state.notice, noticeHeight, readingDetails) {
+        if (keepEditor && (state.notice is InterviewNotice.Failed || state.notice is InterviewNotice.Fallback
+                    || state.notice is InterviewNotice.Voice)) {
+            editor.bringIntoView()
         }
     }
-    Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedTextField(
                 value = state.answer,
@@ -617,10 +777,10 @@ private fun Composer(
                 label = { Text(stringResource(R.string.interview_answer_label)) },
                 placeholder = { Text(stringResource(R.string.interview_answer_placeholder)) },
                 enabled = state.canAnswer,
-                minLines = if (shortWindow) 1 else 2,
-                maxLines = if (shortWindow) 1 else 6,
+                minLines = 1,
+                maxLines = if (shortWindow) 1 else 4,
                 modifier = Modifier.fillMaxWidth().let {
-                    if (shortWindow) it.bringIntoViewRequester(editor).onGloballyPositioned { coordinates ->
+                    if (scrollWithPage) it.bringIntoViewRequester(editor).onGloballyPositioned { coordinates ->
                         editorVisible = coordinates.boundsInWindow().height > 0f
                     } else it.weight(1f, fill = false)
                 }.testTag("answer"),
@@ -641,7 +801,7 @@ private fun Composer(
                     }
                 }
                 if (state.canWriteUp) {
-                    FilledTonalButton(onClick = vm::writeUp, modifier = Modifier.testTag("write-up")) {
+                    TextButton(onClick = vm::writeUp, modifier = Modifier.testTag("write-up")) {
                         Text(stringResource(R.string.interview_write_up))
                     }
                 }

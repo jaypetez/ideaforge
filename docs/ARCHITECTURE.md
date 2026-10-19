@@ -276,9 +276,13 @@ unit checks and the debug-only UX capture seam provide native evidence; isolated
 palettes are labelled separately from actual wallpaper colours.
 
 **Native shell and insets.** `ui/AppShell.kt` keeps one type-safe NavHost and chooses the
-installed Material bottom bar or rail from the native window class. New idea still mints
-an id and uses a fresh Interview back-stack entry; rotation/resize does not perform a
-navigation action. Interview and Result own their contextual title/Back presentation.
+installed Material bottom bar or rail from the native window class. New idea opens
+`NewIdeaRoute` without minting an id. A deliberate Voice/Type selection, guarded by the
+origin entry and inference-admission revision, creates a fresh Interview entry; rotation/
+resize does not perform another navigation action. `voiceOnEntry` is consumed once through
+entry saved state and the visible Interview permission owner, not another drive. Pending
+setup is retired on Stop/disposal; stale Continue/results cannot start later effects.
+Interview and Result own their contextual title/Back presentation.
 AppShell applies and consumes system-bar/display-cutout scaffold padding once before
 all children; rail and contextual bars use zero additional Material insets. Editing
 screens own only remaining IME, and Result actions remain inside the shell clearance.
@@ -288,6 +292,29 @@ An attached app-scope drive hides navigation only for its visible interview sess
 Voice stays in that destination and respects only remaining insets. Caption/level state
 is not a reason to rebuild the shell. Content measures stay in `ui/theme/Roles.kt`, and
 Library still uses `NavigableListDetailPaneScaffold` rather than a second breakpoint grid.
+
+`OnboardingViewModel` retains per-provider field drafts only in its existing in-memory
+setup lifetime. Its check generation still retires cancelled work, and its saved/check/
+failure states are distinct. `OnboardingScreen` uses native window classes plus actual
+available/font-scaled space for a bounded form and supporting pane; required fields and
+privacy/agreement/recovery controls remain in the scrollable form.
+
+**Native Settings.** `SettingsScreen.kt` keeps one five-section scrolling form and uses
+the same native window/font-fit decision for its narrow section index. Scroll/focus
+navigation leaves editor state intact. Summaries read the Settings/keyring/prefs/library
+owners; saved configuration is not a connectivity or voice-quality verdict.
+`HostedSpeechViewModel` keeps speech and transcription notices separate without changing
+their keyring or preference shapes, and errors cannot be replaced by success after a
+refused credential write. BackupJobs remains app-scoped; Forget keeps synchronous revoke
+and saveIf generation checks. Native dialogs preserve cancellation/focus and data boundaries.
+
+**Native Result and export.** `ResultScreen.kt` owns responsive action priority, one
+selectable reading canvas and persistent operation errors. `ResultViewModel` distinguishes
+load failure from a missing row and retains a retry; `exportFor` remains the canonical
+string for all output paths. `ExportPreview` only presents safe core blocks with native
+heading/type and local code/table scroll. It never serializes a replacement export.
+FileProvider temporary-share identity/TTL, CreateDocument and same-session reopen stay
+with ResultActions/the existing ViewModel and guards.
 
 **Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
 and the shared localized action in Settings About and the common onboarding footer.

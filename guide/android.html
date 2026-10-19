@@ -90,23 +90,31 @@
             </tr>
             <tr>
               <th scope="row">Interview</th>
-              <td>Typed answers, suggestion chips, a coverage strip, the wrap-up offer and
-                the built-in checklist when the model fails. An interrupted turn resumes.</td>
+              <td>The current question and expanding answer box lead. <em>Show earlier</em>
+                reveals the counted conversation; <em>Coverage details</em> shows factual
+                dimension levels. Suggestions stay editable, the wrap offer has distinct
+                actions, and the built-in checklist takes over when the model fails.
+                Manual errors remain until Dismiss. An interrupted turn resumes.</td>
             </tr>
             <tr>
               <th scope="row">Result</th>
-              <td>The rendered refined prompt with <strong>Share .md</strong>,
-                <strong>Copy markdown</strong>, <strong>Save .md</strong> and
-                <strong>Ask me more</strong>.</td>
+              <td>A selectable rendered document with a bounded reading width and
+                question/coverage/checklist metadata. Compact windows make
+                <strong>Share .md</strong> primary with <strong>Copy markdown</strong>
+                visible; expanded windows make Copy primary with <strong>Save .md</strong>
+                visible. Share, Save and <strong>Ask me more</strong> remain reachable
+                secondary actions, not four squeezed full-size labels.</td>
             </tr>
             <tr>
               <th scope="row">Library</th>
-              <td>Search, rename, tag, archive and delete; list and detail side by side on
-                a wide screen.</td>
+              <td>Compact rows show status, coverage and updated date. Tap a row to
+                Continue or View result on a phone; wide screens select a side-by-side
+                detail instead. More offers View details, Rename or tag, Archive/Restore
+                and Delete. Search stays visible; Filters holds tags and archived ideas.</td>
             </tr>
             <tr>
               <th scope="row">Settings</th>
-              <td>Connection, Listening, Appearance, Data (backup and import) and About.
+              <td>Connection, Voice, Appearance, Your data (backup and import) and About.
                 Appearance offers System, Light and Dark; the saved choice applies before
                 the app first renders. Android 12 and later use the system&rsquo;s wallpaper
                 colours; other devices use the built-in neutral/petrol light and dark
@@ -116,25 +124,30 @@
               <th scope="row">Voice input</th>
               <td>Hands-free only. <em>Answer by voice</em> on the interview screen asks for the
                 microphone (and, on Android 13 and later, notifications), then reads each
-                question aloud and listens until you say your finish word from Listening. A
+                question aloud and listens until you say your finish word from Voice. A
                 notification with Pause and Exit keeps the interview hearing with the screen
                 off. Pause keeps the words captured so far as your draft; Exit returns to typing
                 without writing anything up. If the microphone is refused, voice stands down and
-                you keep typing. The phone&rsquo;s speech service processes audio, on-device
+                starts neither recognition nor its microphone service. <em>Open app permission
+                settings</em> offers recovery; return and tap Resume deliberately, or Exit
+                to keep typing. Notification permission is explained separately and is optional:
+                refusing it does not block voice, and the stage says the controls remain here.
+                The phone&rsquo;s speech service processes audio, on-device
                 where available; IdeaForge does not store audio. Press-to-talk is not there yet.</td>
             </tr>
             <tr>
               <th scope="row">Spoken replies</th>
               <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
-                its suggestions, at the speaking pace from Listening. Optional OpenAI speech
-                (Marin or Cedar) is in Settings under Listening: it needs its own OpenAI key
+                its suggestions, at the speaking pace from Voice. Optional OpenAI speech
+                (Marin or Cedar) is in Settings under Voice: it needs its own OpenAI key
                 (never your interview key), three consents (an AI-generated voice, the spoken
                 text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
                 OpenAI audio on the phone. Changing the key or the voice, unticking a consent
                 or Forget turns it off until the next passing check; unticking a consent or
                 Forget also stops anything being spoken and pauses a voice interview. If OpenAI fails during an
-                interview, the phone&rsquo;s voice takes over and the voice stage says so; Pause
-                never switches voices.</td>
+                interview, the phone&rsquo;s voice takes over and the voice stage says so.
+                <em>Last spoken</em> identifies the backend that actually completed the last
+                output, not a promise about the next one; Pause never switches voices.</td>
             </tr>
             <tr>
               <th scope="row">Transcription fallback</th>
@@ -146,7 +159,8 @@
                 segment and 120 seconds per answer) and transcribed. While the recogniser is
                 working, nothing is recorded or sent. Unticking the consent or Forget stops the
                 next upload and pauses the interview; Pause keeps what was already
-                transcribed as your draft.</td>
+                transcribed as your draft. Transcribing is shown only while an actual upload
+                is pending, and completed segments appear as captions.</td>
             </tr>
             <tr>
               <th scope="row">Signed release</th>
@@ -159,6 +173,13 @@
             </tr>
           </tbody>
         </table>
+        <p>The focused voice screen keeps the idea, current question and full live or retained
+          words together. Phase status is polite; microphone samples do not trigger repeated
+          announcements or a fabricated meter. Pause/Resume and Exit remain separate large
+          actions while long or enlarged text scrolls. <em>Finish word and voice commands</em>
+          explains the configured finish word and commands that must occupy the whole utterance.
+          Scripted emulator phase screenshots are layout evidence, not physical-phone voice
+          or permission validation.</p>
       </div>
       <p>
         Automated tests run on the JVM; no physical-phone result is recorded in the
@@ -172,6 +193,59 @@
         idea and its draft; <strong>Ask me more</strong> reopens that same idea rather than
         creating another. Wide forms and documents keep bounded reading widths. Navigation
         alone never asks for the microphone.
+      </p>
+      <p>
+        Result keeps one logical vertical document scroll. Headings, lists and quotes reflow;
+        wide code and tables scroll locally without changing the markdown exported by
+        Share, Copy or Save. Failed synthesis and checklist provenance remain explicit
+        while the transcript, open questions and coverage are preserved. Action failures
+        stay visible until dismissed; a failed library read offers a retry rather than
+        claiming the idea was deleted. Picker or share cancellation is not a success
+        message, and Ask me more still reopens the same idea.
+      </p>
+      <p>
+        Connection setup keeps its two steps: choose a provider, then complete its required
+        key or local-server fields. Back, Change and resizing retain this setup&rsquo;s
+        unsaved fields in memory. Saved settings, a previous successful check and a current
+        failure are distinct; a saved key is not a live connection verdict. Wider windows
+        show provider/privacy support beside a bounded form, while enlarged text falls back
+        to one scrollable column.
+      </p>
+      <p>
+        After setup, or from <strong>New idea</strong>, choose <strong>Start with voice</strong>
+        or <strong>Type instead</strong>. Opening, rotating or cancelling that choice does
+        not create an idea or request the microphone. Only a deliberate mode selection opens
+        one fresh interview. Cancelling the choice or leaving an untouched Type instead
+        entry adds no empty item to Ideas; this is not a guarantee about exiting an
+        already-started voice run.
+        The new-idea Voice choice hands its intent to the visible Interview once. Cancelling
+        or denying its microphone setup leaves the same usable typed screen with an
+        explanation. Pending setup interrupted by navigation, backgrounding or recreation
+        is not replayed automatically; retry voice explicitly or keep typing.
+      </p>
+      <p>
+        In Ideas, <strong>Clear filters</strong> recovers a search with no matches;
+        <strong>Show archived</strong> finds ideas that were archived rather than deleted.
+        <strong>More &rarr; View details</strong> previews an idea without opening the
+        interview. An active idea without a write-up shows <strong>No write-up yet</strong>,
+        its conversation and any unsent draft, not a generation error. Rename/tag and
+        Delete have separate dialogs: Cancel or Back keeps the idea unchanged. Delete is
+        permanent; Archive can be reversed. Backup and import remain in Settings under Your data.
+      </p>
+      <p>
+        Settings keeps all five sections in one scrolling form. Expanded windows add a
+        narrow section index; large fonts fall back to one column when the index and form
+        cannot both fit. Summaries identify the saved provider, permitted speech backend,
+        current theme and library state, not a generic connected verdict. Index navigation
+        preserves unsaved fields. Speech and transcription report their own outcomes;
+        a failed check stays an error beside its action, not a successful toast.
+      </p>
+      <p>
+        <strong>Your data</strong> separates <strong>Backup ideas</strong> /
+        <strong>Import ideas</strong> from <strong>Forget all keys</strong>. Forget asks
+        explicitly and revokes before pending writes can restore credentials; ideas and
+        ordinary device preferences stay. Cancel or Back changes nothing and returns focus
+        to its action. Connection and speech operations keep their independent grants.
       </p>
       <p>
         <strong>Connection</strong> also holds the inference agreement. Existing installations
@@ -327,6 +401,16 @@ adb install -r app-debug.apk</code></pre>
         <code>.local</code> names. A public address, or a name that resolves to one, is
         refused.
       </p>
+      <p>
+        Onboarding and Settings show an unencrypted HTTP warning for a local server
+        outside loopback, including <code>10.0.2.2</code> on an emulator. Interview text
+        sent over that connection is readable to network observers. Prefer
+        <code>https://</code> with a certificate trusted by the device and a matching
+        server name; an untrusted self-signed certificate is not accepted automatically.
+        Loopback addresses do not show the LAN warning; a tunnel or
+        <code>adb reverse</code> can still forward that connection elsewhere.
+        This warning does not replace the separate interview-text agreement.
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -367,8 +451,8 @@ adb install -r app-debug.apk</code></pre>
       <h2 id="backups">Move ideas between Android and the web</h2>
       <p>
         Android and the web app use the same backup file. On Android, under
-        <strong>Settings &rarr; Data</strong>, choose <strong>Back up ideas</strong> or
-        <strong>Import backup</strong>. On the web, <strong>Settings &rarr; Your data</strong>
+        <strong>Settings &rarr; Your data</strong>, choose <strong>Backup ideas</strong> or
+        <strong>Import ideas</strong>. On the web, <strong>Settings &rarr; Your data</strong>
         offers <strong>Backup ideas</strong> and <strong>Import ideas</strong>. Move the file however
         you like: a cloud drive, email to yourself, or <code>adb push</code>.
       </p>

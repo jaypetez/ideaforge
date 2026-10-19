@@ -2,6 +2,11 @@ package io.github.jaypetez.ideaforge.ui
 
 import android.app.Application
 import android.net.Uri
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -52,6 +57,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -95,22 +101,24 @@ class NoticeVisibilityTest {
             compose.onNodeWithTag(ResultTags.SAVE).performScrollTo().assertIsDisplayed()
             compose.runOnIdle { vm.save(Uri.parse("content://documents/controlled.md")) }
             assertNull("the save has not completed while I/O is held", vm.state.value.notice)
+            compose.onNodeWithTag(ResultTags.ERROR).assertDoesNotExist()
             compose.onNodeWithTag(ResultTags.META).performScrollTo().assertIsDisplayed()
             val content = compose.onNodeWithTag(ResultTags.CONTENT)
-            val before = content.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
-            compose.mainClock.autoAdvance = false
             scheduler.runCurrent()
-            assertVisibleTimedNotice("controlled delayed document failure")
-            assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
-            assertEquals("a visible region needs no forced document scroll", before,
-                content.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value(), 1f)
+            compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.ERROR), 5_000)
+            compose.onNodeWithTag(ResultTags.ERROR).assertIsDisplayed()
+            compose.onNode(androidx.compose.ui.test.hasText("controlled delayed document failure", substring = true)).assertExists()
+            assertTrue("an error persists until explicit dismissal",
+                vm.state.value.notice is io.github.jaypetez.ideaforge.ui.result.ResultNotice.SaveFailed)
             assertTrue("the document retains a nonzero viewport", content.fetchSemanticsNode().boundsInWindow.height > 0f)
             compose.mainClock.autoAdvance = true
             for (tag in listOf(ResultTags.SHARE, ResultTags.COPY, ResultTags.SAVE, ResultTags.ASK_MORE)) {
                 revealAction(tag)
             }
-            compose.onNodeWithTag("notice-dismiss").assertIsDisplayed()
-            dismissNotice()
+            compose.onNodeWithTag(ResultTags.ERROR).performScrollTo().assertIsDisplayed()
+            compose.onNode(androidx.compose.ui.test.hasText("Dismiss") and
+                hasAnyAncestor(hasTestTag(ResultTags.ERROR))).performClick()
+            assertNull("explicit dismissal clears only the displayed operation error", vm.state.value.notice)
         } finally {
             harness.writes.cancel()
         }
@@ -126,7 +134,12 @@ class NoticeVisibilityTest {
         requireDelayedSubmissionNotice(atComposer = false)
     }
 
-    private fun requireDelayedSubmissionNotice(atComposer: Boolean) {
+    @Test
+    fun anExistingNoticeDoesNotReclaimTheEditorAfterTheUserOpensEarlierHistory() {
+        requireDelayedSubmissionNotice(atComposer = true, inspectAfterNotice = true)
+    }
+
+    private fun requireDelayedSubmissionNotice(atComposer: Boolean, inspectAfterNotice: Boolean = false) {
         val active = fixtures.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val store = SessionStore(files.newFolder(), io = Dispatchers.Unconfined)
         runBlocking { store.save(active) }
@@ -143,9 +156,13 @@ class NoticeVisibilityTest {
         val vm = InterviewViewModel(stringOf(active["id"])!!, store, SessionWorker(), Clock { 1_760_000_000_000 },
             ring = { emptyKeyring() }, providers = ProviderSource { provider }, writes = writes,
             inference = io.github.jaypetez.ideaforge.data.testInferenceConsent(writes))
+        var viewportHeight by mutableStateOf(320.dp)
         try {
             compose.setContent {
-                IdeaForgeTheme(dynamicColor = false) { InterviewScreen(vm, onFinished = {}) }
+                IdeaForgeTheme(dynamicColor = false) {
+                    InterviewScreen(vm, onFinished = {},
+                        modifier = if (inspectAfterNotice) Modifier.height(viewportHeight) else Modifier)
+                }
             }
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 5_000)
             compose.onNodeWithTag("answer").performScrollTo().performTextReplacement("A substantive controlled answer for this interview.")
@@ -166,7 +183,7 @@ class NoticeVisibilityTest {
             compose.mainClock.autoAdvance = false
             compose.runOnIdle { release.complete(Unit) }
             assertVisibleTimedNotice("controlled delayed submission failure")
-            assertNull("the originating one-shot notice was consumed", vm.state.value.notice)
+            assertTrue("manual failure stays owned until deliberately dismissed", vm.state.value.notice != null)
             val viewport = outer.fetchSemanticsNode().boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
             if (atComposer) {
                 // Protect the visible editor, not its old content-coordinate scroll offset.
@@ -185,6 +202,22 @@ class NoticeVisibilityTest {
             }
             assertTrue("the interview retains a nonzero scroll viewport", viewport.height > 0f)
             compose.mainClock.autoAdvance = true
+            if (inspectAfterNotice) {
+                compose.onNodeWithTag("history-toggle").performScrollTo().assertIsDisplayed().performClick()
+                val firstQuestion = stringOf((active["turns"] as JsonArray).first()["question"])!!
+                val earlier = compose.onNode(androidx.compose.ui.test.hasText(firstQuestion))
+                earlier.performScrollTo().assertIsDisplayed()
+                val beforeResize = outer.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
+                val oldNoticeHeight = compose.onNodeWithTag("notice-message").fetchSemanticsNode().boundsInWindow.height
+                compose.runOnIdle { viewportHeight = 240.dp }
+                compose.waitForIdle()
+                val newNoticeHeight = compose.onNodeWithTag("notice-message").fetchSemanticsNode().boundsInWindow.height
+                assertTrue("the actual bounded notice height changed, as keyboard/inset changes can cause",
+                    oldNoticeHeight != newNoticeHeight)
+                earlier.assertIsDisplayed()
+                assertEquals("the existing notice must not override the user's newer history intent",
+                    beforeResize, outer.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value(), 0f)
+            }
             compose.onNodeWithTag("answer").performScrollTo().assertIsDisplayed()
             assertTrue("the actual editor retains visible space", compose.onNodeWithTag("answer").fetchSemanticsNode().boundsInWindow.height > 0f)
             for (tag in listOf("send", "skip", "write-up")) {

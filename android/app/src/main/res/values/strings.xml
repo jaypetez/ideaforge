@@ -16,7 +16,7 @@
     <string name="status_error_message">Error: %1$s</string>
     <!-- Settings. Wording follows index.html and src/ui/app.js where the web has it. -->
     <string name="settings_connection">Connection</string>
-    <string name="settings_active">Answering now: %1$s</string>
+    <string name="settings_active">Saved provider: %1$s</string>
     <string name="settings_active_key">Key %1$s</string>
     <string name="settings_active_local">%1$s · %2$s</string>
     <string name="settings_no_provider">No provider is set up.</string>
@@ -35,8 +35,8 @@
     <string name="settings_check_key">Check the key</string>
     <string name="settings_check_connection">Check the connection</string>
     <string name="settings_save">Save</string>
-    <string name="settings_listening">Listening</string>
-    <string name="settings_hands_free_hint">Start interviews hands-free, so a regular driver is not re-ticking a box.</string>
+    <string name="settings_listening">Voice</string>
+    <string name="settings_hands_free_hint">Keep this device’s hands-free preference. New idea still asks you to choose Voice or Type; navigation never starts the microphone.</string>
     <string name="settings_trigger">Finish word</string>
     <string name="settings_trigger_hint">Say this when you have finished an answer, and the interview moves on by itself. You can also say “repeat that”, “skip this one”, “scratch that”, “wrap it up”, “pause voice” or “exit voice”.</string>
     <string name="settings_pace">Speaking pace: %1$s×</string>
@@ -44,8 +44,14 @@
     <string name="settings_theme_system">Follow the system</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
-    <string name="settings_data">Data</string>
+    <string name="settings_data">Your data</string>
+    <string name="settings_loading">Reading saved settings…</string>
+    <string name="settings_voice_native_summary">Device voice. Finish word: %1$s.</string>
+    <string name="settings_voice_hosted_summary">OpenAI voice ready. Finish word: %1$s.</string>
+    <string name="settings_data_summary">%1$d ideas on this device. Backups contain ideas, never keys or device preferences.</string>
+    <string name="settings_data_unavailable">The idea library is unavailable. Retry its read in Ideas; existing files are kept.</string>
     <string name="settings_forget">Forget all keys</string>
+    <string name="settings_remove_credentials">Remove credentials, keep ideas</string>
     <string name="settings_forget_hint">Deletes every saved key and provider setup from this device. Your ideas and preferences stay.</string>
     <string name="settings_forget_title">Forget all keys?</string>
     <string name="settings_forget_body">Every provider’s key and setup, and any speech keys, are deleted from this device. You will set up a provider again before the next interview.</string>
@@ -86,6 +92,15 @@
     <string name="onboarding_model_label">Model</string>
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_back">Back</string>
+    <string name="new_idea_title">Start a new idea</string>
+    <string name="new_idea_body">Choose how to answer your first question. You can change to voice or typing later.</string>
+    <string name="new_idea_voice">Start with voice</string>
+    <string name="new_idea_type">Type instead</string>
+    <string name="new_idea_permissions">Voice asks for microphone access only after you choose it. Typing needs no microphone permission.</string>
+    <string name="onboarding_saved_details">Settings for this provider are saved on this device. Saved details are not a current connection check.</string>
+    <string name="onboarding_successful_check">A previous connection check succeeded.</string>
+    <string name="onboarding_support_title">Your connection, your choice</string>
+    <string name="onboarding_support_body">Interview text goes directly to the provider or private server you choose. Review its data handling and the separate agreement before continuing.</string>
     <string name="keyring_unreadable_title">Your saved keys could not be read</string>
     <string name="keyring_unreadable_body">They are still on this device. This is sometimes a passing problem with Android’s secure key storage, so try again first. Setting up a provider replaces them only if you confirm.</string>
     <string name="keyring_retry">Try again</string>
@@ -106,6 +121,12 @@
     <string name="library_search">Search conversations</string>
     <string name="library_search_placeholder">name, tag, question, answer or prompt</string>
     <string name="library_show_archived">Show archived</string>
+    <string name="library_filters">Filters</string>
+    <string name="library_hide_filters">Hide filters</string>
+    <string name="library_filters_expanded">Expanded</string>
+    <string name="library_filters_collapsed">Collapsed</string>
+    <string name="library_clear_filters">Clear filters</string>
+    <string name="library_tag_summary">Tag: %1$s</string>
     <plurals name="library_count">
         <item quantity="one">%1$d of %2$d idea</item>
         <item quantity="other">%1$d of %2$d ideas</item>
@@ -115,6 +136,11 @@
         <item quantity="other">%1$d questions</item>
     </plurals>
     <string name="idea_meta">%1$s · %2$d%% coverage · updated %3$s</string>
+    <string name="idea_row_meta">%1$s · %2$d%% coverage · %3$s</string>
+    <plurals name="idea_more_tags">
+        <item quantity="one">%1$d more tag</item>
+        <item quantity="other">%1$d more tags</item>
+    </plurals>
     <string name="idea_unknown_date">unknown date</string>
     <string name="idea_status_active">Active</string>
     <string name="idea_status_completed">Completed</string>
@@ -122,6 +148,8 @@
     <string name="idea_more">More actions for %1$s</string>
     <string name="idea_continue">Continue</string>
     <string name="idea_view_result">View result</string>
+    <string name="idea_details">View details</string>
+    <string name="idea_open">%1$s: %2$s</string>
     <string name="idea_edit">Rename or tag</string>
     <string name="idea_archive">Archive</string>
     <string name="idea_restore">Restore</string>
@@ -135,6 +163,10 @@
     <string name="idea_delete_body">It is removed from this device and cannot be undone.</string>
     <string name="idea_select">Select an idea to see its summary.</string>
     <string name="idea_no_preview">No answers yet, so there is nothing to preview.</string>
+    <string name="idea_no_write_up">No write-up yet</string>
+    <string name="idea_transcript">Transcript</string>
+    <string name="idea_unsent_draft">Unsent draft</string>
+    <string name="idea_dictated">Dictated answer</string>
     <string name="idea_all">All ideas</string>
     <string name="notice_saved">Idea details saved.</string>
     <string name="notice_archived">Idea archived.</string>
@@ -143,6 +175,10 @@
     <string name="notice_failed">That change could not be saved.</string>
     <!-- Interview. Wording follows index.html and src/ui/app.js where the web has it. -->
     <string name="interview_coverage">Coverage %1$d%%</string>
+    <string name="interview_coverage_show">Coverage details</string>
+    <string name="interview_coverage_hide">Hide coverage details</string>
+    <string name="interview_history_show">Show earlier (%1$d)</string>
+    <string name="interview_history_hide">Current question</string>
     <string name="interview_pill">%1$s: %2$s</string>
     <string name="level_thin">thin</string>
     <string name="level_partial">partial</string>
