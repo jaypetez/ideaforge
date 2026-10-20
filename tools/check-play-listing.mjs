@@ -18,7 +18,7 @@ export function validateListingText({ title, shortDescription, fullDescription, 
   assert.ok([...title].length <= 30 && !/[\r\n]/.test(title), 'title: at most 30 characters on one line');
   assert.ok([...shortDescription].length <= 80 && !/[\r\n]/.test(shortDescription), 'short description: at most 80 characters on one line');
   assert.ok(!/\b(?:free|best|new)\b|#1\b/i.test(shortDescription), 'short description: no free/best/#1/new claims');
-  assert.ok(!/[\p{Extended_Pictographic}\p{Regional_Indicator}]|[0-9#*]\uFE0F?\u20E3/u.test(shortDescription),
+  assert.ok(!/[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}]|[0-9#*]\uFE0F?\u20E3/u.test(shortDescription),
     'short description: no emoji');
   assert.ok([...fullDescription].length <= 4000, 'full description: at most 4000 characters');
   assert.match(fullDescription, /\bnot affiliated with\b/i, 'full description: retain the non-affiliation notice');

@@ -71,7 +71,7 @@ test('short listing text refuses ranking, pricing, novelty, pictographs, flags a
   for (const value of ['Free prompts', 'The BEST interview', 'Your #1 choice', 'NEW today']) {
     assert.throws(() => validateListingText({ ...text, shortDescription: value }), /no free\/best\/#1\/new/);
   }
-  for (const value of ['Think 💡', 'Think 🇺🇸', 'Think 1️⃣']) {
+  for (const value of ['Think 💡', 'Think 🇺🇸', 'Think 1️⃣', 'Think \u{1F3FB}']) {
     assert.throws(() => validateListingText({ ...text, shortDescription: value }), /no emoji/);
   }
 });
