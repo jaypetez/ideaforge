@@ -326,6 +326,8 @@ Unlike the full UX mode, this explicit selection runs only the rendering-enabled
 `UxCaptureDeviceTest#requestedPlayListingAssets` reuses the real debug scripted
 walkthrough and recorder for seed, selected-suggestion and Result frames in both themes,
 at font scale 1.0. It retains geometry/theme/rendering checks and requires every frame.
+Whole scripted answers use the real editor's SetText action, with empty-draft, exact-text
+and enabled-action checks; they do not certify physical typing or IME quality.
 No model key, real provider request or microphone is used. This is emulator capture,
 not physical-device or full-matrix acceptance.
 
