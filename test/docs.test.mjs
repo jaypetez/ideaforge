@@ -605,6 +605,36 @@ test('the signed-APK instructions match the release workflow and SECURITY.md (#9
   }
 });
 
+test('Play bundle guidance preserves the app pin and documents separate upload signing (#176)', () => {
+  const release = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  const name = release.match(/dist\/(ideaforge-)\$\{VERSION\}(\.aab)/);
+  assert.ok(name, 'release.yml must name its upload bundle');
+  const documented = `${name[1]}VERSION${name[2]}`;
+  const security = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8');
+  const contributor = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+  const procedure = readFileSync(join(ROOT, '.claude', 'skills', 'release', 'SKILL.md'), 'utf8');
+  for (const [name, text] of [
+    ['SECURITY.md', security],
+    ['CONTRIBUTING.md', contributor],
+    ['guide/android.html', guide('android.html')],
+  ]) {
+    assert.ok(text.includes(documented), `${name} omits ${documented}`);
+    assert.ok(text.includes('mapping.txt'), `${name} omits the bundle mapping`);
+    assert.match(text, /app-signing key/i, `${name} must distinguish the installed-app identity`);
+    assert.match(text, /upload key/i, `${name} must distinguish upload authentication`);
+  }
+  for (const key of ['KEYSTORE_B64', 'KEYSTORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD']) {
+    for (const text of [security, contributor, procedure]) {
+      assert.ok(text.includes(`ANDROID_UPLOAD_${key}`), `missing upload-secret setup: ${key}`);
+    }
+  }
+  assert.ok(guide('android.html').includes('not direct installation'));
+  assert.ok(procedure.includes('all six expected uploaded assets'));
+  assert.ok(procedure.includes('five payload filenames'));
+  assert.ok(procedure.includes('--pattern "ideaforge-$VERSION.aab" --pattern mapping.txt'));
+  assert.ok(procedure.includes('android-aab'));
+});
+
 test('the device workflow runs the declared managed device, on demand, outside the ci gate', () => {
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
   const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');

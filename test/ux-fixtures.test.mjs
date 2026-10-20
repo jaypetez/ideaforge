@@ -103,9 +103,54 @@ test('capture cleanup attempts every operation and does not replace a single ori
   assert.deepEqual(calls, ['persist', 'close', 'remove']);
 });
 
+function fontDocument(faces, pending = false) {
+  const registered = pending ? [] : [{ family: 'IBM Plex Sans' }];
+  const link = { rel: pending ? 'preload' : 'stylesheet' };
+  return {
+    registered, link,
+    getElementById: (id) => id === 'font-styles' ? link : null,
+    fonts: {
+      ready: Promise.resolve(),
+      load: async () => registered.length ? faces : [],
+      [Symbol.iterator]: () => registered.values(),
+    },
+  };
+}
+
 test('a loaded font in the discarded document cannot validate the reloaded document', async () => {
-  const document = (faces) => ({ fonts: { ready: Promise.resolve(), load: async () => faces } });
-  await requireUxFont(document([{ status: 'loaded' }]));
-  await assert.rejects(requireUxFont(document([])), /refusing fallback-font evidence/);
-  await assert.rejects(requireUxFont(document([{ status: 'error' }])), /refusing fallback-font evidence/);
+  await requireUxFont(fontDocument([{ status: 'loaded' }]));
+  await assert.rejects(requireUxFont(fontDocument([])), /refusing fallback-font evidence/);
+  await assert.rejects(requireUxFont(fontDocument([{ status: 'error' }])), /refusing fallback-font evidence/);
+});
+
+test('the UX font gate waits for delayed CSS activation and face registration', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = fontDocument([{ status: 'loaded' }], true);
+  const load = t.mock.method(doc.fonts, 'load');
+  const result = requireUxFont(doc).then(() => ({ ok: true }), (error) => ({ error }));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(load.mock.calls.length, 0, 'a settled empty FontFaceSet is not loaded CSS');
+  doc.link.rel = 'stylesheet';
+  t.mock.timers.tick(25);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(load.mock.calls.length, 0, 'stylesheet activation alone does not register its faces');
+  doc.registered.push({ family: 'IBM Plex Sans' });
+  t.mock.timers.tick(25);
+  assert.deepEqual(await result, { ok: true });
+  assert.equal(load.mock.calls.length, 1);
+});
+
+test('the UX font gate fails within its existing bounded wait when CSS never arrives', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  const doc = fontDocument([{ status: 'loaded' }], true);
+  const result = assert.rejects(requireUxFont(doc), /UX fixture did not reach font stylesheet/);
+  await Promise.resolve();
+  await Promise.resolve();
+  now = 8001;
+  t.mock.timers.tick(25);
+  await result;
 });

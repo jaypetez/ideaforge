@@ -64,6 +64,10 @@ source wins over prose, and a generated artifact wins over a description of that
   [`manifest.webmanifest`](../../../../manifest.webmanifest) own preference/first-paint
   and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
   holds those colours to the CSS ground roles.
+  The head's optional font preload is activated by the classic appearance script only
+  after page load, not awaited by app startup. `screenshots.mjs` and `requireUxFont` in
+  [`test/browser/fixtures/ux.js`](../../../../test/browser/fixtures/ux.js) await activation
+  and face registration before requiring real loaded fonts for capture.
   [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and
   [`a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs) measure
   actual composited controls, trusted hover/press/focus, selected/disabled/busy/status
@@ -249,7 +253,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`.github/workflows/release.yml`](../../../../.github/workflows/release.yml),
   [release-note configuration](../../../../.github/release.yml),
   [`tools/apk-cert-pin.mjs`](../../../../tools/apk-cert-pin.mjs) with the signer pin in
-  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK),
+  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK and
+  distinct upload certificate), [`tools/check-android-bundle.sh`](../../../../tools/check-android-bundle.sh)
+  (checksum-pinned bundletool and actual upload signatures), and
+  [`tools/test-android-packages.sh`](../../../../tools/test-android-packages.sh)
+  (disposable-key APK/AAB, shared versionCode and negative controls in required Android CI),
   [`tools/check-privacy-policy.mjs`](../../../../tools/check-privacy-policy.mjs) with
   [`guide/privacy-policy.html`](../../../../guide/privacy-policy.html) (the confirmed contact),
   [`package.json`](../../../../package.json), and

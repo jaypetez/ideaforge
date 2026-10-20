@@ -54,10 +54,10 @@ jobs:
           BROWSER_CHECK_REQUIRED: '1'
         run: npm run test:all
 
-  # The signed Android APK (#95). A separate job so the signing secrets are referenced by one
-  # job, never by the job holding a write token; the release job below only downloads the
-  # finished, verified APK. The text alone does not confine them: that holds only because the
-  # four are environment secrets on `release` (not repository secrets) and the environment's
+  # Each signing role has its own read-only job and environment secrets, never a write token.
+  # The release job below downloads only finished, verified packages. The text alone does
+  # not confine the keys: that holds only because they are environment secrets on `release`
+  # (not repository secrets) and the environment's
   # deployments are restricted to v*.*.* tags. CONTRIBUTING.md#cutting-a-release has the setup.
   android-apk:
     needs: verify
@@ -153,8 +153,93 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
 
+  android-aab:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Require the upload keystore secrets
+        env:
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in ANDROID_UPLOAD_KEYSTORE_B64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS ANDROID_UPLOAD_KEY_PASSWORD; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::upload keystore secrets are not configured (missing:$missing)"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+
+      - name: Decode the upload keystore
+        env:
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+
+      - name: Build and verify the upload-signed bundle
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+          (cd android && ./gradlew --no-daemon :app:bundleRelease :app:verifyReleaseBundle)
+          BUNDLE=android/app/build/outputs/bundle/release/app-release.aab
+          bash tools/check-android-bundle.sh "$BUNDLE" "$ANDROID_KEYSTORE_PATH" "$ANDROID_KEY_ALIAS"
+          VERSION="${GITHUB_REF_NAME#v}"
+          MAPPING=android/app/build/outputs/mapping/release/mapping.txt
+          [ -s "$MAPPING" ] || { echo "::error::the bundle's R8 mapping is missing"; exit 1; }
+          mkdir -p dist
+          cp "$BUNDLE" "dist/ideaforge-${VERSION}.aab"
+          cp "$MAPPING" dist/mapping.txt
+
+      - name: Upload the verified bundle and mapping
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ideaforge-release-aab
+          path: |
+            dist/*.aab
+            dist/mapping.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Delete the upload keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
+
   release:
-    needs: [verify, android-apk]
+    needs: [verify, android-apk, android-aab]
     runs-on: ubuntu-latest
     permissions:
       contents: write        # create the release and upload its assets
@@ -169,6 +254,12 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ideaforge-release-apk
+          path: dist
+
+      - name: Download the verified bundle and mapping
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ideaforge-release-aab
           path: dist
 
       - name: Build the archives
@@ -186,7 +277,9 @@ jobs:
 
           cd dist
           [ -f "${NAME}.apk" ] || { echo "::error::the signed APK ${NAME}.apk is missing"; exit 1; }
-          sha256sum "${NAME}.tar.gz" "${NAME}.zip" "${NAME}.apk" > SHA256SUMS
+          [ -f "${NAME}.aab" ] || { echo "::error::the upload bundle ${NAME}.aab is missing"; exit 1; }
+          [ -s mapping.txt ] || { echo "::error::the bundle mapping.txt is missing"; exit 1; }
+          sha256sum "${NAME}.tar.gz" "${NAME}.zip" "${NAME}.apk" "${NAME}.aab" mapping.txt > SHA256SUMS
           cat SHA256SUMS
 
       - name: Publish the release
@@ -195,7 +288,7 @@ jobs:
         shell: bash
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            dist/*.tar.gz dist/*.zip dist/*.apk dist/SHA256SUMS \
+            dist/*.tar.gz dist/*.zip dist/*.apk dist/*.aab dist/mapping.txt dist/SHA256SUMS \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             --verify-tag

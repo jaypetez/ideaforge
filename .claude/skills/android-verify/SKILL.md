@@ -240,6 +240,10 @@ PRs). It then runs `./gradlew --no-daemon check :app:assembleDebug`. It uploads 
 as the `ideaforge-debug-apk` artifact for 14 days, and the reports and test results on
 failure. The job feeds the single required `ci` check, so a red Android build blocks every
 PR.
+It also runs `bash tools/test-android-packages.sh` with disposable generated keys: the
+actual minified APK and AAB, distinct signing roles, common versionCode, bundle validation,
+and missing-secret/unsigned/corrupt-download rejection. No production signing secret is
+needed. `verifyReleaseApk` and `verifyReleaseBundle` check their actual shipped containers.
 
 `.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
 nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
