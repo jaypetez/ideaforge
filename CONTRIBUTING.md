@@ -347,9 +347,9 @@ $sha = git rev-parse HEAD
 
 Read back the workflow's `android-ux-evidence-<SHA>` and `android-device-reports`
 artifacts: require actual execution of the selected test with no failure, a passed
-`play-listing/manifest-compact.json` with the intended clean SHA and all six frames,
+`play-listing/manifest-compact.json` with the intended clean SHA and every requested frame,
 and inspect the light/dark PNGs. `play-listing/images/` holds the store copies:
-`icon.png` (512x512 RGBA), `featureGraphic.png` (1024x500 opaque RGB), and six numbered
+`icon.png` (512x512 RGBA), `featureGraphic.png` (1024x500 opaque RGB), and numbered
 `phoneScreenshots/` PNGs (1080x1920 opaque RGB). The native `PlayListingAssets.kt`
 renders artwork from the application launcher drawable; phone conversion only removes
 an unused alpha channel, with no resize, crop or replacement of app pixels. Preserve the
@@ -360,8 +360,9 @@ After copying, from the repository root run `node tools\check-play-listing.mjs`.
 The checker rejects absent assets, out-of-limit text and PNG dimensions, wrong bit depth
 or transparency, missing themes and incomplete image data. It checks the current
 versionCode's changelog, not a stale version's file. Keep the generated assets with the
-listing source; a passing header/limit check never replaces the native manifest and
-visual inspection.
+listing source; `npm test` runs the same checker against the committed current-version
+inventory as well as adversarial boundary fixtures. A passing header/limit check never
+replaces the native manifest and visual inspection.
 
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 

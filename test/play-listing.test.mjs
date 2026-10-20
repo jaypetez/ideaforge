@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
-import { validateListingText, validateListingImages } from '../tools/check-play-listing.mjs';
+import { checkPlayListing, validateListingText, validateListingImages } from '../tools/check-play-listing.mjs';
+
+test('the committed current-version listing includes every required text and native image asset within limits', () => {
+  checkPlayListing();
+});
 
 function chunk(type, data) {
   const content = Buffer.concat([Buffer.from(type), data]);
