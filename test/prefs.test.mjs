@@ -116,31 +116,56 @@ function boot({ stored, storageThrows = false, preset } = {}) {
       return stored === undefined ? null : stored;
     },
   };
+  let loaded;
+  const addEventListener = (type, handler, capture) => {
+    assert.equal(type, 'load');
+    assert.equal(capture, true);
+    loaded = handler;
+  };
+  const removeEventListener = (type, handler, capture) => {
+    assert.equal(type, 'load');
+    assert.equal(capture, true);
+    assert.equal(handler, loaded);
+    loaded = null;
+  };
   const document = {
+    readyState: 'loading',
     documentElement: { dataset },
     querySelectorAll: (selector) => (selector === 'meta[name="theme-color"]' ? metas : []),
-    addEventListener(type, handler, capture) {
-      assert.equal(type, 'load');
-      assert.equal(capture, true);
-      this.loaded = handler;
-    },
-    removeEventListener(type, handler, capture) {
-      assert.equal(type, 'load');
-      assert.equal(capture, true);
-      assert.equal(handler, this.loaded);
-      this.loaded = null;
-    },
+    addEventListener,
+    removeEventListener,
   };
-  runInNewContext(BOOT, { localStorage, document });
+  let pageLoaded;
+  runInNewContext(BOOT, {
+    localStorage,
+    document,
+    addEventListener(type, handler, options) {
+      assert.equal(type, 'load');
+      assert.equal(options.once, true);
+      pageLoaded = handler;
+    },
+    removeEventListener(type, handler) {
+      assert.equal(type, 'load');
+      if (pageLoaded) assert.equal(handler, pageLoaded);
+      pageLoaded = null;
+    },
+  });
   return {
     theme: dataset.theme, metas: metas.map((m) => m.content), reads,
-    loaded(target) { document.loaded?.({ target }); },
+    loaded(target) { loaded?.({ target }); },
+    complete() {
+      document.readyState = 'complete';
+      const handler = pageLoaded;
+      pageLoaded = null;
+      handler?.();
+    },
   };
 }
 
 test('optional font CSS activates after loading even when theme storage is unavailable', () => {
   for (const options of [{}, { storageThrows: true }, { preset: 'dark' }]) {
     const page = boot(options);
+    page.complete();
     const other = { id: 'another-preload', rel: 'preload' };
     page.loaded(other);
     assert.equal(other.rel, 'preload');
@@ -151,6 +176,18 @@ test('optional font CSS activates after loading even when theme storage is unava
     page.loaded(fonts);
     assert.equal(fonts.rel, 'preload', 'the completed font listener is retired');
   }
+});
+
+test('an early font preload cannot activate a stylesheet before the page load event', () => {
+  const page = boot();
+  const fonts = { id: 'font-styles', rel: 'preload' };
+  page.loaded(fonts);
+  assert.equal(fonts.rel, 'preload', 'a fast CSS response must not acquire a load-blocking dependency');
+  page.complete();
+  assert.equal(fonts.rel, 'stylesheet');
+  fonts.rel = 'preload';
+  page.loaded(fonts);
+  assert.equal(fonts.rel, 'preload', 'activation retires the listener before another link load');
 });
 
 test('theme-boot reads the same key prefs.js writes', () => {

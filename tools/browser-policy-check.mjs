@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ROOT, findChrome, serveRepo, launchChrome, connectChrome } from './lib/harness.mjs';
-import { runAppAudioPolicy } from '../test/browser/app-audio-policy.probe.mjs';
+import { runAppAudioPolicy, runEarlyFontBootstrap } from '../test/browser/app-audio-policy.probe.mjs';
 import { runA11yKeyboard } from '../test/browser/a11y-keyboard.probe.mjs';
 
 const NORMAL_POLICY = [
@@ -29,6 +29,7 @@ const APP_CASE = {
   name: 'audio-policy-app', mode: 'app',
   flags: [...NORMAL_POLICY, '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
 };
+const FONT_CASE = { name: 'font-bootstrap', mode: 'fonts', flags: NORMAL_POLICY };
 
 // Real keyboard and coarse-pointer input on every panel (#111). Here rather than in the
 // in-page suite for the same reason the app case is: Tab, Enter and Escape must be keys the
@@ -135,7 +136,8 @@ export async function runBrowserPolicyChecks({
   });
   try {
     const origin = `http://127.0.0.1:${server.address().port}`;
-    const cases = appOnly ? [APP_CASE] : a11yOnly ? [A11Y_CASE] : [...CASES, APP_CASE, A11Y_CASE];
+    const cases = appOnly ? [FONT_CASE, APP_CASE] : a11yOnly ? [A11Y_CASE]
+      : [...CASES, FONT_CASE, APP_CASE, A11Y_CASE];
     for (const testCase of cases) {
       let browser;
       let cdp;
@@ -173,6 +175,10 @@ export async function runBrowserPolicyChecks({
               ? testCase.flags.every((flag) => args.includes(flag)) : !fakeMedia),
           `${version.product}; ${args.join(' ')}`);
         await cdp.send('Page.enable');
+        if (testCase.mode === 'fonts') {
+          await runEarlyFontBootstrap(cdp, { origin, check });
+          continue;
+        }
         if (testCase.mode === 'app') {
           const [recognition, fixture] = await Promise.all([
             readFile(join(ROOT, 'test', 'browser', 'fixtures', 'fake-voice.js'), 'utf8'),

@@ -64,8 +64,8 @@ source wins over prose, and a generated artifact wins over a description of that
   [`manifest.webmanifest`](../../../../manifest.webmanifest) own preference/first-paint
   and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
   holds those colours to the CSS ground roles.
-  The head's optional font preload is activated by the classic appearance script, not
-  awaited by app startup. `screenshots.mjs` and `requireUxFont` in
+  The head's optional font preload is activated by the classic appearance script only
+  after page load, not awaited by app startup. `screenshots.mjs` and `requireUxFont` in
   [`test/browser/fixtures/ux.js`](../../../../test/browser/fixtures/ux.js) await activation
   and face registration before requiring real loaded fonts for capture.
   [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and

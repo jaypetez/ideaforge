@@ -99,7 +99,9 @@ not hand-authored replacements for the app.
 
 The app's optional Google Fonts stylesheet is preloaded without blocking scripts or the
 window load event. The classic `src/ui/theme-boot.js` installs its activation listener
-before that link is parsed. App readiness does not imply font readiness: the screenshot
+before that link is parsed and waits for both the preload and page load before activation,
+so an early font response cannot acquire a load-blocking CSS dependency.
+App readiness does not imply font readiness: the screenshot
 harness separately waits for stylesheet activation and the real IBM Plex faces.
 
 ## What owns the session

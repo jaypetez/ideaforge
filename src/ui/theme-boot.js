@@ -21,13 +21,26 @@
 // file against both.
 (function () {
   if (typeof document === 'undefined') return;
-  // The optional CDN stylesheet must not hold deferred modules or the window load event.
-  document.addEventListener('load', function fontsLoaded(event) {
-    var link = event.target;
-    if (link.id !== 'font-styles') return;
+  // Even a fast font response can acquire slow CSS dependencies; activate after page load.
+  var fontLink;
+  var pageLoaded = document.readyState === 'complete';
+  function activateFonts() {
+    if (!pageLoaded || !fontLink) return;
     document.removeEventListener('load', fontsLoaded, true);
-    link.rel = 'stylesheet';
-  }, true);
+    removeEventListener('load', pageDidLoad);
+    fontLink.rel = 'stylesheet';
+  }
+  function fontsLoaded(event) {
+    if (event.target.id !== 'font-styles') return;
+    fontLink = event.target;
+    activateFonts();
+  }
+  function pageDidLoad() {
+    pageLoaded = true;
+    activateFonts();
+  }
+  document.addEventListener('load', fontsLoaded, true);
+  addEventListener('load', pageDidLoad, { once: true });
   var theme;
   try {
     var raw = localStorage.getItem('ideaforge.prefs');

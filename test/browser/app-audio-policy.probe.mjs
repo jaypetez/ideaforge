@@ -1,4 +1,75 @@
 // Node-side CDP driver for the real index.html, not an autoplay-bypassed browser probe.
+export async function runEarlyFontBootstrap(cdp, { origin, check }) {
+  const paused = [];
+  const handled = new Set();
+  cdp.on('Fetch.requestPaused', (request) => paused.push(request));
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__earlyFontLoaded = false;
+    document.addEventListener('load', (event) => {
+      if (event.target.id === 'font-styles') window.__earlyFontLoaded = true;
+    }, true);
+  ` });
+  await cdp.send('Fetch.enable', { patterns: [
+    { urlPattern: 'https://fonts.googleapis.com/*' },
+    { urlPattern: `${origin}/src/ui/app.js` },
+  ] });
+  const end = Date.now() + 10000;
+  const sleep = () => new Promise((resolve) => setTimeout(resolve, 20));
+  const snapshot = () => cdp.evaluate(`({
+    ready: document.readyState, fontLoaded: window.__earlyFontLoaded,
+    fontRel: document.getElementById('font-styles')?.rel,
+    version: document.getElementById('version')?.textContent,
+    providers: document.getElementById('provider')?.options.length,
+    startHandler: typeof document.getElementById('b-start-voice')?.onclick
+  })`);
+  async function until(predicate, label) {
+    while (Date.now() < end) {
+      if (await predicate()) return;
+      await sleep();
+    }
+    throw new Error(`${label}: ${JSON.stringify(await snapshot())}`);
+  }
+  const css = (requestId, text) => cdp.send('Fetch.fulfillRequest', {
+    requestId, responseCode: 200,
+    responseHeaders: [{ name: 'Content-Type', value: 'text/css' }],
+    body: Buffer.from(text).toString('base64'),
+  });
+  await cdp.send('Page.navigate', { url: `${origin}/index.html` });
+  const isFont = (item) => item.request.url.startsWith('https://fonts.googleapis.com/');
+  const isApp = (item) => item.request.url === `${origin}/src/ui/app.js`;
+  await until(() => paused.some(isFont) && paused.some(isApp), 'startup requests were not intercepted');
+  const font = paused.find(isFont);
+  const app = paused.find(isApp);
+  await css(font.requestId, '@import url("https://fonts.googleapis.com/__ideaforge_boot_import.css");');
+  handled.add(font.requestId);
+  await until(() => cdp.evaluate('window.__earlyFontLoaded'), 'the early font preload did not load');
+  const early = await snapshot();
+  check('a font response before app modules stays non-blocking until the page load event',
+    early.fontLoaded && early.fontRel === 'preload' && !early.version, JSON.stringify(early));
+  await cdp.send('Fetch.continueRequest', { requestId: app.requestId });
+  handled.add(app.requestId);
+  await until(async () => {
+    const state = await snapshot();
+    return state.ready === 'complete' && state.version && state.providers > 0
+      && state.startHandler === 'function' && paused.some((item) => isFont(item) && !handled.has(item.requestId));
+  }, 'an early stylesheet dependency blocked app startup or the page load event');
+  check('startup and load complete while the early stylesheet dependency is still held', true);
+  let applied = false;
+  for (const finish = Date.now() + 5000; Date.now() < finish && !applied;) {
+    for (const request of paused) {
+      if (handled.has(request.requestId)) continue;
+      if (isFont(request)) await css(request.requestId, ':root { --early-font-bootstrap: loaded; }');
+      else await cdp.send('Fetch.continueRequest', { requestId: request.requestId });
+      handled.add(request.requestId);
+    }
+    applied = await cdp.evaluate(`getComputedStyle(document.documentElement)
+      .getPropertyValue('--early-font-bootstrap').trim() === 'loaded'`);
+    if (!applied) await sleep();
+  }
+  check('the early font stylesheet applies after its held dependency arrives', applied);
+  await cdp.send('Fetch.disable');
+}
+
 export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrustedPreview = false }) {
   const deadline = Date.now() + 60000;
   const network = [];
@@ -273,9 +344,13 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     const opened = await cdp.evaluate(`(() => {
       const card = document.querySelector('#library-rows .idea-card');
       const menu = card.querySelector('[popover]');
-      return menu.matches(':popover-open') && menu.contains(document.activeElement);
+      return {
+        open: menu.matches(':popover-open'), focus: menu.contains(document.activeElement),
+        active: document.activeElement && (document.activeElement.id || document.activeElement.className),
+      };
     })()`);
-    check('a trusted click on the overflow trigger opens the menu with focus inside it', opened);
+    check('a trusted click on the overflow trigger opens the menu with focus inside it',
+      opened.open && opened.focus, JSON.stringify(opened));
     const key = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 };
     await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
@@ -323,9 +398,13 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     if (onDone) {
       await click('#b-done-more');
       await sleep(150);
+      const opened = await cdp.evaluate(`({
+        open: document.getElementById('done-menu').matches(':popover-open'),
+        focus: document.getElementById('done-menu').contains(document.activeElement),
+        active: document.activeElement && (document.activeElement.id || document.activeElement.tagName),
+      })`);
       check('a trusted click on Done’s overflow trigger opens the menu with focus inside it',
-        await cdp.evaluate(`document.getElementById('done-menu').matches(':popover-open')
-          && document.getElementById('done-menu').contains(document.activeElement)`));
+        opened.open && opened.focus, JSON.stringify(opened));
       const key = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 };
       await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
       await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key });

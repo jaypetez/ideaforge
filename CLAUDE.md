@@ -267,10 +267,11 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   question and answer with `textContent`; both are someone else's words.
 - **The font stack must keep `"IBM Plex Sans"` at 600.** `screenshots.mjs` checks for it and
   warns forever otherwise, and a run that warns about fonts is a run to throw away.
-  The Google Fonts stylesheet is a preload, activated by `theme-boot.js` after it loads:
+  The Google Fonts stylesheet is a preload, activated by `theme-boot.js` only after both
+  the stylesheet and the page load:
   a stalled CDN must never hold deferred app startup or an iframe's load event. Keep that
-  classic listener before the preload. Captures explicitly await stylesheet activation
-  and `document.fonts.ready`, rather than treating app readiness as font readiness.
+  classic listener before the preload. Captures explicitly await stylesheet activation,
+  face registration and real loaded fonts, rather than treating app readiness as font readiness.
 
 ## Voice: probe by behaviour, never by feature detection
 
