@@ -309,6 +309,51 @@ phase/route mappings and the prerequisite fixes the matrix exposed. A focused gr
 is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
 and black PNGs must remain failures.
 
+Play listing source lives in `android/fastlane/metadata/android/en-US/`. Keep its text
+plain, name compatible providers without their logos, and retain the non-affiliation
+notice. The changelog filename follows `versionCodeOf` in `android/app/build.gradle.kts`,
+which reads the version from `package.json`; this is not permission to publish to Play.
+
+Generate listing artwork and phone screenshots on a feature ref with:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=play-listing
+```
+
+Unlike the full UX mode, this explicit selection runs only the rendering-enabled
+`pixel2Api34Visual` managed device (standard AOSP API 34, Pixel 2). It retains the native
+1080x1920 display rather than resizing the existing UX profiles. The opt-in
+`UxCaptureDeviceTest#requestedPlayListingAssets` reuses the real debug scripted
+walkthrough and recorder for seed, selected-suggestion and Result frames in both themes,
+at font scale 1.0. It retains geometry/theme/rendering checks and requires every frame.
+No model key, real provider request or microphone is used. This is emulator capture,
+not physical-device or full-matrix acceptance.
+
+To run the same task with a suitable local managed-emulator setup, from `android\`:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:pixel2Api34VisualDebugAndroidTest `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedPlayListingAssets' `
+  '-Pandroid.testInstrumentationRunnerArguments.playListingProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=walkthrough' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Read back the workflow's `android-ux-evidence-<SHA>` and `android-device-reports`
+artifacts: require actual execution of the selected test with no failure, a passed
+`play-listing/manifest-compact.json` with the intended clean SHA and all six frames,
+and inspect the light/dark PNGs. `play-listing/images/` holds the store copies:
+`icon.png` (512x512 RGBA), `featureGraphic.png` (1024x500 opaque RGB), and six numbered
+`phoneScreenshots/` PNGs (1080x1920 opaque RGB). The native `PlayListingAssets.kt`
+renders artwork from the application launcher drawable; phone conversion only removes
+an unused alpha channel, with no resize, crop or replacement of app pixels. Preserve the
+original recorder images and manifest as evidence, then copy only the generated `images/`
+tree into the metadata directory. Never promote a failed or development-dirty run.
+
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 
 ```powershell

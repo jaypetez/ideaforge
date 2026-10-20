@@ -120,6 +120,62 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
     private var heldLibraryRead: CountDownLatch? = null
     private var libraryReadEntered: CountDownLatch? = null
+    private val walkthroughFrames = listOf("seed", "chip", "result")
+
+    @Test
+    fun requestedPlayListingAssets() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("playListingProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedPlayListingAssets") != true) {
+                "the selected listing capture requires playListingProbe=true"
+            }
+            return
+        }
+        require(probe == "true") { "playListingProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "walkthrough" && request.window == "compact" && request.states == null) {
+            "listing capture requires the complete compact scripted walkthrough"
+        }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        val output = File(outputPath, "play-listing")
+        val matrix = listOf("light", "dark").map { UxConfiguration("compact", it, 1f) }
+        val expected = matrix.flatMap { config -> walkthroughFrames.map { "${config.id}/walkthrough-$it" } }.toSet()
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output, expected)
+        fixtures = UxFixtures.load(target)
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-listing-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs()) { "cannot create owned listing fixture directory" }
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = false)
+                    captureWalkthrough(config, recorder)
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "cannot remove owned listing fixture directory" } },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                if (recorder.failures.isEmpty()) {
+                    try {
+                        val screenshots = matrix.flatMap { config -> walkthroughFrames.map { frame ->
+                            "${config.theme}-$frame" to File(output, "${config.id}/real-app/walkthrough-$frame.png")
+                        } }
+                        writePlayListingAssets(target, output, screenshots)
+                    } catch (error: Throwable) {
+                        recorder.failedRun(error)
+                    }
+                }
+                recorder.finish()
+            }
+        }
+    }
 
     @Test
     fun requestedNativeResultKeepsDocumentAndCanonicalActions() {
@@ -1228,7 +1284,7 @@ class UxCaptureDeviceTest {
                 selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
             else selected
         }
-        val walkthrough = if (request.states == null) listOf("seed", "chip", "result") else emptyList()
+        val walkthrough = if (request.states == null) walkthroughFrames else emptyList()
         val expected = matrix.flatMap { config ->
             requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
         }.toSet()
@@ -1269,22 +1325,7 @@ class UxCaptureDeviceTest {
                         }
                     }
                     if (walkthrough.isNotEmpty()) {
-                        val state = UxState("walkthrough", "interview", "real-app", null, null, null)
-                        try {
-                            prepare(state, config)
-                            scriptedWalkthrough(compose, target, launch = ::launchMain, capture = { frame ->
-                                val captured = state.copy(id = "walkthrough-$frame", surface = if (frame == "result") "result" else "interview")
-                                recorder.capture(captured, config, checkNotNull(activity), if (frame == "result") resultControls() else interviewControls())
-                            }, settleInput = ::hideKeyboard)
-                        } catch (e: Throwable) {
-                            recorder.failedRun(e)
-                            val keys = walkthrough.map { "${config.id}/walkthrough-$it" }.toSet()
-                            for (key in UxEvidence.unrecorded(keys, recorder.recordedKeys)) {
-                                recorder.failed(state.copy(id = key.substringAfter('/')), config, e, activity)
-                            }
-                        } finally {
-                            closeFixture()
-                        }
+                        captureWalkthrough(config, recorder)
                     }
                 }
             }
@@ -1299,6 +1340,26 @@ class UxCaptureDeviceTest {
                 errors.forEach(recorder::failedRun)
                 recorder.finish()
             }
+        }
+    }
+
+    private fun captureWalkthrough(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        val state = UxState("walkthrough", "interview", "real-app", null, null, null)
+        try {
+            prepare(state, config)
+            scriptedWalkthrough(compose, target, launch = ::launchMain, capture = { frame ->
+                val captured = state.copy(id = "walkthrough-$frame", surface = if (frame == "result") "result" else "interview")
+                recorder.capture(captured, config, checkNotNull(activity),
+                    if (frame == "result") resultControls() else interviewControls())
+            }, settleInput = ::hideKeyboard)
+        } catch (error: Throwable) {
+            recorder.failedRun(error)
+            val keys = walkthroughFrames.map { "${config.id}/walkthrough-$it" }.toSet()
+            for (key in UxEvidence.unrecorded(keys, recorder.recordedKeys)) {
+                recorder.failed(state.copy(id = key.substringAfter('/')), config, error, activity)
+            }
+        } finally {
+            closeFixture()
         }
     }
 
