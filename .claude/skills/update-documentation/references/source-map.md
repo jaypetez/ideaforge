@@ -105,6 +105,21 @@ source wins over prose, and a generated artifact wins over a description of that
   Windows real-provider probe seam. Re-check Android Result/export guidance and
   `evidence=result` actual long/scrolled/short/checklist/synthesis-failed/held-lock loading
   captures; no native chooser/picker/physical usability claim follows from their PNGs.
+- **Native Play listing text and generated artwork.** Sources:
+  [`android/fastlane/metadata/android/en-US/`](../../../../android/fastlane/metadata/android/en-US/)
+  owns versioned plain-text listing copy and the versionCode-named changelog.
+  `android/app/build.gradle.kts` owns `versionCodeOf` and the native 9:16
+  `pixel2Api34Visual` managed profile. `UxCaptureDeviceTest#requestedPlayListingAssets`
+  reuses the real debug scripted walkthrough and strict recorder in both themes;
+  `PlayListingAssets.kt` renders the installed launcher drawable and exports lossless,
+  opaque phone copies. `android-device.yml`'s explicit `evidence=play-listing` mode owns
+  the focused hosted command, SHA checks and artifact upload.
+  [`tools/check-play-listing.mjs`](../../../../tools/check-play-listing.mjs) and
+  [`test/play-listing.test.mjs`](../../../../test/play-listing.test.mjs) own text/PNG limits
+  and the versioned inventory. Re-check CONTRIBUTING,
+  actual selected-test execution, complete clean-SHA manifests and inspected PNGs.
+  This does not publish a listing, prove physical-device behavior or replace the
+  remaining release/privacy gates.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive

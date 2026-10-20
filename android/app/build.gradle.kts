@@ -142,6 +142,12 @@ android {
                     systemImageSource = "aosp"
                     testedAbi = "x86_64"
                 }
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixel2Api34Visual") {
+                    device = "Pixel 2"
+                    apiLevel = 34
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
                 create<com.android.build.api.dsl.ManagedVirtualDevice>("pixelTabletApi34Visual") {
                     device = "Pixel Tablet"
                     apiLevel = 34

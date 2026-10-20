@@ -1,0 +1,2 @@
+Initial Android listing for IdeaForge.
+Explore an idea one question at a time, keep interviews in a local library, and export a Markdown prompt with the full transcript.

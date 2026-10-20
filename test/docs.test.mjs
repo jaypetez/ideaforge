@@ -696,6 +696,39 @@ test('the device workflow runs the declared managed device, on demand, outside t
   }
 });
 
+test('Play listing dispatch selects a rendering-enabled 9:16 phone and the complete scripted capture', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const profile = androidFile('app', 'build.gradle.kts')
+    .match(/ManagedVirtualDevice>\("pixel2Api34Visual"\) \{([\s\S]*?)\n\s*}/)?.[1];
+  assert.ok(profile, 'listing screenshots need their native 9:16 managed profile');
+  for (const setting of ['device = "Pixel 2"', 'apiLevel = 34', 'systemImageSource = "aosp"', 'testedAbi = "x86_64"']) {
+    assert.ok(profile.includes(setting), `listing profile omits ${setting}`);
+  }
+  const step = workflow.match(/- name: Play listing assets on a native 9:16 phone\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'listing capture needs an explicit selectable workflow step');
+  for (const argument of [
+    "inputs.evidence == 'play-listing'",
+    ':app:pixel2Api34VisualDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'UxCaptureDeviceTest#requestedPlayListingAssets',
+    '-Pandroid.testInstrumentationRunnerArguments.playListingProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCapture=walkthrough',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) {
+    assert.ok(step.includes(argument), `listing dispatch omits ${argument}`);
+  }
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2,
+    'final listing provenance must check the actual worktree before and after capture');
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2,
+    'a supplied SHA alone does not prove the captured checkout identity');
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'play-listing'"),
+      `focused listing capture must not also run the unrelated ${name}`);
+  }
+});
+
 test('the worked example quoted in the README is the one on disk', () => {
   const example = join(ROOT, 'docs', 'examples', 'remember-names.md');
   assert.ok(existsSync(example), 'docs/examples/remember-names.md is missing; run npm run screenshots');

@@ -1,0 +1,15 @@
+Turn a half-formed idea into a useful prompt through a conversation, one question at a time.
+
+Start with what you have in mind. IdeaForge asks follow-up questions, lets you review your answers, and helps you explore the details you have not decided yet. Type an answer, use a suggestion as a starting point, or use the available voice controls.
+
+When you are ready, create a Markdown document with a refined prompt, assumptions, open questions, coverage and the full interview transcript. Copy, save or share it, then return to the same idea if you want to add more.
+
+If a model call fails, a built-in question bank can keep the interview moving. If the write-up cannot be generated, the transcript and open questions remain available.
+
+Your idea library stays on your device. Name, tag, search and archive ideas, or export and import session-only backups. API keys are stored separately with Android Keystore encryption and are not included in those backups.
+
+Bring your own model connection. Supported providers include Anthropic, OpenAI, Groq and OpenRouter. You can also connect to Ollama, LM Studio or another compatible private model server reachable from your device. Provider accounts, model availability and usage charges are separate from IdeaForge.
+
+Before inference is enabled, IdeaForge asks you to agree to sending interview content to the selected destination. Local reading and export remain available without that agreement. Android speech services may process audio outside your device. Optional hosted transcription and spoken replies require their own keys and agreement; availability depends on your device and service.
+
+IdeaForge is an independent project and is not affiliated with Anthropic, OpenAI, Groq, OpenRouter, Ollama or LM Studio. These names identify compatible services, not endorsements.
