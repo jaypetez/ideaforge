@@ -1,4 +1,6 @@
 // Node-side CDP driver for the real index.html, not an autoplay-bypassed browser probe.
+import { completedAudio } from './fixtures/audio-completion.mjs';
+
 export async function runEarlyFontBootstrap(cdp, { origin, check }) {
   const paused = [];
   const handled = new Set();
@@ -146,9 +148,7 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
         && resume.stack.includes('/src/voice/output.js')
         && resume.stack.includes('/src/voice/playback.js')));
   }
-  const completed = (source) => source?.started && source.ended && source.trustedEnd
-    && source.stops === 0 && source.destination && source.disconnected
-    && source.endClock >= source.startClock + source.duration
+  const completed = (source) => completedAudio(source)
     && source.stack.includes('/src/voice/playback.js');
   const live = (state) => state.captures.filter((capture) => capture.endedAt === null);
   const quiet = (state) => live(state).length === 0
@@ -273,7 +273,9 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     primedInHandler(state, 'b-start-voice'));
   check('Start waits for actual hosted-buffer completion before recognition',
     completed(state.sources[1]) && state.captures[0].startedAt >= state.sources[1].endedAt
-      && /^OpenAI/.test(state.backend), JSON.stringify(state.sources[1]));
+      && /^OpenAI/.test(state.backend), JSON.stringify({
+      source: state.sources[1], capture: state.captures[0], backend: state.backend,
+    }));
   check('the actual capture uses synthetic-device tracks, not a permission-UI claim',
     state.tracks.includes('live') && live(state).length === 1);
   await click('#b-voice-pause');
@@ -288,7 +290,9 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
     primedInHandler(state, 'b-voice-pause', 'Resume'));
   check('Resume finishes a new native buffer rather than treating priming as completion',
     state.sources.length === 3 && completed(state.sources[2])
-      && state.captures.at(-1).startedAt >= state.sources[2].endedAt);
+      && state.captures.at(-1).startedAt >= state.sources[2].endedAt, JSON.stringify({
+      source: state.sources[2], capture: state.captures.at(-1),
+    }));
 
   await cdp.evaluate('window.__appAudioPolicy.answer()');
   state = await until((s) => s.inferenceCalls === 1 && s.sources.length === 4

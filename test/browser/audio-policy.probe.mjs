@@ -2,6 +2,7 @@
 // Microphone/recognizer fixtures are confined to their own profile, never playback evidence.
 
 import { rmsOf } from '../../src/voice/vad.js';
+import { completedAudio } from './fixtures/audio-completion.mjs';
 
 const state = window.__audioPolicy = { ready: false, done: false, results: [], error: null };
 const check = (name, ok, detail = '') => state.results.push({ name, ok: !!ok, detail: String(detail) });
@@ -33,7 +34,7 @@ async function autoplay(required) {
   const context = new AudioContext();
   const analyser = context.createAnalyser();
   analyser.fftSize = 1024;
-  analyser.connect(context.destination);
+  const reachesDestination = analyser.connect(context.destination) === context.destination;
   let raf = 0;
   let frames = 0;
   let peak = 0;
@@ -53,19 +54,29 @@ async function autoplay(required) {
     function play() {
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(analyser);
+      const reachesAnalyser = source.connect(analyser) === analyser;
       sources.push(source);
-      const playback = { ended: false, trustedEnd: false, startTime: context.currentTime, endTime: null };
+      const playback = {
+        started: false, ended: false, trustedEnd: false, stops: 0, disconnected: false,
+        destination: reachesAnalyser && reachesDestination,
+        duration: buffer.duration, frames: buffer.length, bufferSampleRate: buffer.sampleRate,
+        sampleRate: context.sampleRate, renderQuantumSize: context.renderQuantumSize ?? 128,
+        startClock: context.currentTime, endClock: null,
+      };
+      const stop = source.stop;
+      source.stop = function (...args) { playback.stops++; return stop.apply(this, args); };
       playback.completion = new Promise((resolve) => {
         source.onended = (event) => {
           playback.ended = true;
           playback.trustedEnd = event.isTrusted;
-          playback.endTime = context.currentTime;
+          playback.endClock = context.currentTime;
           source.disconnect();
+          playback.disconnected = true;
           resolve();
         };
       });
       source.start();
+      playback.started = true;
       return playback;
     }
 
@@ -126,9 +137,7 @@ async function autoplay(required) {
     check('the trusted gesture resumes the previously created AudioContext',
       context.state === 'running' && resumed, context.state);
     check('decoded audio reaches a native ended event without stop or a timer pretending completion',
-      afterPlayback.ended && afterPlayback.trustedEnd
-        && afterPlayback.endTime >= afterPlayback.startTime + buffer.duration,
-      `audio clock ${afterPlayback.startTime.toFixed(3)} -> ${afterPlayback.endTime.toFixed(3)}`);
+      completedAudio(afterPlayback), JSON.stringify(afterPlayback));
     check('the real output analyser measures non-zero audio',
       Number.isFinite(peak) && peak > 0.01 && peak <= 1, `peak RMS ${peak.toFixed(4)}`);
   } finally {

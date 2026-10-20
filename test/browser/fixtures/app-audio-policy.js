@@ -124,7 +124,9 @@
     const start = source.start;
     source.start = function (...when) {
       Object.assign(record, stamp('source-start'), { started: true,
-        duration: this.buffer.duration, startClock: context.context.currentTime, stack: new Error().stack });
+        duration: this.buffer.duration, frames: this.buffer.length, bufferSampleRate: this.buffer.sampleRate,
+        sampleRate: context.context.sampleRate, renderQuantumSize: context.context.renderQuantumSize ?? 128,
+        startClock: context.context.currentTime, stack: new Error().stack });
       return start.apply(this, when);
     };
     const stop = source.stop;
