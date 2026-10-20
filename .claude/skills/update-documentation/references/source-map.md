@@ -65,7 +65,9 @@ source wins over prose, and a generated artifact wins over a description of that
   and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
   holds those colours to the CSS ground roles.
   The head's optional font preload is activated by the classic appearance script, not
-  awaited by app startup; `screenshots.mjs` separately awaits activation and font readiness.
+  awaited by app startup. `screenshots.mjs` and `requireUxFont` in
+  [`test/browser/fixtures/ux.js`](../../../../test/browser/fixtures/ux.js) await activation
+  and face registration before requiring real loaded fonts for capture.
   [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and
   [`a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs) measure
   actual composited controls, trusted hover/press/focus, selected/disabled/busy/status

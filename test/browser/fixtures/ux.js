@@ -6,6 +6,8 @@ const visible = (el) => Boolean(el && !el.hidden && el.getClientRects().length);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function requireUxFont(doc) {
+  await awaitUx(() => doc.getElementById('font-styles')?.rel === 'stylesheet'
+    && [...doc.fonts].some((face) => face.family.includes('IBM Plex Sans')), 'font stylesheet');
   await doc.fonts.ready;
   const faces = await doc.fonts.load('600 16px "IBM Plex Sans"');
   if (!faces.some((face) => face.status === 'loaded')) {
