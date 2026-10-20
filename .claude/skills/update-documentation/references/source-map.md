@@ -113,7 +113,10 @@ source wins over prose, and a generated artifact wins over a description of that
   reuses the real debug scripted walkthrough and strict recorder in both themes;
   `PlayListingAssets.kt` renders the installed launcher drawable and exports lossless,
   opaque phone copies. `android-device.yml`'s explicit `evidence=play-listing` mode owns
-  the focused hosted command, SHA checks and artifact upload. Re-check CONTRIBUTING,
+  the focused hosted command, SHA checks and artifact upload.
+  [`tools/check-play-listing.mjs`](../../../../tools/check-play-listing.mjs) and
+  [`test/play-listing.test.mjs`](../../../../test/play-listing.test.mjs) own text/PNG limits
+  and the versioned inventory. Re-check CONTRIBUTING,
   actual selected-test execution, complete clean-SHA manifests and inspected PNGs.
   This does not publish a listing, prove physical-device behavior or replace the
   remaining release/privacy gates.

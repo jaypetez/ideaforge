@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.os.SystemClock
+import android.util.Log
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.geometry.Offset
@@ -107,7 +108,10 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = createEmptyComposeRule()
+    val compose = if (InstrumentationRegistry.getArguments().getString("playListingProbe") == "true") {
+        // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
+        androidx.compose.ui.test.junit4.v2.createEmptyComposeRule()
+    } else createEmptyComposeRule()
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val target = instrumentation.targetContext
@@ -1353,6 +1357,7 @@ class UxCaptureDeviceTest {
                     if (frame == "result") resultControls() else interviewControls())
             }, settleInput = ::hideKeyboard)
         } catch (error: Throwable) {
+            Log.e("UxCapture", "scripted walkthrough failed for ${config.id}", error)
             recorder.failedRun(error)
             val keys = walkthroughFrames.map { "${config.id}/walkthrough-$it" }.toSet()
             for (key in UxEvidence.unrecorded(keys, recorder.recordedKeys)) {

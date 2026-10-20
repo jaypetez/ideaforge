@@ -354,6 +354,13 @@ an unused alpha channel, with no resize, crop or replacement of app pixels. Pres
 original recorder images and manifest as evidence, then copy only the generated `images/`
 tree into the metadata directory. Never promote a failed or development-dirty run.
 
+After copying, from the repository root run `node tools\check-play-listing.mjs`.
+The checker rejects absent assets, out-of-limit text and PNG dimensions, wrong bit depth
+or transparency, missing themes and incomplete image data. It checks the current
+versionCode's changelog, not a stale version's file. Keep the generated assets with the
+listing source; a passing header/limit check never replaces the native manifest and
+visual inspection.
+
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 
 ```powershell
