@@ -64,6 +64,8 @@ source wins over prose, and a generated artifact wins over a description of that
   [`manifest.webmanifest`](../../../../manifest.webmanifest) own preference/first-paint
   and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
   holds those colours to the CSS ground roles.
+  The head's optional font preload is activated by the classic appearance script, not
+  awaited by app startup; `screenshots.mjs` separately awaits activation and font readiness.
   [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and
   [`a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs) measure
   actual composited controls, trusted hover/press/focus, selected/disabled/busy/status

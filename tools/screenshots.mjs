@@ -342,8 +342,12 @@ async function run(theme, chrome, port) {
     await loaded;
 
     await app.waitFor(`document.getElementById('version').textContent`, 'the app to boot');
+    await app.waitFor(`document.getElementById('font-styles').rel === 'stylesheet'
+      && [...document.fonts].some((font) => font.family.includes('IBM Plex Sans'))`,
+      'the optional font stylesheet to load');
     await app.eval('document.fonts.ready');
-    const plex = await app.eval(`document.fonts.check('600 25px "IBM Plex Sans"')`);
+    const plex = await app.eval(`document.fonts.load('600 25px "IBM Plex Sans"')
+      .then((fonts) => fonts.length > 0 && fonts.every((font) => font.status === 'loaded'))`);
     if (!plex) {
       console.warn('  WARN  IBM Plex did not load — these shots are in fallback faces.');
       console.warn('        The CSP allows fonts only from Google Fonts; this needs network.');

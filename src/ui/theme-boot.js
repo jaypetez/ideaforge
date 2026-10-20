@@ -21,6 +21,13 @@
 // file against both.
 (function () {
   if (typeof document === 'undefined') return;
+  // The optional CDN stylesheet must not hold deferred modules or the window load event.
+  document.addEventListener('load', function fontsLoaded(event) {
+    var link = event.target;
+    if (link.id !== 'font-styles') return;
+    document.removeEventListener('load', fontsLoaded, true);
+    link.rel = 'stylesheet';
+  }, true);
   var theme;
   try {
     var raw = localStorage.getItem('ideaforge.prefs');

@@ -7,6 +7,9 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   });
   await cdp.send('Network.enable');
   await cdp.send('Network.setBlockedURLs', { urls: ['https://api.openai.com/*'] });
+  const fontRequests = [];
+  const detachFonts = cdp.on('Fetch.requestPaused', ({ requestId }) => fontRequests.push(requestId));
+  await cdp.send('Fetch.enable', { patterns: [{ urlPattern: 'https://fonts.googleapis.com/*' }] });
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: bootstrap });
   await cdp.send('Page.bringToFront');
   await cdp.send('Page.navigate', { url: `${origin}/index.html` });
@@ -85,11 +88,33 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   for (const end = Date.now() + 10000; Date.now() < end;) {
     ready = await cdp.evaluate(`!!document.getElementById('version')?.textContent
       && document.getElementById('provider').options.length > 0
-      && typeof document.getElementById('b-start-voice').onclick === 'function'`);
+      && typeof document.getElementById('b-start-voice').onclick === 'function'
+      && document.readyState === 'complete'`);
     if (ready) break;
     await sleep(40);
   }
-  if (!ready) throw new Error('the real app did not finish setup');
+  if (!ready) throw new Error('the real app did not finish setup while the optional font stylesheet was pending');
+  check('startup and the load event complete while optional font CSS is pending',
+    fontRequests.length > 0 && await cdp.evaluate("document.getElementById('font-styles')?.rel === 'preload'"));
+  const fontCss = Buffer.from(':root { --font-bootstrap-probe: loaded; }').toString('base64');
+  let servedFonts = 0;
+  let fontsApplied = false;
+  for (const end = Date.now() + 5000; Date.now() < end;) {
+    while (servedFonts < fontRequests.length) {
+      await cdp.send('Fetch.fulfillRequest', {
+        requestId: fontRequests[servedFonts++], responseCode: 200,
+        responseHeaders: [{ name: 'Content-Type', value: 'text/css' }], body: fontCss,
+      });
+    }
+    fontsApplied = await cdp.evaluate(`document.getElementById('font-styles')?.rel === 'stylesheet'
+      && getComputedStyle(document.documentElement).getPropertyValue('--font-bootstrap-probe').trim() === 'loaded'`);
+    if (fontsApplied) break;
+    await sleep(40);
+  }
+  check('the optional font stylesheet is applied when its delayed response arrives', fontsApplied);
+  detachFonts();
+  await cdp.send('Fetch.disable');
+  if (!fontsApplied) throw new Error('the delayed font stylesheet was not activated');
   // Speech is configured in Settings and started from Start (#101): two views of the one
   // #panel-setup. The way into Settings is an untrusted click on purpose. A trusted one
   // would give the document sticky user activation before arm(), and the checks below that

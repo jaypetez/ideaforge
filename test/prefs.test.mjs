@@ -119,10 +119,39 @@ function boot({ stored, storageThrows = false, preset } = {}) {
   const document = {
     documentElement: { dataset },
     querySelectorAll: (selector) => (selector === 'meta[name="theme-color"]' ? metas : []),
+    addEventListener(type, handler, capture) {
+      assert.equal(type, 'load');
+      assert.equal(capture, true);
+      this.loaded = handler;
+    },
+    removeEventListener(type, handler, capture) {
+      assert.equal(type, 'load');
+      assert.equal(capture, true);
+      assert.equal(handler, this.loaded);
+      this.loaded = null;
+    },
   };
   runInNewContext(BOOT, { localStorage, document });
-  return { theme: dataset.theme, metas: metas.map((m) => m.content), reads };
+  return {
+    theme: dataset.theme, metas: metas.map((m) => m.content), reads,
+    loaded(target) { document.loaded?.({ target }); },
+  };
 }
+
+test('optional font CSS activates after loading even when theme storage is unavailable', () => {
+  for (const options of [{}, { storageThrows: true }, { preset: 'dark' }]) {
+    const page = boot(options);
+    const other = { id: 'another-preload', rel: 'preload' };
+    page.loaded(other);
+    assert.equal(other.rel, 'preload');
+    const fonts = { id: 'font-styles', rel: 'preload' };
+    page.loaded(fonts);
+    assert.equal(fonts.rel, 'stylesheet');
+    fonts.rel = 'preload';
+    page.loaded(fonts);
+    assert.equal(fonts.rel, 'preload', 'the completed font listener is retired');
+  }
+});
 
 test('theme-boot reads the same key prefs.js writes', () => {
   assert.deepEqual(boot().reads, [PREFS_KEY]);
@@ -176,6 +205,11 @@ test('index.html loads theme-boot as a blocking classic script in the head, befo
   assert.doesNotMatch(tag[0], /\b(type|defer|async)\b/);
   assert.ok(head.indexOf(tag[0]) > head.lastIndexOf('name="theme-color"'), 'it retints the metas, so it follows them');
   assert.ok(head.indexOf(tag[0]) < head.indexOf('rel="stylesheet"'), 'it should precede the stylesheets');
+  const fonts = head.match(/<link\b[^>]*id="font-styles"[^>]*>/)?.[0];
+  assert.ok(fonts, 'the optional font preload must be named');
+  assert.match(fonts, /\brel="preload"/);
+  assert.match(fonts, /\bas="style"/);
+  assert.ok(head.indexOf(tag[0]) < head.indexOf(fonts), 'install the load listener before a cached preload can finish');
 });
 
 test('applyTheme sets or clears data-theme and returns what it applied', () => {

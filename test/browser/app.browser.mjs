@@ -390,6 +390,9 @@ export default async function run(check, { subpath }) {
   const preConsentShell = await caches.open('ideaforge-v30');
   await preConsentShell.put(subpath + 'index.html', new Response('<!doctype html><title>No inference agreement</title>'));
   await preConsentShell.put(subpath + 'src/ui/app.js', new Response('/* pre-consent controller */'));
+  const preFontShell = await caches.open('ideaforge-v31');
+  await preFontShell.put(subpath + 'index.html', new Response('<!doctype html><title>Blocking font stylesheet</title>'));
+  await preFontShell.put(subpath + 'src/ui/theme-boot.js', new Response('/* no font preload activation */'));
 
   // ── boots identically on a Pages-style subpath ────────────────────────────
   const sub = await loadFrame(subpath + 'index.html');
@@ -450,6 +453,8 @@ export default async function run(check, { subpath }) {
     !names.includes('ideaforge-v29'), names.join(', '));
   check('installing the consent shell retires pre-consent HTML and controller together',
     !names.includes('ideaforge-v30'), names.join(', '));
+  check('installing the font preload shell retires the old HTML and appearance loader together',
+    !names.includes('ideaforge-v31'), names.join(', '));
   const cache = names.length ? await caches.open(names[0]) : null;
   const cached = cache ? (await cache.keys()).map((r) => new URL(r.url).pathname) : [];
   check('the service worker precached the shell', cached.length > 20, cached.length + ' entries');
