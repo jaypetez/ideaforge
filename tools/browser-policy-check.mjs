@@ -231,8 +231,8 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
     console.log('Usage: node tools\\browser-policy-check.mjs [--app-only [--negative-control] | --a11y-only]\n'
-      + 'Default: the original 40 checks, real-app normal-policy integration, and the\n'
-      + 'real-keyboard and coarse-pointer accessibility phase.\n'
+      + 'Default: real audio policy, font-bootstrap regressions, real-app normal-policy\n'
+      + 'integration, and real-keyboard and coarse-pointer accessibility checks.\n'
       + '--a11y-only runs only the accessibility phase.\n'
       + '--negative-control deliberately uses an untrusted preview and must exit nonzero.');
     return 0;
