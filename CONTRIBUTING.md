@@ -394,8 +394,8 @@ private-store fixture and debug scripted interview model, not a real inference k
 `pixel2Api34Voice` is a standard Google APIs API 34 image; the test reports installed TTS
 and recognizer capabilities and fails if they are unavailable. Through the existing graph
 test seam it explicitly selects `androidRecognizerFactory(..., RecognizerMode.DEFAULT)`:
-the **real Android default recognition service**, not a scripted recognizer. The stock
-images advertise an on-device engine without usable English support; this recording does
+the **real Android default recognition service**, not a scripted recognizer. This image's
+advertised on-device engine failed its real en-US start; this recording does
 not certify that preferred on-device branch. Native TTS, recognition/audio callbacks,
 permission dialogs, controller, foreground service and notification actions remain real.
 Use only a fresh owned managed emulator: the test requires ungranted microphone and

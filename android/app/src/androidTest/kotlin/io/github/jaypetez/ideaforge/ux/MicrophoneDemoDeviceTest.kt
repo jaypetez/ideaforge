@@ -156,7 +156,7 @@ class MicrophoneDemoDeviceTest {
             check(root.mkdirs())
             val privateGraph = AppGraph(FixtureContext(target, root), keyringKey = FixtureKey(),
                 providerSource = ProviderSource { ScriptedProvider(ScriptedProvider.loadScript(target)) })
-            // Stock images advertise on-device recognition but lack its English model.
+            // This image's on-device en-US start failed despite advertised availability.
             // This is the existing real default-service path, not a fake recognizer.
             privateGraph.recognizer = Recognizer(
                 androidRecognizerFactory(target, RecognizerMode.DEFAULT), privateGraph.mainScope,
@@ -219,17 +219,15 @@ class MicrophoneDemoDeviceTest {
             check(active.notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0)
             check(active.notification.actions.map { it.title.toString() } ==
                 listOf(target.getString(R.string.voice_pause), target.getString(R.string.voice_exit)))
-            snapshot(output, "listening")
             stage("hands-free-listening")
+            snapshot(output, "listening")
             shell("cmd statusbar expand-notifications")
-            var exit = systemNode("com.android.systemui", text = target.getString(R.string.voice_exit), required = false)
-            if (exit == null) {
-                checkNotNull(systemNode("com.android.systemui", "com.android.systemui:id/expand_button")).performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                exit = systemNode("com.android.systemui", text = target.getString(R.string.voice_exit))
-            }
+            // SystemUI opens asynchronously. Wait for the real action, not a short probe
+            // followed by an assumed expand-button resource/package.
+            val exit = checkNotNull(systemNode("com.android.systemui", text = target.getString(R.string.voice_exit)))
             checkNotNull(systemNode("com.android.systemui", text = target.getString(R.string.voice_pause)))
             stage("notification-pause-exit")
-            check(checkNotNull(exit).performAction(AccessibilityNodeInfo.ACTION_CLICK)) { "the real notification Exit action was rejected" }
+            check(exit.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { "the real notification Exit action was rejected" }
             shell("cmd statusbar collapse")
             await("answer")
             compose.waitUntil(DEVICE_TIMEOUT) { !serviceRunning() && activeRecordings() == 0 &&
