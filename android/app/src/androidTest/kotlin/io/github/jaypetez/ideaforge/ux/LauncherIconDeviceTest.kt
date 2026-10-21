@@ -48,7 +48,7 @@ class LauncherIconDeviceTest {
         }
         val request = requireNotNull(UxCaptureRequest.from(args.keySet().associateWith { args.get(it).toString() }))
         require(request.mode == "matrix" && request.window == "compact" && request.states == null)
-        val output = File(requireNotNull(args.getString("additionalTestOutputDir")), "launcher-icon")
+        val output = File(requireNotNull(args.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "launcher-icon")
         check(output.isDirectory || output.mkdirs())
         val captures = mutableListOf<JsonObject>()
         val artwork = mutableListOf<JsonObject>()
