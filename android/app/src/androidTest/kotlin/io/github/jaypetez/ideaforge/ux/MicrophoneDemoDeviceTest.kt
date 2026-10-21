@@ -51,6 +51,7 @@ import io.github.jaypetez.ideaforge.voice.androidRecognizerFactory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -232,6 +233,8 @@ class MicrophoneDemoDeviceTest {
             await("answer")
             compose.waitUntil(DEVICE_TIMEOUT) { !serviceRunning() && activeRecordings() == 0 &&
                 notifications.activeNotifications.none { it.id == DriveService.NOTIFICATION_ID } }
+            val exitWrite = requireNotNull(privateGraph.driveController.draftWrite) { "Exit did not schedule its draft save" }
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { exitWrite.join() } }
             val saved = requireNotNull(privateGraph.sessionStore.get(id))
             check(stringOf(openTurn(saved)?.get("question")) == SEED_QUESTION)
             check(stringOf(openTurn(saved)?.get("answer")).isNullOrEmpty())
