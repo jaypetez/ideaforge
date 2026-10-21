@@ -110,7 +110,7 @@ class MicrophoneDemoDeviceTest {
                 put("transport", "UiAutomation.executeShellCommand; the device's real screenrecord binary (shell UID), managed by Gradle")
                 put("command", "screenrecord --time-limit 55 --bit-rate 4000000 ${video.absolutePath}")
                 put("fixture", "Private test stores and the existing debug scripted interview model. Native TTS, recognition, runtime permission UI, DriveController, DriveService and notification actions are not replaced.")
-                put("limitations", "Emulator microphone input, not a person speaking, physical-device support, speech quality, screen-off survival or Play approval. No production key or hosted model/speech request.")
+                put("limitations", "Emulator microphone input, not a person speaking, physical-device support, speech quality, screen-off survival or Play approval. No production key or app inference/hosted-speech API call; native service network behavior is platform-owned.")
                 metadata?.let { put("video", it) }
                 put("events", JsonArray(events))
                 put("failures", JsonArray(failures.map(::JsonPrimitive)))
@@ -184,8 +184,10 @@ class MicrophoneDemoDeviceTest {
             compose.waitUntil(DEVICE_TIMEOUT) { automation.rootInActiveWindow?.packageName?.toString() in controllers }
             val controller = checkNotNull(automation.rootInActiveWindow?.packageName?.toString())
             repeat(2) {
-                val mic = systemNode(controller, "permission_allow_foreground_only_button", required = false)
-                val button = mic ?: checkNotNull(systemNode(controller, "permission_allow_button"))
+                // Google's controller retains AOSP resource IDs; its process package is
+                // not the resource namespace (the first real-device run caught this).
+                val mic = systemNode(controller, "com.android.permissioncontroller:id/permission_allow_foreground_only_button", required = false)
+                val button = mic ?: checkNotNull(systemNode(controller, "com.android.permissioncontroller:id/permission_allow_button"))
                 val name = if (mic != null) "microphone-permission" else "notification-permission"
                 File(output, "$name-ui.txt").writeText(tree(automation.rootInActiveWindow))
                 stage(name)
@@ -210,7 +212,7 @@ class MicrophoneDemoDeviceTest {
             shell("cmd statusbar expand-notifications")
             var exit = systemNode("com.android.systemui", text = target.getString(R.string.voice_exit), required = false)
             if (exit == null) {
-                checkNotNull(systemNode("com.android.systemui", "expand_button")).performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                checkNotNull(systemNode("com.android.systemui", "com.android.systemui:id/expand_button")).performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 exit = systemNode("com.android.systemui", text = target.getString(R.string.voice_exit))
             }
             checkNotNull(systemNode("com.android.systemui", text = target.getString(R.string.voice_pause)))
@@ -237,7 +239,10 @@ class MicrophoneDemoDeviceTest {
             runCatching { snapshot(output, "failure") }
         } finally {
             UxEvidence.finish(primaryError, listOf(
-                { recording?.let { File(output, "screenrecord.txt").writeText(it.get(65, TimeUnit.SECONDS)) } },
+                { recording?.let {
+                    File(output, "screenrecord.txt").writeText(it.get(65, TimeUnit.SECONDS))
+                    metadata = decodeVideo(video, output, events)
+                } },
                 { reader.shutdownNow() },
                 { instrumentation.runOnMainSync { graph?.driveController?.exit() } },
                 { scenario?.close() },
@@ -311,7 +316,7 @@ class MicrophoneDemoDeviceTest {
         do {
             val root = automation.rootInActiveWindow
             val nodes = when {
-                resource != null -> root?.findAccessibilityNodeInfosByViewId("$pkg:id/$resource")
+                resource != null -> root?.findAccessibilityNodeInfosByViewId(resource)
                 else -> root?.findAccessibilityNodeInfosByText(checkNotNull(text))
             }.orEmpty().filter { it.packageName?.toString() == pkg && it.isVisibleToUser &&
                 (text == null || it.text?.toString().equals(text, ignoreCase = true)) }
