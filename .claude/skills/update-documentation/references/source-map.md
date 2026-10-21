@@ -146,8 +146,9 @@ source wins over prose, and a generated artifact wins over a description of that
   teardown. `MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses only
   private setup stores and the debug scripted interview model, not fake native effects.
   `android-device.yml` selects `evidence=microphone-demo` on standard Google APIs
-  `pixel2Api36Voice`, confirms native English support (requesting its model with Android's
-  public download API if needed), uploads the real shell `screenrecord` MP4, native media metadata and
+  `pixel2Api34Voice`, explicitly selects the real default recognizer through the existing
+  graph test seam (not the image's unusable on-device English engine), and uploads the real
+  shell `screenrecord` MP4, native media metadata and
   decoded frames, plus actual service/audio snapshots. Re-check CONTRIBUTING,
   `guide/android.html#foreground-service-declaration`, publishing walkthrough #171 and
   Google's linked FGS declaration requirements. Read back the exact clean SHA/profile,

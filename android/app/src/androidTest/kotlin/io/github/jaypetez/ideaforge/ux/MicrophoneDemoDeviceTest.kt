@@ -15,9 +15,6 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.speech.SpeechRecognizer
-import android.speech.RecognitionSupport
-import android.speech.RecognitionSupportCallback
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -48,6 +45,9 @@ import io.github.jaypetez.ideaforge.providers.inferenceDestination
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.voice.DriveService
+import io.github.jaypetez.ideaforge.voice.Recognizer
+import io.github.jaypetez.ideaforge.voice.RecognizerMode
+import io.github.jaypetez.ideaforge.voice.androidRecognizerFactory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
@@ -63,10 +63,9 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.Executors
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** Real system effects on an owned, fresh emulator. Only the interview model is scripted. */
+/** Real system effects on an owned, fresh emulator; real default native recognition. */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class MicrophoneDemoDeviceTest {
@@ -96,6 +95,8 @@ class MicrophoneDemoDeviceTest {
         val output = File(requireNotNull(args.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "microphone-demo")
         check(output.isDirectory || output.mkdirs())
         val events = mutableListOf<JsonObject>()
+        val expectedStages = setOf("interview", "app-rationale", "microphone-permission",
+            "notification-permission", "hands-free-listening", "notification-pause-exit", "exited-same-typed-interview")
         val failures = mutableListOf<String>()
         val video = File(output, "microphone-foreground-service.mp4")
         val json = Json { prettyPrint = true }
@@ -113,10 +114,11 @@ class MicrophoneDemoDeviceTest {
                 put("density", shell("wm density").trim())
                 put("transport", "UiAutomation.executeShellCommand; the device's real screenrecord binary (shell UID), managed by Gradle")
                 put("command", "screenrecord --time-limit 45 --bit-rate 4000000 ${video.absolutePath}")
-                put("fixture", "Private test stores and the existing debug scripted interview model. Native TTS, recognition, runtime permission UI, DriveController, DriveService and notification actions are not replaced.")
-                put("limitations", "Emulator microphone input, not a person speaking, physical-device support, speech quality, screen-off survival or Play approval. No production key or app inference/hosted-speech API call; native service network behavior is platform-owned.")
+                put("fixture", "Private test stores and existing debug scripted interview model. The existing graph seam selects the real native DEFAULT recognition service, not scripted callbacks. Native TTS, runtime permission UI, DriveController, DriveService and notification actions are not replaced.")
+                put("limitations", "Emulator microphone input, not a person speaking, preferred on-device recognition, physical-device support, speech quality, screen-off survival or Play approval. No production key or app inference/hosted-speech API call; native service network behavior is platform-owned.")
                 metadata?.let { put("video", it) }
                 put("events", JsonArray(events))
+                put("expectedStages", JsonArray(expectedStages.map(::JsonPrimitive)))
                 put("failures", JsonArray(failures.map(::JsonPrimitive)))
             }) + "\n")
         }
@@ -136,6 +138,7 @@ class MicrophoneDemoDeviceTest {
                 appendLine("recognitionAvailable=${SpeechRecognizer.isRecognitionAvailable(target)}")
                 appendLine("onDeviceRecognitionAvailable=${SpeechRecognizer.isOnDeviceRecognitionAvailable(target)}")
                 appendLine("recognizer=${shell("settings get secure voice_recognition_service").trim()}")
+                appendLine("recognizerMode=DEFAULT; real android.speech.SpeechRecognizer.createSpeechRecognizer")
                 appendLine("onDeviceRecognizer=${shell("settings get secure on_device_system_speech_recognition_service").trim()}")
                 appendLine("tts=${shell("settings get secure tts_default_synth").trim()}")
                 appendLine("ttsServices=${target.packageManager.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0).map { it.serviceInfo.packageName }}")
@@ -145,7 +148,6 @@ class MicrophoneDemoDeviceTest {
             check(target.packageManager.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0).isNotEmpty()) {
                 "the selected image has no native TTS engine; see capabilities.txt"
             }
-            prepareNativeRecognizer(output)
             for (permission in listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)) {
                 check(target.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
                     "$permission is already granted; the video needs a fresh device and real permission dialogs"
@@ -154,6 +156,11 @@ class MicrophoneDemoDeviceTest {
             check(root.mkdirs())
             val privateGraph = AppGraph(FixtureContext(target, root), keyringKey = FixtureKey(),
                 providerSource = ProviderSource { ScriptedProvider(ScriptedProvider.loadScript(target)) })
+            // Stock images advertise on-device recognition but lack its English model.
+            // This is the existing real default-service path, not a fake recognizer.
+            privateGraph.recognizer = Recognizer(
+                androidRecognizerFactory(target, RecognizerMode.DEFAULT), privateGraph.mainScope,
+            )
             graph = privateGraph
             app.graph = privateGraph
             runBlocking {
@@ -237,6 +244,12 @@ class MicrophoneDemoDeviceTest {
             check(SystemClock.elapsedRealtime() - began < 41_000) { "the required flow exceeded the bounded recording; not valid evidence" }
             File(output, "screenrecord.txt").writeText(recording.get(65, TimeUnit.SECONDS))
             recording = null
+            check(!serviceRunning() && activeRecordings() == 0 &&
+                notifications.activeNotifications.none { it.id == DriveService.NOTIFICATION_ID }) {
+                "voice effects restarted after Exit while the remainder of the clip was recorded"
+            }
+            snapshot(output, "recording-ended")
+            UxEvidence.requireComplete(expectedStages, events.map { it.getValue("stage").toString().trim('"') }.toSet(), failures)
             metadata = decodeVideo(video, output, events)
         } catch (error: Throwable) {
             primaryError = error
@@ -266,55 +279,6 @@ class MicrophoneDemoDeviceTest {
     }
 
     private fun activeRecordings(): Int = audio.activeRecordingConfigurations.count { !it.isClientSilenced }
-
-    private fun prepareNativeRecognizer(output: File) {
-        if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(target)) return
-        val log = File(output, "native-language-model.txt")
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        lateinit var recognizer: SpeechRecognizer
-        instrumentation.runOnMainSync { recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(target) }
-        try {
-            fun installed(): Boolean {
-                val ready = CountDownLatch(1)
-                var support: RecognitionSupport? = null
-                var failure: Int? = null
-                instrumentation.runOnMainSync {
-                    recognizer.checkRecognitionSupport(intent, target.mainExecutor, object : RecognitionSupportCallback {
-                        override fun onSupportResult(result: RecognitionSupport) {
-                            if (ready.count == 0L) return
-                            support = result
-                            ready.countDown()
-                        }
-                        override fun onError(error: Int) {
-                            if (ready.count == 0L) return
-                            failure = error
-                            ready.countDown()
-                        }
-                    })
-                }
-                check(ready.await(15, TimeUnit.SECONDS)) { "native recognition support did not answer" }
-                check(failure == null) { "native recognition support failed with Android error $failure" }
-                val result = checkNotNull(support)
-                log.appendText("installed=${result.installedOnDeviceLanguages} pending=${result.pendingOnDeviceLanguages} " +
-                    "supported=${result.supportedOnDeviceLanguages}\n")
-                return result.installedOnDeviceLanguages.any { it.equals("en-US", ignoreCase = true) }
-            }
-            if (installed()) return
-            // The API 34 image advertised on-device recognition but failed with no en-US
-            // model. Provision the platform's model, not a fake engine or permission.
-            log.appendText("Requesting en-US once with native triggerModelDownload; no microphone is opened.\n")
-            instrumentation.runOnMainSync { recognizer.triggerModelDownload(intent) }
-            val deadline = SystemClock.uptimeMillis() + 120_000
-            do {
-                SystemClock.sleep(3000)
-                if (installed()) return
-            } while (SystemClock.uptimeMillis() < deadline)
-            error("native en-US model did not become installed within 120 seconds; see native-language-model.txt")
-        } finally { instrumentation.runOnMainSync { recognizer.destroy() } }
-    }
 
     @Suppress("DEPRECATION")
     private fun serviceRunning(): Boolean = target.getSystemService(ActivityManager::class.java)

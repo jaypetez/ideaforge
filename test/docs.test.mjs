@@ -758,7 +758,7 @@ test('microphone declaration recording selects real native effects and retains p
   assert.ok(step, 'the microphone video needs an explicit opt-in workflow step');
   for (const argument of [
     "inputs.evidence == 'microphone-demo'",
-    ':app:pixel2Api36VoiceDebugAndroidTest',
+    ':app:pixel2Api34VoiceDebugAndroidTest',
     '-Pandroid.enableAdditionalTestOutput=true',
     'MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo',
     '-Pandroid.testInstrumentationRunnerArguments.microphoneDemoProbe=true',

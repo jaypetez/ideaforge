@@ -308,10 +308,11 @@
       <p>
         Run the repository&rsquo;s <code>Android device</code> workflow with
         <code>evidence=microphone-demo</code> on the intended clean commit. Its opt-in
-        <code>pixel2Api36Voice</code> managed emulator uses a standard Google APIs image and
+        <code>pixel2Api34Voice</code> managed emulator uses a standard Google APIs image and
         checks the installed native recogniser and text-to-speech services before recording.
-        A missing on-device English model is requested through Android&rsquo;s public model
-        download API; actual installed language support must be confirmed before continuing.
+        The test explicitly selects Android&rsquo;s real default recognition service through
+        an existing test seam, not scripted recognition: the stock emulator&rsquo;s advertised
+        on-device engine lacks usable English support.
         It runs the real on-device <code>screenrecord</code> utility through Android
         UiAutomation&rsquo;s shell transport, recording a bounded 45-second MP4: Interview,
         Answer by voice, the real system microphone and notification Allow dialogs, the
@@ -326,8 +327,9 @@
         Watch the clip and inspect the decoded permission, listening, notification and Exit
         frames before using it. The debug interview model and private setup data are
         scripted; native speech, permission dialogs, microphone, service and actions are
-        not simulated. This is emulator evidence, not a physical-phone, speech-quality or
-        screen-off-survival result. Artifacts expire after 14 days: the maintainer must
+        not simulated. Default-service selection is test-only; this is not proof of the
+        preferred on-device recogniser, physical-phone, speech-quality or screen-off-survival
+        behavior. Artifacts expire after 14 days: the maintainer must
         retain the MP4, upload the reviewed video to unlisted YouTube, and paste that
         durable video URL into Play Console. The workflow never uploads to YouTube or Play.
       </p>

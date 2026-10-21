@@ -391,13 +391,13 @@ gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=micropho
 
 `MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses the existing
 private-store fixture and debug scripted interview model, not a real inference key.
-`pixel2Api36Voice` is a standard Google APIs API 36 image; the test reports installed TTS
-and recognizer capabilities and fails if they are unavailable. For the app's preferred
-on-device recognizer it checks installed English support, requests a missing language
-model through Android's public `triggerModelDownload` API, and requires actual installed
-support within a bounded wait before recording. Availability alone is not a verdict.
-It does not substitute
-scripted recognition, speech, stage flags, permission dialogs or a foreground service.
+`pixel2Api34Voice` is a standard Google APIs API 34 image; the test reports installed TTS
+and recognizer capabilities and fails if they are unavailable. Through the existing graph
+test seam it explicitly selects `androidRecognizerFactory(..., RecognizerMode.DEFAULT)`:
+the **real Android default recognition service**, not a scripted recognizer. The stock
+images advertise an on-device engine without usable English support; this recording does
+not certify that preferred on-device branch. Native TTS, recognition/audio callbacks,
+permission dialogs, controller, foreground service and notification actions remain real.
 Use only a fresh owned managed emulator: the test requires ungranted microphone and
 notification permissions and clicks their actual system Allow actions. It does not revoke
 permissions, wipe data or uninstall an app on a shared device.
@@ -409,7 +409,8 @@ the real Interview → Answer by voice → Allow → native hands-free listening
 notification with Pause/Exit → notification Exit → same typed idea. Assertions require
 actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground
 `DriveService` and notification, then their teardown with no answer or wrap-up submitted.
-Only the model and private pre-agreed setup data are fixtures; no release demo mode is added.
+The private pre-agreed setup and scripted model are fixtures; default-service selection
+is test-only, with no release demo mode or production voice-policy change.
 
 Read back `android-microphone-demo-<SHA>` and `android-device-reports`. Require actual
 nonzero selected-test execution, a passed `microphone-demo/manifest.json` with the exact
