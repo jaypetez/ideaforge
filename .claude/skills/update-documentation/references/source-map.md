@@ -116,7 +116,8 @@ source wins over prose, and a generated artifact wins over a description of that
   `android/app/build.gradle.kts` owns `versionCodeOf` and the native 9:16
   `pixel2Api34Visual` managed profile. `UxCaptureDeviceTest#requestedPlayListingAssets`
   reuses the real debug scripted walkthrough and strict recorder in both themes;
-  `PlayListingAssets.kt` renders the installed launcher drawable and exports lossless,
+  `PlayListingAssets.kt` flattens the installed adaptive background/foreground at Android's
+  layer bounds without a device mask, and exports lossless,
   opaque phone copies. `android-device.yml`'s explicit `evidence=play-listing` mode owns
   the focused hosted command, SHA checks and artifact upload.
   [`tools/check-play-listing.mjs`](../../../../tools/check-play-listing.mjs) and
@@ -125,6 +126,19 @@ source wins over prose, and a generated artifact wins over a description of that
   actual selected-test execution, complete clean-SHA manifests and inspected PNGs.
   This does not publish a listing, prove physical-device behavior or replace the
   remaining release/privacy gates.
+- **Native adaptive launcher.** Sources:
+  [`ic_launcher.xml`](../../../../android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml)
+  owns the full-bleed background, safe-zone anvil foreground and shared monochrome layer;
+  `AndroidManifest.xml` selects it for normal and round icons.
+  `LauncherIconTest` checks actual resource resolution at minSdk and a themed-icon API,
+  opacity, safe-circle containment and monochrome silhouette. `LauncherIconDeviceTest`
+  uses the actual AOSP Launcher3 home and its read-back themed-icons preference on the
+  rendering-enabled `pixel2Api34Visual` profile, restoring the preference afterwards.
+  `android-device.yml` selects it only with `evidence=launcher`; the same run exports the
+  two dependent Play artwork files without recapturing unchanged phone screenshots.
+  Re-check the Android guide, architecture, contributor commands, clean-SHA manifests,
+  actual selected-test execution and both full display PNGs. No physical-device or
+  other-launcher compatibility result follows from this focused emulator evidence.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive

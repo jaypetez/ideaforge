@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The web anvil, centred inside the adaptive icon's 66dp safe circle. No baked-in mask. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:pivotX="284"
+        android:pivotY="310"
+        android:scaleX="0.75"
+        android:scaleY="0.75"
+        android:translateX="-28"
+        android:translateY="-54">
+        <path
+            android:fillColor="#F6F7F9"
+            android:pathData="M126,196h150c34,0 58,26 92,26h30v-40h44v104h-58c-30,0 -52,-16 -72,-30l-2,44h44l30,92H152l30,-92h44l-4,-56h-96z" />
+        <path
+            android:fillColor="#F6F7F9"
+            android:pathData="M186,404h140a10,10 0,0 1,10 10v14a10,10 0,0 1,-10 10H186a10,10 0,0 1,-10 -10v-14a10,10 0,0 1,10 -10z" />
+    </group>
+</vector>

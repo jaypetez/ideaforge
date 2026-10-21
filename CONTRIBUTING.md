@@ -351,7 +351,8 @@ artifacts: require actual execution of the selected test with no failure, a pass
 and inspect the light/dark PNGs. `play-listing/images/` holds the store copies:
 `icon.png` (512x512 RGBA), `featureGraphic.png` (1024x500 opaque RGB), and numbered
 `phoneScreenshots/` PNGs (1080x1920 opaque RGB). The native `PlayListingAssets.kt`
-renders artwork from the application launcher drawable; phone conversion only removes
+renders the installed adaptive icon's background and foreground at Android's layer bounds,
+without the device mask (Play supplies its own); phone conversion only removes
 an unused alpha channel, with no resize, crop or replacement of app pixels. Preserve the
 original recorder images and manifest as evidence, then copy only the generated `images/`
 tree into the metadata directory. Never promote a failed or development-dirty run.
@@ -363,6 +364,24 @@ versionCode's changelog, not a stale version's file. Keep the generated assets w
 listing source; `npm test` runs the same checker against the committed current-version
 inventory as well as adversarial boundary fixtures. A passing header/limit check never
 replaces the native manifest and visual inspection.
+
+For launcher-only changes, use the same workflow with `-f evidence=launcher`. This selects
+`LauncherIconDeviceTest#requestedLauncherShowsMaskedAndThemedInstalledIcon` on
+`pixel2Api34Visual`, not ATD or the full app matrix. It uses the actual AOSP Launcher3 home
+screen, places the installed app there if needed, and reads/changes/restores the launcher's
+own themed-icons setting through its customization provider. This route is for an owned
+managed emulator, not a shared launcher or a physical phone. It captures full, unmodified
+display frames with the device mask and with themed icons enabled; it is not a drawn
+contact sheet or a general launcher-compatibility claim.
+
+Require a passed `launcher-icon/manifest-compact.json`, the exact clean tested SHA, actual
+selected-test execution, and inspect `launcher-masked.png` and `launcher-themed.png`.
+The probe rejects a missing monochrome layer, an unmasked square or an unchanged brand
+background after theming. It also writes the two launcher-derived Play artwork PNGs under
+`launcher-icon/images/`. After inspecting and checking them, copy only `icon.png` and
+`featureGraphic.png` into the metadata images directory when they changed. Preserve the
+existing lossless phone frames when no app-screen input changed; launcher artwork does
+not require recapturing the interview. Re-run the listing checker on the complete inventory.
 
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 

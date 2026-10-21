@@ -729,6 +729,29 @@ test('Play listing dispatch selects a rendering-enabled 9:16 phone and the compl
   }
 });
 
+test('launcher evidence selects only the actual installed-icon test on a rendering-enabled phone', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const step = workflow.match(/- name: Installed launcher icon and unmasked Play artwork\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'launcher acceptance needs its explicit workflow route');
+  for (const argument of [
+    "inputs.evidence == 'launcher'",
+    ':app:pixel2Api34VisualDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'LauncherIconDeviceTest#requestedLauncherShowsMaskedAndThemedInstalledIcon',
+    '-Pandroid.testInstrumentationRunnerArguments.launcherIconProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) assert.ok(step.includes(argument), `launcher dispatch omits ${argument}`);
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2);
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2);
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'launcher'"),
+      `focused launcher evidence must not run the unrelated ${name}`);
+  }
+});
+
 test('the worked example quoted in the README is the one on disk', () => {
   const example = join(ROOT, 'docs', 'examples', 'remember-names.md');
   assert.ok(existsSync(example), 'docs/examples/remember-names.md is missing; run npm run screenshots');
