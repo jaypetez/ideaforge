@@ -308,10 +308,12 @@
       <p>
         Run the repository&rsquo;s <code>Android device</code> workflow with
         <code>evidence=microphone-demo</code> on the intended clean commit. Its opt-in
-        <code>pixel2Api34Voice</code> managed emulator uses a standard Google APIs image and
+        <code>pixel2Api36Voice</code> managed emulator uses a standard Google APIs image and
         checks the installed native recogniser and text-to-speech services before recording.
+        A missing on-device English model is requested through Android&rsquo;s public model
+        download API; actual installed language support must be confirmed before continuing.
         It runs the real on-device <code>screenrecord</code> utility through Android
-        UiAutomation&rsquo;s shell transport, recording a bounded 55-second MP4: Interview,
+        UiAutomation&rsquo;s shell transport, recording a bounded 45-second MP4: Interview,
         Answer by voice, the real system microphone and notification Allow dialogs, the
         hands-free stage, the real notification&rsquo;s Pause/Exit controls, then Exit back
         to the same typed interview. It checks actual active audio recording and the

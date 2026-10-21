@@ -391,8 +391,12 @@ gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=micropho
 
 `MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses the existing
 private-store fixture and debug scripted interview model, not a real inference key.
-`pixel2Api34Voice` is a standard Google APIs API 34 image; the test reports installed TTS
-and recognizer capabilities and fails if they are unavailable. It does not substitute
+`pixel2Api36Voice` is a standard Google APIs API 36 image; the test reports installed TTS
+and recognizer capabilities and fails if they are unavailable. For the app's preferred
+on-device recognizer it checks installed English support, requests a missing language
+model through Android's public `triggerModelDownload` API, and requires actual installed
+support within a bounded wait before recording. Availability alone is not a verdict.
+It does not substitute
 scripted recognition, speech, stage flags, permission dialogs or a foreground service.
 Use only a fresh owned managed emulator: the test requires ungranted microphone and
 notification permissions and clicks their actual system Allow actions. It does not revoke
@@ -400,7 +404,7 @@ permissions, wipe data or uninstall an app on a shared device.
 
 Gradle owns the ephemeral device, so the recording invokes the **same on-device
 `screenrecord` utility as `adb shell screenrecord`** through
-`UiAutomation.executeShellCommand`, with `--time-limit 55 --bit-rate 4000000`. It records
+`UiAutomation.executeShellCommand`, with `--time-limit 45 --bit-rate 4000000`. It records
 the real Interview → Answer by voice → Allow → native hands-free listening → system
 notification with Pause/Exit → notification Exit → same typed idea. Assertions require
 actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground

@@ -387,7 +387,7 @@ the Result screen; the separate, non-required
 [`android-device.yml`](../.github/workflows/android-device.yml) workflow runs it on the Gradle
 managed emulator `pixel6Api34` on every push to `main`, nightly and on demand.
 Its opt-in `evidence=microphone-demo` route instead uses the standard Google APIs
-`pixel2Api34Voice` image and `MicrophoneDemoDeviceTest`: private setup stores and the debug
+`pixel2Api36Voice` image and `MicrophoneDemoDeviceTest`: private setup stores and the debug
 scripted model, but real native speech/recognition, runtime Allow dialogs, microphone,
 `DriveService`, notification actions and Exit. The actual device `screenrecord` binary runs
 through UiAutomation's shell transport; native media APIs verify/decode the MP4 in the
