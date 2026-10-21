@@ -30,6 +30,7 @@ class LauncherIconDeviceTest {
     private val automation = instrumentation.uiAutomation
     private val label = target.getString(R.string.app_name)
     private lateinit var launcher: String
+    private lateinit var homeComponent: String
     private lateinit var themeUri: String
 
     @Test
@@ -81,15 +82,16 @@ class LauncherIconDeviceTest {
             val icon = target.applicationInfo.loadIcon(target.packageManager) as? AdaptiveIconDrawable
                 ?: error("the installed application icon is not adaptive")
             checkNotNull(icon.monochrome) { "the installed adaptive icon has no monochrome layer" }
-            launcher = shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
-                .lineSequence().last { "/" in it }.substringBefore('/')
+            homeComponent = shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
+                .lineSequence().last { "/" in it }.trim()
+            launcher = homeComponent.substringBefore('/')
             check(launcher == "com.android.launcher3") { "this probe requires AOSP Launcher3, found $launcher" }
             themeUri = "content://$launcher.grid_control/icon_themed"
             val originalTheme = readTheme()
             restoreTheme = { setTheme(originalTheme) }
             setTheme(false)
             home()
-            ensureHomeIcon()
+            ensureHomeIcon(output)
             val brand = target.getColor(R.color.ic_launcher_background)
             var iconBounds: Rect? = null
             capture(output, "launcher-masked", false, captures) { bitmap, node ->
@@ -193,33 +195,38 @@ class LauncherIconDeviceTest {
         throw IllegalStateException("$name did not settle: ${last?.message}", last)
     }
 
-    private fun ensureHomeIcon() {
+    private fun ensureHomeIcon(output: File) {
         if (homeIcon() != null) return
-        val display = checkNotNull(automation.takeScreenshot())
-        val width = display.width
-        val height = display.height
-        display.recycle()
-        shell("input swipe ${width / 2} ${height * 85 / 100} ${width / 2} ${height / 4} 400")
+        // Use Launcher3's own intent/action instead of assuming its swipe region or drop grid.
+        shell("am start -a android.intent.action.ALL_APPS -n $homeComponent")
         val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
         var node: AccessibilityNodeInfo? = null
         while (node == null && SystemClock.uptimeMillis() < deadline) {
             automation.waitForIdle(300, DEVICE_TIMEOUT)
-            node = homeIcon()
+            node = findIcon(onHome = false)
         }
-        val bounds = Rect()
-        checkNotNull(node) { "the installed app is missing from the launcher app drawer" }.getBoundsInScreen(bounds)
-        shell("input draganddrop ${bounds.centerX()} ${bounds.centerY()} ${width / 2} ${height / 3} 2000")
+        File(output, "app-drawer-ui.txt").writeText(tree(automation.rootInActiveWindow))
+        val app = checkNotNull(node) { "the installed app is missing from the launcher app drawer" }
+        val add = checkNotNull(app.actionList.singleOrNull { it.label?.toString() == "Add to home screen" }) {
+            "the launcher app item has no Add to Home screen accessibility action: ${app.actionList}"
+        }
+        check(app.performAction(add.id)) { "the launcher rejected Add to Home screen" }
         home()
     }
 
-    private fun homeIcon(): AccessibilityNodeInfo? =
-        automation.rootInActiveWindow?.findAccessibilityNodeInfosByText(label)?.firstOrNull {
-            it.isVisibleToUser && it.packageName?.toString() == launcher &&
-                (it.text?.toString() == label || it.contentDescription?.toString() == label)
+    private fun homeIcon(): AccessibilityNodeInfo? = findIcon(onHome = true)
+
+    private fun findIcon(onHome: Boolean): AccessibilityNodeInfo? =
+        automation.rootInActiveWindow?.findAccessibilityNodeInfosByText(label)?.firstOrNull { node ->
+            node.isVisibleToUser && node.packageName?.toString() == launcher &&
+                (node.text?.toString() == label || node.contentDescription?.toString() == label) &&
+                generateSequence(node) { it.parent }.any {
+                    it.viewIdResourceName in setOf("$launcher:id/workspace", "$launcher:id/hotseat")
+                } == onHome
         }
 
     private fun home() {
-        shell("input keyevent KEYCODE_HOME")
+        shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME -n $homeComponent")
         automation.waitForIdle(500, DEVICE_TIMEOUT)
     }
 
@@ -259,6 +266,6 @@ class LauncherIconDeviceTest {
         MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
 
     private fun tree(node: AccessibilityNodeInfo?, depth: Int = 0): String = if (node == null) "(no active window)" else
-        "${" ".repeat(depth)}${node.viewIdResourceName} ${node.text} ${node.contentDescription}\n" +
+        "${" ".repeat(depth)}${node.viewIdResourceName} ${node.text} ${node.contentDescription} ${node.actionList}\n" +
             (0 until node.childCount).joinToString("") { tree(node.getChild(it), depth + 1) }
 }
