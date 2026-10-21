@@ -1737,7 +1737,7 @@ class UxCaptureDeviceTest {
     }
 }
 
-private class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
+internal class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
     private val files = File(root, "files").apply { check(mkdirs()) }
     private val noBackup = File(root, "no-backup").apply { check(mkdirs()) }
     override fun getFilesDir(): File = files
@@ -1746,7 +1746,7 @@ private class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
     override fun getApplicationContext(): Context = this
 }
 
-private class FixtureKey : KeyringKey {
+internal class FixtureKey : KeyringKey {
     private val key = SecretKeySpec(ByteArray(32) { it.toByte() }, "AES")
     override fun existing(slot: Int): SecretKey = key
     override fun getOrCreate(slot: Int): SecretKey = key

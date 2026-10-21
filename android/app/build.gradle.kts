@@ -148,6 +148,14 @@ android {
                     systemImageSource = "aosp"
                     testedAbi = "x86_64"
                 }
+                // Opt in to a standard Google APIs image for native speech services.
+                // The recording checks their actual availability, not just this label.
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixel2Api34Voice") {
+                    device = "Pixel 2"
+                    apiLevel = 34
+                    systemImageSource = "google"
+                    testedAbi = "x86_64"
+                }
                 create<com.android.build.api.dsl.ManagedVirtualDevice>("pixelTabletApi34Visual") {
                     device = "Pixel Tablet"
                     apiLevel = 34

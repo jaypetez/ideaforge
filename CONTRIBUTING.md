@@ -383,6 +383,47 @@ background after theming. It also writes the two launcher-derived Play artwork P
 existing lossless phone frames when no app-screen input changed; launcher artwork does
 not require recapturing the interview. Re-run the listing checker on the complete inventory.
 
+For the Play microphone foreground-service declaration, dispatch the opt-in native recording:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=microphone-demo
+```
+
+`MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses the existing
+private-store fixture and debug scripted interview model, not a real inference key.
+`pixel2Api34Voice` is a standard Google APIs API 34 image; the test reports installed TTS
+and recognizer capabilities and fails if they are unavailable. It does not substitute
+scripted recognition, speech, stage flags, permission dialogs or a foreground service.
+Use only a fresh owned managed emulator: the test requires ungranted microphone and
+notification permissions and clicks their actual system Allow actions. It does not revoke
+permissions, wipe data or uninstall an app on a shared device.
+
+Gradle owns the ephemeral device, so the recording invokes the **same on-device
+`screenrecord` utility as `adb shell screenrecord`** through
+`UiAutomation.executeShellCommand`, with `--time-limit 55 --bit-rate 4000000`. It records
+the real Interview → Answer by voice → Allow → native hands-free listening → system
+notification with Pause/Exit → notification Exit → same typed idea. Assertions require
+actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground
+`DriveService` and notification, then their teardown with no answer or wrap-up submitted.
+Only the model and private pre-agreed setup data are fixtures; no release demo mode is added.
+
+Read back `android-microphone-demo-<SHA>` and `android-device-reports`. Require actual
+nonzero selected-test execution, a passed `microphone-demo/manifest.json` with the exact
+clean checkout SHA/profile, and the uploaded MP4's hash/bytes, codec, dimensions and actual
+30–60 s duration. Android's `MediaMetadataRetriever`/`MediaExtractor` verify the actual
+recording and decode the `video-*.png` frames at the recorded event times. Open those
+frames **and watch the clip**, checking that both real Allow dialogs, the listening stage,
+notification actions and same-idea Exit are visible. The `listening-system.txt` and
+`exited-system.txt` snapshots retain actual service/audio/app-op/notification state.
+An artifact or shell exit alone is not acceptance. This does not certify physical phones,
+speech quality, screen-off survival, other profiles or Play approval.
+
+Declaration copy is in the [Android guide](guide/android.html#foreground-service-declaration)
+and [publishing walkthrough #171](https://github.com/jaypetez/ideaforge/issues/171).
+Artifacts expire after 14 days; the maintainer retains the reviewed MP4 and uploads it to
+unlisted YouTube, then supplies the durable video URL to Play Console. Neither this
+workflow nor the agent publishes to YouTube or Play.
+
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 
 ```powershell

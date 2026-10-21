@@ -752,6 +752,36 @@ test('launcher evidence selects only the actual installed-icon test on a renderi
   }
 });
 
+test('microphone declaration recording selects real native effects and retains pasteable copy', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const step = workflow.match(/- name: Microphone foreground-service declaration video\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'the microphone video needs an explicit opt-in workflow step');
+  for (const argument of [
+    "inputs.evidence == 'microphone-demo'",
+    ':app:pixel2Api34VoiceDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo',
+    '-Pandroid.testInstrumentationRunnerArguments.microphoneDemoProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) assert.ok(step.includes(argument), `microphone video omits ${argument}`);
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2);
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2);
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'microphone-demo'"),
+      `the focused video must not start unrelated ${name}`);
+  }
+  assert.ok(workflow.includes('name: android-microphone-demo-${{ github.sha }}'));
+  const android = guide('android.html');
+  for (const id of ['foreground-service-declaration', 'fgs-functionality', 'fgs-impact']) {
+    assert.ok(android.includes(`id="${id}"`), `the guide lost declaration field ${id}`);
+  }
+  for (const fact of ['Background Audio Access', 'Answer by voice', 'Pause', 'Resume', 'Exit',
+    'unlisted YouTube', '30&ndash;60', '14 days', '13392821']) {
+    assert.ok(android.includes(fact), `the guide omits ${fact}`);
+  }
+});
+
 test('the worked example quoted in the README is the one on disk', () => {
   const example = join(ROOT, 'docs', 'examples', 'remember-names.md');
   assert.ok(existsSync(example), 'docs/examples/remember-names.md is missing; run npm run screenshots');
