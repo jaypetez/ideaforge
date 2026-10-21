@@ -9,6 +9,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md) and
   [`package.json`](../../../../package.json). Re-check `README.md`, `CONTRIBUTING.md`, the
   development guide, and skills.
+- **Browser harness profile isolation.** Source: `launchChrome` in
+  [`tools/lib/harness.mjs`](../../../../tools/lib/harness.mjs) sets extension-isolation flags in its
+  temporary profiles; the calling harness owns autoplay, synthetic media and gesture policy.
+  Re-check contributor testing guidance without treating a fresh profile as proof that
+  managed content scripts cannot be injected.
 - **Implementation invariants.** Sources:
   [`CLAUDE.md`](../../../../CLAUDE.md), the owning modules, and their tests. Re-check
   `docs/ARCHITECTURE.md`, focused skills, and the development guide.

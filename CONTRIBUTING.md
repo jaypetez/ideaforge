@@ -616,6 +616,12 @@ For public documentation work, run `npm run test:docs` while editing. Guide rout
 service-worker, screenshot or app-link changes also need `npm run test:browser:required`;
 the all-up pre-push gate remains `npm run test:all`.
 
+The shared `launchChrome` in `tools/lib/harness.mjs` uses `--disable-extensions` and
+`--disable-component-extensions-with-background-pages` for its temporary profiles. A fresh
+profile alone can still receive managed content scripts. These launch flags do not change
+installed browser settings; autoplay, microphone and trusted-gesture policy still belong
+to each calling harness.
+
 The required browser command also runs `tools/browser-policy-check.mjs`: fresh-profile,
 real Web Audio checks with trusted gestures, separate from the synthetic microphone suite's
 autoplay bypass. Keep those evidence classes separate in a PR. Neither replaces real
