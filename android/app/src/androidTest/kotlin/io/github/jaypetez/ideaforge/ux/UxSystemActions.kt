@@ -146,13 +146,16 @@ internal class UxSystemActions(
     }
 
     private fun downloads() {
+        fun root(node: AccessibilityNodeInfo): Boolean = node.text?.toString() == "Downloads" &&
+            generateSequence(node.parent) { it.parent }.any {
+                it.viewIdResourceName == "com.android.documentsui:id/roots_list"
+            }
         val navigator = await {
-            it.contentDescription?.toString() == "Show roots" && clickTarget(it) != null ||
-                it.text?.toString() == "Downloads" && clickTarget(it) != null
+            root(it) || it.contentDescription?.toString() == "Show roots"
         }
-        if (navigator.contentDescription?.toString() == "Show roots") click(navigator)
-        // The toolbar/breadcrumb also says Downloads before the drawer has opened.
-        click(await { it.text?.toString() == "Downloads" && clickTarget(it) != null })
+        if (!root(navigator)) clickWhere { it.contentDescription?.toString() == "Show roots" }
+        // Re-query until the actual drawer row accepts the action, never a stale title.
+        clickWhere(::root)
     }
 
     private fun clickTarget(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -165,6 +168,10 @@ internal class UxSystemActions(
         check(clickTarget(node)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
             "the native action was not clickable: ${node.text}/${node.contentDescription}\n${tree(automation.rootInActiveWindow)}"
         }
+    }
+
+    private fun clickWhere(matches: (AccessibilityNodeInfo) -> Boolean) {
+        await { matches(it) && clickTarget(it)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true }
     }
 
     private fun await(matches: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {

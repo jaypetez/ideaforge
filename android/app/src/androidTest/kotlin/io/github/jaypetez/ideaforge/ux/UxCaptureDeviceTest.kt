@@ -442,8 +442,14 @@ class UxCaptureDeviceTest {
             assertEquals(ids, runBlocking { graph.sessionStore.knownIds() })
             capture("controller-exit", interviewControls())
             val draft = "The same draft and session survive real device rotation."
-            compose.onNodeWithTag("answer").performTextReplacement(draft)
+            awaitEditableQuestion()
+            compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement(draft)
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                    .getOrNull(SemanticsProperties.EditableText)?.text == draft
+            }
             hideKeyboard()
+            assertEquals(draft, compose.onNodeWithTag("answer").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
             val before = checkNotNull(activity).resources.configuration.orientation
             scenario!!.onActivity { it.requestedOrientation = if (before == Configuration.ORIENTATION_PORTRAIT)
                 ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
@@ -2120,8 +2126,12 @@ class UxCaptureDeviceTest {
                 compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
                 await("new-idea-type")
                 compose.onNodeWithTag("new-idea-type").performClick()
-                await("answer")
-                compose.onNodeWithTag("answer").performTextReplacement(fixtures.text("answer"))
+                awaitEditableQuestion()
+                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement(fixtures.text("answer"))
+                compose.waitUntil(DEVICE_TIMEOUT) {
+                    compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                        .getOrNull(SemanticsProperties.EditableText)?.text == fixtures.text("answer")
+                }
                 hideKeyboard()
                 assertEquals("the real failure/loading draft is entered before submission", fixtures.text("answer"),
                     compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
@@ -2132,7 +2142,7 @@ class UxCaptureDeviceTest {
                     await("busy-line")
                 } else {
                     compose.waitUntil(DEVICE_TIMEOUT) {
-                        !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
+                        !exists("question") && !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
                             R.string.notice_interview_failed, "unused",
                         ).substringBefore("unused"), substring = true)).fetchSemanticsNodes().isNotEmpty()
                     }
@@ -2191,6 +2201,12 @@ class UxCaptureDeviceTest {
     private fun textControl(name: String, label: Int) = UxControl(name, hasText(target.getString(label)) and hasClickAction())
     private fun tag(name: String) = UxControl(name, hasTestTag(name))
     private fun await(tag: String) = compose.waitUntilAtLeastOneExists(hasTestTag(tag), DEVICE_TIMEOUT)
+    private fun awaitEditableQuestion() {
+        compose.waitUntil(DEVICE_TIMEOUT) {
+            exists("question") && compose.onAllNodes(hasTestTag("answer")).fetchSemanticsNodes()
+                .singleOrNull()?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+    }
     private fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     private fun nodeText(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
         .getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()

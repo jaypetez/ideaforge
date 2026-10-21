@@ -980,8 +980,12 @@ normal text scale rather than accidentally inheriting the class's enlarged-text 
 Document acceptance feeds a real `sh` through Android 34's stderr-capable UiAutomation
 transport: `executeShellCommand(String)` itself uses `Runtime.exec`, so quoted paths and
 shell operators cannot be treated as parsed commands. Nonzero exit status/stderr fail,
-and canonical file bytes plus actual removal are checked. Native root navigation waits
-for the actionable Downloads drawer row, not its identical non-clickable toolbar title.
+and canonical file bytes plus actual removal are checked. Native root navigation re-queries
+until the Downloads row under the actual roots list accepts its action, not its identical
+toolbar/breadcrumb title or a stale accessibility node. Draft entry waits for the real
+question and enabled editor, then verifies the entered text before rotation/submission.
+A save-error status alone cannot settle submission: a failed draft write can already
+show it while the question is still open.
 Failed journeys retain one
 unverified current-UI diagnostic; unvisited states remain failed entries rather than
 repeatedly waiting out the same screenshot budget.
