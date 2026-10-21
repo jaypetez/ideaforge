@@ -7,6 +7,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.media.AudioManager
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -223,10 +224,10 @@ class MicrophoneDemoDeviceTest {
             stage("hands-free-listening")
             snapshot(output, "listening")
             shell("cmd statusbar expand-notifications")
-            // SystemUI opens asynchronously. Wait for the real action, not a short probe
-            // followed by an assumed expand-button resource/package.
-            val exit = checkNotNull(systemNode("com.android.systemui", text = target.getString(R.string.voice_exit)))
-            checkNotNull(systemNode("com.android.systemui", text = target.getString(R.string.voice_pause)))
+            // The actual RemoteViews exposes framework action IDs. Use those observed
+            // nodes and the exact label, rather than SystemUI's global text-search path.
+            val exit = checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_exit)))
+            checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_pause)))
             stage("notification-pause-exit")
             check(exit.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { "the real notification Exit action was rejected" }
             shell("cmd statusbar collapse")
@@ -354,7 +355,12 @@ class MicrophoneDemoDeviceTest {
     private fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     private fun click(tag: String) = compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().performClick()
 
-    private fun tree(node: AccessibilityNodeInfo?, depth: Int = 0): String = if (node == null) "(no active window)" else
-        "${" ".repeat(depth)}${node.packageName} ${node.viewIdResourceName} ${node.text} ${node.contentDescription}\n" +
+    private fun tree(node: AccessibilityNodeInfo?, depth: Int = 0): String {
+        if (node == null) return "(no active window)"
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        return "${" ".repeat(depth)}${node.packageName} ${node.viewIdResourceName} ${node.text} ${node.contentDescription} " +
+            "visible=${node.isVisibleToUser} enabled=${node.isEnabled} clickable=${node.isClickable} bounds=${bounds.flattenToString()}\n" +
             (0 until node.childCount).joinToString("") { tree(node.getChild(it), depth + 1) }
+    }
 }
