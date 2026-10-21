@@ -234,7 +234,8 @@ class LauncherIconDeviceTest {
 
     private fun setTheme(enabled: Boolean) {
         val result = shell("content update --uri $themeUri --bind boolean_value:b:$enabled")
-        check(Regex("Updated\\s+1\\s+row").containsMatchIn(result) && readTheme() == enabled) {
+        // API 34's content update is silent; verify the launcher's actual preference.
+        check(readTheme() == enabled) {
             "cannot set the actual launcher's themed-icons setting: $result"
         }
     }
