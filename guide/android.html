@@ -81,7 +81,9 @@
                 keep a contextual title and Back button; a long title can shorten visually
                 while its complete text remains accessible. In a short Interview with the
                 keyboard open, that bar scrolls with the content to leave room for the
-                answer editor. The focused voice stage hides
+                answer editor. History and persistent errors also count towards the
+                short-window scroll decision, so they cannot leave a zero-height
+                current-question area. The focused voice stage hides
                 unrelated navigation until Exit.</td>
             </tr>
             <tr>
@@ -291,7 +293,9 @@
         actual keyboard, system-navigation clearance, reachable controls, session/selection
         through rotation and automated heading, role, name, state and status semantics.
         Manifests record achieved dp/density and the tested source commit; a large image
-        alone is not tablet evidence. A run is evidence only after its selected test,
+        alone is not tablet evidence. Long-content and keyboard checks cover every
+        requested font/window/theme; additional list, error, dialog and voice recovery
+        stress states use font scale 2.0. A run is evidence only after its selected test,
         complete passed manifests and actual screenshots have been checked.
       </p>
       <p>

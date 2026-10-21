@@ -114,7 +114,12 @@ source wins over prose, and a generated artifact wins over a description of that
   `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` reuses `ScriptedWalkthrough`,
   private fixture graphs, installed adaptive panes and the existing fail-closed recorder.
   `UxSystemActions.kt` owns real native document/share interactions and cleanup of only
-  created documents/share files plus clipboard restoration. `UxCaptureRecorder.kt`
+  created documents/share files plus clipboard restoration, with a real `sh` over the
+  API 34 stderr-capable UiAutomation transport and checked exit status.
+  `InterviewScreen` includes retained History and persistent notice height in its
+  short-window decision; the actual normal-font landscape regression is in
+  `InterviewLayoutTest` (normal scale is verified, not inferred from method metadata).
+  `UxCaptureRecorder.kt`
   records every state's semantics, screen-space popup/dialog geometry, achieved dp/density,
   actual IME, requested scheme/container pixel roles and exact supplied SHA.
   `android-device.yml` selects the fixed inventory only with `evidence=makeover`, on

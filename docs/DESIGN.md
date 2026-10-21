@@ -925,7 +925,14 @@ Material adaptive panes and system navigation overlays are exercised, including 
 and three-button IME cases at font scale 2.0. Long-content states cover 12/100 ideas,
 no matches, selected detail, checklist source, pending work, failed storage/synthesis,
 long Result and explicitly isolated paused/recovering/blocked/no-level/notification-off
-voice presentations. Required controls are measured after real scrolling, with 48dp
+voice presentations. The 12-idea library, long selection, actual IME, checklist,
+failed save, long Result and no-level listening run at every requested font/window/theme.
+The hundred-idea/no-match/loading/synthesis/recovery/blocked/notification-off and open
+menu/delete-dialog stress cases run at font scale 2.0 in every window and theme;
+the joined normal-window journey below runs at 1.0. This avoids repeating every fixture's
+Cartesian product while retaining every requested state and every window/font/theme;
+the existing per-surface full matrices remain available unchanged.
+Required controls are measured after real scrolling, with 48dp
 native touch targets and 64dp voice controls; clipped painted labels remain failures.
 
 At font scale 1.0 in each normal window and theme, a joined real-`MainActivity` journey
@@ -945,7 +952,7 @@ nonfatal notification denial. No test key is transmitted.
 Read back `android-ux-evidence-<SHA>` and `android-device-reports`. Require both
 `ux-makeover/manifest-compact.json` and `manifest-expanded.json` to be passed, clean,
 complete and bound to the intended tested SHA. Inspect their named app PNGs, reachability
-shots and `native-system/*-system.png` picker/chooser frames. Every app state retains
+shots and `native-system/*-system.png` picker/chooser frames. Every reached app state retains
 its unmerged semantics trees, not only failures: heading/name/role/selection, factual
 progress/source, polite status and question-before-editor-before-Send order have explicit
 assertions. Popup/dialog geometry includes the separate window's screen offset; their
@@ -961,6 +968,19 @@ switch access, physical recognition/microphone contention, screen-off survival a
 hosted speech remain **unperformed**; automated semantics are not screen-reader or
 usability certification. Unchanged web README screenshots are not regenerated for this
 native-only acceptance route.
+
+The acceptance run exposed a normal-font short-landscape case where retained History
+and a persistent notice could leave the actual current-question viewport at zero height.
+`InterviewScreen` now deducts those occupied slots before choosing its existing
+page-scrolling layout; it does not shrink labels or remove the composer. The focused
+`InterviewLayoutTest` uses the achieved 328dp content height and explicitly verifies
+normal text scale rather than accidentally inheriting the class's enlarged-text default.
+Document acceptance feeds a real `sh` through Android 34's stderr-capable UiAutomation
+transport: `executeShellCommand(String)` itself uses `Runtime.exec`, so quoted paths and
+shell operators cannot be treated as parsed commands. Nonzero exit status/stderr fail,
+and canonical file bytes plus actual removal are checked. Failed journeys retain one
+unverified current-UI diagnostic; unvisited states remain failed entries rather than
+repeatedly waiting out the same screenshot budget.
 
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped

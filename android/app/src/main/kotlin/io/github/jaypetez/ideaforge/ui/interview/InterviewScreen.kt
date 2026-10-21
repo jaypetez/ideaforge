@@ -387,11 +387,13 @@ fun InterviewScreen(
     Column(modifier.fillMaxSize().testTag("interview")) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().imePadding()) {
             val barHeight = if (onBack != null) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp
-            val bodyHeight = (maxHeight - barHeight).coerceAtLeast(0.dp)
+            val noticeBlock = with(LocalDensity.current) { noticeHeight.toDp() }
+            val bodyHeight = (maxHeight - barHeight - noticeBlock).coerceAtLeast(0.dp)
             val composerMaxHeight = bodyHeight * 0.6f
-            // An open IME can leave less than one editor plus wrapped action rows.
+            // History and persistent feedback can starve the thread even without an IME.
+            val historyBlock = if (threadOf(state).isNotEmpty()) IdeaForgeSpacing.control else 0.dp
             // Scroll the real content instead of weighting the editor down to zero.
-            val shortWindow = bodyHeight < 240.dp * LocalDensity.current.fontScale
+            val shortWindow = bodyHeight - historyBlock < 240.dp * LocalDensity.current.fontScale
             val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded
             // A fixed bar can leave less height than one enlarged editor above the IME.
             val scrollHeader = shortWindow && WindowInsets.isImeVisible

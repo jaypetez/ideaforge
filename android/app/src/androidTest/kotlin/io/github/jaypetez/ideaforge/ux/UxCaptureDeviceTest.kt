@@ -20,6 +20,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
@@ -92,6 +93,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
@@ -159,6 +161,7 @@ class UxCaptureDeviceTest {
                 val created = File(shares, "$prefix-$chooserFails")
                 val failure = runCatching {
                     UxSystemActions(instrumentation, target, target.cacheDir).use { system ->
+                        if (android.os.Build.VERSION.SDK_INT >= 34) system.requireCommandTransport()
                         system.share {
                             check(created.mkdir())
                             created.resolve("result.md").writeText("truncated")
@@ -203,6 +206,8 @@ class UxCaptureDeviceTest {
         val states = listOf("library", "library-100", "filtered", "library-long", "interview-ime", "bank",
             "busy-turn", "save-failure", "synthesis-failure", "result-long",
             "voice-listening", "voice-paused", "voice-recovering", "voice-blocked", "voice-notifications-off")
+        val allFontStates = setOf("library", "library-long", "interview-ime", "bank", "save-failure", "result-long", "voice-listening")
+        fun statesFor(config: UxConfiguration) = states.filter { config.fontScale == 2f || it in allFontStates }
         val journeyFrames = listOf("fresh", "provider-checking", "provider-error", "ready-choice", "voice-rationale", "typed-seed",
             "chip", "result", "save-cancel", "share-cancel", "saved-markdown", "copied-markdown", "ask-more",
             "controller-paused", "controller-exit", "wrap", "skipped", "theme", "forget-dialog", "forget-cancel",
@@ -215,7 +220,8 @@ class UxCaptureDeviceTest {
             environment.navigationModes.map { config.copy(navigationMode = it) }
         }
         val expected = matrix.flatMap { config ->
-            (states + listOf("library-menu", "delete-dialog", "delete-cancel")).map { "${config.id}/$it" } +
+            (statesFor(config) + if (config.fontScale == 2f) listOf("library-menu", "delete-dialog", "delete-cancel")
+                else emptyList()).map { "${config.id}/$it" } +
                 if (config.fontScale == 1f && config.window != "compact-landscape") {
                     journeyFrames.map { "${config.id}/journey-$it" } +
                         listOf("${config.id}/journey-rotated", "${config.id}/library-rotated")
@@ -234,7 +240,7 @@ class UxCaptureDeviceTest {
                         environment.selectNavigationMode(mode)
                         compose.waitUntil(DEVICE_TIMEOUT) { environment.navigationModeApplied(mode) }
                     }
-                    for (id in if (config.navigationMode == null) states else listOf("interview-ime")) {
+                    for (id in if (config.navigationMode == null) statesFor(config) else listOf("interview-ime")) {
                         val state = when {
                             id.startsWith("voice-") -> UxFixtureActivity.requestedVoiceState(fixtures, id)
                             id == "interview-ime" -> fixtures.state("interview-long").copy(id = id)
@@ -255,7 +261,7 @@ class UxCaptureDeviceTest {
                                 }
                             }
                             if (id == "library-long") requireSelectedPaneSurvivesRecreation(config, recorder)
-                            if (id == "library") {
+                            if (id == "library" && config.fontScale == 2f) {
                                 val graph = checkNotNull(fixtureGraph)
                                 val before = graph.sessionStore.sessions.value
                                 val menu = LibraryTags.more(requireNotNull(stringOf(fixtures.sessions(state).first()["id"])))
@@ -282,10 +288,12 @@ class UxCaptureDeviceTest {
                             captureMakeoverJourney(config, recorder, output)
                         } catch (error: Throwable) {
                             recorder.failedRun(error)
+                            var diagnostic = activity
                             for (key in UxEvidence.unrecorded(journeyFrames.map { "${config.id}/journey-$it" }.toSet() +
                                 "${config.id}/journey-rotated", recorder.recordedKeys)) {
                                 recorder.failed(UxState(key.substringAfter('/'), "journey", "real-app", null, null, null),
-                                    config, error, activity)
+                                    config, error, diagnostic)
+                                diagnostic = null
                             }
                         } finally { closeFixture() }
                     }
@@ -383,6 +391,7 @@ class UxCaptureDeviceTest {
         val export = exportFor(done)
         val ids = runBlocking { graph.sessionStore.knownIds() }
         UxSystemActions(instrumentation, target, File(output, "${config.id}/native-system")).use { system ->
+            system.requireCommandTransport()
             click(ResultTags.SAVE)
             system.awaitExternalWindow()
             system.snapshot("save-cancel")
@@ -425,6 +434,8 @@ class UxCaptureDeviceTest {
             click("voice-pause")
             click("voice-exit")
             await("answer")
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { graph.driveController.draftWrite?.join() } }
+            compose.waitUntil(DEVICE_TIMEOUT) { !exists("interview-busy") }
             compose.waitForIdle()
             assertEquals(null, graph.driveController.state.value.mode)
             assertEquals("a retired run cannot start more speech", 2, speeches.get())
@@ -2110,9 +2121,12 @@ class UxCaptureDeviceTest {
                 await("new-idea-type")
                 compose.onNodeWithTag("new-idea-type").performClick()
                 await("answer")
-                compose.onNodeWithTag("answer").performTextInput(fixtures.text("answer"))
+                compose.onNodeWithTag("answer").performTextReplacement(fixtures.text("answer"))
                 hideKeyboard()
-                compose.onNodeWithTag("send").performClick()
+                assertEquals("the real failure/loading draft is entered before submission", fixtures.text("answer"),
+                    compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+                revealControl("send")
+                compose.onNodeWithTag("send").assertIsDisplayed().assertIsEnabled().performClick()
                 if (state.id == "busy-turn") {
                     await("interview-busy")
                     await("busy-line")

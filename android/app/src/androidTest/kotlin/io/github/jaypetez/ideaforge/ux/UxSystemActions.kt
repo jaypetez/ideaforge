@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.provider.MediaStore
@@ -65,11 +66,12 @@ internal class UxSystemActions(
     }
 
     fun createDocument(label: String): String {
+        require(Regex("[a-z][a-z0-9-]*\\.(md|json)").matches(label))
         awaitExternalWindow()
         downloads()
         val filename = "$prefix-$label"
         val path = "/sdcard/Download/$filename"
-        check(shell("test -e '$path' && echo exists").isBlank()) { "refusing an existing document: $filename" }
+        check(shell("if test -e '$path'; then echo exists; fi").isBlank()) { "refusing an existing document: $filename" }
         savedPaths += path
         val field = await { it.className?.toString() == "android.widget.EditText" && it.isEditable }
         check(field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
@@ -82,7 +84,7 @@ internal class UxSystemActions(
 
     fun readDocument(path: String): String {
         check(path in savedPaths)
-        return shell("cat '$path'")
+        return shell("if test -f '$path'; then cat '$path'; fi")
     }
 
     fun importDocument(label: String, text: String): String {
@@ -136,6 +138,13 @@ internal class UxSystemActions(
         }
     }
 
+    fun requireCommandTransport() {
+        check(shell("printf 'owned transport\\n'") == "owned transport\n") { "native command quoting/newlines were not preserved" }
+        check(runCatching { shell("cat '/sdcard/Download/$prefix-never-created'") }.exceptionOrNull() is IllegalStateException) {
+            "a failed native command must report its stderr and exit status, never look like an empty file"
+        }
+    }
+
     private fun downloads() {
         val root = automation.rootInActiveWindow
         val drawer = descendants(root).firstOrNull { it.contentDescription?.toString() == "Show roots" }
@@ -164,8 +173,26 @@ internal class UxSystemActions(
         error("missing native system action:\n${tree(automation.rootInActiveWindow)}")
     }
 
-    private fun shell(command: String): String =
-        ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
+    private fun shell(command: String): String {
+        if (Build.VERSION.SDK_INT >= 34) {
+            // UiAutomation uses Runtime.exec, not shell parsing. Feed a real sh over stdin.
+            val streams = automation.executeShellCommandRwe("sh")
+            val marker = "UX207_${SystemClock.elapsedRealtimeNanos()}_EXIT="
+            return streams[0].use { stdout -> streams[1].use { stdin -> streams[2].use { stderr ->
+                ParcelFileDescriptor.AutoCloseOutputStream(stdin).use {
+                    it.write(("$command\nux207_status=${'$'}?\nprintf '\\n$marker%d\\n' \"${'$'}ux207_status\"\n").encodeToByteArray())
+                }
+                val output = ParcelFileDescriptor.AutoCloseInputStream(stdout).bufferedReader().use { it.readText() }
+                val error = ParcelFileDescriptor.AutoCloseInputStream(stderr).bufferedReader().use { it.readText() }
+                val status = Regex("\\n${Regex.escape(marker)}([0-9]+)\\n$").find(output)
+                check(status != null && status.groupValues[1] == "0" && error.isBlank()) {
+                    "native command failed: $command\nstderr=$error\nstdout=$output"
+                }
+                output.substring(0, status.range.first)
+            } } }
+        }
+        error("native document acceptance requires the API 34+ stderr-capable managed-device transport")
+    }
 
     private fun descendants(node: AccessibilityNodeInfo?): Sequence<AccessibilityNodeInfo> = sequence {
         if (node == null) return@sequence
@@ -187,7 +214,7 @@ internal class UxSystemActions(
         val cleanup = documents.map { uri -> { check(target.contentResolver.delete(uri, null, null) == 1); Unit } } +
             savedPaths.map { path -> {
                 shell("rm -f '$path'")
-                check(shell("test -e '$path' && echo exists").isBlank()) { "owned document remains: $path" }
+                check(shell("if test -e '$path'; then echo exists; fi").isBlank()) { "owned document remains: $path" }
                 Unit
             } } + ownedShares.map { file -> { check(file.deleteRecursively()) { "owned share file remains" }; Unit } }
         UxEvidence.finish(null, cleanup + listOf(
