@@ -200,7 +200,11 @@ class MicrophoneDemoDeviceTest {
             repeat(2) {
                 // Google's controller retains AOSP resource IDs; its process package is
                 // not the resource namespace (the first real-device run caught this).
-                val mic = systemNode(controller, "com.android.permissioncontroller:id/permission_allow_foreground_only_button", required = false)
+                val micNeeded = target.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+                val notificationNeeded = target.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                check(micNeeded || notificationNeeded) { "there is no remaining permission dialog to demonstrate" }
+                val mic = if (micNeeded) systemNode(controller,
+                    "com.android.permissioncontroller:id/permission_allow_foreground_only_button", required = !notificationNeeded) else null
                 val button = mic ?: checkNotNull(systemNode(controller, "com.android.permissioncontroller:id/permission_allow_button"))
                 val name = if (mic != null) "microphone-permission" else "notification-permission"
                 File(output, "$name-ui.txt").writeText(tree(automation.rootInActiveWindow))
@@ -337,13 +341,15 @@ class MicrophoneDemoDeviceTest {
         val deadline = SystemClock.uptimeMillis() + if (required) DEVICE_TIMEOUT else 500
         do {
             val root = automation.rootInActiveWindow
-            // Both remote query APIs omitted the real action0 nodes in the uploaded
-            // SystemUI tree. Traverse that same native tree without weakening its guards.
-            val nodes = descendants(root).filter { it.packageName?.toString() == pkg &&
+            // Both remote queries omitted SystemUI's real action0 nodes. Permission
+            // queries work and provide fresh results across the two runtime dialogs.
+            val candidates = if (pkg == "com.android.systemui") descendants(root)
+                else root?.findAccessibilityNodeInfosByViewId(checkNotNull(resource)).orEmpty().asSequence()
+            val matches: (AccessibilityNodeInfo) -> Boolean = { it.packageName?.toString() == pkg &&
                 it.isVisibleToUser && it.isEnabled && it.isClickable &&
                 (resource == null || it.viewIdResourceName == resource) &&
                 (text == null || it.text?.toString().equals(text, ignoreCase = true)) }
-                .toList()
+            val nodes = candidates.filter(matches).filter { it.refresh() && matches(it) }.toList()
             check(nodes.size <= 1) { "ambiguous system action $pkg/$resource/$text" }
             nodes.singleOrNull()?.let { return it }
             SystemClock.sleep(100)
@@ -356,7 +362,7 @@ class MicrophoneDemoDeviceTest {
         ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
 
     private fun descendants(node: AccessibilityNodeInfo?): Sequence<AccessibilityNodeInfo> = sequence {
-        if (node == null) return@sequence
+        if (node == null || !node.refresh()) return@sequence
         yield(node)
         for (index in 0 until node.childCount) yieldAll(descendants(node.getChild(index)))
     }
