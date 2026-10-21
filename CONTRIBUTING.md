@@ -505,6 +505,9 @@ The build's facts live in Gradle, and `test/docs.test.mjs` fails if this table d
 | Gradle wrapper | Gradle 9.8.1 | `android/gradle/wrapper/gradle-wrapper.properties` |
 | Toolchain | JDK 21 | every module's `jvmToolchain` |
 
+`PlayRequirementsTest` reads the effective debug and release merged manifests and fails if
+either targets below API 36. It uses Gradle artifact inputs, not a source-text SDK check.
+
 Every library version is in the catalog; bump it there, never inline in a build script.
 `versionName` is read from `package.json`, so the release triplet stays in two files, not
 three. The debug build adds `.debug` to the application id and installs beside a release.
@@ -543,9 +546,23 @@ pass. Backups are a second contract: `test/fixtures/backup-from-web.json` and
 validates the Gradle wrapper, runs `./gradlew --no-daemon check :app:assembleDebug`, and
 uploads the debug APK as the `ideaforge-debug-apk` artifact. It feeds the single required `ci`
 check.
+After building, `tools/test-android-apk-alignment.py` runs SDK
+`zipalign -c -P 16 -v 4` on the actual APK. It appends a copy of a real arm64 library as
+`unaligned.so` in a separate APK, four-byte aligned but not 16 KB aligned, and requires
+`zipalign` to reject that entry. The original signed APK is untouched and the planted copy
+is deleted. Run the same check from the repository root with SDK Build-Tools 35 or newer:
+
+```sh
+python3 tools/test-android-apk-alignment.py "$ANDROID_HOME/build-tools/<version>/zipalign" android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+This guards ZIP placement of native libraries, not ELF segment alignment or runtime behavior
+on a 16 KB device. The existing release-manifest test still refuses debug-only permissions
+and probe components.
 The same job runs `bash tools/test-android-packages.sh` with two generated disposable keys:
-actual APK/AAB signing, pinned bundletool validation, matching versionCode, and rejection
-of missing upload secrets, reused keys, unsigned bundles and a corrupt tool download.
+the same alignment check and planted control on the actual signed, minified release APK,
+actual APK/AAB signing, pinned bundletool validation, matching versionCode, and rejection of
+missing upload secrets, reused keys, unsigned bundles and a corrupt tool download.
 It neither reads production signing secrets nor publishes these test packages.
 
 **On a device.** `android/app/src/androidTest/` holds an instrumented walkthrough: it launches

@@ -358,6 +358,15 @@ npm run serve</code></pre>
         jobs.
       </p>
       <p>
+        Android checks the effective debug and release merged manifests for a target of
+        API 36 or newer, while retaining the release guard against debug-only permissions.
+        SDK <code>zipalign -c -P 16 -v 4</code> checks native-library ZIP placement in the
+        actual debug APK and a disposable-key signed, minified release APK. A copied
+        <code>unaligned.so</code> deliberately placed off a 16 KB boundary in a separate
+        APK must fail the check. These are packaging checks, not ELF-segment or
+        physical 16 KB-device runtime certification.
+      </p>
+      <p>
         The workflow is read-only. The Node and browser jobs have no install or
         package-cache step; the Android job installs a JDK and keeps a Gradle dependency
         cache that only <code>main</code> may write. Do not bypass the
