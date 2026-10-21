@@ -673,6 +673,9 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both rendering devices must select the complete real-app acceptance method, not default discovery');
   assert.equal((workflow.match(/inputs\.evidence == 'makeover' && '-Pandroid\.testInstrumentationRunnerArguments\.uxMakeoverProbe=true'/g) || []).length, 2,
     'both acceptance devices must explicitly opt into the fixed inventory');
+  const atdStep = workflow.match(/- name: Instrumented walkthrough on a managed emulator\n([\s\S]*?)(?=\n      #)/)?.[1];
+  assert.match(atdStep ?? '', /inputs\.evidence != 'makeover'/,
+    'the joined rendering-device journeys must not repeat ATD first and exhaust the unchanged device-job budget');
   assert.equal((workflow.match(/inputs\.evidence != 'makeover' && inputs\.evidence != 'ideas'/g) || []).length, 2,
     'makeover acceptance must not inherit an unrelated empty shell argument');
   for (const [name, text] of [

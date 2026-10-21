@@ -312,8 +312,9 @@ and black PNGs must remain failures.
 For complete native makeover acceptance, dispatch `android-device.yml` with
 `-f evidence=makeover` on the intended clean feature ref. This explicitly selects
 `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` with `uxMakeoverProbe=true`.
-It keeps the original ATD walkthrough and sequential rendering-enabled phone/tablet
-tasks, adding compact/expanded/short-landscape geometry at font scales 1.0/1.3/2.0,
+It runs sequential rendering-enabled phone/tablet tasks; their joined canonical journeys
+avoid a duplicate ATD boot within the unchanged 40-minute job budget. Ordinary/default
+and nightly ATD coverage is unchanged. It adds compact/expanded/short-landscape geometry at font scales 1.0/1.3/2.0,
 both themes, actual IME and installed system-navigation modes. The joined journey
 uses real onboarding/navigation, canonical answers/wrap, native document/share actions,
 Copy, same-session reopen/rotation, Settings and backup/import recovery.

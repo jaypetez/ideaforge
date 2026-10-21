@@ -912,8 +912,11 @@ $sha = git rev-parse HEAD
 ```
 
 Run the expanded half sequentially with `pixelTabletApi34VisualDebugAndroidTest` and
-`uxCaptureWindow=expanded`. The workflow performs the ordinary ATD walkthrough, then both
-rendering-enabled halves sequentially. It adds no required CI job or protection rule.
+`uxCaptureWindow=expanded`. This route runs both rendering-enabled halves sequentially;
+their joined canonical journeys replace the otherwise duplicate ATD boot/walkthrough.
+Ordinary/default and nightly ATD coverage is unchanged. This keeps artifact collection
+inside the existing 40-minute job budget without dropping requested frames or extending
+timeouts. It adds no required CI job or protection rule.
 Require nonzero execution of the selected acceptance method, not a successful build,
 dispatch, unselected opt-in test or ATD image.
 

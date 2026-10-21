@@ -68,8 +68,10 @@ jobs:
       # The managed device (pixel6Api34, an ATD image) is declared in app/build.gradle.kts.
       # Gradle downloads the system image, boots it headless, runs the tests and shuts it
       # down. swiftshader_indirect is software rendering: a runner has no GPU.
+      # Makeover already drives the canonical journey on both rendering devices. Repeating
+      # it on ATD first exhausts the unchanged job budget before tablet artifacts are copied.
       - name: Instrumented walkthrough on a managed emulator
-        if: ${{ inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' && inputs.evidence != 'microphone-demo' }}
+        if: ${{ inputs.evidence != 'makeover' && inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' && inputs.evidence != 'microphone-demo' }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect

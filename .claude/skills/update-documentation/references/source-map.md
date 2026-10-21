@@ -123,7 +123,9 @@ source wins over prose, and a generated artifact wins over a description of that
   records every state's semantics, screen-space popup/dialog geometry, achieved dp/density,
   actual IME, requested scheme/container pixel roles and exact supplied SHA.
   `android-device.yml` selects the fixed inventory only with `evidence=makeover`, on
-  sequential rendering-enabled phone/tablet tasks outside required `ci`.
+  sequential rendering-enabled phone/tablet tasks outside required `ci`. Its canonical
+  journeys avoid the duplicate ATD boot within the unchanged job budget; ordinary/default
+  and nightly ATD coverage remains.
   Re-check DESIGN, CONTRIBUTING and `guide/android.html` against selected-test execution,
   both complete clean-SHA `ux-makeover` manifests and personally inspected app/system PNGs.
   `AdaptiveShellTest` retains separately labelled scripted microphone/notification-denial
