@@ -57,8 +57,10 @@
 
       <div class="callout warning">
         <strong>Hands-free voice is new, and has not been tried on a phone.</strong>
-        It has been checked only on an emulator with a scripted recogniser. If you rely on
-        voice on a phone today, the web app is the tested one; see
+        Emulator checks do not establish physical-phone behavior; the
+        <a href="#foreground-service-declaration">declaration recording below</a> distinguishes
+        its real native effects from test setup. If you rely on voice on a phone today,
+        the web app is the tested one; see
         <a href="./mobile-and-voice.html#android">Mobile and voice</a>.
       </div>
 
@@ -272,6 +274,66 @@
         provider. It opens the <a href="./privacy-policy.html">published policy</a>
         outside the app. If no browser can open it, the inline error and address are
         brought into view and you can try again; reading the policy does not check a provider.
+      </p>
+
+      <h2 id="foreground-service-declaration">Play Console: microphone foreground service</h2>
+      <p>
+        Maintainer declaration copy for <strong>App content &rarr; Foreground service
+        permissions</strong>, not a Play publication step. Select <strong>microphone</strong>
+        and the use case <strong>Background Audio Access</strong>. The manifest declares
+        <code>FOREGROUND_SERVICE_MICROPHONE</code>; the separate microphone runtime
+        permission and interview-text agreement are still required.
+        See <a href="https://support.google.com/googleplay/android-developer/answer/13392821">Google&rsquo;s FGS requirements</a>
+        and the <a href="https://github.com/jaypetez/ideaforge/issues/171">publishing walkthrough</a>.
+      </p>
+      <h3>Functionality (paste into the declaration)</h3>
+      <blockquote id="fgs-functionality">
+        IdeaForge offers a user-started, hands-free idea interview. From an Interview the
+        user taps Answer by voice (or chooses Start with voice for a new idea), then allows
+        microphone access. A microphone foreground service keeps the active interview able
+        to listen for answers and voice commands when the user switches apps or turns the
+        screen off. With notification permission, an ongoing notification shows Pause and
+        Exit. Pause stops microphone capture and speech, keeps the available captured words
+        as an unsent draft, and requires an explicit Resume tap. Exit stops the service and
+        returns to the same idea for typing without submitting an answer or requesting a
+        write-up. The service does not start at boot or restart after process death.
+      </blockquote>
+      <h3>Impact of deferral or interruption (paste into the declaration)</h3>
+      <blockquote id="fgs-impact">
+        If start is deferred, the hands-free interview cannot listen when the user requests
+        it. If interrupted, it cannot continue receiving the current answer or commands;
+        words not yet recognised or transcribed may be lost. Explicit Pause preserves the
+        draft words already available. The user can Resume deliberately or Exit and type;
+        the app does not silently reopen the microphone after a stopped run.
+      </blockquote>
+      <h3>Record and review the video</h3>
+      <p>
+        Run the repository&rsquo;s <code>Android device</code> workflow with
+        <code>evidence=microphone-demo</code> on the intended clean commit. Its opt-in
+        <code>pixel2Api34Voice</code> managed emulator uses a standard Google APIs image and
+        checks the installed native recogniser and text-to-speech services before recording.
+        The test explicitly selects Android&rsquo;s real default recognition service through
+        an existing test seam, not scripted recognition: the stock emulator&rsquo;s advertised
+        on-device engine lacks usable English support.
+        It runs the real on-device <code>screenrecord</code> utility through Android
+        UiAutomation&rsquo;s shell transport with a 55-second recording limit: Interview,
+        Answer by voice, the real system microphone and notification Allow dialogs, the
+        hands-free stage, the real notification&rsquo;s Pause/Exit controls, then Exit back
+        to the same typed interview. It checks actual active audio recording and the
+        foreground service, then verifies that Exit removes both and its notification.
+      </p>
+      <p>
+        Download <code>android-microphone-demo-&lt;SHA&gt;</code> from that workflow run.
+        Require a passed manifest for the intended commit, a 30&ndash;60-second actual MP4,
+        nonzero selected-test execution and all decoded <code>video-*.png</code> frames.
+        Watch the clip and inspect the decoded permission, listening, notification and Exit
+        frames before using it. The debug interview model and private setup data are
+        scripted; native speech, permission dialogs, microphone, service and actions are
+        not simulated. Default-service selection is test-only; this is not proof of the
+        preferred on-device recogniser, physical-phone, speech-quality or screen-off-survival
+        behavior. Artifacts expire after 14 days: the maintainer must
+        retain the MP4, upload the reviewed video to unlisted YouTube, and paste that
+        durable video URL into Play Console. The workflow never uploads to YouTube or Play.
       </p>
 
       <h2 id="get-the-apk">Get the debug APK</h2>

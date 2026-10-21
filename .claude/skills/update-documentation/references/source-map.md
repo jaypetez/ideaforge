@@ -139,6 +139,22 @@ source wins over prose, and a generated artifact wins over a description of that
   Re-check the Android guide, architecture, contributor commands, clean-SHA manifests,
   actual selected-test execution and both full display PNGs. No physical-device or
   other-launcher compatibility result follows from this focused emulator evidence.
+- **Native microphone foreground-service declaration.** Sources:
+  `InterviewScreen.kt` and `VoiceStage.kt` own the user voice entry and separate runtime
+  permissions; `AppGraph.kt`, `DriveController.kt`, `DriveService.kt`, `AndroidRecognizer.kt`
+  and `Speaker.kt` own admission, serial effects, real audio, notification actions and
+  teardown. `MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses only
+  private setup stores and the debug scripted interview model, not fake native effects.
+  `android-device.yml` selects `evidence=microphone-demo` on standard Google APIs
+  `pixel2Api34Voice`, explicitly selects the real default recognizer through the existing
+  graph test seam (not the image's unusable on-device English engine), and uploads the real
+  shell `screenrecord` MP4, native media metadata and
+  decoded frames, plus actual service/audio snapshots. Re-check CONTRIBUTING,
+  `guide/android.html#foreground-service-declaration`, publishing walkthrough #171 and
+  Google's linked FGS declaration requirements. Read back the exact clean SHA/profile,
+  selected-test execution, actual video duration/bytes and decoded flow. Artifact expiry
+  and maintainer-owned unlisted YouTube upload are not an automated publication step.
+  Emulator input is not physical-phone, live speech-quality or screen-off-survival proof.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive
