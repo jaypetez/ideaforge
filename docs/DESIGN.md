@@ -888,6 +888,78 @@ the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
 
+#### Complete native makeover acceptance
+
+Dispatch the existing optional workflow with an explicit feature ref:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=makeover
+```
+
+This selects `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance`, not the default
+visual-test discovery path. The local equivalent, from `android\`, is:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:pixel6Api34VisualDebugAndroidTest `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedNativeMakeoverAcceptance' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxMakeoverProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Run the expanded half sequentially with `pixelTabletApi34VisualDebugAndroidTest` and
+`uxCaptureWindow=expanded`. The workflow performs the ordinary ATD walkthrough, then both
+rendering-enabled halves sequentially. It adds no required CI job or protection rule.
+Require nonzero execution of the selected acceptance method, not a successful build,
+dispatch, unselected opt-in test or ATD image.
+
+The fixed inventory covers compact 411x914dp, expanded 1280x900dp and short landscape
+640x400dp configurations in both themes at actual font scales 1.0, 1.3 and 2.0. Those
+are requested window sizes, not physical tablet certification: each record must show
+achieved window dp, density, font scale, actual IME and safe bounds. The installed
+Material adaptive panes and system navigation overlays are exercised, including gesture
+and three-button IME cases at font scale 2.0. Long-content states cover 12/100 ideas,
+no matches, selected detail, checklist source, pending work, failed storage/synthesis,
+long Result and explicitly isolated paused/recovering/blocked/no-level/notification-off
+voice presentations. Required controls are measured after real scrolling, with 48dp
+native touch targets and 64dp voice controls; clipped painted labels remain failures.
+
+At font scale 1.0 in each normal window and theme, a joined real-`MainActivity` journey
+completes fresh onboarding through a held check, rejected dummy key and successful retry;
+Voice/Type choice and rationale cancellation; the canonical typed/chip interview and
+Result; actual native Save/Share cancellation, saved canonical markdown and Copy;
+same-session Ask me more and rotation; a separate canonical typed wrap followed by Skip;
+theme selection, Cancel/Back from Forget, session-only backup and collision-as-copy import,
+and malformed-import recovery. File actions use the real system document picker and
+FileProvider, not a replacement export. A held scripted speaker and service observer
+exercise the real controller's Pause/Resume/Exit without opening a microphone; the existing
+`AdaptiveShellTest` permission-result cases separately cover microphone denial and
+nonfatal notification denial. No test key is transmitted.
+
+Read back `android-ux-evidence-<SHA>` and `android-device-reports`. Require both
+`ux-makeover/manifest-compact.json` and `manifest-expanded.json` to be passed, clean,
+complete and bound to the intended tested SHA. Inspect their named app PNGs, reachability
+shots and `native-system/*-system.png` picker/chooser frames. Every app state retains
+its unmerged semantics trees, not only failures: heading/name/role/selection, factual
+progress/source, polite status and question-before-editor-before-Send order have explicit
+assertions. Popup/dialog geometry includes the separate window's screen offset; their
+pixel oracle is the requested scheme's native menu/dialog container role, not a dimmed
+Scaffold background or a relaxed brightness threshold.
+
+Cleanup closes activities, retires app/main/preference work, removes private fixture
+stores and only the created documents/share files, restores the clipboard and display/
+font/navigation overrides, and reinstates the original app graph. A cleanup failure
+fails the manifest. Final PR evidence records actual run/attempt, source SHA, selected-test
+counts, artifact hashes and personally inspected image names. Manual TalkBack,
+switch access, physical recognition/microphone contention, screen-off survival and live
+hosted speech remain **unperformed**; automated semantics are not screen-reader or
+usability certification. Unchanged web README screenshots are not regenerated for this
+native-only acceptance route.
+
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
 UI: labelled existing actions, wrapping composer actions and a bounded editor leave a real
@@ -940,8 +1012,8 @@ colours**. All are labelled isolated production-control compositions, not interv
 voice runs. Normal real-app captures still use the actual system dynamic scheme on
 Android 12+. The supplementary probe changes no wallpaper or permission.
 
-Native manifests distinguish raw/clipped paint bounds from raw/clipped native touch
-bounds. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
+Native manifests distinguish raw/clipped screen-space paint bounds from raw/clipped native
+touch bounds, including separate popup/dialog window offsets. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
 the target assertion measures that native hit rectangle, while separate checks retain
 full painted labels and safe unclipped geometry. Root-theme evidence requires pixels
 matching the requested scheme's actual surface, including labelled fallback/simulations.

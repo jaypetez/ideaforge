@@ -96,7 +96,7 @@ object UxEvidence {
 
     fun touchBounds(node: SemanticsNode): UxBounds {
         val coordinates = node.layoutInfo.coordinates
-        val origin = coordinates.localToWindow(Offset.Zero) - coordinates.localToRoot(Offset.Zero)
+        val origin = coordinates.localToScreen(Offset.Zero) - coordinates.localToRoot(Offset.Zero)
         val touch = node.touchBoundsInRoot.translate(origin)
         return UxBounds(touch.left, touch.top, touch.right, touch.bottom)
     }

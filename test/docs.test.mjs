@@ -669,6 +669,20 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both Result devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,
     'both Result devices must explicitly opt into the full subset');
+  assert.equal((workflow.match(/inputs\.evidence == 'makeover' && '#requestedNativeMakeoverAcceptance'/g) || []).length, 2,
+    'both rendering devices must select the complete real-app acceptance method, not default discovery');
+  assert.equal((workflow.match(/inputs\.evidence == 'makeover' && '-Pandroid\.testInstrumentationRunnerArguments\.uxMakeoverProbe=true'/g) || []).length, 2,
+    'both acceptance devices must explicitly opt into the fixed inventory');
+  assert.equal((workflow.match(/inputs\.evidence != 'makeover' && inputs\.evidence != 'ideas'/g) || []).length, 2,
+    'makeover acceptance must not inherit an unrelated empty shell argument');
+  for (const [name, text] of [
+    ['guide/android.html', guide('android.html')],
+    ['docs/DESIGN.md', readFileSync(join(ROOT, 'docs', 'DESIGN.md'), 'utf8')],
+    ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
+  ]) {
+    assert.ok(text.includes('evidence=makeover'), `${name} omits the actual acceptance selector`);
+    assert.match(text, /TalkBack/, `${name} omits the manual accessibility evidence boundary`);
+  }
   assert.equal((workflow.match(/inputs\.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful'/g) || []).length, 2,
     'both Ideas visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,

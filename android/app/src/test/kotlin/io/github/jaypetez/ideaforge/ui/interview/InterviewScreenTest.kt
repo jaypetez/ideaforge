@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
@@ -17,6 +18,9 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.getOrNull
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -89,6 +93,22 @@ class InterviewScreenTest {
     }
 
     private fun turn(n: Int): JsonObject = (store.get(id)!!["turns"] as JsonArray)[n - 1] as JsonObject
+
+    @Test
+    fun theCurrentQuestionIsAnAnnouncedHeadingBeforeTheEditableAnswerAndNamedSendAction() {
+        show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(
+            androidx.compose.ui.semantics.SemanticsActions.SetText))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+            .assertTextContains("Send")
+        val tags = compose.onAllNodes(SemanticsMatcher("all native task semantics") { true }, useUnmergedTree = true).fetchSemanticsNodes()
+            .mapNotNull { it.config.getOrNull(SemanticsProperties.TestTag) }
+        assertTrue("task reading order is question, editable answer, then Send",
+            tags.indexOf("question") in 0 until tags.indexOf("answer") && tags.indexOf("answer") < tags.indexOf("send"))
+    }
 
     @Test
     fun coverageDetailShowsTheContractDimensionsAndTheirLevels() {
