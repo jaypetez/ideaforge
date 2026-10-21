@@ -155,7 +155,9 @@ internal class UxCaptureRecorder(
                 val actionable = semantics.config.contains(SemanticsActions.OnClick) ||
                     semantics.config.contains(SemanticsActions.SetText) || semantics.config.contains(SemanticsActions.SetProgress)
                 val checks = runCatching {
-                    UxEvidence.requireControl(control.name, raw, safe.intersect(clipped), label, actionable || !control.actionRequired)
+                    // A disabled native editor may omit SetText; its label and target still have to fit.
+                    UxEvidence.requireControl(control.name, raw, safe.intersect(clipped), label,
+                        actionable || semantics.config.contains(SemanticsProperties.Disabled) || !control.actionRequired)
                     if (control.actionRequired) {
                         check(safe.contains(touch)) { "required control ${control.name} has a clipped touch target: $touch outside $safe" }
                         UxEvidence.requireTarget(control.name, touch.width / display.density, touch.height / display.density, control.minHeightDp)

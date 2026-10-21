@@ -936,7 +936,9 @@ same-session Ask me more and rotation; a separate canonical typed wrap followed 
 theme selection, Cancel/Back from Forget, session-only backup and collision-as-copy import,
 and malformed-import recovery. File actions use the real system document picker and
 FileProvider, not a replacement export. A held scripted speaker and service observer
-exercise the real controller's Pause/Resume/Exit without opening a microphone; the existing
+exercise real UI Pause/Exit plus explicitly controller-level Resume admission without
+opening a microphone; UI Resume's permission gate is not bypassed or claimed exercised.
+The existing
 `AdaptiveShellTest` permission-result cases separately cover microphone denial and
 nonfatal notification denial. No test key is transmitted.
 

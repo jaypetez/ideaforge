@@ -148,6 +148,36 @@ class UxCaptureDeviceTest {
     private val walkthroughFrames = listOf("seed", "chip", "result")
 
     @Test
+    fun failedShareVerificationAndChooserLaunchStillCleanOnlyOwnedFiles() {
+        val shares = File(target.cacheDir, io.github.jaypetez.ideaforge.ui.result.ResultActions.SHARE_DIR)
+        val hadDirectory = shares.isDirectory
+        check(shares.isDirectory || shares.mkdirs())
+        val prefix = "ux207-cleanup-${SystemClock.elapsedRealtimeNanos()}"
+        val prior = File(shares, "$prefix-prior").apply { check(mkdir()); resolve("prior.md").writeText("keep prior export") }
+        try {
+            for (chooserFails in listOf(false, true)) {
+                val created = File(shares, "$prefix-$chooserFails")
+                val failure = runCatching {
+                    UxSystemActions(instrumentation, target, target.cacheDir).use { system ->
+                        system.share {
+                            check(created.mkdir())
+                            created.resolve("result.md").writeText("truncated")
+                            if (chooserFails) error("scripted chooser launch failed")
+                        }
+                        system.requireShared("complete canonical markdown")
+                    }
+                }.exceptionOrNull()
+                assertTrue("the intended chooser/content fault remains a failure", failure is IllegalStateException)
+                assertTrue("even a failed share removes its registered files", !created.exists())
+                assertEquals("prior exports remain untouched", "keep prior export", prior.resolve("prior.md").readText())
+            }
+        } finally {
+            check(prior.deleteRecursively())
+            if (!hadDirectory) check(shares.delete())
+        }
+    }
+
+    @Test
     fun requestedNativeMakeoverAcceptance() {
         val bundle = InstrumentationRegistry.getArguments()
         if (bundle.getString("uxMakeoverProbe") != "true") {
@@ -314,7 +344,9 @@ class UxCaptureDeviceTest {
         click("check-key")
         compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.onboarding_checking)), DEVICE_TIMEOUT)
         compose.onNodeWithTag("check-key").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
-        capture("provider-checking", listOf(tag("api-key"), textControl("provider-back", R.string.onboarding_back)))
+        compose.onNodeWithTag("api-key").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        capture("provider-checking", listOf(UxControl("checking-key", hasTestTag("api-key"), false),
+            textControl("provider-back", R.string.onboarding_back)))
         checking.complete(Unit)
         await("check-failure")
         compose.onNodeWithTag("check-failure")
@@ -358,7 +390,7 @@ class UxCaptureDeviceTest {
             await(ResultTags.OUTPUT)
             assertEquals(done, graph.sessionStore.get(id))
             capture("save-cancel", resultControls())
-            click(ResultTags.SHARE)
+            system.share { click(ResultTags.SHARE) }
             system.awaitExternalWindow()
             system.requireShared(export)
             system.snapshot("share-cancel")
@@ -371,7 +403,7 @@ class UxCaptureDeviceTest {
             await(ResultTags.OUTPUT)
             compose.waitUntil(DEVICE_TIMEOUT) { system.readDocument(saved) == export }
             capture("saved-markdown", resultControls())
-            click(ResultTags.COPY)
+            system.copy { click(ResultTags.COPY) }
             system.requireCopied(export)
             capture("copied-markdown", resultControls())
             click(ResultTags.ASK_MORE)
@@ -387,7 +419,8 @@ class UxCaptureDeviceTest {
             click("voice-pause")
             assertEquals(VoiceMode.PAUSED, graph.driveController.state.value.mode)
             capture("controller-paused", listOf(tag("voice-resume"), tag("voice-exit")))
-            click("voice-resume")
+            // Admission is deliberately scripted here; real UI Resume still requires mic permission.
+            compose.runOnUiThread { graph.driveController.resume() }
             compose.waitUntil(DEVICE_TIMEOUT) { speeches.get() == 2 }
             click("voice-pause")
             click("voice-exit")
@@ -513,20 +546,32 @@ class UxCaptureDeviceTest {
             compose.onNodeWithTag("voice-levels").assertDoesNotExist()
             if (state.id in setOf("voice-listening", "voice-notifications-off"))
                 compose.onNodeWithTag("voice-no-level").assertExists()
+        } else if (state.id in setOf("busy-turn", "save-failure")) {
+            compose.onNodeWithTag("question").assertDoesNotExist()
+            val thread = hasAnyAncestor(hasTestTag("thread"))
+            compose.onNode(hasText(SEED_QUESTION) and thread).assertExists()
+            compose.onNode(hasText(fixtures.text("answer")) and thread).assertExists()
+            role("send", Role.Button)
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            if (state.id == "busy-turn") {
+                compose.onNodeWithTag("interview-busy").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+                compose.onNodeWithTag("busy-line").assert(
+                    SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            } else {
+                compose.onNodeWithTag("notice-message").assertIsDisplayed()
+                compose.onNodeWithTag("notice-dismiss").assertExists()
+            }
         } else if (state.surface == "interview") {
             compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
                 .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
             role("send", Role.Button)
-            if (state.id != "busy-turn")
-                compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsActions.SetText))
-            else compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsActions.SetText))
             val tags = compose.onAllNodes(SemanticsMatcher("all native task semantics") { true }, useUnmergedTree = true).fetchSemanticsNodes()
                 .mapNotNull { it.config.getOrNull(SemanticsProperties.TestTag) }
             check(tags.indexOf("question") in 0 until tags.indexOf("answer") && tags.indexOf("answer") < tags.indexOf("send")) {
                 "the native task reading order must be question, editable answer, then Send: $tags"
             }
-            if (state.id == "busy-turn")
-                compose.onNodeWithTag("interview-busy").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
             if (state.id == "bank") compose.onNodeWithTag("degraded").assert(
                 SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         } else if (state.surface == "library") {

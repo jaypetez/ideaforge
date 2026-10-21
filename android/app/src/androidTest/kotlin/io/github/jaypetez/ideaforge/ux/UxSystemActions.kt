@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge.ux
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Instrumentation
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
@@ -28,7 +29,8 @@ internal class UxSystemActions(
     private val automation = instrumentation.uiAutomation
     private val flags = automation.serviceInfo.flags
     private val clipboard = target.getSystemService(ClipboardManager::class.java)
-    private val originalClip = clipboard.primaryClip
+    private var originalClip: ClipData? = null
+    private var clipboardOwned = false
     private val shares = File(target.cacheDir, ResultActions.SHARE_DIR)
     private val hadShareDirectory = shares.isDirectory
     private val originalShares = shares.listFiles().orEmpty().map { it.name }.toSet()
@@ -110,12 +112,28 @@ internal class UxSystemActions(
         }
     }
 
+    fun copy(action: () -> Unit) {
+        if (!clipboardOwned) {
+            originalClip = clipboard.primaryClip
+            clipboardOwned = true
+        }
+        action()
+    }
+
+    fun share(action: () -> Unit) {
+        val before = shares.listFiles().orEmpty().toSet()
+        try {
+            action()
+        } finally {
+            ownedShares += shares.listFiles().orEmpty().toSet() - before
+        }
+    }
+
     fun requireShared(export: String) {
-        val created = shares.listFiles().orEmpty().filter { it.name !in originalShares }
+        val created = ownedShares.filter { it.name !in originalShares }
         check(created.size == 1 && created.single().listFiles().orEmpty().single().readText() == export) {
             "Share did not create one owned file containing the complete canonical markdown"
         }
-        ownedShares += created.single()
     }
 
     private fun downloads() {
@@ -174,7 +192,10 @@ internal class UxSystemActions(
             } } + ownedShares.map { file -> { check(file.deleteRecursively()) { "owned share file remains" }; Unit } }
         UxEvidence.finish(null, cleanup + listOf(
             { if (!hadShareDirectory && shares.exists()) check(shares.delete()) { "owned share directory is not empty" } },
-            { if (originalClip == null) clipboard.clearPrimaryClip() else clipboard.setPrimaryClip(originalClip) },
+            { if (clipboardOwned) {
+                val clip = originalClip
+                if (clip == null) clipboard.clearPrimaryClip() else clipboard.setPrimaryClip(clip)
+            } },
             { automation.serviceInfo = automation.serviceInfo.apply { flags = this@UxSystemActions.flags } },
         )) {}
     }

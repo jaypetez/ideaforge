@@ -111,6 +111,27 @@ class InterviewScreenTest {
     }
 
     @Test
+    fun anAnsweredTurnAwaitingItsModelExposesTheSubmittedExchangeNotAnInventedOpenQuestion() {
+        val model = ScriptedModel()
+        val gate = CompletableDeferred<Unit>()
+        model.gate = gate
+        val vm = show(model)
+        compose.waitForIdle()
+        try {
+            send(answers[0])
+            compose.waitUntil(5_000) { vm.state.value.busy == Busy.Thinking }
+            compose.onNodeWithTag("question").assertDoesNotExist()
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("busy-line").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            compose.onNodeWithTag("interview-busy").assert(
+                SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            compose.onNodeWithText(answers[0]).assertExists()
+        } finally { gate.complete(Unit) }
+    }
+
+    @Test
     fun coverageDetailShowsTheContractDimensionsAndTheirLevels() {
         show(ScriptedModel())
         compose.waitForIdle()
@@ -180,6 +201,9 @@ class InterviewScreenTest {
         dir.writeText("controlled unavailable storage")
         send(answers[0])
         compose.onNodeWithTag("notice-message").assertIsDisplayed()
+        compose.onNodeWithTag("question").assertDoesNotExist()
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
         assertTrue("a manual failure is still owned by the ViewModel", vm.state.value.notice is InterviewNotice.Failed)
         compose.mainClock.advanceTimeBy(12_000)
         compose.waitForIdle()
