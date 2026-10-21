@@ -146,19 +146,24 @@ internal class UxSystemActions(
     }
 
     private fun downloads() {
-        val root = automation.rootInActiveWindow
-        val drawer = descendants(root).firstOrNull { it.contentDescription?.toString() == "Show roots" }
-        if (drawer != null) {
-            click(drawer)
-            click(await { it.text?.toString() == "Downloads" })
+        val navigator = await {
+            it.contentDescription?.toString() == "Show roots" && clickTarget(it) != null ||
+                it.text?.toString() == "Downloads" && clickTarget(it) != null
         }
+        if (navigator.contentDescription?.toString() == "Show roots") click(navigator)
+        // The toolbar/breadcrumb also says Downloads before the drawer has opened.
+        click(await { it.text?.toString() == "Downloads" && clickTarget(it) != null })
+    }
+
+    private fun clickTarget(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var action: AccessibilityNodeInfo? = node
+        while (action != null && !action.isClickable) action = action.parent
+        return action?.takeIf { it.isEnabled }
     }
 
     private fun click(node: AccessibilityNodeInfo) {
-        var action: AccessibilityNodeInfo? = node
-        while (action != null && !action.isClickable) action = action.parent
-        check(action?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
-            "the native action was not clickable: ${node.text}/${node.contentDescription}"
+        check(clickTarget(node)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
+            "the native action was not clickable: ${node.text}/${node.contentDescription}\n${tree(automation.rootInActiveWindow)}"
         }
     }
 

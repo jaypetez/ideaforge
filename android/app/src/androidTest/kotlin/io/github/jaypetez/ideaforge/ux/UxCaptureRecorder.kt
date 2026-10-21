@@ -93,10 +93,12 @@ internal class UxCaptureRecorder(
         val display = activity.resources.displayMetrics
         val config = activity.resources.configuration
         val view = activity.window.decorView
+        val origin = IntArray(2).also(view::getLocationOnScreen)
         val insets = view.rootWindowInsets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
         val safe = UxBounds(
-            (insets?.left ?: 0).toFloat(), (insets?.top ?: 0).toFloat(),
-            (view.width - (insets?.right ?: 0)).toFloat(), (view.height - (insets?.bottom ?: 0)).toFloat(),
+            (origin[0] + (insets?.left ?: 0)).toFloat(), (origin[1] + (insets?.top ?: 0)).toFloat(),
+            (origin[0] + view.width - (insets?.right ?: 0)).toFloat(),
+            (origin[1] + view.height - (insets?.bottom ?: 0)).toFloat(),
         )
         try {
             check(kotlin.math.abs(config.fontScale - configuration.fontScale) < 0.01f) {
@@ -257,6 +259,8 @@ internal class UxCaptureRecorder(
                 put("densityDpi", display.densityDpi)
                 put("displayWidthDp", view.width / display.density)
                 put("displayHeightDp", view.height / display.density)
+                put("windowLeftPx", origin[0])
+                put("windowTopPx", origin[1])
                 put("safeBoundsPx", bounds(safe))
             })
             put("geometry", JsonArray(geometry))

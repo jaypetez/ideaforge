@@ -957,7 +957,9 @@ its unmerged semantics trees, not only failures: heading/name/role/selection, fa
 progress/source, polite status and question-before-editor-before-Send order have explicit
 assertions. Popup/dialog geometry includes the separate window's screen offset; their
 pixel oracle is the requested scheme's native menu/dialog container role, not a dimmed
-Scaffold background or a relaxed brightness threshold.
+Scaffold background or a relaxed brightness threshold. The safe viewport also includes
+the decor window's actual screen origin: a tablet may letterbox a requested portrait
+orientation. Its measured app bounds, not the full display width, govern reachability.
 
 Cleanup closes activities, retires app/main/preference work, removes private fixture
 stores and only the created documents/share files, restores the clipboard and display/
@@ -978,7 +980,9 @@ normal text scale rather than accidentally inheriting the class's enlarged-text 
 Document acceptance feeds a real `sh` through Android 34's stderr-capable UiAutomation
 transport: `executeShellCommand(String)` itself uses `Runtime.exec`, so quoted paths and
 shell operators cannot be treated as parsed commands. Nonzero exit status/stderr fail,
-and canonical file bytes plus actual removal are checked. Failed journeys retain one
+and canonical file bytes plus actual removal are checked. Native root navigation waits
+for the actionable Downloads drawer row, not its identical non-clickable toolbar title.
+Failed journeys retain one
 unverified current-UI diagnostic; unvisited states remain failed entries rather than
 repeatedly waiting out the same screenshot budget.
 
