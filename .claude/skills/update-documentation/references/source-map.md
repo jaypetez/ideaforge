@@ -490,6 +490,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) (SDK levels,
   application id, `.debug` suffix, version from `package.json`, release signing from the
   environment or `android/keystore.properties`, and `verifyReleaseApk`),
+  [`PlayRequirementsTest.kt`](../../../../android/app/src/test/kotlin/io/github/jaypetez/ideaforge/PlayRequirementsTest.kt)
+  (effective debug/release merged-manifest target floor),
+  [`tools/test-android-apk-alignment.py`](../../../../tools/test-android-apk-alignment.py)
+  (SDK `zipalign` on actual debug/release APKs and a planted native ZIP-entry rejection
+  control, not ELF or 16 KB-device runtime certification),
   [`android/gradle/libs.versions.toml`](../../../../android/gradle/libs.versions.toml) (AGP,
   Kotlin and every library version),
   [`android/gradle/wrapper/gradle-wrapper.properties`](../../../../android/gradle/wrapper/gradle-wrapper.properties),

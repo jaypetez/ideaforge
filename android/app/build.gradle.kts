@@ -204,15 +204,16 @@ val walkthroughAsset = tasks.register<WalkthroughAsset>("walkthroughAsset") {
 }
 
 androidComponents {
+    // Check effective SDK levels after manifest merging, including variant overrides. The
+    // release manifest also feeds the existing debug-permission/component guard.
+    onVariants { variant ->
+        val manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
+        tasks.withType<Test>().configureEach { jvmArgumentProviders.add(MergedManifest(variant.name, manifest)) }
+    }
     onVariants(selector().withBuildType("debug")) { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(walkthroughAsset, WalkthroughAsset::outputDir)
     }
-    // AGP creates no release unit-test task, so the debug tests check the release variant's
-    // final merged manifest for anything the debug-only recognizer probe (#89) adds. Declared
-    // as an input, which also makes the test task build it.
     onVariants(selector().withBuildType("release")) { variant ->
-        val manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
-        tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseManifest(manifest)) }
         // The release assets must carry neither the scripted walkthrough nor UX fixtures.
         val assets = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.ASSETS)
         tasks.withType<Test>().configureEach { jvmArgumentProviders.add(ReleaseAssets(assets)) }
@@ -299,10 +300,11 @@ class ReleaseAssets(
     override fun asArguments() = listOf("-Dideaforge.releaseAssets=${dir.get().asFile.absolutePath}")
 }
 
-class ReleaseManifest(
+class MergedManifest(
+    @get:Input val variantName: String,
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val file: Provider<RegularFile>,
 ) : CommandLineArgumentProvider {
-    override fun asArguments() = listOf("-Dideaforge.releaseManifest=${file.get().asFile.absolutePath}")
+    override fun asArguments() = listOf("-Dideaforge.${variantName}Manifest=${file.get().asFile.absolutePath}")
 }
 
 // The interview tests replay the walkthrough vector through InterviewViewModel, with the same

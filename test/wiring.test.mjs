@@ -348,6 +348,11 @@ test('bundle validation pins its download and checks actual signatures without w
   assert.match(build, /it\.startsWith\("assets\/"\) \|\| it\.startsWith\("base\/assets\/"\)/);
   assert.ok(job(CI, 'android').includes('bash tools/test-android-packages.sh'),
     'actual signing, versionCode and rejection controls must run on PRs without release secrets');
+  assert.match(job(CI, 'android'), /python3 tools\/test-android-apk-alignment\.py "\$build_tools\/zipalign" android\/app\/build\/outputs\/apk\/debug\/app-debug\.apk/,
+    'alignment and its planted native-entry control must inspect the actual debug APK');
+  const packages = readFileSync(join(ROOT, 'tools', 'test-android-packages.sh'), 'utf8');
+  assert.match(packages, /python3 tools\/test-android-apk-alignment\.py "\$build_tools\/zipalign" "\$apk"/,
+    'the same alignment checks must inspect the disposable signed release APK');
 });
 
 test('release signing material is ignored by git and docker', () => {

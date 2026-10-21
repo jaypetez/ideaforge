@@ -76,8 +76,13 @@ checks pinned bundletool bytes, bundle structure, actual signatures and a certif
 different from the app-signing pin. `VerifyReleasePackage` in
 `android/app/build.gradle.kts` checks both shipped containers for debug-only code/fixtures;
 `tools/test-android-packages.sh` proves the two signing roles and shared versionCode with
-disposable keys in required Android CI. Publication receives neither key and checksums
-every attached payload.
+disposable keys in required Android CI. `PlayRequirementsTest` reads the effective debug
+and release merged manifests to enforce the API 36 target floor without replacing the
+release debug-permission guard. `tools/test-android-apk-alignment.py` uses SDK `zipalign` on
+the actual debug and disposable signed release APKs, with a copied, deliberately misaligned
+native ZIP entry proving rejection. That is ZIP packaging evidence, not ELF or physical
+16 KB-device certification. Publication receives neither key and checksums every attached
+payload.
 
 The Pages artifact has two static surfaces: the app at its root and the public guide under
 `guide/`. The root-scoped service worker in `sw.js` deliberately ignores guide requests,

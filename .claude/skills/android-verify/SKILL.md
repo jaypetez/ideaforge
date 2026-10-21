@@ -81,6 +81,14 @@ its command/result and tested SHA; any changed head, including test-only changes
 or validation inputs invalidates the corresponding evidence. The web pre-push
 `npm run test:all` gate is still required.
 
+`PlayRequirementsTest` checks the effective debug and release merged-manifest targets are
+at least API 36. The existing recognizer-probe release-manifest guard still denies debug-only
+permissions and components. A focused policy run is:
+
+```sh
+./gradlew :app:testDebugUnitTest --tests '*PlayRequirementsTest' --tests '*RecognizerProbeTest.theReleaseMergedManifestHasNothingTheProbeAdds'
+```
+
 ## 3. Golden vectors: the contract with the JavaScript core
 
 The JavaScript core is the reference. `tools/vectors.mjs` records real calls into it as
@@ -240,10 +248,23 @@ PRs). It then runs `./gradlew --no-daemon check :app:assembleDebug`. It uploads 
 as the `ideaforge-debug-apk` artifact for 14 days, and the reports and test results on
 failure. The job feeds the single required `ci` check, so a red Android build blocks every
 PR.
+After assembling, it runs `tools/test-android-apk-alignment.py` with SDK `zipalign` on the
+actual debug APK. The helper runs `zipalign -c -P 16 -v 4`, then proves rejection by appending
+a copied arm64 `.so` at a four-byte but not 16 KB-aligned ZIP offset in a separate APK.
+It leaves the original APK untouched and removes the planted copy. To run it locally from
+the repository root, select SDK Build-Tools 35 or newer (use `python` and `zipalign.exe` on
+Windows):
+
+```sh
+python3 tools/test-android-apk-alignment.py "$ANDROID_HOME/build-tools/<version>/zipalign" android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+This is ZIP packaging evidence, not an ELF segment check or a 16 KB-device runtime test.
 It also runs `bash tools/test-android-packages.sh` with disposable generated keys: the
-actual minified APK and AAB, distinct signing roles, common versionCode, bundle validation,
-and missing-secret/unsigned/corrupt-download rejection. No production signing secret is
-needed. `verifyReleaseApk` and `verifyReleaseBundle` check their actual shipped containers.
+actual minified APK and AAB, the same APK alignment check and planted control on the signed
+release APK, distinct signing roles, common versionCode, bundle validation, and
+missing-secret/unsigned/corrupt-download rejection. No production signing secret is needed.
+`verifyReleaseApk` and `verifyReleaseBundle` check their actual shipped containers.
 
 `.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
 nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
