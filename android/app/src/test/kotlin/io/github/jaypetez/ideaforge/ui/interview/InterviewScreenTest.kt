@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
@@ -17,6 +18,9 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.getOrNull
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -91,6 +95,43 @@ class InterviewScreenTest {
     private fun turn(n: Int): JsonObject = (store.get(id)!!["turns"] as JsonArray)[n - 1] as JsonObject
 
     @Test
+    fun theCurrentQuestionIsAnAnnouncedHeadingBeforeTheEditableAnswerAndNamedSendAction() {
+        show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(
+            androidx.compose.ui.semantics.SemanticsActions.SetText))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+            .assertTextContains("Send")
+        val tags = compose.onAllNodes(SemanticsMatcher("all native task semantics") { true }, useUnmergedTree = true).fetchSemanticsNodes()
+            .mapNotNull { it.config.getOrNull(SemanticsProperties.TestTag) }
+        assertTrue("task reading order is question, editable answer, then Send",
+            tags.indexOf("question") in 0 until tags.indexOf("answer") && tags.indexOf("answer") < tags.indexOf("send"))
+    }
+
+    @Test
+    fun anAnsweredTurnAwaitingItsModelExposesTheSubmittedExchangeNotAnInventedOpenQuestion() {
+        val model = ScriptedModel()
+        val gate = CompletableDeferred<Unit>()
+        model.gate = gate
+        val vm = show(model)
+        compose.waitForIdle()
+        try {
+            send(answers[0])
+            compose.waitUntil(5_000) { vm.state.value.busy == Busy.Thinking }
+            compose.onNodeWithTag("question").assertDoesNotExist()
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("busy-line").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            compose.onNodeWithTag("interview-busy").assert(
+                SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            compose.onNodeWithText(answers[0]).assertExists()
+        } finally { gate.complete(Unit) }
+    }
+
+    @Test
     fun coverageDetailShowsTheContractDimensionsAndTheirLevels() {
         show(ScriptedModel())
         compose.waitForIdle()
@@ -160,6 +201,13 @@ class InterviewScreenTest {
         dir.writeText("controlled unavailable storage")
         send(answers[0])
         compose.onNodeWithTag("notice-message").assertIsDisplayed()
+        compose.onNodeWithTag("question").assertDoesNotExist()
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        compose.onNodeWithTag("history-toggle").performClick()
+        val thread = androidx.compose.ui.test.hasAnyAncestor(hasTestTag("thread"))
+        compose.onNode(hasText(io.github.jaypetez.ideaforge.core.SEED_QUESTION) and thread).assertExists()
+        compose.onNode(hasText(answers[0]) and thread).assertExists()
         assertTrue("a manual failure is still owned by the ViewModel", vm.state.value.notice is InterviewNotice.Failed)
         compose.mainClock.advanceTimeBy(12_000)
         compose.waitForIdle()

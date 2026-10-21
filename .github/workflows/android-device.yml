@@ -19,7 +19,7 @@ on:
       evidence:
         description: Full UX inventory, focused native/policy evidence, launcher, listing, or microphone video
         type: choice
-        options: [full, onboarding, settings, result, ideas, interview, voice, shell, privacy-before, privacy, consent-before, consent, play-listing, launcher, microphone-demo]
+        options: [full, makeover, onboarding, settings, result, ideas, interview, voice, shell, privacy-before, privacy, consent-before, consent, play-listing, launcher, microphone-demo]
         default: full
 
 permissions:
@@ -68,8 +68,10 @@ jobs:
       # The managed device (pixel6Api34, an ATD image) is declared in app/build.gradle.kts.
       # Gradle downloads the system image, boots it headless, runs the tests and shuts it
       # down. swiftshader_indirect is software rendering: a runner has no GPU.
+      # Makeover already drives the canonical journey on both rendering devices. Repeating
+      # it on ATD first exhausts the unchanged job budget before tablet artifacts are copied.
       - name: Instrumented walkthrough on a managed emulator
-        if: ${{ inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' && inputs.evidence != 'microphone-demo' }}
+        if: ${{ inputs.evidence != 'makeover' && inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' && inputs.evidence != 'microphone-demo' }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
@@ -83,8 +85,9 @@ jobs:
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'makeover' && '#requestedNativeMakeoverAcceptance' || inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'makeover' && inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'makeover' && '-Pandroid.testInstrumentationRunnerArguments.uxMakeoverProbe=true' || '' }}
           ${{ inputs.evidence == 'result' && '-Pandroid.testInstrumentationRunnerArguments.uxResultProbe=true' || '' }}
           ${{ inputs.evidence == 'settings' && '-Pandroid.testInstrumentationRunnerArguments.uxSettingsProbe=true' || '' }}
           ${{ inputs.evidence == 'onboarding' && '-Pandroid.testInstrumentationRunnerArguments.uxOnboardingProbe=true' || '' }}
@@ -103,8 +106,9 @@ jobs:
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
-          ${{ inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest${{ inputs.evidence == 'makeover' && '#requestedNativeMakeoverAcceptance' || inputs.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions' || inputs.evidence == 'settings' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries' || inputs.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery' || inputs.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful' || inputs.evidence == 'interview' && '#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful' || inputs.evidence == 'voice' && '#requestedVoicePhasesKeepCaptionsRecoveryAndControlsHonest' || inputs.evidence == 'shell' && '#requestedShellEvidenceKeepsInsetsAndIdentity' || startsWith(inputs.evidence, 'privacy') && '#requestedPrivacyPolicyLinksAreReachable' || startsWith(inputs.evidence, 'consent') && '#requestedInferenceConsentIsProminent' || '' }}
+          ${{ inputs.evidence != 'makeover' && inputs.evidence != 'ideas' && inputs.evidence != 'interview' && inputs.evidence != 'voice' && inputs.evidence != 'onboarding' && inputs.evidence != 'settings' && inputs.evidence != 'result' && !startsWith(inputs.evidence, 'privacy') && !startsWith(inputs.evidence, 'consent') && format('-Pandroid.testInstrumentationRunnerArguments.uxShellProbe={0}', inputs.evidence == 'shell' && 'true' || '') || '' }}
+          ${{ inputs.evidence == 'makeover' && '-Pandroid.testInstrumentationRunnerArguments.uxMakeoverProbe=true' || '' }}
           ${{ inputs.evidence == 'result' && '-Pandroid.testInstrumentationRunnerArguments.uxResultProbe=true' || '' }}
           ${{ inputs.evidence == 'settings' && '-Pandroid.testInstrumentationRunnerArguments.uxSettingsProbe=true' || '' }}
           ${{ inputs.evidence == 'onboarding' && '-Pandroid.testInstrumentationRunnerArguments.uxOnboardingProbe=true' || '' }}

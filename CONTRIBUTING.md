@@ -309,6 +309,24 @@ phase/route mappings and the prerequisite fixes the matrix exposed. A focused gr
 is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
 and black PNGs must remain failures.
 
+For complete native makeover acceptance, dispatch `android-device.yml` with
+`-f evidence=makeover` on the intended clean feature ref. This explicitly selects
+`UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` with `uxMakeoverProbe=true`.
+It runs sequential rendering-enabled phone/tablet tasks; their joined canonical journeys
+avoid a duplicate ATD boot within the unchanged 40-minute job budget. Ordinary/default
+and nightly ATD coverage is unchanged. It adds compact/expanded/short-landscape geometry at font scales 1.0/1.3/2.0,
+both themes, actual IME and installed system-navigation modes. The joined journey
+uses real onboarding/navigation, canonical answers/wrap, native document/share actions,
+Copy, same-session reopen/rotation, Settings and backup/import recovery.
+Only model/check/speech/service effects are scripted; voice phase fixtures are labelled
+isolated and OS permissions are not changed. The existing scripted permission-result
+tests cover microphone denial and nonfatal notification denial, not physical recognition.
+See [DESIGN's exact commands and evidence contract](docs/DESIGN.md#complete-native-makeover-acceptance).
+Require actual selected-test execution and both passed clean-SHA `ux-makeover` manifests;
+read back artifacts and inspect app, native-system and reachability PNGs. Cleanup also
+restores the clipboard and removes only owned documents/share files. Manual TalkBack,
+switch access, physical voice and live hosted speech remain explicitly unperformed.
+
 Play listing source lives in `android/fastlane/metadata/android/en-US/`. Keep its text
 plain, name compatible providers without their logos, and retain the non-affiliation
 notice. The changelog filename follows `versionCodeOf` in `android/app/build.gradle.kts`,

@@ -110,6 +110,27 @@ source wins over prose, and a generated artifact wins over a description of that
   Windows real-provider probe seam. Re-check Android Result/export guidance and
   `evidence=result` actual long/scrolled/short/checklist/synthesis-failed/held-lock loading
   captures; no native chooser/picker/physical usability claim follows from their PNGs.
+- **Complete native makeover acceptance.** Sources:
+  `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` reuses `ScriptedWalkthrough`,
+  private fixture graphs, installed adaptive panes and the existing fail-closed recorder.
+  `UxSystemActions.kt` owns real native document/share interactions and cleanup of only
+  created documents/share files plus clipboard restoration, with a real `sh` over the
+  API 34 stderr-capable UiAutomation transport and checked exit status.
+  `InterviewScreen` includes retained History and persistent notice height in its
+  short-window decision; the actual normal-font landscape regression is in
+  `InterviewLayoutTest` (normal scale is verified, not inferred from method metadata).
+  `UxCaptureRecorder.kt`
+  records every state's semantics, screen-space popup/dialog geometry, achieved dp/density,
+  actual IME, requested scheme/container pixel roles and exact supplied SHA.
+  `android-device.yml` selects the fixed inventory only with `evidence=makeover`, on
+  sequential rendering-enabled phone/tablet tasks outside required `ci`. Its canonical
+  journeys avoid the duplicate ATD boot within the unchanged job budget; ordinary/default
+  and nightly ATD coverage remains.
+  Re-check DESIGN, CONTRIBUTING and `guide/android.html` against selected-test execution,
+  both complete clean-SHA `ux-makeover` manifests and personally inspected app/system PNGs.
+  `AdaptiveShellTest` retains separately labelled scripted microphone/notification-denial
+  proof. Automated order/heading/name/role/state/status assertions are not manual TalkBack,
+  switch access, physical recognition, screen-off or hosted-speech certification.
 - **Native Play listing text and generated artwork.** Sources:
   [`android/fastlane/metadata/android/en-US/`](../../../../android/fastlane/metadata/android/en-US/)
   owns versioned plain-text listing copy and the versionCode-named changelog.

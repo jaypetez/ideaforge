@@ -888,6 +888,111 @@ the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
 
+#### Complete native makeover acceptance
+
+Dispatch the existing optional workflow with an explicit feature ref:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=makeover
+```
+
+This selects `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance`, not the default
+visual-test discovery path. The local equivalent, from `android\`, is:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:pixel6Api34VisualDebugAndroidTest `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedNativeMakeoverAcceptance' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxMakeoverProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Run the expanded half sequentially with `pixelTabletApi34VisualDebugAndroidTest` and
+`uxCaptureWindow=expanded`. This route runs both rendering-enabled halves sequentially;
+their joined canonical journeys replace the otherwise duplicate ATD boot/walkthrough.
+Ordinary/default and nightly ATD coverage is unchanged. This keeps artifact collection
+inside the existing 40-minute job budget without dropping requested frames or extending
+timeouts. It adds no required CI job or protection rule.
+Require nonzero execution of the selected acceptance method, not a successful build,
+dispatch, unselected opt-in test or ATD image.
+
+The fixed inventory covers compact 411x914dp, expanded 1280x900dp and short landscape
+640x400dp configurations in both themes at actual font scales 1.0, 1.3 and 2.0. Those
+are requested window sizes, not physical tablet certification: each record must show
+achieved window dp, density, font scale, actual IME and safe bounds. The installed
+Material adaptive panes and system navigation overlays are exercised, including gesture
+and three-button IME cases at font scale 2.0. Long-content states cover 12/100 ideas,
+no matches, selected detail, checklist source, pending work, failed storage/synthesis,
+long Result and explicitly isolated paused/recovering/blocked/no-level/notification-off
+voice presentations. The 12-idea library, long selection, actual IME, checklist,
+failed save, long Result and no-level listening run at every requested font/window/theme.
+The hundred-idea/no-match/loading/synthesis/recovery/blocked/notification-off and open
+menu/delete-dialog stress cases run at font scale 2.0 in every window and theme;
+the joined normal-window journey below runs at 1.0. This avoids repeating every fixture's
+Cartesian product while retaining every requested state and every window/font/theme;
+the existing per-surface full matrices remain available unchanged.
+Required controls are measured after real scrolling, with 48dp
+native touch targets and 64dp voice controls; clipped painted labels remain failures.
+
+At font scale 1.0 in each normal window and theme, a joined real-`MainActivity` journey
+completes fresh onboarding through a held check, rejected dummy key and successful retry;
+Voice/Type choice and rationale cancellation; the canonical typed/chip interview and
+Result; actual native Save/Share cancellation, saved canonical markdown and Copy;
+same-session Ask me more and rotation; a separate canonical typed wrap followed by Skip;
+theme selection, Cancel/Back from Forget, session-only backup and collision-as-copy import,
+and malformed-import recovery. File actions use the real system document picker and
+FileProvider, not a replacement export. A held scripted speaker and service observer
+exercise real UI Pause/Exit plus explicitly controller-level Resume admission without
+opening a microphone; UI Resume's permission gate is not bypassed or claimed exercised.
+The existing
+`AdaptiveShellTest` permission-result cases separately cover microphone denial and
+nonfatal notification denial. No test key is transmitted.
+
+Read back `android-ux-evidence-<SHA>` and `android-device-reports`. Require both
+`ux-makeover/manifest-compact.json` and `manifest-expanded.json` to be passed, clean,
+complete and bound to the intended tested SHA. Inspect their named app PNGs, reachability
+shots and `native-system/*-system.png` picker/chooser frames. Every reached app state retains
+its unmerged semantics trees, not only failures: heading/name/role/selection, factual
+progress/source, polite status and question-before-editor-before-Send order have explicit
+assertions. Popup/dialog geometry includes the separate window's screen offset; their
+pixel oracle is the requested scheme's native menu/dialog container role, not a dimmed
+Scaffold background or a relaxed brightness threshold. The safe viewport also includes
+the decor window's actual screen origin: a tablet may letterbox a requested portrait
+orientation. Its measured app bounds, not the full display width, govern reachability.
+
+Cleanup closes activities, retires app/main/preference work, removes private fixture
+stores and only the created documents/share files, restores the clipboard and display/
+font/navigation overrides, and reinstates the original app graph. A cleanup failure
+fails the manifest. Final PR evidence records actual run/attempt, source SHA, selected-test
+counts, artifact hashes and personally inspected image names. Manual TalkBack,
+switch access, physical recognition/microphone contention, screen-off survival and live
+hosted speech remain **unperformed**; automated semantics are not screen-reader or
+usability certification. Unchanged web README screenshots are not regenerated for this
+native-only acceptance route.
+
+The acceptance run exposed a normal-font short-landscape case where retained History
+and a persistent notice could leave the actual current-question viewport at zero height.
+`InterviewScreen` now deducts those occupied slots before choosing its existing
+page-scrolling layout; it does not shrink labels or remove the composer. The focused
+`InterviewLayoutTest` uses the achieved 328dp content height and explicitly verifies
+normal text scale rather than accidentally inheriting the class's enlarged-text default.
+Document acceptance feeds a real `sh` through Android 34's stderr-capable UiAutomation
+transport: `executeShellCommand(String)` itself uses `Runtime.exec`, so quoted paths and
+shell operators cannot be treated as parsed commands. Nonzero exit status/stderr fail,
+and canonical file bytes plus actual removal are checked. Native root navigation re-queries
+until the Downloads row under the actual roots list accepts its action, not its identical
+toolbar/breadcrumb title or a stale accessibility node. Draft entry waits for the real
+question and enabled editor, then verifies the entered text before rotation/submission.
+A save-error status alone cannot settle submission: a failed draft write can already
+show it while the question is still open.
+Failed journeys retain one
+unverified current-UI diagnostic; unvisited states remain failed entries rather than
+repeatedly waiting out the same screenshot budget.
+
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
 UI: labelled existing actions, wrapping composer actions and a bounded editor leave a real
@@ -940,8 +1045,8 @@ colours**. All are labelled isolated production-control compositions, not interv
 voice runs. Normal real-app captures still use the actual system dynamic scheme on
 Android 12+. The supplementary probe changes no wallpaper or permission.
 
-Native manifests distinguish raw/clipped paint bounds from raw/clipped native touch
-bounds. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
+Native manifests distinguish raw/clipped screen-space paint bounds from raw/clipped native
+touch bounds, including separate popup/dialog window offsets. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
 the target assertion measures that native hit rectangle, while separate checks retain
 full painted labels and safe unclipped geometry. Root-theme evidence requires pixels
 matching the requested scheme's actual surface, including labelled fallback/simulations.

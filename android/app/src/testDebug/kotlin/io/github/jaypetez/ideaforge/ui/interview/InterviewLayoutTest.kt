@@ -105,11 +105,21 @@ class InterviewLayoutTest {
         requireLongInterviewReachable(requireCurrent = true, providerUnavailable = true)
     }
 
+    @Test
+    @Config(qualifiers = "w640dp-h328dp-land", fontScale = 1f)
+    fun normalTextWithRealLandscapeBarClearanceKeepsTheChecklistQuestionAndStatusReachable() {
+        // A method's default 1f does not override the class-level 2f in Robolectric.
+        org.robolectric.RuntimeEnvironment.setFontScale(1f)
+        requireLongInterviewReachable(bank = true)
+    }
+
     private fun requireLongInterviewReachable(
         requireCurrent: Boolean = false, providerUnavailable: Boolean = false, coverageDetails: Boolean = false,
+        bank: Boolean = false,
     ) {
         val data = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText())
-        val active = data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
+        val active = if (bank) data.datasets.getValue("bank").single()
+            else data.datasets.getValue("long").single { stringOf(it["id"]) == "ux-long-active" }
         val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
         graph.providerSource = ProviderSource {
             if (providerUnavailable) throw ProviderException("config", "Controlled unavailable provider while opening.")
@@ -118,13 +128,15 @@ class InterviewLayoutTest {
         runBlocking { assertTrue(graph.sessionStore.insert(active)) }
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
-            compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(stringOf(active["name"])!!)
-            val card = hasTestTag(LibraryTags.CARD) and hasText(stringOf(active["name"])!!)
+            val title = io.github.jaypetez.ideaforge.core.sessionDisplayTitle(active)
+            compose.onNodeWithTag(LibraryTags.SEARCH).performTextReplacement(title)
+            val card = hasTestTag(LibraryTags.CARD) and hasText(title)
             compose.onNode(hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))).performScrollToNode(card)
             compose.onNodeWithTag(LibraryTags.more(stringOf(active["id"])!!)).performClick()
             compose.onNodeWithTag(LibraryTags.details(stringOf(active["id"])!!)).performClick()
             compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("question"), 5_000)
+            if (bank) assertEquals(1f, compose.onNodeWithTag("question").fetchSemanticsNode().layoutInfo.density.fontScale, 0f)
             compose.onNodeWithTag("interview-back")
                 .assertHeightIsAtLeast(IdeaForgeSpacing.control).assertWidthIsAtLeast(IdeaForgeSpacing.control)
             if (requireCurrent) {
@@ -140,11 +152,14 @@ class InterviewLayoutTest {
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
             }
-            for (tag in listOf("answer", "send", "skip", "voice-start", "write-up", "chip-0", "chip-1", "chip-2")) {
+            val controls = listOf("answer", "send", "skip", "voice-start", "chip-0", "chip-1") +
+                if (bank) emptyList() else listOf("write-up", "chip-2")
+            for (tag in controls) {
                 requireReachable(tag)
             }
 
             requireReachable("turn-status", actionRequired = false)
+            if (bank) return@use
             requireReachable("write-up")
             compose.onNodeWithTag("write-up").assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag(ResultTags.OUTPUT), 5_000)
