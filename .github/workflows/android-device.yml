@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       evidence:
-        description: Full UX inventory, focused native/policy evidence, or Play listing assets
+        description: Full UX inventory, focused native/policy evidence, launcher, or Play listing assets
         type: choice
-        options: [full, onboarding, settings, result, ideas, interview, voice, shell, privacy-before, privacy, consent-before, consent, play-listing]
+        options: [full, onboarding, settings, result, ideas, interview, voice, shell, privacy-before, privacy, consent-before, consent, play-listing, launcher]
         default: full
 
 permissions:
@@ -69,7 +69,7 @@ jobs:
       # Gradle downloads the system image, boots it headless, runs the tests and shuts it
       # down. swiftshader_indirect is software rendering: a runner has no GPU.
       - name: Instrumented walkthrough on a managed emulator
-        if: ${{ inputs.evidence != 'play-listing' }}
+        if: ${{ inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
@@ -78,7 +78,7 @@ jobs:
       # opt-in fixture test runs both themes at font scales 1.0/1.3/2.0 in each window.
       # The tested checkout SHA is required by the recorder, never inferred or defaulted.
       - name: Compact native UX evidence
-        if: ${{ !cancelled() && inputs.evidence != 'play-listing' }}
+        if: ${{ !cancelled() && inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' }}
         run: >-
           ./gradlew --no-daemon :app:pixel6Api34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
@@ -98,7 +98,7 @@ jobs:
           -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
 
       - name: Expanded native UX evidence
-        if: ${{ !cancelled() && inputs.evidence != 'play-listing' }}
+        if: ${{ !cancelled() && inputs.evidence != 'play-listing' && inputs.evidence != 'launcher' }}
         run: >-
           ./gradlew --no-daemon :app:pixelTabletApi34VisualDebugAndroidTest
           -Pandroid.enableAdditionalTestOutput=true
@@ -128,6 +128,22 @@ jobs:
             -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedPlayListingAssets \
             -Pandroid.testInstrumentationRunnerArguments.playListingProbe=true \
             -Pandroid.testInstrumentationRunnerArguments.uxCapture=walkthrough \
+            -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact \
+            -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain)"
+
+      - name: Installed launcher icon and unmasked Play artwork
+        if: ${{ !cancelled() && inputs.evidence == 'launcher' }}
+        run: |
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          ./gradlew --no-daemon :app:pixel2Api34VisualDebugAndroidTest \
+            -Pandroid.enableAdditionalTestOutput=true \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
+            -Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.LauncherIconDeviceTest#requestedLauncherShowsMaskedAndThemedInstalledIcon \
+            -Pandroid.testInstrumentationRunnerArguments.launcherIconProbe=true \
+            -Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix \
             -Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact \
             -Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}
           test "$(git rev-parse HEAD)" = "${{ github.sha }}"

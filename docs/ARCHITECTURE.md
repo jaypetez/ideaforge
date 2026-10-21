@@ -294,6 +294,14 @@ Existing screens use these shared primitives without a second state/navigation f
 unit checks and the debug-only UX capture seam provide native evidence; isolated simulated
 palettes are labelled separately from actual wallpaper colours.
 
+**Launcher artwork.** `res/mipmap-anydpi-v26/ic_launcher.xml` is the manifest's normal and
+round icon, supported across the app's API 29+ range. Its full-bleed brand background and
+transparent, safe-zone anvil foreground let Android apply the device mask; Android 13+
+launchers that support themed icons can tint the same foreground through the monochrome
+layer. `PlayListingAssets.kt` draws the installed adaptive layers without that mask for
+Play artwork. The opt-in `evidence=launcher` route in `android-device.yml` records actual
+AOSP Launcher3 masked/themed display frames and the artwork, not an app-window simulation.
+
 **Native shell and insets.** `ui/AppShell.kt` keeps one type-safe NavHost and chooses the
 installed Material bottom bar or rail from the native window class. New idea opens
 `NewIdeaRoute` without minting an id. A deliberate Voice/Type selection, guarded by the
