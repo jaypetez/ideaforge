@@ -548,6 +548,10 @@ class UxCaptureDeviceTest {
                 compose.onNodeWithTag("voice-no-level").assertExists()
         } else if (state.id in setOf("busy-turn", "save-failure")) {
             compose.onNodeWithTag("question").assertDoesNotExist()
+            if (state.id == "save-failure") {
+                revealControl("history-toggle")
+                compose.onNodeWithTag("history-toggle").performClick()
+            }
             val thread = hasAnyAncestor(hasTestTag("thread"))
             compose.onNode(hasText(SEED_QUESTION) and thread).assertExists()
             compose.onNode(hasText(fixtures.text("answer")) and thread).assertExists()
