@@ -404,7 +404,7 @@ permissions, wipe data or uninstall an app on a shared device.
 
 Gradle owns the ephemeral device, so the recording invokes the **same on-device
 `screenrecord` utility as `adb shell screenrecord`** through
-`UiAutomation.executeShellCommand`, with `--time-limit 45 --bit-rate 4000000`. It records
+`UiAutomation.executeShellCommand`, with `--time-limit 55 --bit-rate 4000000`. It records
 the real Interview → Answer by voice → Allow → native hands-free listening → system
 notification with Pause/Exit → notification Exit → same typed idea. Assertions require
 actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground

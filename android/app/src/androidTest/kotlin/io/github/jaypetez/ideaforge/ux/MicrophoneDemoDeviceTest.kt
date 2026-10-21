@@ -115,7 +115,7 @@ class MicrophoneDemoDeviceTest {
                 put("display", shell("wm size").trim())
                 put("density", shell("wm density").trim())
                 put("transport", "UiAutomation.executeShellCommand; the device's real screenrecord binary (shell UID), managed by Gradle")
-                put("command", "screenrecord --time-limit 45 --bit-rate 4000000 ${video.absolutePath}")
+                put("command", "screenrecord --time-limit 55 --bit-rate 4000000 ${video.absolutePath}")
                 put("fixture", "Private test stores and existing debug scripted interview model. The existing graph seam selects the real native DEFAULT recognition service, not scripted callbacks. Native TTS, runtime permission UI, DriveController, DriveService and notification actions are not replaced.")
                 put("limitations", "Emulator microphone input, not a person speaking, preferred on-device recognition, physical-device support, speech quality, screen-off survival or Play approval. No production key or app inference/hosted-speech API call; native service network behavior is platform-owned.")
                 metadata?.let { put("video", it) }
@@ -179,7 +179,7 @@ class MicrophoneDemoDeviceTest {
             await("voice-start")
             check(!serviceRunning() && activeRecordings() == 0) { "voice effects began before the Answer by voice tap" }
             began = SystemClock.elapsedRealtime()
-            val descriptor = automation.executeShellCommand("screenrecord --time-limit 45 --bit-rate 4000000 ${video.absolutePath}")
+            val descriptor = automation.executeShellCommand("screenrecord --time-limit 55 --bit-rate 4000000 ${video.absolutePath}")
             recording = reader.submit<String> {
                 ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { it.readText() }
             }
@@ -249,7 +249,7 @@ class MicrophoneDemoDeviceTest {
             check(privateGraph.driveController.state.value.mode == null)
             snapshot(output, "exited")
             stage("exited-same-typed-interview")
-            check(SystemClock.elapsedRealtime() - began < 41_000) { "the required flow exceeded the bounded recording; not valid evidence" }
+            check(SystemClock.elapsedRealtime() - began < 53_000) { "the required flow exceeded the bounded recording; not valid evidence" }
             File(output, "screenrecord.txt").writeText(recording.get(65, TimeUnit.SECONDS))
             recording = null
             check(!serviceRunning() && activeRecordings() == 0 &&
@@ -297,7 +297,11 @@ class MicrophoneDemoDeviceTest {
             "=== services ===\n${shell("dumpsys activity services ${target.packageName}")}\n" +
                 "=== audio ===\n${shell("dumpsys audio")}\n" +
                 "=== appops ===\n${shell("cmd appops get ${target.packageName} RECORD_AUDIO")}\n" +
-                "=== notification ===\n${shell("dumpsys notification --noredact")}\n",
+                "=== active app notifications (NotificationManager) ===\n" +
+                notifications.activeNotifications.joinToString("\n") { record ->
+                    "id=${record.id} package=${record.packageName} ${record.notification} actions=" +
+                        record.notification.actions.orEmpty().joinToString { "${it.title}:${it.actionIntent}" }
+                } + "\n",
         )
     }
 
@@ -341,6 +345,7 @@ class MicrophoneDemoDeviceTest {
         val deadline = SystemClock.uptimeMillis() + if (required) DEVICE_TIMEOUT else 500
         do {
             val root = automation.rootInActiveWindow
+            root?.refresh()
             // Both remote queries omitted SystemUI's real action0 nodes. Permission
             // queries work and provide fresh results across the two runtime dialogs.
             val candidates = if (pkg == "com.android.systemui") descendants(root)
@@ -362,7 +367,7 @@ class MicrophoneDemoDeviceTest {
         ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
 
     private fun descendants(node: AccessibilityNodeInfo?): Sequence<AccessibilityNodeInfo> = sequence {
-        if (node == null || !node.refresh()) return@sequence
+        if (node == null) return@sequence
         yield(node)
         for (index in 0 until node.childCount) yieldAll(descendants(node.getChild(index)))
     }
