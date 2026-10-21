@@ -226,9 +226,11 @@ class MicrophoneDemoDeviceTest {
             shell("cmd statusbar expand-notifications")
             // The actual RemoteViews exposes framework action IDs. Use those observed
             // nodes and the exact label, rather than SystemUI's global text-search path.
-            val exit = checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_exit)))
+            checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_exit)))
             checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_pause)))
             stage("notification-pause-exit")
+            // Re-resolve after filming: a live notification update may replace its views.
+            val exit = checkNotNull(systemNode("com.android.systemui", "android:id/action0", target.getString(R.string.voice_exit)))
             check(exit.performAction(AccessibilityNodeInfo.ACTION_CLICK)) { "the real notification Exit action was rejected" }
             shell("cmd statusbar collapse")
             await("answer")
@@ -335,11 +337,13 @@ class MicrophoneDemoDeviceTest {
         val deadline = SystemClock.uptimeMillis() + if (required) DEVICE_TIMEOUT else 500
         do {
             val root = automation.rootInActiveWindow
-            val nodes = when {
-                resource != null -> root?.findAccessibilityNodeInfosByViewId(resource)
-                else -> root?.findAccessibilityNodeInfosByText(checkNotNull(text))
-            }.orEmpty().filter { it.packageName?.toString() == pkg && it.isVisibleToUser &&
+            // Both remote query APIs omitted the real action0 nodes in the uploaded
+            // SystemUI tree. Traverse that same native tree without weakening its guards.
+            val nodes = descendants(root).filter { it.packageName?.toString() == pkg &&
+                it.isVisibleToUser && it.isEnabled && it.isClickable &&
+                (resource == null || it.viewIdResourceName == resource) &&
                 (text == null || it.text?.toString().equals(text, ignoreCase = true)) }
+                .toList()
             check(nodes.size <= 1) { "ambiguous system action $pkg/$resource/$text" }
             nodes.singleOrNull()?.let { return it }
             SystemClock.sleep(100)
@@ -350,6 +354,12 @@ class MicrophoneDemoDeviceTest {
 
     private fun shell(command: String): String =
         ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
+
+    private fun descendants(node: AccessibilityNodeInfo?): Sequence<AccessibilityNodeInfo> = sequence {
+        if (node == null) return@sequence
+        yield(node)
+        for (index in 0 until node.childCount) yieldAll(descendants(node.getChild(index)))
+    }
 
     private fun await(tag: String) = compose.waitUntil(DEVICE_TIMEOUT) { exists(tag) }
     private fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
