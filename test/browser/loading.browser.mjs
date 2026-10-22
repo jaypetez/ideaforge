@@ -253,6 +253,8 @@ async function failurePaths(report) {
   await cleanStorage();
   const id = 's_loading_paths';
   await saveSession(seedSession(id));
+  const otherId = 's_loading_focus_other';
+  await saveSession(seedSession(otherId));
   const frame = await loadFrame(900, 800);
   const win = frame.contentWindow;
   const doc = frame.contentDocument;
@@ -320,8 +322,8 @@ async function failurePaths(report) {
       && !$('library-rows').hasAttribute('aria-busy'));
     check('leaving the interview mid-turn clears aria-busy and the skeleton',
       $('question-card').getAttribute('aria-busy') === null && $('asking').hidden, describe());
-    const choose = (label) => {
-      const row = $('library-rows').querySelector(`[data-session-id="${id}"]`);
+    const choose = (label, sessionId = id) => {
+      const row = $('library-rows').querySelector(`[data-session-id="${sessionId}"]`);
       const more = row.querySelector('.idea-more');
       more.focus();
       more.click();
@@ -343,14 +345,31 @@ async function failurePaths(report) {
     await until(() => !editor.isConnected);
     check('a requested metadata save can finish without trapping the user in its waiting dialog',
       !editor.isConnected && (await loadSession(id)).name !== 'Edited during a model request');
+    const put = win.IDBObjectStore.prototype.put;
+    win.IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'sessions' && args[0].id === otherId) {
+        throw new win.DOMException('Scripted other-idea archive failure', 'QuotaExceededError');
+      }
+      return put.apply(this, args);
+    };
+    choose('Archive', otherId);
+    await until(() => /Scripted other-idea archive failure/.test($('err').textContent));
+    win.IDBObjectStore.prototype.put = put;
+    const otherMore = $('library-rows').querySelector(`[data-session-id="${otherId}"] .idea-more`);
+    otherMore.focus();
     call.answer(turnJson(NEXT[0]));
     await until(async () => (await loadSession(id)).name === 'Edited during a model request'
-      && !editor.isConnected);
+      && !otherMore.isConnected);
     const edited = await loadSession(id);
     check('the settled model result and queued name/tags survive together for the same idea',
       edited.name === 'Edited during a model request' && edited.tags.join('|') === 'pending|preserved'
-        && edited.turns.at(-1).question === NEXT[0].question
-        && doc.activeElement.closest('.idea-card')?.dataset.sessionId === id, describe());
+        && edited.turns.at(-1).question === NEXT[0].question, describe());
+    check('a late saved edit preserves newer focus on another idea’s More action',
+      doc.activeElement.closest('.idea-card')?.dataset.sessionId === otherId
+        && doc.activeElement.classList.contains('idea-more'),
+      `${doc.activeElement.tagName}.${doc.activeElement.className}`);
+    check('a late saved edit does not erase another idea’s newer operation error',
+      !$('err-toast').hidden && /Scripted other-idea archive failure/.test($('err').textContent));
     check('…and the turn settling off-screen does not put them back',
       $('question-card').getAttribute('aria-busy') === null && $('asking').hidden, describe());
     const card = $('library-rows').querySelector(`[data-session-id="${id}"]`);
@@ -369,6 +388,8 @@ async function failurePaths(report) {
     await settle(40);
     check('Archive waits for the originating model work rather than writing its older snapshot',
       !(await loadSession(id)).archivedAt, describe());
+    const otherOpen = $('library-rows').querySelector(`[data-session-id="${otherId}"] .idea-open`);
+    otherOpen.focus();
     call.answer(turnJson(NEXT[2]));
     await until(async () => (await loadSession(id)).archivedAt > 0);
     const archived = await loadSession(id);
@@ -377,6 +398,10 @@ async function failurePaths(report) {
         && archived.name === 'Edited during a model request'
         && archived.tags.join('|') === 'pending|preserved', describe());
     await until(() => $('library-rows').querySelector(`[data-session-id="${id}"] .idea-status.archived`));
+    check('a late archive preserves newer focus on another idea’s primary action',
+      !otherOpen.isConnected && doc.activeElement.closest('.idea-card')?.dataset.sessionId === otherId
+        && doc.activeElement.classList.contains('idea-open'),
+      `${doc.activeElement.tagName}.${doc.activeElement.className}`);
     choose('Restore');
     await until(async () => !(await loadSession(id)).archivedAt);
     await until(() => $('library-rows').querySelector(`[data-session-id="${id}"] .idea-status.active`));

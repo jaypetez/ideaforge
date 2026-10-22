@@ -149,7 +149,7 @@ export function createLibraryView({
         else focusIdea(session.id, index, previous);
       } catch (failure) {
         error.textContent = `Details could not be saved. Try again: ${failure.message}`;
-        onError(failure);
+        if (!dialog.open) onError(failure);
       } finally {
         save.disabled = false;
         cancel.textContent = 'Cancel';
@@ -455,6 +455,15 @@ export function createLibraryView({
   }
 
   function renderRows() {
+    const focused = document.activeElement;
+    const owner = focused?.closest('.idea-card, .library-detail');
+    const rememberedFocus = owner && panel.contains(owner) ? {
+      id: owner.dataset.sessionId,
+      detail: owner === detail,
+      selector: focused.matches('.idea-more') || focused.closest('[popover]')
+        ? '.idea-more' : focused.matches('.library-detail-title')
+          ? '.library-detail-title' : '.idea-actions > button:first-child',
+    } : null;
     const shown = shownSessions();
     filterSummary.textContent = `${status.selectedOptions[0].textContent} · ${tag.value || 'All tags'}`;
     clearFilters.hidden = !search.value && status.value === 'all' && !tag.value;
@@ -479,6 +488,15 @@ export function createLibraryView({
     zero.hidden = !none;
     empty.hidden = none || shown.length !== 0;
     syncSelection();
+    // A redraw must not turn another idea's focus into permission for a late save to take it.
+    if (rememberedFocus && !focused.isConnected
+      && document.activeElement === document.body && !panel.hidden) {
+      const nextOwner = rememberedFocus.detail
+        ? detail.dataset.sessionId === rememberedFocus.id ? detail : null
+        : [...rows.querySelectorAll('.idea-card')]
+          .find((row) => row.dataset.sessionId === rememberedFocus.id);
+      nextOwner?.querySelector(rememberedFocus.selector)?.focus();
+    }
   }
 
   // Placeholder cards while IndexedDB answers. They are decoration, so they are hidden from

@@ -653,7 +653,8 @@ export default async function run(check) {
   $2('b-library-retry').click();
   await settle(400);
   check('the next successful read shows the stored ideas',
-    Boolean($2('library-rows').querySelector('[data-session-id="s_kept"]')) && !shown2('library-zero'));
+    Boolean($2('library-rows').querySelector('[data-session-id="s_kept"]'))
+      && !shown2('library-zero') && $2('err-toast').hidden);
   await deleteSession('s_kept');
   second.remove();
 }

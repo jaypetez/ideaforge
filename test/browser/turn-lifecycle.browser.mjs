@@ -473,11 +473,15 @@ export default async function run(check) {
     if (!(await expect(app, check, 'the deletable interview has a held model request',
       () => app.model.calls.length === 1))) return;
     if (!(await openLibrary(app, check, 'the pending interview can be found in the library'))) return;
-    app.win.confirm = () => true;
     const card = app.$('library-rows').querySelector(`[data-session-id="${old.id}"]`);
+    card.querySelector('.idea-more').focus();
+    card.querySelector('.idea-more').click();
     const remove = card && [...card.querySelectorAll('button')]
       .find((button) => button.textContent === 'Delete');
     const deletion = click(app, remove);
+    if (!(await expect(app, check, 'Delete awaits its native confirmation while keeping the pending idea',
+      async () => app.win.document.querySelector('dialog[open]') && Boolean(await loadSession(old.id))))) return;
+    app.win.document.querySelector('dialog [value="confirm"]').click();
     if (!(await expect(app, check, 'Delete removes the pending interview before the result arrives',
       async () => deletion.done && await loadSession(old.id) === null))) return;
     const active = await newIdea(app, check);

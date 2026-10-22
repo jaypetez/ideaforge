@@ -2805,7 +2805,6 @@ async function editLibrarySession(session, { name, tags }) {
   updated = setSessionTags(updated, tags, changedAt);
   await saveSession(updated);
   if (state.session && state.session.id === updated.id) state.session = updated;
-  fail(null);
   say('Idea details saved.');
   await refreshLibrary();
 }
@@ -2922,7 +2921,10 @@ function setupLibrary() {
     onImport: importLibraryBackup,
     onError: fail,
     onNew: () => openStart(),
-    onRetry: refreshLibrary,
+    onRetry: () => {
+      fail(null);
+      return refreshLibrary();
+    },
   });
 }
 
