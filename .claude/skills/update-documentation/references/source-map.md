@@ -218,6 +218,12 @@ source wins over prose, and a generated artifact wins over a description of that
   service/hosted/capture tests and actual `evidence=voice` manifests/PNGs. Native completion
   maps to Result; static scripted phases never certify physical recognition, hosted
   quality, Android permission prompts or #89.
+  `UxCaptureRecorder` and `UxEvidence` additionally own bounded isolated-fixture SystemUI
+  pixel readiness: both clock and status clusters must paint the requested contrasting
+  ink alongside two consecutive app-root samples. Requested appearance flags and window
+  PixelCopy remain diagnostics, not glyph evidence. `UxSystemBarsTest` uses the unmodified
+  original full-display PNGs and their adjacent provenance to reject #287's stale light
+  glyphs without changing the production theme, capture inventory or deadline.
 - **Web Settings and safe recovery.** Sources:
   [`index.html`](../../../../index.html) and
   [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state

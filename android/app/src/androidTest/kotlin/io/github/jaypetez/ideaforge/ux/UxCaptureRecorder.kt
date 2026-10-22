@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.SystemClock
 import android.view.WindowInsets
+import androidx.core.view.WindowCompat
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -275,6 +276,7 @@ internal class UxCaptureRecorder(
                     it.rootSurfaceRgb?.let { rgb -> put("expectedRootSurfaceRgb", "#%06X".format(rgb and 0x00FFFFFF)) }
                     put("rootSurfaceMatches", it.rootSurfaceMatches)
                     put("sampledPixels", it.sampledPixels)
+                    it.statusBar?.let { bar -> put("statusBar", statusBarJson(bar)) }
                 })
             }
             put("artifact", relative)
@@ -352,6 +354,13 @@ internal class UxCaptureRecorder(
                 "isolated fixture has no committed root rendering context"
             } else activity
             val expected = expectedRootSurface(configuration, context, rootSurfaceRole)
+            val view = activity.window.decorView
+            val origin = IntArray(2).also(view::getLocationOnScreen)
+            val statusBounds = if (activity is UxFixtureActivity) {
+                val top = checkNotNull(view.rootWindowInsets).getInsets(WindowInsets.Type.statusBars()).top
+                UxBounds(origin[0].toFloat(), origin[1].toFloat(), (origin[0] + view.width).toFloat(), (origin[1] + top).toFloat())
+            } else null
+            val lightAppearance = WindowCompat.getInsetsController(activity.window, view).isAppearanceLightStatusBars
             val bitmap = checkNotNull(automation.takeScreenshot()) { "device returned no screenshot" }
             val attemptPath = if (attempts == null) relative else relative.removeSuffix(".png") + "-root-attempt-${++attempt}.png"
             var pixelSource = "UiAutomation display"
@@ -360,7 +369,11 @@ internal class UxCaptureRecorder(
                 check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "cannot create ${file.parent}" }
                 file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "could not encode $attemptPath" } }
                 latestFile = file
-                val pixels = UxEvidence.requireRendered(bitmap, safe, expected)
+                val pixels = UxEvidence.requireRendered(bitmap, safe, expected).copy(
+                    statusBar = statusBounds?.let {
+                        UxEvidence.statusBarPixels(bitmap, it, expected, darkInk = configuration.theme == "light")
+                    },
+                )
                 val windowPixels = if (attempts != null) {
                     pixelSource = "Compose window PixelCopy"
                     val roots = compose.onAllNodes(isRoot())
@@ -388,6 +401,14 @@ internal class UxCaptureRecorder(
                     put("sampledPixels", pixels.sampledPixels)
                     put("meanLuma", pixels.meanLuma)
                     put("rootIdentityPassed", runCatching { UxEvidence.requireTheme(configuration.theme, pixels) }.isSuccess)
+                    pixels.statusBar?.let {
+                        put("statusBar", statusBarJson(it))
+                        put("statusBarBoundsPx", bounds(checkNotNull(statusBounds)))
+                        put("statusBarPaintPassed", runCatching { UxEvidence.requireStatusBar(it) }.isSuccess)
+                        // Requested flags are diagnostic, never a substitute for SystemUI pixels.
+                        put("lightStatusBarAppearanceRequested", lightAppearance)
+                        put("windowHasFocus", view.hasWindowFocus())
+                    }
                     windowPixels?.let {
                         put("windowCopyRootMatches", it.rootSurfaceMatches)
                         put("windowCopySampledPixels", it.sampledPixels)
@@ -410,13 +431,24 @@ internal class UxCaptureRecorder(
                 bitmap.recycle()
             }
         }
-        if (attempts == null) return sample()
+        if (attempts == null) return sample().also { it.statusBar?.let(UxEvidence::requireStatusBar) }
         try {
             return UxEvidence.requireStableTheme(configuration.theme, deadline, SystemClock::uptimeMillis, ::sample)
         } finally {
             // A failed run still keeps its last diagnostic frame and every earlier attempt.
             latestFile?.copyTo(File(output, relative), overwrite = true)
         }
+    }
+
+    private fun statusBarJson(pixels: UxStatusBarPixels) = buildJsonObject {
+        put("source", "UiAutomation display pixels in actual status-bar inset; isolated fixture only, not app-window PixelCopy")
+        put("darkInk", pixels.darkInk)
+        put("minimumContrast", 4.5)
+        put("clockInkPixels", pixels.clockInkPixels)
+        put("statusInkPixels", pixels.statusInkPixels)
+        put("minimumInkPixelsPerCluster", pixels.minimumInkPixels)
+        put("backgroundMatches", pixels.backgroundMatches)
+        put("sampledPixels", pixels.sampledPixels)
     }
 
     private fun expectedRootSurface(configuration: UxConfiguration, context: Context, role: String = "background"): Int {

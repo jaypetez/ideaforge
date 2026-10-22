@@ -1,0 +1,35 @@
+{
+  "kind": "Unmodified full-display original UiAutomation PNGs; API 34 standard AOSP pixel6Api34Visual, actual 640x400dp, density 240dpi, font scale 2.0. Not phone evidence or screenshot goldens.",
+  "pathWithinArtifact": "intermediates/managed_device_android_test_additional_output/debugAndroidTest/pixel6Api34VisualDebugAndroidTest/ux/compact-landscape-{theme}-f2_0/isolated-component/voice-blocked.png",
+  "statusBarBoundsPx": [0, 0, 960, 36],
+  "safeAppBoundsPx": [0, 36, 960, 528],
+  "images": {
+    "stale-light.png": {
+      "sourceSha": "fef40f670cc0b9dfd5ed7379822ca82698ca89d2",
+      "run": 39006776907,
+      "artifact": 12092085582,
+      "sha256": "9cd056bbd22ecdb976b21d3499fc7d2da9cce317acc0a1d7085691bfb8595325",
+      "theme": "light",
+      "rootRgb": "#FAF9FD",
+      "artifactUrl": "https://github.com/jaypetez/ideaforge/actions/runs/39006776907/artifacts/12092085582"
+    },
+    "settled-light.png": {
+      "sourceSha": "f99b94ec62216f6acdbdea528d0ca6c4b6e0c280",
+      "run": 39002003280,
+      "artifact": 12090215933,
+      "sha256": "255bdcd9596781ed5ff11179858e8515d1196873b2b4301e8b420e433385df49",
+      "theme": "light",
+      "rootRgb": "#FAF9FD",
+      "artifactUrl": "https://github.com/jaypetez/ideaforge/actions/runs/39002003280/artifacts/12090215933"
+    },
+    "settled-dark.png": {
+      "sourceSha": "fef40f670cc0b9dfd5ed7379822ca82698ca89d2",
+      "run": 39006776907,
+      "artifact": 12092085582,
+      "sha256": "b1f09ab7a2fc22ede832cb02e9219f6789c0ab1723eccfbfce5920150a63dc9c",
+      "theme": "dark",
+      "rootRgb": "#121316",
+      "artifactUrl": "https://github.com/jaypetez/ideaforge/actions/runs/39006776907/artifacts/12092085582"
+    }
+  }
+}

@@ -1070,6 +1070,15 @@ manifest attempts, not passes. The isolated fixture records its actual rendering
 the oracle remains the requested theme's factory background, never a self-reported
 rendered colour. Window PixelCopy is additional diagnostic evidence, not a substitute
 for the saved display pixels.
+For isolated fixtures, the same consecutive samples also require actual status-bar
+background and correctly directed glyph ink at 4.5:1 contrast, measured separately in
+the clock and status-icon clusters of the real status-bar inset. App-root readiness
+cannot prove SystemUI has painted a theme transition. Low-contrast attempts retain
+their original display PNGs and pixel counts; window appearance flags are diagnostic
+only. The capture budget is unchanged, with no fixed extra sleep or production theme
+override. `UxSystemBarsTest` replays unmodified full-display originals from #287,
+including the low-contrast light frame that the previous root-only check accepted;
+their source/artifact/digest provenance lives beside the test-only PNGs.
 
 The board checks actual controls, minimum targets and full painted labels through
 scrolling; base frames include disabled/busy/selected/destructive/error states and native
