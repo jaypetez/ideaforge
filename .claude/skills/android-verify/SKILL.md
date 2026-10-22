@@ -237,6 +237,14 @@ These are known and handled; do not "fix" them by loosening a test.
   paths and finds none on a Windows host. `ResultActions.contentUri` is a seam that
   `ResultScreenTest` swaps only when a probe through the real provider fails, and it
   requires the real provider off Windows.
+- **Preferences DataStore replacement.** In plain Windows JVM tests, DataStore's fallback
+  `.preferences_pb.tmp` rename cannot replace an existing preferences file. Provider/address
+  changes can write a withdrawal before `InferenceConsent.accept` writes the new grant.
+  Multi-write behavior tests use the existing `SettingsViewModelTest.Process.memoryPrefs`
+  fixture, keeping the real `PrefsStore`, consent policy and on-disk keyring. Keep
+  process-death/persistence tests on real files, and retain `PrefsStoreTest`'s explicit
+  Windows assumption for corrupt-file write-back (which Linux CI exercises). Never swallow
+  a storage failure or assume consent to make a behavior test pass.
 - A Gradle daemon can keep files under `build/` open. `./gradlew --stop` before deleting a
   worktree.
 

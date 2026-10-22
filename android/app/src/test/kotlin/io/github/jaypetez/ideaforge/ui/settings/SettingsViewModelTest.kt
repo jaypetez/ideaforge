@@ -56,16 +56,8 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 
 /**
- * SettingsViewModel against a real PrefsStore (DataStore on disk) and a real KeyringStore
- * (AES-GCM under a software key). "Process death" is the ViewModel cleared and the DataStore
- * shut down, then both opened again over the same files.
- *
- * One preference write per prefs file: DataStore replaces its file by rename, which a Windows
- * JVM refuses over an existing file (see PrefsStoreTest). Android does not.
- */
-/**
- * Preferences in memory, for tests that need more than one write: a Windows JVM refuses the
- * second write to a real DataStore file (see the class comment below).
+ * Preferences in memory, for tests that need more than one write: the plain Windows JVM
+ * fixture refuses DataStore's second rename over an existing file (see the class below).
  */
 class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
     private val state = MutableStateFlow(initial)
@@ -88,6 +80,15 @@ class FlakyKey(val inner: SoftwareKey = SoftwareKey()) : KeyringKey by inner {
     }
 }
 
+/**
+ * Real PrefsStore and KeyringStore (AES-GCM under a software key). Preferences use DataStore
+ * on disk by default: "process death" clears the ViewModel and shuts down DataStore, then
+ * opens both again over the same files.
+ *
+ * Multi-write behavior tests use Process.memoryPrefs: provider/address changes withdraw an
+ * old grant before acceptance writes a new one, and DataStore's rename over an existing file
+ * fails on the plain Windows JVM host (see PrefsStoreTest). Persistence tests keep real files.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     @get:Rule
@@ -430,7 +431,7 @@ class SettingsViewModelTest {
     // check nor the saved record may carry an address for a hosted provider.
     @Test
     fun aHostedProviderNeverSavesOrSendsAnAddress() {
-        val p = Process(prefsFile("hosted"))
+        val p = Process(prefsFile("hosted"), memoryPrefs = emptyPreferences())
         p.loaded()
         p.vm.pickProvider("openai")
         assertTrue("the preset's address sits in the form", p.settle { it.editor?.choice?.id == "openai" }.editor!!.baseUrl.isNotEmpty())
@@ -439,6 +440,7 @@ class SettingsViewModelTest {
         p.vm.setWrapModel("gpt-wrap")
         p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
+        assertTrue("the explicit agreement was stored", runBlocking { p.prefs.inferenceCurrent() }.inferenceGrant.isNotEmpty())
         assertNull("the check got no address", p.check.calls.single().second.baseUrl)
         val rec = credsFor(p.keyring.state.value.ring, "openai")
         assertEquals("", stringOf(rec["baseUrl"]))
@@ -451,7 +453,7 @@ class SettingsViewModelTest {
     // never gains a key, and needs a model before it can be saved at all.
     @Test
     fun aLocalServerSavesItsAddressAndModelsAndNoKey() {
-        val p = Process(prefsFile("local"))
+        val p = Process(prefsFile("local"), memoryPrefs = emptyPreferences())
         p.loaded()
         p.vm.pickProvider("ollama")
         p.vm.setBaseUrl("http://10.0.2.2:11434/v1")
@@ -460,6 +462,7 @@ class SettingsViewModelTest {
         p.vm.setModel("qwen2.5:7b-instruct")
         p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
+        assertTrue("the explicit agreement was stored", runBlocking { p.prefs.inferenceCurrent() }.inferenceGrant.isNotEmpty())
         assertTrue("a local save makes no network call", p.check.calls.isEmpty())
         assertEquals("http://10.0.2.2:11434/v1", p.built.single().baseUrl)
         val rec = credsFor(p.keyring.state.value.ring, "ollama")
