@@ -281,6 +281,9 @@ Clean-tree/SHA checks bracket captures, and uploads retain `if-no-files-found: e
 Read back complete manifests and inspect original PNGs; the execution guard is not visual
 acceptance. Start a run with `gh workflow run android-device.yml`; focused routes are not
 default/full proof.
+Default/full has a measured 60-minute overall job budget after a complete compact matrix
+took over 21 minutes and the expanded task hit the former shared cap. Focused routes retain
+40 minutes; capture/test deadlines, requested inventories and evidence checks are unchanged.
 
 ## 8. Report
 

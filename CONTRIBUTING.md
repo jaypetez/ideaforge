@@ -312,6 +312,9 @@ with `python test\android-device-results.test.py`. The workflow also checks the 
 checkout SHA before and after captures. Complete requested manifests and inspected original
 PNGs in `android-ux-evidence-<SHA>` are still required; a nonzero test count alone is not
 acceptance.
+Default/full has a bounded 60-minute overall job budget: a verified complete compact run
+took over 21 minutes and left too little of the old budget for expanded evidence.
+Focused routes retain 40 minutes, and per-capture/test deadlines are unchanged.
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected

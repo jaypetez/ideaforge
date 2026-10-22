@@ -895,6 +895,10 @@ with `tools/check-android-device-results.py`, rejecting zero tests, wrong method
 failed/skipped runs before accepting evidence. The workflow verifies a clean unchanged
 checkout SHA around capture. This execution guard complements, not replaces, the recorder's
 complete expected inventory and the required inspection of original PNGs.
+The measured default/full workload has a 60-minute overall job budget; focused routes keep
+40 minutes. A complete compact matrix alone took over 21 minutes before the expanded task
+hit the former shared cap. This changes no requested frames, recorder checks or individual
+capture/test deadlines.
 
 #### Complete native makeover acceptance
 

@@ -284,6 +284,8 @@ source wins over prose, and a generated artifact wins over a description of that
   own the post-Gradle selected-test XML guard and its zero-discovery, wrong-method,
   failure/skip regressions. Re-check contributor/Android-skill commands and DESIGN against
   those owners; actual test execution does not replace complete manifests and inspected PNGs.
+  The workflow's measured overall budget is 60 minutes for full/default (including absent
+  push/nightly inputs), 40 for focused routes, without changing capture/test deadlines.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled

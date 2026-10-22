@@ -711,6 +711,11 @@ test('the device workflow runs the declared managed device, on demand, outside t
 
 test('default native UX dispatch selects the full method without an empty shell argument', () => {
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const budget = workflow.match(/timeout-minutes: \$\{\{ \(inputs\.evidence == 'full' \|\| !inputs\.evidence\) && (\d+) \|\| (\d+) }}/);
+  assert.ok(budget, 'full and absent push/nightly inputs need the same measured overall budget, without extending focused routes');
+  const contributor = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+  assert.ok(contributor.includes(`${budget[1]}-minute overall job budget`), 'full budget guidance drifted');
+  assert.ok(contributor.includes(`Focused routes retain ${budget[2]} minutes`), 'focused budget guidance drifted');
   for (const name of ['Compact native UX evidence', 'Expanded native UX evidence']) {
     const step = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
     assert.ok(step, `missing ${name}`);

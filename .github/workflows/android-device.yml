@@ -33,7 +33,9 @@ jobs:
   walkthrough:
     name: walkthrough
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # A complete compact full run took 21m29s; the second window hit the old 40m job cap.
+    # Budget both full matrices without changing capture deadlines or focused-route limits.
+    timeout-minutes: ${{ (inputs.evidence == 'full' || !inputs.evidence) && 60 || 40 }}
     defaults:
       run:
         working-directory: android
