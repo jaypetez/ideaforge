@@ -536,40 +536,42 @@
     <div class="section-head">
       <div>
         <h2 tabindex="-1">Your ideas</h2>
-        <p class="hint">
-          Stored on this device. Back up in Settings before clearing site data or moving phones.
-        </p>
+        <p class="hint">Saved on this device. Back up in Settings.</p>
       </div>
-      <button type="button" class="ghost small" id="b-library-new">New idea</button>
+      <button type="button" id="b-library-new" data-icon="add">New idea</button>
     </div>
 
     <div class="library-tools">
       <div class="field">
-        <label for="library-search">Search conversations</label>
+        <label class="sr-only" for="library-search">Search conversations</label>
         <input id="library-search" type="search"
-               placeholder="name, tag, question, answer or prompt">
+               placeholder="Search conversations">
       </div>
-      <div class="library-filters">
-        <div class="field">
-          <label for="library-status">Status</label>
-          <select id="library-status">
-            <option value="all">All ideas</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
-          </select>
+      <details class="library-filter-options">
+        <summary>Filters: <span id="library-filter-summary">All ideas · All tags</span></summary>
+        <div class="library-filters">
+          <div class="field">
+            <label for="library-status">Status</label>
+            <select id="library-status">
+              <option value="all">All ideas</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="library-tag">Tag</label>
+            <select id="library-tag">
+              <option value="">All tags</option>
+            </select>
+          </div>
         </div>
-        <div class="field">
-          <label for="library-tag">Tag</label>
-          <select id="library-tag">
-            <option value="">All tags</option>
-          </select>
-        </div>
-      </div>
+      </details>
     </div>
 
     <div class="library-summary">
-      <span class="hint" id="library-count">0 ideas</span>
+      <span class="hint" id="library-count" role="status">Loading ideas…</span>
+      <button type="button" class="quiet small" id="b-library-clear" hidden>Clear filters</button>
     </div>
     <div class="library-zero" id="library-zero" hidden>
       <h3>No ideas yet</h3>
@@ -580,10 +582,15 @@
       <button type="button" id="b-library-zero-new" data-icon="add">New idea</button>
     </div>
     <p class="hint library-empty" id="library-empty" hidden>No ideas match these filters.</p>
+    <div class="library-unavailable" id="library-unavailable" hidden>
+      <h3>Ideas unavailable</h3>
+      <p class="hint">Saved ideas could not be read. This does not mean they are gone.</p>
+      <button type="button" class="ghost" id="b-library-retry">Retry reading ideas</button>
+    </div>
     <div class="idea-list" id="library-rows"></div>
     <!--
       Desktop only (≥1024px): the selected idea beside the list — its title, status, primary
-      action, overflow menu and a rendered preview of its export. library.js fills it only
+      action, overflow menu and a state-aware preview. library.js fills it only
       while the wide query matches, so narrower screens have no second copy of any button.
     -->
     <div class="library-detail" id="library-detail" role="region" aria-label="Selected idea"></div>

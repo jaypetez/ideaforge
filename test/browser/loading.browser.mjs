@@ -20,7 +20,7 @@
 import { askQuestion, createSession } from '../../src/core/session.js';
 import { DIMENSION_IDS } from '../../src/core/dimensions.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
-import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
+import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { clearCredentials } from '../../src/store/secrets.js';
 import { acknowledgeInference } from './fixtures/inference.js';
 
@@ -315,11 +315,42 @@ async function failurePaths(report) {
     await settle(40);
     check('mid-turn, before leaving, the card is busy', cardState($).busy === 'true', describe());
     $('b-library').click();
-    await until(() => visible($('panel-library')));
+    await until(() => visible($('panel-library'))
+      && $('library-rows').querySelector(`[data-session-id="${id}"]`)
+      && !$('library-rows').hasAttribute('aria-busy'));
     check('leaving the interview mid-turn clears aria-busy and the skeleton',
       $('question-card').getAttribute('aria-busy') === null && $('asking').hidden, describe());
+    const choose = (label) => {
+      const row = $('library-rows').querySelector(`[data-session-id="${id}"]`);
+      const more = row.querySelector('.idea-more');
+      more.focus();
+      more.click();
+      [...row.querySelectorAll('[popover] button')].find((button) => button.textContent === label).click();
+    };
+    choose('Rename or tag');
+    const editor = await until(() => doc.querySelector('dialog.idea-editor'));
+    editor.querySelector('#idea-editor-name').value = 'Edited during a model request';
+    editor.querySelector('#idea-editor-tags').value = 'pending, preserved';
+    editor.querySelector('[type="submit"]').click();
+    await settle(40);
+    check('editing during a turn names the pending save and protects its submitted fields',
+      editor.open && editor.querySelector('form').getAttribute('aria-busy') === 'true'
+        && /Saving details/.test(editor.textContent)
+        && [...editor.querySelectorAll('input')].every((input) => input.disabled)
+        && (await loadSession(id)).name !== 'Edited during a model request', describe());
+    const close = [...editor.querySelectorAll('button')].find((button) => button.textContent === 'Close');
+    close.click();
+    await until(() => !editor.isConnected);
+    check('a requested metadata save can finish without trapping the user in its waiting dialog',
+      !editor.isConnected && (await loadSession(id)).name !== 'Edited during a model request');
     call.answer(turnJson(NEXT[0]));
-    await settle(150);
+    await until(async () => (await loadSession(id)).name === 'Edited during a model request'
+      && !editor.isConnected);
+    const edited = await loadSession(id);
+    check('the settled model result and queued name/tags survive together for the same idea',
+      edited.name === 'Edited during a model request' && edited.tags.join('|') === 'pending|preserved'
+        && edited.turns.at(-1).question === NEXT[0].question
+        && doc.activeElement.closest('.idea-card')?.dataset.sessionId === id, describe());
     check('…and the turn settling off-screen does not put them back',
       $('question-card').getAttribute('aria-busy') === null && $('asking').hidden, describe());
     const card = $('library-rows').querySelector(`[data-session-id="${id}"]`);
@@ -328,6 +359,29 @@ async function failurePaths(report) {
       && !$('answer').disabled);
     check('continuing shows the settled question, not a skeleton',
       !!back && cardState($).busy === null && !cardState($).skeleton, describe());
+
+    before = model.calls.length;
+    answer($, win, 'Archive this idea only after its current answer has settled.');
+    call = await nextCall(before);
+    $('b-library').click();
+    await until(() => visible($('panel-library')) && !$('library-rows').hasAttribute('aria-busy'));
+    choose('Archive');
+    await settle(40);
+    check('Archive waits for the originating model work rather than writing its older snapshot',
+      !(await loadSession(id)).archivedAt, describe());
+    call.answer(turnJson(NEXT[2]));
+    await until(async () => (await loadSession(id)).archivedAt > 0);
+    const archived = await loadSession(id);
+    check('archive during a turn preserves its settled question and edited metadata',
+      archived.archivedAt > 0 && archived.turns.at(-1).question === NEXT[2].question
+        && archived.name === 'Edited during a model request'
+        && archived.tags.join('|') === 'pending|preserved', describe());
+    await until(() => $('library-rows').querySelector(`[data-session-id="${id}"] .idea-status.archived`));
+    choose('Restore');
+    await until(async () => !(await loadSession(id)).archivedAt);
+    await until(() => $('library-rows').querySelector(`[data-session-id="${id}"] .idea-status.active`));
+    $('library-rows').querySelector(`[data-session-id="${id}"] .idea-open`).click();
+    await until(() => visible($('manual-interview')) && !$('answer').disabled);
 
     // ── the write-up: success ───────────────────────────────────────────────
     before = model.calls.length;
@@ -341,10 +395,12 @@ async function failurePaths(report) {
     check('…whose bars are hidden from assistive technology',
       $('output').querySelector('.output-skeleton').getAttribute('aria-hidden') === 'true');
     call.answer({ title: 'Name keeper', prompt: '## Task\nBuild the name keeper.', assumptions: [], openQuestions: [] });
-    const drawn = await until(() => $('done-title').textContent === 'Name keeper' && $('output').dataset.source);
+    const drawn = await until(() => $('done-title').textContent === 'Edited during a model request'
+      && $('output').dataset.source);
     check('the drawn document replaces the skeleton and clears aria-busy',
       !!drawn && outputState().busy === null && !outputState().skeleton
-        && /Build the name keeper/.test($('output').textContent), describe());
+        && /Build the name keeper/.test($('output').textContent)
+        && (await loadSession(id)).title === 'Name keeper', describe());
 
     // ── the write-up: failure ───────────────────────────────────────────────
     // Back into the interview through the library, so this never presses a Done button.
@@ -440,9 +496,49 @@ async function failedFirstRead(report) {
   }
 }
 
+async function deletePendingWork(report) {
+  await cleanStorage();
+  const id = 's_delete_pending';
+  await saveSession(seedSession(id));
+  await saveSession(seedSession('s_delete_keep'));
+  const frame = await loadFrame(900, 800);
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  const $ = (key) => doc.getElementById(key);
+  const model = heldModel();
+  win.claude = model.claude;
+  const errors = [];
+  win.addEventListener('unhandledrejection', (event) => errors.push(String(event.reason)));
+  try {
+    if (!(await openSeeded(win, $, id, report, () => $('err').textContent))) return;
+    answer($, win, 'Keep my pending answer attached to this idea.');
+    const pending = await until(() => model.calls[0]);
+    $('b-library').click();
+    await until(() => visible($('panel-library')) && !$('library-rows').hasAttribute('aria-busy'));
+    const row = $('library-rows').querySelector(`[data-session-id="${id}"]`);
+    row.querySelector('.idea-more').click();
+    [...row.querySelectorAll('[popover] button')].find((button) => button.textContent === 'Delete').click();
+    await until(() => doc.querySelector('dialog[open]'));
+    report('pending work is not deleted before the native confirmation resolves',
+      Boolean(await loadSession(id)));
+    doc.querySelector('dialog [value="confirm"]').click();
+    await until(async () => (await loadSession(id)) === null);
+    pending.answer(turnJson(NEXT[2]));
+    await settle(200);
+    report('confirmed Delete cannot be undone by a late model result and keeps other ideas',
+      (await loadSession(id)) === null && Boolean(await loadSession('s_delete_keep'))
+        && !$('library-rows').querySelector(`[data-session-id="${id}"]`));
+    report('retiring pending deleted work leaves no uncaught rejection', errors.length === 0, errors.join('\n'));
+  } finally {
+    frame.remove();
+    await cleanStorage();
+  }
+}
+
 export default async function run(report) {
   await layoutShift(760, 900, report);
   await layoutShift(360, 640, report);
   await failurePaths(report);
   await failedFirstRead(report);
+  await deletePendingWork(report);
 }

@@ -855,17 +855,35 @@ button[aria-busy="true"] {
 .section-head h2 {
   margin: 0 0 var(--s1); font-size: var(--t-2xl); font-weight: 600; letter-spacing: -.03em;
 }
-.library-tools { display: flex; flex-direction: column; gap: var(--s3); }
+#panel-library { display: flex; flex-direction: column; gap: var(--s2); }
+#panel-library .section-head { align-items: center; gap: var(--s2); }
+#panel-library .section-head > div { flex: 1 1 12rem; }
+#panel-library .section-head .hint { margin: 0; }
+#b-library-new { flex: 0 0 auto; }
+.library-tools { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.library-filter-options > summary {
+  min-height: var(--control-height); padding-block: var(--s3);
+  font-size: var(--t-sm); color: var(--on-surface-variant); cursor: pointer;
+}
 .library-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
-.idea-list { display: flex; flex-direction: column; gap: var(--s4); }
+.library-summary { align-items: center; gap: var(--s1); min-height: var(--s5); }
+.library-summary .hint { margin: 0; }
+.idea-list { display: flex; flex-direction: column; }
 .idea-card {
-  display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); min-width: 0;
-  background: var(--surface-container-lowest); border: 1px solid transparent;
-  border-block-end-color: var(--outline-variant); border-radius: var(--r-md);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start;
+  gap: var(--s2); padding: var(--s2); min-width: 0;
+  background: transparent; border: 1px solid transparent;
+  border-block-end-color: var(--outline-variant); border-radius: 0;
   box-shadow: var(--elev-0);
   transition: border-color var(--dur-short3) var(--ease-standard);
 }
 .idea-card:hover, .idea-card:focus-within { border-color: var(--outline); }
+.idea-summary { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.idea-card .idea-actions { flex-direction: column; align-items: flex-end; gap: 0; }
+.idea-card .idea-open { min-height: var(--control-height); padding-inline: var(--s2); }
+.idea-card .idea-more { margin: 0; }
+.idea-card .idea-meta { line-height: var(--type-meta-line); }
+.idea-card .idea-tags > span { line-height: var(--type-meta-line); }
 .idea-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
 .idea-head h3 {
   margin: 0; min-width: 0; font-size: var(--t-lg); font-weight: 600;
@@ -880,7 +898,7 @@ button[aria-busy="true"] {
 .idea-meta { margin: 0; color: var(--ink-dim); font-size: var(--t-sm); }
 .idea-tags { display: flex; flex-wrap: wrap; gap: var(--s1); }
 .idea-tags:empty { display: none; }
-.idea-tags span {
+.idea-tags > span {
   padding: 3px var(--s2); border-radius: var(--r-pill); background: var(--surface-2);
   color: var(--ink-dim); font-size: var(--t-xs); max-width: 100%;
 }
@@ -950,7 +968,13 @@ button[aria-busy="true"] {
   display: none;
 }
 /* A failed first read knows no count to show. */
-#panel-library[data-library-state="unavailable"] .library-summary { display: none; }
+#panel-library[data-library-state="unavailable"] :is(.library-summary, .library-tools) { display: none; }
+.library-unavailable {
+  padding: var(--s4); border-inline-start: var(--s1) solid var(--error);
+  background: var(--surface-container-lowest);
+}
+.library-unavailable h3 { margin: 0; font-size: var(--type-title-size); }
+.library-unavailable .hint { margin-block: var(--s2) var(--s3); }
 .library-zero {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
   padding: var(--s6) var(--s5); border: 1px dashed var(--outline); border-radius: var(--r-md);
@@ -966,8 +990,8 @@ button[aria-busy="true"] {
 /* Loading placeholders, the shape of a card. The shimmer is a duration token, so reduced
    motion stops it along with everything else. */
 .idea-skeleton {
-  display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5);
-  background: var(--surface-container-lowest); border: 0; border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s2);
+  background: transparent; border-block-end: 1px solid var(--outline-variant);
 }
 .idea-skeleton span {
   display: block; height: var(--s4); border-radius: var(--r-pill);
@@ -989,10 +1013,8 @@ button[aria-busy="true"] {
 }
 @keyframes skeleton-pulse { to { opacity: .45; } }
 
-.idea-edit { border-top: 1px solid var(--line); padding-top: var(--s3); }
-.idea-edit summary { cursor: pointer; color: var(--accent); font-size: var(--t-sm); font-weight: 600; }
-.idea-edit[open] { display: grid; gap: var(--s2); }
-.idea-edit[open] summary { margin-bottom: var(--s1); }
+.idea-editor form { display: flex; flex-direction: column; gap: var(--s4); }
+.idea-editor .field-error { margin: 0; }
 .callout, .backup-warning {
   margin: 0; padding: var(--s3) var(--s4);
   border: 0; border-inline-start: var(--s1) solid var(--outline);
@@ -1038,16 +1060,15 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
 /* 1024px and wider uses the width instead of one 720px column, per panel: Ideas is a list
    beside the selected idea, and Settings is an index beside its groups. (Interview's
    coverage side panel is above, with its own 1120px.) Below 1024px none of this exists:
-   the pane, the index and the cards' Details buttons are display:none, and library.js leaves
-   the pane empty and marks no card there. (The hidden Details buttons, and their aria-pressed,
-   are still in each card's DOM.)
+   the pane and index are display:none. The row action becomes Continue/View result,
+   and library.js leaves the pane empty and marks no row there.
 
    .wrap keeps its class and its 72px bottom padding; only max-width changes, per panel.
    Both grids use the coverage panel's recipe: the side column spans every row down to a
    trailing 1fr row (which absorbs its extra height instead of opening holes between the
    rows beside it), and spacing is margins, because a row gap would be paid for every
    empty row too. */
-.library-detail, .settings-index, .idea-select { display: none; }
+.library-detail, .settings-index { display: none; }
 @media (min-width: 1024px) {
   body[data-panel="library"] .wrap { max-width: var(--width-work); }
   body[data-panel="setup"]:has(#panel-setup[data-view="settings"]) .wrap { max-width: var(--width-settings); }
@@ -1057,7 +1078,7 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) {
     /* Enlarged rems must not consume the detail pane's post-rail workspace. */
     display: grid; grid-template-columns: minmax(0, min(26rem, 40%)) minmax(0, 1fr);
-    grid-template-rows: repeat(6, auto) 1fr; column-gap: var(--s6); row-gap: 0;
+    grid-template-rows: repeat(7, auto) 1fr; column-gap: var(--s5); row-gap: 0;
   }
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > * {
     grid-column: 1; min-width: 0;
@@ -1066,7 +1087,7 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
     grid-column: 1 / -1;
   }
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"])
-    > :not(.library-detail, #library-rows) { margin-block-end: var(--s4); }
+    > :not(.library-detail, #library-rows, [hidden]) { margin-block-end: var(--s3); }
   #panel-library:is([data-library-state="ready"], [data-library-state="loading"]) > .library-detail:not(:empty) {
     grid-column: 2; grid-row: 2 / -1; align-self: start;
     display: flex; flex-direction: column; gap: var(--s3);
@@ -1074,8 +1095,9 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
     /* Stuck, it must fit the viewport; the preview scrolls inside the pane, not the page. */
     max-height: calc(100dvh - var(--page-bottom) - max(var(--s4), env(safe-area-inset-top)));
     overflow-y: auto; overscroll-behavior: contain;
-    padding: var(--s5); border: 0; border-radius: var(--r-md);
-    background: var(--surface-container-lowest);
+    padding: 0 0 0 var(--s5); border: 0; border-inline-start: 1px solid var(--outline-variant);
+    border-radius: 0;
+    background: transparent;
   }
   /* An empty pane (loading, or filters matching nothing) is no card at all. The rule above
      is scoped to :not(:empty) because its id selector would otherwise outrank this one. */
@@ -1089,8 +1111,8 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
   /* The preview is the Done panel's rendering, one card inside another, so it drops the
      outer chrome and the 60dvh cap: the pane is the scroll container here. */
   .library-detail .library-preview {
-    margin-top: var(--s2); padding: var(--s5); max-height: none; overflow: visible;
-    box-shadow: none; background: var(--surface-container-low);
+    margin-top: var(--s2); padding: 0; max-height: none; overflow: visible;
+    border-radius: 0; box-shadow: none; background: transparent;
   }
   .library-detail .library-preview-empty { padding: var(--s4); }
   .library-preview-empty .hint { margin: 0; }
@@ -1101,9 +1123,9 @@ dialog h2 { font-size: var(--type-title-size); line-height: var(--type-title-lin
   .idea-card { cursor: pointer; }
   .idea-card :is(input, label, summary) { cursor: auto; }
   .idea-card summary { cursor: pointer; }
-  .idea-select { display: inline-flex; flex: none; }
   .idea-card[aria-current="true"] {
-    border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary);
+    background: var(--primary-container); border-inline-start-color: var(--primary);
+    box-shadow: inset var(--s1) 0 0 var(--primary);
   }
 
   /* The section index scrolls/focuses the shared fields, never location.hash. */
@@ -1268,12 +1290,12 @@ body:is([data-panel="done"], [data-panel="interview"]):not(.voice-active):has(#e
   padding-bottom: calc(var(--toast-err-max) + var(--s7) + env(safe-area-inset-bottom));
 }
 /* Setup keyboard focus must clear the persistent error as well as the phone navigation. */
-html:has(body[data-panel="setup"] #err-toast:not([hidden])) {
+html:has(body:is([data-panel="setup"], [data-panel="library"]) #err-toast:not([hidden])) {
   --setup-error-clearance: calc(var(--nav-bar-height, 0px) + var(--toast-err-max)
     + var(--s7) + env(safe-area-inset-bottom));
   scroll-padding-bottom: var(--setup-error-clearance);
 }
-body[data-panel="setup"]:has(#err-toast:not([hidden])) {
+body:is([data-panel="setup"], [data-panel="library"]):has(#err-toast:not([hidden])) {
   padding-bottom: var(--setup-error-clearance);
 }
 /* Two classes, to outrank button.quiet's padding. */
@@ -1472,11 +1494,11 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
 
 @media (max-width: 520px) {
   .wrap { gap: var(--s4); }
-  .install-card, .section-head, .library-summary { align-items: stretch; flex-direction: column; }
+  .install-card { align-items: stretch; flex-direction: column; }
   .library-filters { grid-template-columns: 1fr; }
-  .idea-actions > button:first-child { flex: 1 1 auto; }
+  .library-detail .idea-actions > button:first-child { flex: 1 1 auto; }
   .library-zero { padding: var(--s5) var(--s4); }
-  .group, .idea-card, .idea-skeleton, .install-card { padding: var(--s4); border-radius: var(--r-md); }
+  .group, .install-card { padding: var(--s4); border-radius: var(--r-md); }
   .output { padding: var(--s4); }
   .voice-stage { padding-inline: 0; }
 
@@ -1528,7 +1550,7 @@ body[data-panel="interview"]:has(#voice-stage:not([hidden])) .toasts {
   .toggle input { min-height: 0; }
   /* Padding rather than display:flex, which would drop the disclosure marker: one line of
      the summary's own text, centred in a control-height box. */
-  :is(.cov, .idea-edit) > summary {
+  .cov > summary {
     padding-block: calc((var(--control-height) - 1lh) / 2);
   }
 }
