@@ -1436,19 +1436,19 @@ class UxCaptureDeviceTest {
                             override fun cancel() {}
                             override fun shutdown() {}
                         }
-                        var serviceStarts = 0
+                        val serviceStarts = AtomicInteger()
                         graph.driveService = object : DriveServiceControl {
-                            override fun start() { serviceStarts++ }
+                            override fun start() { serviceStarts.incrementAndGet() }
                             override fun stop() {}
                         }
                         val session = checkNotNull(graph.sessionStore.get("ux-long-active"))
-                        compose.runOnUiThread {
-                            graph.driveController.start(session, "typed")
-                            graph.driveController.pause()
-                        }
+                        compose.runOnUiThread { graph.driveController.start(session, "typed") }
+                        // An immediate Pause may correctly retire Start before asynchronous consent admission.
+                        compose.waitUntil(DEVICE_TIMEOUT) { serviceStarts.get() == 1 }
+                        compose.runOnUiThread { graph.driveController.pause() }
                         await("voice-stage")
                         assertEquals(VoiceMode.PAUSED, graph.driveController.state.value.mode)
-                        assertEquals(1, serviceStarts)
+                        assertEquals(1, serviceStarts.get())
                         compose.onNodeWithTag(NAVIGATION).assertDoesNotExist()
                         compose.onNodeWithTag("interview-back").assertDoesNotExist()
                         val view = checkNotNull(activity).window.decorView

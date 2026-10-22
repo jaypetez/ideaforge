@@ -474,7 +474,9 @@ actual IME, resize/recreation, same-session Ask me more and in-place paused voic
 Additional light/font-2 cases repeat Interview/IME, Result and paused Voice with each
 installed three-button/gestural system-navigation overlay, verifying selection and
 restoring the original overlay enablement. They prove inset layout, not gesture usability.
-The paused controller uses scripted speech and a fake service; it proves layout/identity,
+The paused capture waits for the injected service's admitted start before Pause: an
+immediate Pause can legitimately cancel a still-pending Start. The controller uses
+scripted speech and a fake service; it proves layout/identity,
 not real recognition, permission prompts or service behavior. The default `evidence=full`
 retains the shared full inventory; a focused shell pass is not a full-matrix pass.
 

@@ -60,7 +60,8 @@ source wins over prose, and a generated artifact wins over a description of that
   Re-check DESIGN, the Android guide, architecture, full title semantics, no
   navigation-triggered microphone/service and actual exact-SHA pixel manifests.
   Scripted controller speech/service in paused-stage evidence is not physical input
-  or real foreground-service proof.
+  or real foreground-service proof. The shell capture waits for the injected service's
+  admitted start before Pause, preserving the runtime's cancellation of pending admission.
 - **Web visual foundation and chrome.** Sources:
   [`src/ui/app.css`](../../../../src/ui/app.css) owns semantic surfaces/text, composed
   control states, type, spacing, shape, separators and reduced/forced-colour rules.
