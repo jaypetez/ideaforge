@@ -283,8 +283,11 @@ export default async function run(report) {
         measure(`${at}: the library count`, $('library-count'));
         if (at === 'desktop') {
           card.setAttribute('aria-current', 'true');
-          measure(`${at}: the selected card's edge`, card,
-            { fg: css(card, 'border-top-color'), bg: backdrop(card.parentElement), min: 3 });
+          const edge = css(card, 'border-inline-start-color');
+          measure(`${at}: the selected row's leading edge against the page`, card,
+            { fg: edge, bg: backdrop(card.parentElement), min: 3 });
+          measure(`${at}: the selected row's leading edge against its fill`, card,
+            { fg: edge, bg: backdrop(card), min: 3 });
         }
 
         // Interview: thread, question card, chips, coverage rows, the switch, the composer.
