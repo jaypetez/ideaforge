@@ -269,8 +269,18 @@ missing-secret/unsigned/corrupt-download rejection. No production signing secret
 `.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
 nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
 `./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest` with software rendering
-(`swiftshader_indirect`), uploading the reports on failure. Start a run with
-`gh workflow run android-device.yml`.
+(`swiftshader_indirect`), then default/full runs the complete shared UX inventory on
+the standard AOSP `pixel6Api34Visual` and `pixelTabletApi34Visual` profiles sequentially.
+It explicitly selects `UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable`;
+only the focused shell route supplies `uxShellProbe=true`. Never pass an unused empty
+instrumentation argument. After each visual task, `tools/check-android-device-results.py`
+requires the actual selected passing test in that device's JUnit XML, rejecting zero
+discovery, wrong methods, failures and skips even when Gradle succeeds. Its dependency-free
+regressions run with `python test/android-device-results.test.py` from the repository root.
+Clean-tree/SHA checks bracket captures, and uploads retain `if-no-files-found: error`.
+Read back complete manifests and inspect original PNGs; the execution guard is not visual
+acceptance. Start a run with `gh workflow run android-device.yml`; focused routes are not
+default/full proof.
 
 ## 8. Report
 

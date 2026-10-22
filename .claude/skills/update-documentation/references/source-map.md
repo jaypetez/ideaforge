@@ -277,6 +277,13 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  Default/full explicitly selects `requestedUxEvidenceIsRenderedCompleteAndReachable`
+  without an empty shell opt-in and checks the clean checkout SHA around both captures.
+  [`tools/check-android-device-results.py`](../../../../tools/check-android-device-results.py)
+  and [`test/android-device-results.test.py`](../../../../test/android-device-results.test.py)
+  own the post-Gradle selected-test XML guard and its zero-discovery, wrong-method,
+  failure/skip regressions. Re-check contributor/Android-skill commands and DESIGN against
+  those owners; actual test execution does not replace complete manifests and inspected PNGs.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled

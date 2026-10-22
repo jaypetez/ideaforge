@@ -283,7 +283,8 @@ explicit owned emulator serial and JDK/SDK environment:
 $sha = git rev-parse HEAD
 .\gradlew.bat :app:connectedDebugAndroidTest `
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
   "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
@@ -301,6 +302,16 @@ under `android/app/build/intermediates/` or `build/outputs/`, named
 `connected_android_test_additional_output/` or `managed_device_android_test_additional_output/`.
 The current managed runner uses variant/task directories under `intermediates/`.
 The Android-device workflow collects both locations, along with reports, even after failure.
+
+The optional workflow's default/full route explicitly selects that full-inventory method
+on both visual devices, without an unused empty shell argument. After each Gradle command,
+`tools/check-android-device-results.py` requires the actual selected passing test in that
+device's JUnit XML; zero discovery, a different method, failures and skips fail the step
+even if Gradle exited successfully. Run its focused regressions from the repository root
+with `python test\android-device-results.test.py`. The workflow also checks the clean
+checkout SHA before and after captures. Complete requested manifests and inspected original
+PNGs in `android-ux-evidence-<SHA>` are still required; a nonzero test count alone is not
+acceptance.
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected

@@ -653,8 +653,8 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both privacy visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both privacy probes without an empty runner argument');
-  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && !startsWith\(inputs\.evidence, 'consent'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
-    'privacy and consent requests must not inherit the unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence == 'shell' && '-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=true' \|\| ''/g) || []).length, 2,
+    'only shell requests may supply their nonempty opt-in on either visual device');
   assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
     'both consent visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery'/g) || []).length, 2,
@@ -676,8 +676,6 @@ test('the device workflow runs the declared managed device, on demand, outside t
   const atdStep = workflow.match(/- name: Instrumented walkthrough on a managed emulator\n([\s\S]*?)(?=\n      #)/)?.[1];
   assert.match(atdStep ?? '', /inputs\.evidence != 'makeover'/,
     'the joined rendering-device journeys must not repeat ATD first and exhaust the unchanged device-job budget');
-  assert.equal((workflow.match(/inputs\.evidence != 'makeover' && inputs\.evidence != 'ideas'/g) || []).length, 2,
-    'makeover acceptance must not inherit an unrelated empty shell argument');
   for (const [name, text] of [
     ['guide/android.html', guide('android.html')],
     ['docs/DESIGN.md', readFileSync(join(ROOT, 'docs', 'DESIGN.md'), 'utf8')],
@@ -698,8 +696,6 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both voice visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxVoiceProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=voice-ready\+voice-starting\+voice-speaking\+voice-listening\+voice-transcribing\+voice-thinking\+voice-paused\+voice-recovering\+voice-blocked\+voice-complete\+voice-writing\+voice-fallback\+voice-notifications-off\+voice-help/g) || []).length, 2,
     'voice evidence must include every declared native phase and recovery presentation');
-  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && inputs\.evidence != 'voice' && inputs\.evidence != 'onboarding' && inputs\.evidence != 'settings' && inputs\.evidence != 'result' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
-    'Result/Settings/Onboarding/Ideas/Interview/voice evidence must not inherit an unrelated empty shell runner argument');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [
@@ -711,6 +707,33 @@ test('the device workflow runs the declared managed device, on demand, outside t
     assert.ok(text.includes('android-device.yml'), `${name} omits android-device.yml`);
     assert.ok(text.includes(device), `${name} omits the managed device ${device}`);
   }
+});
+
+test('default native UX dispatch selects the full method without an empty shell argument', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  for (const name of ['Compact native UX evidence', 'Expanded native UX evidence']) {
+    const step = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(step, `missing ${name}`);
+    assert.match(step, /\|\| '#requestedUxEvidenceIsRenderedCompleteAndReachable'/,
+      'default/full must select the actual full-inventory method, not the whole opt-in class');
+    assert.doesNotMatch(step, /format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=/,
+      'an unused empty instrumentation argument must not reach managed-device discovery');
+    assert.ok(step.includes("inputs.evidence == 'shell' && '-Pandroid.testInstrumentationRunnerArguments.uxShellProbe=true' || ''"),
+      'only focused shell evidence supplies its nonempty opt-in');
+    assert.ok(step.includes('check-android-device-results.py'),
+      'Gradle success without actual selected visual tests must fail before artifact acceptance');
+    assert.ok(step.includes('"-Pandroid.testInstrumentationRunnerArguments.class=$UX_CAPTURE_TEST"'),
+      'the verified selector must be the selector supplied to instrumentation');
+    assert.ok(step.includes('.xml "$UX_CAPTURE_TEST"'),
+      'the report gate must require that exact method, not an unrelated nonzero test');
+    assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2,
+      'visual provenance needs clean-tree checks before and after capture');
+    assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2,
+      'visual provenance needs actual checkout SHA checks before and after capture');
+  }
+  assert.ok(workflow.includes('run: python3 test/android-device-results.test.py'),
+    'the hosted route must exercise its zero-test/failure/skip/wrong-method guard regressions');
+  assert.ok(workflow.includes('if-no-files-found: error'), 'missing evidence must remain an upload failure');
 });
 
 test('Play listing dispatch selects a rendering-enabled 9:16 phone and the complete scripted capture', () => {
