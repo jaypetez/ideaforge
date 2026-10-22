@@ -60,7 +60,8 @@ source wins over prose, and a generated artifact wins over a description of that
   Re-check DESIGN, the Android guide, architecture, full title semantics, no
   navigation-triggered microphone/service and actual exact-SHA pixel manifests.
   Scripted controller speech/service in paused-stage evidence is not physical input
-  or real foreground-service proof.
+  or real foreground-service proof. The shell capture waits for the injected service's
+  admitted start before Pause, preserving the runtime's cancellation of pending admission.
 - **Web visual foundation and chrome.** Sources:
   [`src/ui/app.css`](../../../../src/ui/app.css) owns semantic surfaces/text, composed
   control states, type, spacing, shape, separators and reduced/forced-colour rules.
@@ -277,6 +278,15 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  Default/full explicitly selects `requestedUxEvidenceIsRenderedCompleteAndReachable`
+  without an empty shell opt-in and checks the clean checkout SHA around both captures.
+  [`tools/check-android-device-results.py`](../../../../tools/check-android-device-results.py)
+  and [`test/android-device-results.test.py`](../../../../test/android-device-results.test.py)
+  own the post-Gradle selected-test XML guard and its zero-discovery, wrong-method,
+  failure/skip regressions. Re-check contributor/Android-skill commands and DESIGN against
+  those owners; actual test execution does not replace complete manifests and inspected PNGs.
+  The workflow's measured overall budget is 60 minutes for full/default (including absent
+  push/nightly inputs), 40 for focused routes, without changing capture/test deadlines.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled

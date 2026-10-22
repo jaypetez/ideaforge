@@ -386,6 +386,12 @@ walkthrough in `android/app/src/androidTest/` drives the debug build's scripted 
 the Result screen; the separate, non-required
 [`android-device.yml`](../.github/workflows/android-device.yml) workflow runs it on the Gradle
 managed emulator `pixel6Api34` on every push to `main`, nightly and on demand.
+Default/full then explicitly runs `UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable`
+on both standard AOSP visual profiles, with clean checkout checks.
+`tools/check-android-device-results.py` rejects zero, wrong-method or unsuccessful visual
+JUnit results independently of Gradle's exit status; the recorder still requires complete
+manifests, real rendered pixels and reachable controls. The separate shell route keeps its
+own explicit method and opt-in.
 Its opt-in `evidence=microphone-demo` route instead uses the standard Google APIs
 `pixel2Api34Voice` image and `MicrophoneDemoDeviceTest`: private setup stores and the debug
 scripted model, but real native speech/recognition, runtime Allow dialogs, microphone,

@@ -858,7 +858,8 @@ matrix against the tested checkout:
 $sha = git rev-parse HEAD
 .\gradlew.bat :app:connectedDebugAndroidTest `
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
   "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
@@ -887,6 +888,17 @@ and clipping fail rather than becoming skipped passes. The Android-device workfl
 the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
+Default/full explicitly selects `requestedUxEvidenceIsRenderedCompleteAndReachable`;
+the shell opt-in is supplied only for the separate focused shell route, never as an empty
+runner argument. Each visual step checks its actual selected passing test in JUnit XML
+with `tools/check-android-device-results.py`, rejecting zero tests, wrong methods and
+failed/skipped runs before accepting evidence. The workflow verifies a clean unchanged
+checkout SHA around capture. This execution guard complements, not replaces, the recorder's
+complete expected inventory and the required inspection of original PNGs.
+The measured default/full workload has a 60-minute overall job budget; focused routes keep
+40 minutes. A complete compact matrix alone took over 21 minutes before the expanded task
+hit the former shared cap. This changes no requested frames, recorder checks or individual
+capture/test deadlines.
 
 #### Complete native makeover acceptance
 

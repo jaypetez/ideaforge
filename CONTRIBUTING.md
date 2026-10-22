@@ -283,7 +283,8 @@ explicit owned emulator serial and JDK/SDK environment:
 $sha = git rev-parse HEAD
 .\gradlew.bat :app:connectedDebugAndroidTest `
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
   "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
@@ -301,6 +302,19 @@ under `android/app/build/intermediates/` or `build/outputs/`, named
 `connected_android_test_additional_output/` or `managed_device_android_test_additional_output/`.
 The current managed runner uses variant/task directories under `intermediates/`.
 The Android-device workflow collects both locations, along with reports, even after failure.
+
+The optional workflow's default/full route explicitly selects that full-inventory method
+on both visual devices, without an unused empty shell argument. After each Gradle command,
+`tools/check-android-device-results.py` requires the actual selected passing test in that
+device's JUnit XML; zero discovery, a different method, failures and skips fail the step
+even if Gradle exited successfully. Run its focused regressions from the repository root
+with `python test\android-device-results.test.py`. The workflow also checks the clean
+checkout SHA before and after captures. Complete requested manifests and inspected original
+PNGs in `android-ux-evidence-<SHA>` are still required; a nonzero test count alone is not
+acceptance.
+Default/full has a bounded 60-minute overall job budget: a verified complete compact run
+took over 21 minutes and left too little of the old budget for expanded evidence.
+Focused routes retain 40 minutes, and per-capture/test deadlines are unchanged.
 
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected
@@ -460,7 +474,9 @@ actual IME, resize/recreation, same-session Ask me more and in-place paused voic
 Additional light/font-2 cases repeat Interview/IME, Result and paused Voice with each
 installed three-button/gestural system-navigation overlay, verifying selection and
 restoring the original overlay enablement. They prove inset layout, not gesture usability.
-The paused controller uses scripted speech and a fake service; it proves layout/identity,
+The paused capture waits for the injected service's admitted start before Pause: an
+immediate Pause can legitimately cancel a still-pending Start. The controller uses
+scripted speech and a fake service; it proves layout/identity,
 not real recognition, permission prompts or service behavior. The default `evidence=full`
 retains the shared full inventory; a focused shell pass is not a full-matrix pass.
 
