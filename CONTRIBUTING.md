@@ -558,6 +558,12 @@ UI tests, not a single-window phase screenshot. All phase captures are labelled 
 UI, including the native completion-to-Result mapping. No microphone, actual permission
 prompt, hosted request or service is started. Inspect actual selected-method execution,
 complete exact-SHA manifests and PNGs; #89 remains the physical-device owner.
+The isolated fixture's capture readiness also measures actual SystemUI clock and status
+glyph pixels against its requested background. Both clusters need 4.5:1 core ink contrast
+in two consecutive app-root samples, within the existing capture budget. Earlier attempts,
+their original display PNGs and requested window flags remain diagnostics; flags or an
+app-window PixelCopy alone cannot establish SystemUI paint. This does not certify production
+system bars or physical phones.
 
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`

@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ux
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.core.graphics.ColorUtils
 import kotlin.math.max
 import kotlin.math.min
 
@@ -53,6 +54,12 @@ data class UxBounds(val left: Float, val top: Float, val right: Float, val botto
 data class UxPixels(
     val colours: Int, val meanLuma: Double, val dominantRgb: Int, val width: Int = 0, val height: Int = 0,
     val rootSurfaceRgb: Int? = null, val rootSurfaceMatches: Int = 0, val sampledPixels: Int = 0,
+    val statusBar: UxStatusBarPixels? = null,
+)
+
+data class UxStatusBarPixels(
+    val darkInk: Boolean, val clockInkPixels: Int, val statusInkPixels: Int, val minimumInkPixels: Int,
+    val backgroundMatches: Int, val sampledPixels: Int,
 )
 
 /** Shared assertions used by the device recorder and regression tests, not screenshot goldens. */
@@ -141,6 +148,45 @@ object UxEvidence {
         }
     }
 
+    fun statusBarPixels(bitmap: Bitmap, bounds: UxBounds, backgroundRgb: Int, darkInk: Boolean): UxStatusBarPixels {
+        check(UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()).contains(bounds)) {
+            "screenshot does not cover the actual status bar"
+        }
+        val background = backgroundRgb or (0xFF shl 24)
+        val ground = ColorUtils.calculateLuminance(background)
+        val left = bounds.left.toInt()
+        val right = bounds.right.toInt()
+        val third = (right - left) / 3
+        val top = bounds.top.toInt()
+        val bottom = bounds.bottom.toInt()
+        check(third > 0 && bottom > top) { "no visible status bar to verify" }
+        var clock = 0
+        var status = 0
+        var matches = 0
+        var sampled = 0
+        // Separate clock and status clusters: one settled cluster cannot bless the other.
+        // Exclude the centre cutout, and require core ink at text contrast, not AA fringes.
+        for (y in top until bottom) for (x in left until right) {
+            if (x in left + third until right - third) continue
+            val pixel = bitmap.getPixel(x, y)
+            if ((pixel and 0x00FFFFFF) == (background and 0x00FFFFFF)) matches++
+            sampled++
+            val ink = ColorUtils.calculateLuminance(pixel)
+            if ((if (darkInk) ink < ground else ink > ground) &&
+                ColorUtils.calculateContrast(pixel, background) >= 4.5) {
+                if (x < left + third) clock++ else status++
+            }
+        }
+        return UxStatusBarPixels(darkInk, clock, status, max(8, third * (bottom - top) / 200), matches, sampled)
+    }
+
+    fun requireStatusBar(pixels: UxStatusBarPixels) {
+        check(pixels.backgroundMatches >= pixels.sampledPixels / 2 &&
+            pixels.clockInkPixels >= pixels.minimumInkPixels && pixels.statusInkPixels >= pixels.minimumInkPixels) {
+            "status bar glyph paint has not reached requested ${if (pixels.darkInk) "dark" else "light"} ink at 4.5:1: $pixels"
+        }
+    }
+
     fun requireStableTheme(theme: String, deadlineMs: Long, now: () -> Long, sample: () -> UxPixels): UxPixels {
         var consecutive = 0
         var previousRoot: Int? = null
@@ -157,7 +203,10 @@ object UxEvidence {
             }
             last = pixels.toString()
             if (now() > deadlineMs) break
-            if (runCatching { requireTheme(theme, pixels) }.isSuccess) {
+            if (runCatching {
+                requireTheme(theme, pixels)
+                pixels.statusBar?.let(::requireStatusBar)
+            }.isSuccess) {
                 consecutive = if (previousRoot == pixels.rootSurfaceRgb) consecutive + 1 else 1
                 previousRoot = pixels.rootSurfaceRgb
                 if (consecutive == 2) return pixels
@@ -166,7 +215,7 @@ object UxEvidence {
                 previousRoot = null
             }
         }
-        error("requested $theme root did not stabilize within the capture budget (last $last)")
+        error("requested $theme root/status-bar paint did not stabilize within the capture budget (last $last)")
     }
 
     fun requireComplete(expected: Set<String>, captured: Set<String>, failures: List<String>) {
