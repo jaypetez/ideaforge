@@ -104,6 +104,67 @@ class DriveControllerTest {
     }
 
     @Test
+    fun aReportedQuestionReplacementUpdatesAPausedStageWithoutStartingAnyEffects() {
+        rig.scripts += spoken("neutral first answer over")
+        rig.scripts += listOf(At(300, Ev.Ready), At(800, Ev.Partial("neutral retained words")))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.answered().size == 1 && rig.state.caption == "neutral retained words" })
+        rig.controller.pause()
+        rig.advance(500)
+        val before = rig.saved()!!
+        val output = io.github.jaypetez.ideaforge.core.reportableOutput(before, "question", "t2")!!
+        val reports = io.github.jaypetez.ideaforge.ui.reporting.ContentReportController(
+            rig.store, rig.worker, rig.clock, rig.writes, rig.main,
+            changed = { session, _ -> rig.controller.refreshReportedSession(session) },
+        )
+        val starts = rig.starts()
+        val said = rig.speaker.said.size
+        reports.open(before, output)
+        reports.category("other")
+        reports.save()
+        rig.advance(500)
+        reports.replace()
+        rig.advance(500)
+        assertTrue(reports.state.value.replaced)
+        assertEquals(VoiceMode.PAUSED, rig.state.mode)
+        assertNotEquals(stringOf(output["question"]), rig.state.question)
+        assertEquals("neutral retained words", rig.state.caption)
+        assertEquals(before["coverage"], rig.saved()!!["coverage"])
+        assertEquals(1, rig.answered().size)
+        rig.advance(30_000)
+        assertEquals(starts, rig.starts())
+        assertEquals(said, rig.speaker.said.size)
+    }
+
+    @Test
+    fun aReplacementStillRefreshesTheGraphDriveWhenTheReportingViewModelScopeIsCleared() {
+        rig.scripts += spoken("neutral first answer over")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.answered().size == 1 && rig.state.listening })
+        val before = rig.saved()!!
+        val ui = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + rig.dispatcher)
+        val reports = io.github.jaypetez.ideaforge.ui.reporting.ContentReportController(
+            rig.store, rig.worker, rig.clock, rig.writes, ui, drive = { rig.controller },
+        )
+        reports.open(before, io.github.jaypetez.ideaforge.core.reportableOutput(before, "question", "t2")!!)
+        reports.category("other")
+        reports.save()
+        rig.advance(500)
+        assertTrue(reports.state.value.saved)
+        val speeches = rig.speaker.said.size
+        reports.replace()
+        ui.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+        rig.advance(500)
+        val replacement = openTurn(rig.saved()!!)!!
+        assertEquals("replacement", stringOf(replacement["questionSource"]))
+        assertEquals("the graph state must follow its durable replacement even after the dialog's UI dies",
+            stringOf(replacement["question"]), rig.state.question)
+        assertEquals(VoiceMode.PAUSED, rig.state.mode)
+        assertEquals(before["coverage"], rig.saved()!!["coverage"])
+        assertEquals(speeches, rig.speaker.said.size)
+    }
+
+    @Test
     fun exitReturnsToTheTypedInterviewWithoutWrappingUp() {
         rig.scripts += spoken("my first answer over")
         rig.controller.start(rig.seeded, "typed")

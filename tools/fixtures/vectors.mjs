@@ -11,6 +11,7 @@ import {
   addFacts, migrate, normalizeSessionName, normalizeTags, sessionDisplayTitle, waiveDimension,
   deferDimension, resumeDimension, copySession, reopen, isLowConfidence, openTurn,
   setWrapOffered, setStatusField, archiveSession, restoreSession,
+  reportableOutput, addContentReport, mergeContentReports, replaceReportedQuestion,
 } from '../../src/core/session.js';
 import {
   contentWords, classifyAnswer, lastAnswerClass, selectNextDimension, isReadyToWrap,
@@ -227,6 +228,38 @@ async function sessionFamily() {
     rec('ratchet holds after migrating hostile coverage', applyCoverage, migrate(hostileCoverage), Object.fromEntries(DIMS.map((d) => [d, { level: 'covered', evidence: 'quote' }])), { now: 3 }),
     rec('migrate missing id', migrate, { schema: 2 }),
   ];
+  const reportQuestion = askQuestion(fresh, { question: 'Neutral generated marker?', dimension: 'outcome',
+    bridge: 'Neutral bridge.', chips: ['Neutral suggestion A', 'Neutral suggestion B'], now: 1 });
+  const output = reportableOutput(reportQuestion, { kind: 'question', turnId: 't1' });
+  const reportOptions = { id: 'r_vector', output, category: 'other', note: 'Neutral private note.', now: 2 };
+  const reported = addContentReport(reportQuestion, reportOptions);
+  cases.push(
+    rec('reportableOutput question', reportableOutput, reportQuestion, { kind: 'question', turnId: 't1' }),
+    rec('reportableOutput suggestions', reportableOutput, reportQuestion, { kind: 'suggestions', turnId: 't1' }),
+    rec('reportableOutput result excludes user answers', reportableOutput, final, { kind: 'result' }),
+    rec('reportableOutput seed is not generated', reportableOutput, seedTurn(fresh), { kind: 'question', turnId: 't1' }),
+    rec('reportableOutput absent result', reportableOutput, fresh, { kind: 'result' }),
+    rec('reportableOutput imported unedited draft on a static question', reportableOutput,
+      answerQuestion(setDraftText(seedTurn(fresh), 'Neutral generated draft marker.', 1),
+        { text: 'Neutral generated draft marker.', source: 'draft', now: 2 }),
+      { kind: 'suggestions', turnId: 't1' }),
+    rec('reportableOutput gap-only after the model question was replaced', reportableOutput,
+      replaceReportedQuestion(applyCoverage(reported, { outcome: { level: 'partial', gap: 'Neutral generated gap marker.' } }),
+        { reportId: 'r_vector' }), { kind: 'result' }),
+    rec('addContentReport local snapshot', addContentReport, reportQuestion, reportOptions),
+    rec('addContentReport idempotent retry', addContentReport, reported, reportOptions),
+    rec('addContentReport invalid category', addContentReport, reportQuestion, { ...reportOptions, category: 'unknown' }),
+    rec('addContentReport rejects stale target', addContentReport, reportQuestion,
+      { ...reportOptions, output: { ...output, text: 'another output' } }),
+    rec('mergeContentReports stale snapshot', mergeContentReports, reportQuestion, reported, 3),
+    rec('migrate report snapshots and reject hostile shape', migrate, { ...reported,
+      contentReports: [...reported.contentReports, null, { ...reported.contentReports[0], id: 'bad', note: 12 }] }),
+    rec('replaceReportedQuestion no answer or coverage change', replaceReportedQuestion, reported, { reportId: 'r_vector', now: 4 }),
+    rec('replaceReportedQuestion cannot replace an answered question', replaceReportedQuestion,
+      answerQuestion(reported, { text: 'Neutral answer.' }), { reportId: 'r_vector', now: 4 }),
+    rec('replaceReportedQuestion cannot replace pending work', replaceReportedQuestion,
+      { ...reported, pending: { kind: 'turn' } }, { reportId: 'r_vector', now: 4 }),
+  );
   return { source: 'src/core/session.js', cases };
 }
 
@@ -687,6 +720,12 @@ async function markdownFamily() {
   }
   cases.push(rec('buildExport generic mode with note', buildExport, final, { mode: 'generic', note: 'Written offline.' }));
   cases.push(rec('buildExport named', buildExport, { ...final, name: 'My own name' }));
+  const reported = addContentReport(final, {
+    id: 'r_export', output: reportableOutput(final, { kind: 'question', turnId: 't2' }),
+    category: 'inaccurate', note: 'Neutral private note.\nAnother literal line.', now: tick(1001),
+  });
+  cases.push(rec('buildExport with a local content report', buildExport, reported));
+  cases.push(rec('buildExport empty reports preserves canonical bytes', buildExport, { ...final, contentReports: [] }));
   // The result screen's bytes when the wrap-up failed: exportFor in src/ui/app.js passes
   // checklist mode and this note whenever there is no refined prompt.
   const unwritten = setStatusField({ ...final, synthesis: { text: '', tier: '', at: 0, stale: false, assumptions: [] } }, 'done', tick(9));

@@ -6,6 +6,7 @@ import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.openTurn
 import io.github.jaypetez.ideaforge.core.promptHash
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
+import io.github.jaypetez.ideaforge.data.SessionStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.resetMain
@@ -150,6 +151,45 @@ class InterviewViewModelTest {
         h.scheduler.runCurrent()
         assertEquals("one write after the pause, with the latest text", "Prob", stringOf(stored()!!["draftAnswer"]))
         assertEquals((rev.toInt() + 1).toString(), stored()!!["rev"].toString())
+    }
+
+    @Test
+    fun revertingWhileACancelledDraftWriteFinishesStillSavesTheFinalText() {
+        var duringWrite: (() -> Unit)? = null
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            SessionStore.write(file, bytes)
+            // Cancel after the bytes land, while save still owes its non-cancellable index update.
+            val interleave = duringWrite
+            duringWrite = null
+            interleave?.invoke()
+        })
+        for (flush in listOf(false, true)) {
+            val id = "s_reverted_$flush"
+            val vm = h.vm(ScriptedModel(), id)
+            idle()
+            answer(vm, ANSWERS[0])
+            vm.onAnswerChange("Neutral draft A")
+            idle()
+            assertEquals("Neutral draft A", stringOf(stored(id)!!["draftAnswer"]))
+
+            duringWrite = { vm.onAnswerChange("Neutral draft A") }
+            vm.onAnswerChange("Neutral draft B")
+            h.scheduler.advanceTimeBy(DRAFT_DEBOUNCE_MS + 1)
+            h.scheduler.runCurrent()
+            assertNull("the reversion ran inside an actual durable save", duringWrite)
+            assertEquals("Neutral draft B", stringOf(stored(id)!!["draftAnswer"]))
+            assertEquals("Neutral draft A", vm.state.value.answer)
+            assertEquals("the cancelled write never updated this older UI snapshot",
+                "Neutral draft A", stringOf(vm.state.value.session!!["draftAnswer"]))
+
+            if (flush) vm.flushDraft()
+            idle()
+            assertEquals("the final text survives ${if (flush) "flush" else "debounce"}",
+                "Neutral draft A", stringOf(stored(id)!!["draftAnswer"]))
+            val reopened = h.vm(ScriptedModel(), id)
+            idle()
+            assertEquals("Neutral draft A", reopened.state.value.answer)
+        }
     }
 
     // The bug this guards: a draft timer still queued when the answer is sent fires once the

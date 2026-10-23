@@ -128,12 +128,24 @@
               </td>
             </tr>
             <tr>
+              <td><strong>AI-content reports</strong></td>
+              <td colspan="2">
+                Android&rsquo;s Report dialog stores the reported generated-text snapshot,
+                category, optional note and report time in the idea. No user-written answers, full
+                transcript, credentials or connection settings are added to that payload;
+                unedited AI suggestions/drafts are generated text and can contain private details. Imported reports are
+                preserved by both platforms and included in that idea&rsquo;s markdown
+                export and JSON session backup. Report metadata is not sent in model
+                prompts or telemetry.
+              </td>
+            </tr>
+            <tr>
               <td><strong>Backups, exports and shared copies</strong></td>
               <td colspan="2">
                 Created by explicit actions. A JSON backup contains the active and
                 archived interviews, but not the app's credential keyring, device
                 preferences or audio. Text you put in an idea is not redacted.
-                Markdown exports include the idea's document and transcript.
+                Markdown exports include the idea's document, transcript and any saved content reports.
                 These copies are unencrypted.
               </td>
             </tr>
@@ -197,6 +209,24 @@
         are governed by the selected service and your account settings, not by deleting
         an interview in IdeaForge. A local address is not a promise about what that
         server does after receiving your content.
+      </p>
+      <h3 id="content-reports">Local reports and optional developer email</h3>
+      <p>
+        Saving an Android content report sends nothing to the developer or a model
+        provider. It is a local record, not an automatic moderation upload or an
+        acknowledgement of developer receipt. After saving, an optional explicit
+        <strong>Open email to developer</strong> tap opens your email app to the confirmed
+        privacy contact above, prefilled with only the report&rsquo;s generated text,
+        category and optional note. Review and send it there; opening the composer
+        does not prove delivery. Your email service has its own data handling.
+        No private report is posted to a public GitHub issue.
+      </p>
+      <p>
+        Reports remain until the idea is deleted or local app/site data is cleared.
+        Exporting, backing up, copying or sharing an idea also copies its reports
+        without redaction. Delete or secure those external copies separately.
+        See <a href="./android.html#report-ai-output">Android reporting controls</a>
+        for categories, retry and question replacement.
       </p>
 
       <h2 id="voice">Microphone, transcription and spoken replies</h2>

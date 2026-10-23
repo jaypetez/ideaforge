@@ -17,6 +17,8 @@ export const SCHEMA = 2;
 export const MAX_SESSION_NAME = 120;
 export const MAX_TAGS = 12;
 export const MAX_TAG_LENGTH = 32;
+export const REPORT_CATEGORIES = ['offensive', 'harmful', 'inaccurate', 'other'];
+export const MAX_REPORT_NOTE = 2000;
 
 /** Coverage may rise at most one level per dimension per turn... */
 const MAX_LEVEL_RISE_PER_TURN = 1;
@@ -140,6 +142,128 @@ export function setDraftText(session, text, now = 0) {
 
 export function setDraftAnswer(session, text, now = 0) {
   return bump(session, { draftAnswer: text }, now);
+}
+
+/**
+ * Only generated text is copied into a report. In particular, the result snapshot is
+ * not buildExport: that would copy user answers and older private reports as well.
+ */
+export function reportableOutput(session, { kind, turnId = null } = {}) {
+  const turns = session.turns || [];
+  if (kind === 'result') {
+    const parts = [];
+    const synthesis = session.synthesis || {};
+    if (nonEmpty(synthesis.text)) {
+      if (nonEmpty(session.title)) parts.push(session.title);
+      parts.push(synthesis.text);
+      parts.push(...(synthesis.assumptions || []).filter(nonEmpty));
+      for (const q of session.openQuestions || []) {
+        if (nonEmpty(q.question)) parts.push(q.question);
+        if (nonEmpty(q.why_it_matters)) parts.push(q.why_it_matters);
+      }
+    }
+    for (const t of turns) {
+      if (t.questionSource === 'model') {
+        if (nonEmpty(t.bridge)) parts.push(t.bridge);
+        if (nonEmpty(t.question)) parts.push(t.question);
+      }
+      parts.push(...generatedSuggestions(t));
+    }
+    for (const id of DIMENSION_IDS) if (nonEmpty(session.coverage?.[id]?.gap)) parts.push(session.coverage[id].gap);
+    return parts.length ? { kind, turnId: null, question: null, text: parts.join('\n\n') } : null;
+  }
+  const turn = turns.find((t) => t.id === turnId);
+  if (!turn || !nonEmpty(turn.question)) return null;
+  const text = kind === 'question' && turn.questionSource === 'model'
+    ? [turn.bridge, turn.question].filter(nonEmpty).join('\n\n')
+    : kind === 'suggestions' ? generatedSuggestions(turn).join('\n') : '';
+  return text ? { kind, turnId, question: turn.question, text } : null;
+}
+
+function generatedSuggestions(turn) {
+  const texts = turn.questionSource === 'model' ? (turn.chips || []).filter(nonEmpty) : [];
+  // Imported unedited drafts are model words too, even when the question was static.
+  if (isLowConfidence(turn) && nonEmpty(turn.answer) && !texts.includes(turn.answer)) texts.push(turn.answer);
+  return texts;
+}
+
+const reportId = (id) => typeof id === 'string' && id.length > 0 && id.length <= 128
+  && !/[^A-Za-z0-9_-]/.test(id);
+function normalizeReport(report) {
+  if (!isRecord(report) || !reportId(report.id) || !REPORT_CATEGORIES.includes(report.category)
+    || typeof report.note !== 'string' || report.note.length > MAX_REPORT_NOTE
+    || !Number.isFinite(report.at) || report.at < 0 || report.at > 8.64e15) return null;
+  const o = report.output;
+  if (!isRecord(o) || !nonEmpty(o.text) || o.text.length > 262144) return null;
+  if (o.kind === 'result') {
+    if (o.turnId !== null || o.question !== null) return null;
+  } else if (!['question', 'suggestions'].includes(o.kind) || !reportId(o.turnId)
+    || !nonEmpty(o.question) || o.question.length > 262144) return null;
+  return {
+    id: report.id, at: report.at, category: report.category, note: report.note.trim(),
+    output: { kind: o.kind, turnId: o.turnId, question: o.question, text: o.text },
+  };
+}
+
+function reportsOf(session) {
+  const seen = new Set();
+  return recordArray(session.contentReports).map(normalizeReport).filter((r) => {
+    if (!r || seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
+/** Add a local report for the exact output shown, never whatever a delayed save now sees. */
+export function addContentReport(session, { id, output, category, note = '', now = 0 } = {}) {
+  const report = normalizeReport({ id, output, category, note, at: now });
+  if (!report) throw new Error('Invalid content report category, note or output.');
+  const reports = reportsOf(session);
+  const existing = reports.find((r) => r.id === id);
+  if (existing) {
+    if (existing.category === report.category && existing.note === report.note
+      && JSON.stringify(existing.output) === JSON.stringify(report.output)) return session;
+    throw new Error('This report id already belongs to another report.');
+  }
+  const current = reportableOutput(session, report.output);
+  if (JSON.stringify(current) !== JSON.stringify(report.output)) {
+    throw new Error('The reported output changed. Reopen Report for that output.');
+  }
+  return bump(session, { contentReports: [...reports, report] }, now);
+}
+
+/** Preserve durable local reports when a settled turn or draft started from an older copy. */
+export function mergeContentReports(session, latest, now = 0) {
+  const reports = new Map(reportsOf(session).map((r) => [r.id, r]));
+  for (const report of reportsOf(latest || {})) reports.set(report.id, report);
+  const merged = [...reports.values()];
+  if (!merged.length || JSON.stringify(merged) === JSON.stringify(session.contentReports)) return session;
+  return bump(session, { contentReports: merged }, now);
+}
+
+/**
+ * A different, local question on the SAME open turn. Never askQuestion/runTurn here:
+ * those would spend another turn or judge the already-judged answer a second time.
+ */
+export function replaceReportedQuestion(session, { reportId: id, now = 0 } = {}) {
+  const open = openTurn(session);
+  const report = reportsOf(session).find((r) => r.id === id);
+  if (session.status !== 'interviewing' || session.pending || !open || !report
+    || !['question', 'suggestions'].includes(report.output.kind)
+    || open.questionSource !== 'model' || open.id !== report.output.turnId
+    || open.question !== report.output.question) {
+    throw new Error('Only the reported current unanswered question can be replaced.');
+  }
+  const asked = new Set(session.turns.map((t) => t.question));
+  for (const r of reportsOf(session)) if (r.output.question) asked.add(r.output.question);
+  const question = open.dimension && getDimension(open.dimension).bank.find((q) => !asked.has(q));
+  if (!question) throw new Error('No different checklist question is available for this dimension.');
+  const turns = session.turns.slice();
+  turns[turns.length - 1] = {
+    ...open, question, bridge: null, chips: [], move: null,
+    questionSource: 'replacement', askedAt: now,
+  };
+  return bump(session, { turns }, now);
 }
 
 /** True when this answer's provenance means it cannot support a `covered` grade. */
@@ -324,6 +448,7 @@ export function migrate(stored) {
     ...turn,
     chips: Array.isArray(turn.chips) ? turn.chips.filter((chip) => typeof chip === 'string') : [],
   }));
+  if (Object.hasOwn(stored, 'contentReports')) merged.contentReports = reportsOf(stored);
   merged.facts = recordArray(stored.facts).map((fact) => ({ ...fact }));
   merged.moveHistory = Array.isArray(stored.moveHistory)
     ? stored.moveHistory.filter((move) => typeof move === 'string')

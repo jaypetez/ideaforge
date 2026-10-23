@@ -7,6 +7,8 @@ import io.github.jaypetez.ideaforge.core.LEVEL_RANK
 import io.github.jaypetez.ideaforge.core.MAX_SESSION_NAME
 import io.github.jaypetez.ideaforge.core.MAX_TAGS
 import io.github.jaypetez.ideaforge.core.MAX_TAG_LENGTH
+import io.github.jaypetez.ideaforge.core.MAX_REPORT_NOTE
+import io.github.jaypetez.ideaforge.core.REPORT_CATEGORIES
 import io.github.jaypetez.ideaforge.core.MOVES
 import io.github.jaypetez.ideaforge.core.MOVE_IDS
 import io.github.jaypetez.ideaforge.core.SCHEMA
@@ -36,6 +38,10 @@ import io.github.jaypetez.ideaforge.core.restoreSession
 import io.github.jaypetez.ideaforge.core.resumeDimension
 import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.core.skipQuestion
+import io.github.jaypetez.ideaforge.core.reportableOutput
+import io.github.jaypetez.ideaforge.core.addContentReport
+import io.github.jaypetez.ideaforge.core.mergeContentReports
+import io.github.jaypetez.ideaforge.core.replaceReportedQuestion
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -95,6 +101,20 @@ val SESSION_PORTS: Map<String, Port> = mapOf(
         str(if (c.args.size > 1) sessionDisplayTitle(c.arg(0), stringOf(c.arg(1))!!) else sessionDisplayTitle(c.arg(0)))
     },
     "migrate" to { c -> migrate(c.arg(0)) ?: JsonNull },
+    "reportableOutput" to { c ->
+        val o = c.arg(1)
+        reportableOutput(c.arg(0).s(), stringOf(o["kind"]), stringOf(o["turnId"])) ?: JsonNull
+    },
+    "addContentReport" to { c ->
+        val o = c.arg(1)
+        addContentReport(c.arg(0).s(), o["id"], o["output"], o["category"],
+            o.opt("note", str("")), o.opt("now", num(0)))
+    },
+    "mergeContentReports" to { c -> mergeContentReports(c.arg(0).s(), c.arg(1) as? JsonObject, c.arg(2).orNow()) },
+    "replaceReportedQuestion" to { c ->
+        val o = c.arg(1)
+        replaceReportedQuestion(c.arg(0).s(), stringOf(o["reportId"]), o.opt("now", num(0)))
+    },
 )
 
 /** The constants this slice owns, by exported name; the rest are owed to later slices. */
@@ -111,6 +131,8 @@ val CONSTANTS_PORTED: Map<String, JsonElement> = mapOf(
     "MAX_SESSION_NAME" to num(MAX_SESSION_NAME),
     "MAX_TAGS" to num(MAX_TAGS),
     "MAX_TAG_LENGTH" to num(MAX_TAG_LENGTH),
+    "MAX_REPORT_NOTE" to num(MAX_REPORT_NOTE),
+    "REPORT_CATEGORIES" to arr(REPORT_CATEGORIES.map(::str)),
 ) + BACKUP_CONSTANTS
 
 /** Every ported constant, by exported name: what CONSTANT_PORT resolves and the pending guard checks. */
@@ -123,4 +145,3 @@ val CONSTANT_PORT: Port = { c ->
 
 /** Constants still owed, by the case name tools/vectors.mjs gives them ("src/core/x.js NAME"). */
 val CONSTANTS_PENDING: Map<String, String> = emptyMap()
-

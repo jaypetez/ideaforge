@@ -303,6 +303,17 @@ class DriveController(
         if (_state.value.exit != null) _state.value = VoiceStageState()
     }
 
+    /** Immutable output identity for the visible stage; reporting never borrows another idea. */
+    fun reportingSession(): Session? = session
+
+    /** Reporting is a pause, not a new drive. A replacement must not restart any effects. */
+    fun refreshReportedSession(latest: Session) {
+        if (stringOf(latest["id"]) != sessionId || _state.value.mode !in setOf(VoiceMode.PAUSED, VoiceMode.BLOCKED)) return
+        session = latest
+        prefix = stringOf(latest["draftAnswer"]).orEmpty().trim()
+        _state.update { it.copy(question = questionOf(latest), caption = prefix.ifBlank { submittedCaption }) }
+    }
+
     // ─────────────────────────────────────────────────────────── the run
 
     private fun adopt(id: String, s: Session, draftSource: String) {

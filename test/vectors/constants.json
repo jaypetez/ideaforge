@@ -216,6 +216,16 @@
       }
     },
     {
+      "name": "src/core/session.js MAX_REPORT_NOTE",
+      "fn": "constant",
+      "args": [
+        "MAX_REPORT_NOTE"
+      ],
+      "expect": {
+        "value": 2000
+      }
+    },
+    {
       "name": "src/core/session.js MAX_SESSION_NAME",
       "fn": "constant",
       "args": [
@@ -243,6 +253,21 @@
       ],
       "expect": {
         "value": 32
+      }
+    },
+    {
+      "name": "src/core/session.js REPORT_CATEGORIES",
+      "fn": "constant",
+      "args": [
+        "REPORT_CATEGORIES"
+      ],
+      "expect": {
+        "value": [
+          "offensive",
+          "harmful",
+          "inaccurate",
+          "other"
+        ]
       }
     },
     {

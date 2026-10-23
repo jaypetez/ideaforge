@@ -50,6 +50,9 @@ import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import io.github.jaypetez.ideaforge.R
+import io.github.jaypetez.ideaforge.core.reportableOutput
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportDialog
 import io.github.jaypetez.ideaforge.ui.library.ExportPreview
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
@@ -132,6 +135,8 @@ fun ResultScreen(
     val clipLabel = stringResource(R.string.result_clip_label)
     val copied = stringResource(R.string.result_copied)
     val ready = state.session != null
+    val output = state.session?.let { reportableOutput(it, "result") }
+    ContentReportDialog(vm.reports)
     val expanded = currentWindowAdaptiveInfoV2().windowSizeClass
         .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val share: () -> Unit = {
@@ -185,6 +190,9 @@ fun ResultScreen(
                         busy = state.reopening,
                         modifier = Modifier.testTag(ResultTags.ASK_MORE),
                     ) { Text(stringResource(R.string.result_ask_more)) }
+                }
+                ContentReportAction(output, "report-result") {
+                    state.session?.let { session -> vm.reports.open(session, it) }
                 }
             }
         }

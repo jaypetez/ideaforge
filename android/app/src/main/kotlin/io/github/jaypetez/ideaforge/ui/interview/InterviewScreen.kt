@@ -86,6 +86,9 @@ import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
 import io.github.jaypetez.ideaforge.core.coveragePercent
 import io.github.jaypetez.ideaforge.core.getDimension
 import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
+import io.github.jaypetez.ideaforge.core.Session
+import io.github.jaypetez.ideaforge.core.reportableOutput
+import io.github.jaypetez.ideaforge.core.isLowConfidence
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
@@ -102,6 +105,9 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.statusColors
 import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportDialog
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import io.github.jaypetez.ideaforge.ui.voice.VoicePermissionDialog
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
 import io.github.jaypetez.ideaforge.ui.voice.hasPermission
@@ -118,7 +124,7 @@ import kotlinx.serialization.json.JsonObject
 data class CoveragePill(val id: String, val label: String, val level: String, val status: String)
 
 /** One settled exchange in the thread. */
-data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean)
+data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean, val id: String = "")
 
 internal fun pillsOf(state: InterviewState): List<CoveragePill> = DIMENSIONS.map { d ->
     val id = stringOf(d["id"]).orEmpty()
@@ -135,7 +141,8 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
             n = (t["n"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0,
             question = stringOf(t["question"]).orEmpty(),
             answer = if (skipped) null else answer,
-            fromChip = stringOf(t["answerSource"]) == "chip",
+            fromChip = isLowConfidence(t),
+            id = stringOf(t["id"]).orEmpty(),
         )
     }
 
@@ -318,6 +325,7 @@ fun InterviewScreen(
     var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val voiceAttached = voiceHere && voice?.attached == true
+    ContentReportDialog(vm.reports, onReplace = { vm.replaceReportedQuestion(fromVoice = voiceAttached) })
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
         if (notice != null && noticeText != null) {
@@ -361,6 +369,10 @@ fun InterviewScreen(
     }
 
     if (drive != null && voice != null && voiceHere && voice.attached) {
+        val session = drive.reportingSession()?.takeIf { stringOf(it["id"]) == vm.sessionId }
+        val displayedTurn = (session?.get("turns") as? JsonArray).orEmpty()
+            .lastOrNull { stringOf(it["question"]) == voice.question }
+        val turnId = stringOf(displayedTurn?.get("id"))
         Column(modifier.fillMaxSize().testTag("interview")) {
             SnackbarHost(snackbar)
             VoiceStage(
@@ -379,6 +391,13 @@ fun InterviewScreen(
                 ideaTitle = state.session?.let(::sessionDisplayTitle).orEmpty(),
                 microphoneDenied = voice.mode == VoiceMode.BLOCKED && !microphoneHeld,
                 notificationsOff = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
+                questionOutput = session?.let { reportableOutput(it, "question", turnId) },
+                suggestionsOutput = session?.let { reportableOutput(it, "suggestions", turnId) },
+                onReport = { output ->
+                    if (session != null && screenVisible && isCurrentView()) {
+                        vm.reports.open(session, output, drive)
+                    }
+                },
             )
         }
         return
@@ -584,7 +603,7 @@ private fun Conversation(
             HistoryControl()
             Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
                 verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
-                if (expanded) for (entry in thread) ThreadItem(entry)
+                if (expanded) for (entry in thread) ThreadItem(entry, state.session, vm.reports)
                 Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
                     OpenQuestion(state, vm)
                 }
@@ -606,7 +625,7 @@ private fun Conversation(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
-            if (expanded) items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
+            if (expanded) items(thread, key = { "turn-${it.n}" }) { ThreadItem(it, state.session, vm.reports) }
             item(key = "open") {
                 Box(Modifier.fillMaxWidth().testTag("current-turn")) { OpenQuestion(state, vm) }
             }
@@ -625,15 +644,18 @@ private fun OpenQuestion(state: InterviewState, vm: InterviewViewModel) {
         state.busy != null -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
             BusyLine(state.busy)
             if (open != null) QuestionCard(state, open, vm)
-            else threadOf(state).lastOrNull()?.let { ThreadItem(it) }
+            else threadOf(state).lastOrNull()?.let { ThreadItem(it, state.session, vm.reports, "busy") }
         }
         open != null -> QuestionCard(state, open, vm)
     }
 }
 
 @Composable
-private fun ThreadItem(e: ThreadEntry) {
+private fun ThreadItem(e: ThreadEntry, session: Session?, reports: ContentReportController, surface: String = "history") {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+        ContentReportAction(session?.let { reportableOutput(it, "question", e.id) }, "report-$surface-question-${e.id}") {
+            if (session != null) reports.open(session, it)
+        }
         Text(e.question, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Surface(
@@ -652,6 +674,10 @@ private fun ThreadItem(e: ThreadEntry) {
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            ContentReportAction(session?.let { reportableOutput(it, "suggestions", e.id) },
+                                "report-$surface-suggestions-${e.id}") {
+                                if (session != null) reports.open(session, it)
+                            }
                         }
                     }
                 }
@@ -688,6 +714,8 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             Modifier.fillMaxWidth().testTag("question-card"),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
+            ContentReportAction(state.session?.let { reportableOutput(it, "question", stringOf(open["id"])) },
+                "report-current-question") { state.session?.let { session -> vm.reports.open(session, it) } }
             Column(Modifier.fillMaxWidth().testTag("turnline"), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                 Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().testTag("turn-status"))
@@ -697,6 +725,10 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
                         Modifier.testTag("degraded"),
                         tone = StatusTone.Warning, style = MaterialTheme.typography.labelMedium,
                     )
+                }
+                if (stringOf(open["questionSource"]) == "replacement") {
+                    Text(stringResource(R.string.report_replacement_source), style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.testTag("replacement-source"))
                 }
             }
             if (bridge.isNotEmpty()) {
@@ -712,6 +744,8 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             )
         }
         if (chips.isNotEmpty()) {
+            ContentReportAction(state.session?.let { reportableOutput(it, "suggestions", stringOf(open["id"])) },
+                "report-current-suggestions") { state.session?.let { session -> vm.reports.open(session, it) } }
             val label = stringResource(R.string.interview_suggestions)
             FlowRow(
                 Modifier.fillMaxWidth().testTag("chips").semantics { contentDescription = label },
