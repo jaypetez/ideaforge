@@ -447,7 +447,7 @@ class InterviewViewModel(
 
     private suspend fun writeDraft(text: String) {
         val s = _state.value.session ?: return
-        if (openTurn(s) == null || stringOf(s["draftAnswer"]).orEmpty() == text) {
+        if (openTurn(s) == null) {
             if (pendingDraft == text) pendingDraft = null
             return
         }
@@ -457,6 +457,8 @@ class InterviewViewModel(
                 val latest = store.get(sessionId) ?: s.takeIf { sessionId !in store.knownIds() } ?: return@run null
                 val open = openTurn(latest) ?: return@run null
                 if (open["id"] != expected["id"] || open["question"] != expected["question"]) return@run null
+                // A cancelled save can finish durably without updating the UI's older snapshot.
+                if (stringOf(latest["draftAnswer"]).orEmpty() == text) return@run latest
                 setDraftAnswer(latest, str(text), now()).also { store.save(it) }
             })
             val drafted = (out as? SessionWorker.Outcome.Committed)?.value
