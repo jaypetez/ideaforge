@@ -149,6 +149,13 @@ These are load-bearing and most of them fail *silently* if broken.
 - **Backups contain sessions and nothing else.** Never add the credential keyring or device
   preferences to `buildBackup`. An imported id collision becomes a named copy; silently
   overwriting the local row is data loss.
+- **Content reports are local session metadata, never model context.** `reportableOutput`
+  snapshots known generated text, not `buildExport` or a whole session. `addContentReport`
+  validates the exact output/category/note; ordinary exports include reports only when
+  present. Preserve durable reports across older turn/draft snapshots. A reported current
+  unanswered question is replaced in place by `replaceReportedQuestion`, never by a fake
+  answer, skip, `askQuestion` or another coverage judgement. Android Report pauses voice;
+  replacing must not restart it. An email-composer tap is not proof of delivery.
 - **Call `navigator.share` before yielding the click gesture.** File construction and
   `canShare` checks are synchronous; adding an unrelated `await` before the call makes the
   mobile share sheet fail with `NotAllowedError`.

@@ -104,6 +104,39 @@ class DriveControllerTest {
     }
 
     @Test
+    fun aReportedQuestionReplacementUpdatesAPausedStageWithoutStartingAnyEffects() {
+        rig.scripts += spoken("neutral first answer over")
+        rig.scripts += listOf(At(300, Ev.Ready), At(800, Ev.Partial("neutral retained words")))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.answered().size == 1 && rig.state.caption == "neutral retained words" })
+        rig.controller.pause()
+        rig.advance(500)
+        val before = rig.saved()!!
+        val output = io.github.jaypetez.ideaforge.core.reportableOutput(before, "question", "t2")!!
+        val reports = io.github.jaypetez.ideaforge.ui.reporting.ContentReportController(
+            rig.store, rig.worker, rig.clock, rig.writes, rig.main,
+            changed = { session, _ -> rig.controller.refreshReportedSession(session) },
+        )
+        val starts = rig.starts()
+        val said = rig.speaker.said.size
+        reports.open(before, output)
+        reports.category("other")
+        reports.save()
+        rig.advance(500)
+        reports.replace()
+        rig.advance(500)
+        assertTrue(reports.state.value.replaced)
+        assertEquals(VoiceMode.PAUSED, rig.state.mode)
+        assertNotEquals(stringOf(output["question"]), rig.state.question)
+        assertEquals("neutral retained words", rig.state.caption)
+        assertEquals(before["coverage"], rig.saved()!!["coverage"])
+        assertEquals(1, rig.answered().size)
+        rig.advance(30_000)
+        assertEquals(starts, rig.starts())
+        assertEquals(said, rig.speaker.said.size)
+    }
+
+    @Test
     fun exitReturnsToTheTypedInterviewWithoutWrappingUp() {
         rig.scripts += spoken("my first answer over")
         rig.controller.start(rig.seeded, "typed")

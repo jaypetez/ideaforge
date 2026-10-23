@@ -25,6 +25,7 @@ import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -136,6 +137,8 @@ class ResultViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ResultState())
     val state: StateFlow<ResultState> = _state.asStateFlow()
+    val reports = ContentReportController(store, worker, clock, writes, viewModelScope,
+        changed = { session, _ -> show(session) })
 
     init {
         viewModelScope.launch { open() }

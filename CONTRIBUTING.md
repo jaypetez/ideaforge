@@ -565,6 +565,20 @@ their original display PNGs and requested window flags remain diagnostics; flags
 app-window PixelCopy alone cannot establish SystemUI paint. This does not certify production
 system bars or physical phones.
 
+For native AI-output reporting, dispatch `-f evidence=reporting` on the exact feature ref.
+It selects `UxCaptureDeviceTest#requestedContentReportsKeepLocalPayloadAndQuestionIdentity`
+with `uxReportingProbe=true`, using the existing private-store routes and strict recorder.
+The fixed journey covers generated questions/suggestions, the localized dialog, a genuinely
+held session-lock save, a refused report write with retry, local export, no-answer
+replacement, earlier history, Result, Ideas previews and reporting from the real paused
+voice stage. It uses compact/expanded windows, both themes and font scales 1.0/1.3/2.0.
+Require the selected passing JUnit method, complete clean-SHA `ux-reporting` manifests
+and inspected original/reachability PNGs from `android-ux-evidence-<SHA>`. Voice
+speech/service are scripted; no recognizer, live provider or email composer is invoked.
+This is neither full UX acceptance nor Play approval, physical voice or manual TalkBack
+evidence. The optional email action has separate intent/payload tests and uses only the
+canonical policy's confirmed contact; no publication/account setup is needed.
+
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
 with the same provenance/window arguments and add `uxFoundationProbe=true`.

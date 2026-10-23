@@ -291,6 +291,123 @@
         "device": "desktop"
       }
     },
+    "s_cov@1#9407ab65c4": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 1,
+      "createdAt": 1760000000000,
+      "updatedAt": 1,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "Neutral generated marker?",
+          "bridge": "Neutral bridge.",
+          "move": null,
+          "chips": [
+            "Neutral suggestion A",
+            "Neutral suggestion B"
+          ],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
     "s_cov@1#d6ced6a01f": {
       "schema": 2,
       "id": "s_cov",
@@ -386,6 +503,253 @@
       "meta": {
         "device": "desktop"
       }
+    },
+    "s_cov@1#df03f4c856": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 1,
+      "createdAt": 1760000000000,
+      "updatedAt": 0,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 0,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@2#4cf8f29be0": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 2,
+      "createdAt": 1760000000000,
+      "updatedAt": 2,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "Neutral generated marker?",
+          "bridge": "Neutral bridge.",
+          "move": null,
+          "chips": [
+            "Neutral suggestion A",
+            "Neutral suggestion B"
+          ],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": {
+        "kind": "turn"
+      },
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      },
+      "contentReports": [
+        {
+          "id": "r_vector",
+          "at": 2,
+          "category": "other",
+          "note": "Neutral private note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        }
+      ]
     },
     "s_cov@2#8e69154c1a": {
       "schema": 2,
@@ -596,6 +960,526 @@
       "meta": {
         "device": "desktop"
       }
+    },
+    "s_cov@2#a3e13874b3": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 2,
+      "createdAt": 1760000000000,
+      "updatedAt": 2,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "Neutral generated marker?",
+          "bridge": "Neutral bridge.",
+          "move": null,
+          "chips": [
+            "Neutral suggestion A",
+            "Neutral suggestion B"
+          ],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      },
+      "contentReports": [
+        {
+          "id": "r_vector",
+          "at": 2,
+          "category": "other",
+          "note": "Neutral private note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        }
+      ]
+    },
+    "s_cov@2#d022edd523": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 2,
+      "createdAt": 1760000000000,
+      "updatedAt": 2,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "Neutral generated marker?",
+          "bridge": "Neutral bridge.",
+          "move": null,
+          "chips": [
+            "Neutral suggestion A",
+            "Neutral suggestion B"
+          ],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      },
+      "contentReports": [
+        {
+          "id": "r_vector",
+          "at": 2,
+          "category": "other",
+          "note": "Neutral private note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        },
+        null,
+        {
+          "id": "bad",
+          "at": 2,
+          "category": "other",
+          "note": 12,
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        }
+      ]
+    },
+    "s_cov@3#7f086c71e3": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 3,
+      "createdAt": 1760000000000,
+      "updatedAt": 2,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "Neutral generated draft marker.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "Neutral generated draft marker.",
+          "answerSource": "draft-unedited",
+          "draftText": "Neutral generated draft marker.",
+          "skipped": false,
+          "askedAt": 0,
+          "answeredAt": 2,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@3#ff59c1d017": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 3,
+      "createdAt": 1760000000000,
+      "updatedAt": 0,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "Neutral answer.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "Neutral generated marker?",
+          "bridge": "Neutral bridge.",
+          "move": null,
+          "chips": [
+            "Neutral suggestion A",
+            "Neutral suggestion B"
+          ],
+          "questionSource": "model",
+          "answer": "Neutral answer.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      },
+      "contentReports": [
+        {
+          "id": "r_vector",
+          "at": 2,
+          "category": "other",
+          "note": "Neutral private note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        }
+      ]
     },
     "s_walkthrough@16#0875ee064d": {
       "schema": 2,
@@ -5954,6 +6838,939 @@
             "device": "desktop"
           }
         }
+      }
+    },
+    {
+      "name": "reportableOutput question",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "kind": "question",
+          "turnId": "t1"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "question",
+          "turnId": "t1",
+          "question": "Neutral generated marker?",
+          "text": "Neutral bridge.\n\nNeutral generated marker?"
+        }
+      }
+    },
+    {
+      "name": "reportableOutput suggestions",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "kind": "suggestions",
+          "turnId": "t1"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "suggestions",
+          "turnId": "t1",
+          "question": "Neutral generated marker?",
+          "text": "Neutral suggestion A\nNeutral suggestion B"
+        }
+      }
+    },
+    {
+      "name": "reportableOutput result excludes user answers",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_walkthrough@56#ffd558fae7"
+        },
+        {
+          "kind": "result"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "result",
+          "turnId": null,
+          "question": null,
+          "text": "Conference name recall app\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\nAssumed the three-second limit applies to capture, not to looking a name back up.\n\nAssumed captured audio stays on the device, since it has to work with no signal.\n\nDo your two teammates see your notes, or only their own?\n\nShared notes turn a personal tool into something with a permission model.\n\nWhat earns a place on the card besides the one personal hook?\n\nWithout a rule the card fills up and stops being readable in three seconds.\n\nConferences, so a lot of names in a short window.\n\nAt the last conference, how many names did you actually lose?\n\nmaybe thirty names over three days\n\nhonestly I stopped counting\n\nonly a handful, but the ones that mattered\n\nI never learned them in the first place\n\nThirty names, and the evening ones go first.\n\nWhat would make you delete this in the first week?\n\nif I had to type during a conversation\n\nif it was just another contacts list\n\nif it took more than five seconds\n\nhonestly, if I forgot it was there\n\nSo nothing that puts a screen between you and the person.\n\nWhat are the hard limits on time and signal here?\n\nthree seconds and one thumb\n\nit has to work with no signal\n\nanything under a minute is fine\n\nno limit, I just need it to exist\n\nThree seconds, one thumb, and no signal.\n\nWho else would use this, if anyone?\n\nhonestly, just for me\n\nthe two others on my team\n\nanyone who works a booth\n\nnobody, it is a personal fix\n\nA personal tool for three people on one circuit.\n\nWrite the line you would want on screen when she walks up.\n\nSarah Chen, Vertex, API panel Tuesday\n\nSarah, Vertex. Kid plays clarinet.\n\njust the name, nothing else\n\na photo, and I will do the rest\n\nThe clarinet does more work than the job title.\n\nWhat existing thing is this closest to?\n\nlike a business card with a memory\n\nlike LinkedIn, but only people I met\n\nlike the notes app, but faster\n\nnothing really, that is the problem\n\nNot LinkedIn, then.\n\nWhere does the business-card comparison stop being true?\n\na card cannot record my voice\n\nI never look at cards again\n\ncards do not know when I met you\n\nit does not, that is exactly it\n\nnothing yet on what they already know\n\none sample line, but no rule for what earns a place\n\nthe analogue is named but not where it stops holding"
+        }
+      }
+    },
+    {
+      "name": "reportableOutput seed is not generated",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@1#df03f4c856"
+        },
+        {
+          "kind": "question",
+          "turnId": "t1"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "reportableOutput absent result",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@0#af2ea44a31"
+        },
+        {
+          "kind": "result"
+        }
+      ],
+      "expect": {
+        "value": null
+      }
+    },
+    {
+      "name": "reportableOutput imported unedited draft on a static question",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@3#7f086c71e3"
+        },
+        {
+          "kind": "suggestions",
+          "turnId": "t1"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "suggestions",
+          "turnId": "t1",
+          "question": "In a sentence or two — what’s the idea?",
+          "text": "Neutral generated draft marker."
+        }
+      }
+    },
+    {
+      "name": "addContentReport local snapshot",
+      "fn": "addContentReport",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "id": "r_vector",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          },
+          "category": "other",
+          "note": "Neutral private note.",
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "Neutral generated marker?",
+              "bridge": "Neutral bridge.",
+              "move": null,
+              "chips": [
+                "Neutral suggestion A",
+                "Neutral suggestion B"
+              ],
+              "questionSource": "model",
+              "answer": "",
+              "answerSource": null,
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          },
+          "contentReports": [
+            {
+              "id": "r_vector",
+              "at": 2,
+              "category": "other",
+              "note": "Neutral private note.",
+              "output": {
+                "kind": "question",
+                "turnId": "t1",
+                "question": "Neutral generated marker?",
+                "text": "Neutral bridge.\n\nNeutral generated marker?"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "addContentReport idempotent retry",
+      "fn": "addContentReport",
+      "args": [
+        {
+          "$ref": "s_cov@2#a3e13874b3"
+        },
+        {
+          "id": "r_vector",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          },
+          "category": "other",
+          "note": "Neutral private note.",
+          "now": 2
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "Neutral generated marker?",
+              "bridge": "Neutral bridge.",
+              "move": null,
+              "chips": [
+                "Neutral suggestion A",
+                "Neutral suggestion B"
+              ],
+              "questionSource": "model",
+              "answer": "",
+              "answerSource": null,
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          },
+          "contentReports": [
+            {
+              "id": "r_vector",
+              "at": 2,
+              "category": "other",
+              "note": "Neutral private note.",
+              "output": {
+                "kind": "question",
+                "turnId": "t1",
+                "question": "Neutral generated marker?",
+                "text": "Neutral bridge.\n\nNeutral generated marker?"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "addContentReport invalid category",
+      "fn": "addContentReport",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "id": "r_vector",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          },
+          "category": "unknown",
+          "note": "Neutral private note.",
+          "now": 2
+        }
+      ],
+      "expect": {
+        "throws": "Invalid content report category, note or output."
+      }
+    },
+    {
+      "name": "addContentReport rejects stale target",
+      "fn": "addContentReport",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "id": "r_vector",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "another output"
+          },
+          "category": "other",
+          "note": "Neutral private note.",
+          "now": 2
+        }
+      ],
+      "expect": {
+        "throws": "The reported output changed. Reopen Report for that output."
+      }
+    },
+    {
+      "name": "mergeContentReports stale snapshot",
+      "fn": "mergeContentReports",
+      "args": [
+        {
+          "$ref": "s_cov@1#9407ab65c4"
+        },
+        {
+          "$ref": "s_cov@2#a3e13874b3"
+        },
+        3
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 3,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "Neutral generated marker?",
+              "bridge": "Neutral bridge.",
+              "move": null,
+              "chips": [
+                "Neutral suggestion A",
+                "Neutral suggestion B"
+              ],
+              "questionSource": "model",
+              "answer": "",
+              "answerSource": null,
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          },
+          "contentReports": [
+            {
+              "id": "r_vector",
+              "at": 2,
+              "category": "other",
+              "note": "Neutral private note.",
+              "output": {
+                "kind": "question",
+                "turnId": "t1",
+                "question": "Neutral generated marker?",
+                "text": "Neutral bridge.\n\nNeutral generated marker?"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "migrate report snapshots and reject hostile shape",
+      "fn": "migrate",
+      "args": [
+        {
+          "$ref": "s_cov@2#d022edd523"
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 2,
+          "createdAt": 1760000000000,
+          "updatedAt": 2,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "Neutral generated marker?",
+              "bridge": "Neutral bridge.",
+              "move": null,
+              "chips": [
+                "Neutral suggestion A",
+                "Neutral suggestion B"
+              ],
+              "questionSource": "model",
+              "answer": "",
+              "answerSource": null,
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          },
+          "contentReports": [
+            {
+              "id": "r_vector",
+              "at": 2,
+              "category": "other",
+              "note": "Neutral private note.",
+              "output": {
+                "kind": "question",
+                "turnId": "t1",
+                "question": "Neutral generated marker?",
+                "text": "Neutral bridge.\n\nNeutral generated marker?"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "replaceReportedQuestion no answer or coverage change",
+      "fn": "replaceReportedQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@2#a3e13874b3"
+        },
+        {
+          "reportId": "r_vector",
+          "now": 4
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 3,
+          "createdAt": 1760000000000,
+          "updatedAt": 4,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "What’s the actual thing you want back — an email, a script, a plan, a list? Be as concrete as you can.",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "replacement",
+              "answer": "",
+              "answerSource": null,
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 4,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "thin",
+              "status": "probing",
+              "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          },
+          "contentReports": [
+            {
+              "id": "r_vector",
+              "at": 2,
+              "category": "other",
+              "note": "Neutral private note.",
+              "output": {
+                "kind": "question",
+                "turnId": "t1",
+                "question": "Neutral generated marker?",
+                "text": "Neutral bridge.\n\nNeutral generated marker?"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "replaceReportedQuestion cannot replace an answered question",
+      "fn": "replaceReportedQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@3#ff59c1d017"
+        },
+        {
+          "reportId": "r_vector",
+          "now": 4
+        }
+      ],
+      "expect": {
+        "throws": "Only the reported current unanswered question can be replaced."
+      }
+    },
+    {
+      "name": "replaceReportedQuestion cannot replace pending work",
+      "fn": "replaceReportedQuestion",
+      "args": [
+        {
+          "$ref": "s_cov@2#4cf8f29be0"
+        },
+        {
+          "reportId": "r_vector",
+          "now": 4
+        }
+      ],
+      "expect": {
+        "throws": "Only the reported current unanswered question can be replaced."
       }
     }
   ]

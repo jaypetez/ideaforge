@@ -63,6 +63,8 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.readableColor
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import kotlinx.serialization.json.JsonObject
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.RMS_FLOOR_DB
 import io.github.jaypetez.ideaforge.voice.SpeechBackend
@@ -85,6 +87,9 @@ fun VoiceStage(
     ideaTitle: String = "",
     microphoneDenied: Boolean = false,
     notificationsOff: Boolean = false,
+    questionOutput: JsonObject? = null,
+    suggestionsOutput: JsonObject? = null,
+    onReport: (JsonObject) -> Unit = {},
 ) {
     var help by rememberSaveable(state.sessionId) { mutableStateOf(false) }
     Column(modifier.fillMaxSize().imePadding().testTag("voice-stage")) {
@@ -118,8 +123,10 @@ fun VoiceStage(
             )
             if (state.question.isNotEmpty()) {
                 Text(stringResource(R.string.voice_current_question), style = MaterialTheme.typography.labelLarge)
+                ContentReportAction(questionOutput, "report-voice-question", onReport)
                 Text(state.question, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("voice-question").semantics { heading() })
             }
+            ContentReportAction(suggestionsOutput, "report-voice-suggestions", onReport)
             if (state.phase == DrivePhase.SPEAKING && state.mode == VoiceMode.ACTIVE &&
                 state.said.isNotEmpty() && state.said != state.question) {
                 Text(stringResource(R.string.voice_reading_aloud), style = MaterialTheme.typography.labelLarge)

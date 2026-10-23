@@ -110,6 +110,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -128,7 +129,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = if (listOf("playListingProbe", "uxMakeoverProbe").any {
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe").any {
         InstrumentationRegistry.getArguments().getString(it) == "true"
     }) {
         // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
@@ -1717,6 +1718,196 @@ class UxCaptureDeviceTest {
     }
 
     @Test
+    fun requestedContentReportsKeepLocalPayloadAndQuestionIdentity() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxReportingProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedContentReportsKeepLocalPayloadAndQuestionIdentity") != true) {
+                "the selected reporting acceptance requires uxReportingProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "reporting acceptance has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-reporting")
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("question", "suggestions", "dialog", "saving", "save-failure", "saved", "replaced",
+            "history", "result", "library", "voice")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
+            matrix.flatMap { config -> frames.map { "${config.id}/report-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-reporting-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        captureReportingJourney(config, recorder)
+                    } catch (error: Throwable) {
+                        recorder.failedRun(error)
+                        var diagnostic = activity
+                        for (key in UxEvidence.unrecorded(frames.map { "${config.id}/report-$it" }.toSet(), recorder.recordedKeys)) {
+                            recorder.failed(UxState(key.substringAfter('/'), "reporting", "real-app", null, null, null),
+                                config, error, diagnostic)
+                            diagnostic = null
+                        }
+                    } finally { closeFixture() }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph }, { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    private fun captureReportingJourney(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        fun click(name: String) {
+            if (!exists(name)) compose.onNodeWithTag("thread").performScrollToNode(hasTestTag(name))
+            runCatching { compose.onNodeWithTag(name).performScrollTo() }
+            compose.onNodeWithTag(name).assertIsDisplayed().performClick()
+        }
+        fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
+            UxState("report-$frame", "reporting", "real-app", null, null, null),
+            config, checkNotNull(activity), controls,
+            nativeMapping = "Real MainActivity reporting with neutral private fixtures. Saves and replacement use the real store/worker/reducers; held-lock loading and refused report writes are controlled faults. Voice output/service are scripted; no recognizer, email composer or real provider is invoked.",
+            rootSurfaceRole = if (dialog) "surfaceContainerHigh" else "background",
+        )
+        val base = fixtures.state("interview-long")
+        val rejected = AtomicBoolean(false)
+        prepare(base, config, reportWritesRejected = rejected)
+        navigate(base)
+        val graph = checkNotNull(fixtureGraph)
+        val id = requireNotNull(base.sessionId)
+        val before = checkNotNull(graph.sessionStore.get(id))
+        val open = io.github.jaypetez.ideaforge.core.openTurn(before)!!
+        val turnId = stringOf(open["id"])!!
+        val output = io.github.jaypetez.ideaforge.core.reportableOutput(before, "question", turnId)!!
+        capture("question", listOf(tag("report-current-question"), tag("report-current-suggestions"), tag("chip-0")), dialog = false)
+        click("report-current-suggestions")
+        await("content-report-dialog")
+        capture("suggestions", listOf(tag("report-review"), tag("report-category-other"), tag("report-cancel")))
+        click("report-cancel")
+        assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+        click("report-current-question")
+        await("content-report-dialog")
+        click("report-category-inaccurate")
+        val note = "Neutral optional report note marker. ".repeat(4).trim()
+        compose.onNodeWithTag("report-note").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(note)) }
+        hideKeyboard()
+        capture("dialog", listOf(tag("report-category-inaccurate"), tag("report-note"), tag("report-save"), tag("report-cancel")))
+
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val hold = graph.appScope.launch { graph.sessionWorker.exclusive(id) { entered.complete(Unit); release.await() } }
+        try {
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { entered.await() } }
+            rejected.set(true)
+            click("report-save")
+            await("report-saving")
+            assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+            capture("saving", listOf(UxControl("report-saving", hasTestTag("report-saving"), actionRequired = false), tag("report-save")))
+        } finally {
+            release.complete(Unit)
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { hold.join() } }
+        }
+        await("report-error")
+        assertTrue(nodeText("report-error").contains("report was not saved"))
+        assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+        capture("save-failure", listOf(UxControl("report-error", hasTestTag("report-error"), actionRequired = false),
+            tag("report-note"), tag("report-save"), tag("report-cancel")))
+        rejected.set(false)
+        click("report-save")
+        await("report-saved")
+        val report = (graph.sessionStore.get(id)!!["contentReports"] as JsonArray).single()
+        assertEquals(note, stringOf(report["note"]))
+        assertEquals(output, report["output"])
+        assertTrue(exportFor(graph.sessionStore.get(id)!!).contains(note))
+        capture("saved", listOf(tag("report-replace"), tag("report-email"), tag("report-done")))
+        click("report-replace")
+        await("report-replaced")
+        val after = graph.sessionStore.get(id)!!
+        for (key in listOf("coverage", "facts", "zeroGainStreak", "opening", "draftAnswer"))
+            assertEquals("replacement leaves $key unchanged", before[key], after[key])
+        assertEquals((before["turns"] as JsonArray).size, (after["turns"] as JsonArray).size)
+        val replaced = io.github.jaypetez.ideaforge.core.openTurn(after)!!
+        assertEquals(turnId, stringOf(replaced["id"]))
+        assertEquals("", stringOf(replaced["answer"]))
+        assertTrue(!truthy(replaced["skipped"]))
+        assertEquals("replacement", stringOf(replaced["questionSource"]))
+        assertTrue(replaced["question"] != open["question"])
+        click("report-done")
+        await("replacement-source")
+        compose.onNodeWithTag("report-current-question").assertDoesNotExist()
+        capture("replaced", listOf(UxControl("replacement-source", hasTestTag("replacement-source"), actionRequired = false),
+            tag("answer"), tag("send")), dialog = false)
+
+        click("history-toggle")
+        val past = (before["turns"] as JsonArray).first { stringOf(it["questionSource"]) == "model" && truthy(it["answer"]) }
+        click("report-history-question-${stringOf(past["id"])}")
+        await("content-report-dialog")
+        capture("history", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
+        click("report-cancel")
+        closeFixture()
+
+        val result = fixtures.state("result-long")
+        prepare(result, config)
+        navigate(result)
+        click("report-result")
+        await("content-report-dialog")
+        capture("result", listOf(tag("report-review"), tag("report-category-other"), tag("report-cancel")))
+        click("report-cancel")
+        closeFixture()
+
+        val library = fixtures.state("library-long")
+        prepare(library, config)
+        navigate(library)
+        val libraryGraph = checkNotNull(fixtureGraph)
+        val librarySession = libraryGraph.sessionStore.get(id)!!
+        val libraryTurn = (librarySession["turns"] as JsonArray).first { stringOf(it["questionSource"]) == "model" }
+        click("report-library-question-${stringOf(libraryTurn["id"])}")
+        await("content-report-dialog")
+        capture("library", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
+        click("report-cancel")
+        closeFixture()
+
+        prepare(base, config)
+        val voiceGraph = checkNotNull(fixtureGraph)
+        val starts = AtomicInteger()
+        val speeches = AtomicInteger()
+        voiceGraph.driveService = object : DriveServiceControl {
+            override fun start() { starts.incrementAndGet() }
+            override fun stop() {}
+        }
+        voiceGraph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult { speeches.incrementAndGet(); return awaitCancellation() }
+            override fun cancel() {}
+            override fun shutdown() {}
+        }
+        navigate(base)
+        compose.runOnUiThread { voiceGraph.driveController.start(checkNotNull(voiceGraph.sessionStore.get(id)), "typed") }
+        await("voice-stage")
+        compose.waitUntil(DEVICE_TIMEOUT) { starts.get() == 1 && speeches.get() == 1 }
+        click("report-voice-question")
+        await("content-report-dialog")
+        assertEquals(VoiceMode.PAUSED, voiceGraph.driveController.state.value.mode)
+        capture("voice", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
+        assertEquals("opening Report never restarts speech", 1, speeches.get())
+        assertEquals("opening Report never starts another service", 1, starts.get())
+    }
+
+    @Test
     fun requestedIdeasAreCompactReachableAndTruthful() {
         val bundle = InstrumentationRegistry.getArguments()
         val probe = bundle.getString("uxIdeasProbe")
@@ -1890,6 +2081,7 @@ class UxCaptureDeviceTest {
         config: UxConfiguration,
         inferenceAgreed: Boolean = true,
         checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+        reportWritesRejected: AtomicBoolean? = null,
     ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
@@ -1903,6 +2095,13 @@ class UxCaptureDeviceTest {
                 entered.countDown()
                 if (!gate.await(DEVICE_TIMEOUT, TimeUnit.MILLISECONDS)) throw IOException("controlled UX library read exceeded its capture budget")
                 Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+            })
+        } ?: reportWritesRejected?.let { refused ->
+            SessionStore(File(context.filesDir, "sessions"), writer = { file, bytes ->
+                if (refused.get() && (Json.parseToJsonElement(bytes.decodeToString()) as JsonObject).containsKey("contentReports")) {
+                    throw IOException("Neutral controlled report write failure; retry keeps the note.")
+                }
+                SessionStore.write(file, bytes)
             })
         }
         val graph = AppGraph(

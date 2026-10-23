@@ -225,6 +225,20 @@ test('the privacy policy distinguishes local credentials and Pause by platform',
   assert.match(paragraph('web-pause'), /may finish transcription/);
 });
 
+test('native reporting uses only the canonical confirmed privacy contact and documents local copies', () => {
+  const policy = guide('privacy-policy.html');
+  const strings = readFileSync(join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings_reporting.xml'), 'utf8');
+  const recipient = strings.match(/<string name="report_privacy_email" translatable="false">([^<]*)<\/string>/)?.[1];
+  assert.notEqual(recipient, undefined, 'email availability must be an explicit non-secret resource');
+  const contact = policy.match(/<address id="privacy-contact" data-status="ready">[\s\S]*?mailto:([^"?]+)"/)?.[1];
+  assert.equal(recipient, checkPrivacyPolicy(policy).ok ? contact : '',
+    'never offer an invented, stale or unconfirmed report recipient');
+  assert.match(policy, /id="content-reports"/);
+  assert.match(policy, /Report metadata is not sent in model/);
+  assert.match(guide('android.html'), /web app has\s+no Report controls yet/);
+  assert.match(guide('android.html'), /not a claim of Play approval/);
+});
+
 test('the guide only documents npm scripts that exist and keeps browser checks fail-closed', () => {
   let commands = 0;
   for (const page of GUIDE_PAGES) {
@@ -696,6 +710,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both voice visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxVoiceProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=voice-ready\+voice-starting\+voice-speaking\+voice-listening\+voice-transcribing\+voice-thinking\+voice-paused\+voice-recovering\+voice-blocked\+voice-complete\+voice-writing\+voice-fallback\+voice-notifications-off\+voice-help/g) || []).length, 2,
     'voice evidence must include every declared native phase and recovery presentation');
+  assert.equal((workflow.match(/inputs\.evidence == 'reporting' && '#requestedContentReportsKeepLocalPayloadAndQuestionIdentity'/g) || []).length, 2,
+    'both rendering profiles must explicitly select the reporting acceptance test');
+  assert.equal((workflow.match(/inputs\.evidence == 'reporting' && '-Pandroid\.testInstrumentationRunnerArguments\.uxReportingProbe=true'/g) || []).length, 2,
+    'reporting evidence requires its nonempty opt-in, not generic discovery');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [

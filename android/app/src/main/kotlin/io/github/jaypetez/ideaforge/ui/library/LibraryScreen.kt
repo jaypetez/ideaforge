@@ -81,6 +81,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jaypetez.ideaforge.BuildConfig
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.core.js.get
+import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
@@ -91,6 +92,8 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.controls
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportDialog
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import java.text.DateFormat
@@ -149,6 +152,7 @@ fun LibraryScreen(
     val visibleIds = state.items.map { it.id }
     val listHidden = navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Hidden
     val detailHidden = navigator.scaffoldValue[ListDetailPaneScaffoldRole.Detail] == PaneAdaptedValue.Hidden
+    ContentReportDialog(vm.reports)
 
     LaunchedEffect(visibleIds, listHidden, state.loading, state.loadProblem) {
         if (listHidden && selectedId != null && selectedId !in visibleIds &&
@@ -237,6 +241,7 @@ fun LibraryScreen(
                     IdeaDetail(
                         item = item,
                         session = session,
+                        reports = vm.reports,
                         actions = actions,
                         back = if (listHidden) ({ scope.launch { navigator.navigateBack() } }) else null,
                     )
@@ -552,7 +557,8 @@ private fun IdeaMenu(item: LibraryItem, actions: IdeaActions, detail: Boolean = 
 @Composable
 private fun IdeaDetail(
     item: LibraryItem?,
-    session: JsonElement?,
+    session: Session?,
+    reports: ContentReportController,
     actions: IdeaActions,
     back: (() -> Unit)?,
 ) {
@@ -574,7 +580,7 @@ private fun IdeaDetail(
         Button(onClick = { actions.open(item) }) {
             Text(stringResource(if (item.done) R.string.idea_view_result else R.string.idea_continue))
         }
-        if (session != null) LibraryPreview(session)
+        if (session != null) LibraryPreview(session) { reports.open(session, it) }
     }
 }
 

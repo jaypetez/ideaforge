@@ -29,6 +29,7 @@ import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionLoadState
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -122,6 +123,7 @@ class LibraryViewModel(
 
     /** The stored documents, for the detail pane's export preview. */
     val sessions: StateFlow<List<Session>> = store.sessions
+    val reports = ContentReportController(store, worker, clock, writes, viewModelScope, ids = ids)
 
     init { retryLoad() }
 

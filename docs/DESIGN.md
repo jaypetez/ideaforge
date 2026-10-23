@@ -280,6 +280,30 @@ ResultActions, exportFor, CreateDocument cancellation, FileProvider/temporary-sh
 clipboard bytes and same-session reopen remain their owners, including the real-provider
 Windows test seam.
 
+## Current native content reporting
+
+Generated question and suggestion groups expose an adjacent labelled Report action.
+The earlier conversation, active Ideas preview, Result document and attached voice stage
+use the same dialog and immutable output identity, not a public-issue link. Static seed,
+checklist replacement and absent synthesis do not receive generated labels; a mixed
+document says it contains AI-generated content.
+
+The localized dialog separates a category, optional note, exact included-text disclosure
+and explicit local save. Cancel changes nothing. Failed writes retain the form and retry;
+pending saves are actual work, not a fabricated presentation. A saved report offers
+same-turn checklist replacement only for its still-unanswered question, preserves the
+draft and changes no coverage. Opening Report pauses voice and replacing does not resume
+it. Optional email is a deliberate composer handoff, not developer receipt.
+
+The shared reducers/export own portable report metadata, with no new web reporting UI:
+Android-only presentation is the agreed native scope. `evidence=reporting` reuses
+`UxCaptureDeviceTest` and the fail-closed recorder across both windows/themes and all
+three font scales. Its fixed real-app subset includes controlled held-lock loading,
+write failure/retry, saved/replaced output and every reporting surface. Require the
+selected test, complete clean-SHA manifests and actual PNGs. Scripted voice effects,
+intent tests and emulator geometry do not prove physical recognition, real email
+delivery, manual TalkBack or Play compliance.
+
 ## Current native Ideas
 
 `LibraryScreen.kt` keeps Material's `NavigableListDetailPaneScaffold` and one New idea

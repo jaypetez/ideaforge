@@ -241,6 +241,22 @@ source wins over prose, and a generated artifact wins over a description of that
   [`sw.js`](../../../../sw.js) and [`test/sw.test.mjs`](../../../../test/sw.test.mjs)
   own response cloning before consumption, refresh-event lifetime, reported cache-write
   failures and offline shell/module fallbacks. Keep guide/provider bypasses intact.
+- **Native AI-output reports and portable metadata.** Sources:
+  [`src/core/session.js`](../../../../src/core/session.js) owns `reportableOutput`,
+  `addContentReport`, `mergeContentReports`, `replaceReportedQuestion` and migration;
+  [`Markdown.kt`](../../../../android/core/src/main/kotlin/io/github/jaypetez/ideaforge/core/Markdown.kt)
+  and the JS export append reports only when present. Golden vectors and both generated
+  backup fixtures pin the JS/Kotlin data contract without changing no-report exports.
+  [`ContentReportController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/reporting/ContentReportController.kt)
+  owns origin/draft identity and serialized local saves; `InterviewWork`, typed drafts
+  and paused `DriveController` preserve those writes.
+  [`ContentReportDialog.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/reporting/ContentReportDialog.kt)
+  is wired into questions, suggestion groups, history, Ideas previews, Result and voice.
+  The canonical privacy policy's confirmed contact is checked against its email resource
+  in `test/docs.test.mjs`. Re-check Android/interview/privacy guidance, architecture,
+  DESIGN and `evidence=reporting` selected execution, complete manifests and PNGs.
+  Android-only UI is deliberate; local save is not developer receipt, and scripted voice
+  or an email intent is not physical speech, email delivery or Play approval.
 - **Native visual foundation.** Sources:
   [`Theme.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt)
   owns fallback `LightTokens`/`DarkTokens`, opaque composites, all 15 system-family type

@@ -152,6 +152,28 @@ directions: `test/fixtures/backup-from-web.json` (written by `tools/backup-fixtu
 is imported by the Android tests, and `test/fixtures/backup-from-android.json` (written by
 the Android export) is imported by `test/backup.test.mjs`.
 
+`contentReports` is optional, additive session metadata, owned by `addContentReport`,
+`mergeContentReports`, `replaceReportedQuestion` and `reportableOutput` in
+`src/core/session.js`, with matching reducers in Android's `core/Session.kt`.
+Migration validates the report records rather than trusting imported shape; no-report
+exports keep their canonical bytes. A report holds an id, time, category, optional note
+and an immutable generated-output snapshot, never a whole session or credential record.
+`buildExport` appends a clearly local report section only when reports exist; backup
+fixtures and golden vectors pin both directions. Prompt builders read no report metadata.
+
+Android's `ui/reporting/ContentReportController.kt` binds the displayed output and origin
+idea before queuing a local read/reduce/save under `SessionWorker`. Typed drafts and
+`InterviewWork` preserve durable reports when their snapshot is older. Deletion still
+retires queued work and cannot resurrect an idea. Replacement edits the current open turn
+in place with a distinct same-dimension checklist question; it never re-enters `runTurn`
+or reapplies coverage. `ContentReportDialog.kt` is wired to current questions, suggestions,
+history, Ideas previews, Result and the real voice stage. Opening it during voice pauses
+the existing controller; a saved replacement refreshes only a paused/blocked stage.
+There is no automatic report transport. An optional, explicit email-composer handoff
+uses the canonical privacy policy's confirmed contact, bound by a docs check, without
+claiming receipt. Android-only UI is the agreed native scope; web imports/export retain
+the shared data, not new web reporting controls.
+
 `sessionWork` owns model work by session id rather than whichever idea happens to be open
 when a promise resolves. `currentView` also checks the navigation generation before a
 continuation updates presentation. Pausing voice can let a submitted request settle for

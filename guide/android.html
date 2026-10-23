@@ -278,6 +278,50 @@
         brought into view and you can try again; reading the policy does not check a provider.
       </p>
 
+      <h2 id="report-ai-output">Report AI output without sending it automatically</h2>
+      <p>
+        <strong>Report</strong> is beside generated questions and suggestion groups,
+        including earlier conversation and Ideas previews, and in the Result actions.
+        The voice stage also offers it for its question and suggestions; opening a report
+        pauses voice and never resumes the microphone automatically. Generated questions
+        and suggestions are labelled; a mixed document says it contains AI-generated
+        content. The opening question, a checklist replacement and missing synthesis
+        are not labelled as generated.
+      </p>
+      <ol class="steps">
+        <li>Tap <strong>Report</strong>, choose <strong>Offensive</strong>,
+          <strong>Harmful</strong>, <strong>Inaccurate</strong> or <strong>Other</strong>,
+          and optionally add a note. <strong>Review included generated text</strong>
+          shows the exact snapshot.</li>
+        <li><strong>Save report locally</strong> saves the generated text, category,
+          optional note and report time to this idea. It does not add user-written answers,
+          the full transcript, keys or connection settings. A Result report includes
+          the idea&rsquo;s generated write-up, questions, suggestions, unedited AI drafts and coverage gaps,
+          not the complete exported interview. Generated text itself may contain private
+          details. Cancel saves nothing; a failed save keeps the form for retry.</li>
+        <li>After saving a report for the still-current unanswered question,
+          <strong>Ask a different question</strong> uses a distinct built-in checklist
+          question on that same turn and dimension. It records no answer or skip and
+          changes no coverage. Your unsent draft remains editable. If no different
+          question is available, the error says so and keeps the current question.</li>
+      </ol>
+      <p>
+        Saving does <strong>not</strong> send the report to the developer or a model
+        provider. Reports stay with the idea and appear in its markdown export and
+        JSON backup; sharing those files also shares the reports. Deleting the idea
+        deletes its local reports, not copies you have already shared. The optional
+        <strong>Open email to developer</strong> action uses the confirmed
+        <a href="./privacy-policy.html#developer">privacy contact</a> and opens an
+        email composer containing only the report&rsquo;s generated text, category
+        and note. Review and send it there; an opened composer is not proof of delivery.
+      </p>
+      <p>
+        This reporting interface is Android-only by the requested native development
+        scope, not a claim of Play approval. The shared session and export contract
+        preserves reports in web imports, backups and exports, but the web app has
+        no Report controls yet.
+      </p>
+
       <h2 id="native-verification">What the native interface checks prove</h2>
       <p>
         The repository&rsquo;s optional <code>Android device</code> workflow has a
@@ -306,6 +350,16 @@
         cover microphone denial and optional notification denial without claiming a
         physical permission or recognition result. See
         <a href="https://github.com/jaypetez/ideaforge/blob/main/docs/DESIGN.md#complete-native-makeover-acceptance">the native acceptance commands and artifact requirements</a>.
+      </p>
+      <p>
+        The focused <code>evidence=reporting</code> route uses the same native recorder
+        on rendering-enabled compact and expanded emulators, both themes and font scales
+        1.0, 1.3 and 2.0. It checks actual question/suggestion/history/Result/Ideas/voice
+        reachability, a pending session-lock save, a refused report write with retry,
+        local export and no-answer replacement. Its voice output and service are
+        scripted; it does not open a real email app, contact a model or certify a
+        physical device. Require its selected passing test, complete clean-SHA
+        manifests and inspected screenshots, not just a successful dispatch.
       </p>
 
       <h2 id="foreground-service-declaration">Play Console: microphone foreground service</h2>

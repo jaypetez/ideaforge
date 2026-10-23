@@ -20,6 +20,7 @@ import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.lastAnswerClass
 import io.github.jaypetez.ideaforge.core.legalMoves
 import io.github.jaypetez.ideaforge.core.openTurn
+import io.github.jaypetez.ideaforge.core.mergeContentReports
 import io.github.jaypetez.ideaforge.core.promptHash
 import io.github.jaypetez.ideaforge.core.renameSession
 import io.github.jaypetez.ideaforge.core.restoreSession
@@ -37,6 +38,7 @@ import io.github.jaypetez.ideaforge.data.InferenceConsent
 import io.github.jaypetez.ideaforge.data.InferencePermit
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -153,6 +155,28 @@ class InterviewViewModel(
     private var pendingDraft: String? = null
 
     private fun now(): JsonElement = work.now()
+
+    val reports = ContentReportController(store, worker, clock, writes, viewModelScope, changed = { latest, replaced ->
+        if (replaced) cancelDraft()
+        _state.update { st ->
+            val current = st.session
+            when {
+                current == null -> st
+                replaced -> st.copy(session = latest, answer = stringOf(latest["draftAnswer"]).orEmpty())
+                else -> st.copy(session = mergeContentReports(current, latest, now()))
+            }
+        }
+    })
+
+    fun replaceReportedQuestion(fromVoice: Boolean) {
+        if (!fromVoice) {
+            // Keep this pending until the replacement is durable, including a failed-save retry.
+            draftJob?.cancel()
+            draftJob = null
+            pendingDraft = _state.value.answer
+        }
+        reports.replace(if (fromVoice) null else _state.value.answer)
+    }
 
     init {
         viewModelScope.launch { open() }
@@ -425,11 +449,22 @@ class InterviewViewModel(
             if (pendingDraft == text) pendingDraft = null
             return
         }
-        val drafted = setDraftAnswer(s, str(text), now())
-        _state.update { it.copy(session = drafted) }
+        val expected = openTurn(s) ?: return
         try {
-            val out = worker.run(worker.tag(sessionId), work = { store.save(drafted) })
-            if (out is SessionWorker.Outcome.Committed && pendingDraft == text) pendingDraft = null
+            val out = worker.run(worker.tag(sessionId), work = {
+                val latest = store.get(sessionId) ?: s.takeIf { sessionId !in store.knownIds() } ?: return@run null
+                val open = openTurn(latest) ?: return@run null
+                if (open["id"] != expected["id"] || open["question"] != expected["question"]) return@run null
+                setDraftAnswer(latest, str(text), now()).also { store.save(it) }
+            })
+            val drafted = (out as? SessionWorker.Outcome.Committed)?.value
+            if (drafted != null) {
+                _state.update {
+                    if (it.answer == text && it.openTurn?.get("id") == expected["id"] &&
+                        it.openTurn?.get("question") == expected["question"]) it.copy(session = drafted) else it
+                }
+                if (pendingDraft == text) pendingDraft = null
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -546,8 +581,7 @@ internal fun withPendingTurn(session: Session, now: JsonElement): Session {
 }
 
 /**
- * Library edits (name, tags, archive) saved while this screen held an older copy of the idea
- * are kept, not overwritten by the interview's snapshot: the web's withLibraryMetadata.
+ * Keep durable library edits and local reports when interview work held an older copy.
  */
 internal fun withLibraryMetadata(session: Session, latest: Session?, now: JsonElement): Session {
     if (latest == null) return session
@@ -557,5 +591,5 @@ internal fun withLibraryMetadata(session: Session, latest: Session?, now: JsonEl
     if (s["archivedAt"] != latest["archivedAt"]) {
         s = if (truthy(latest["archivedAt"])) archiveSession(s, latest["archivedAt"]!!) else restoreSession(s, now)
     }
-    return s
+    return mergeContentReports(s, latest, now)
 }

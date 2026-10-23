@@ -2,6 +2,9 @@ package io.github.jaypetez.ideaforge.ui.settings
 
 import android.net.Uri
 import io.github.jaypetez.ideaforge.core.archiveSession
+import io.github.jaypetez.ideaforge.core.addContentReport
+import io.github.jaypetez.ideaforge.core.askQuestion
+import io.github.jaypetez.ideaforge.core.reportableOutput
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.js.arr
 import io.github.jaypetez.ideaforge.core.js.num
@@ -74,7 +77,11 @@ class BackupInteropTest {
             "s_android_reading", "tablet",
             "Something that turns the highlights in my e-reader into a weekly \"what did I learn\" note.",
             200,
-        ),
+        ).let { answered ->
+            val generated = askQuestion(answered, str("Neutral Android generated question marker?"), str("outcome"), now = at(240))
+            addContentReport(generated, str("r_android_backup"), reportableOutput(generated, "question", "t2"),
+                str("other"), str("Neutral Android report note."), at(245))
+        },
     )
 
     @Test

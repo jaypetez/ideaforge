@@ -43,6 +43,8 @@ const val SCHEMA = 2
 const val MAX_SESSION_NAME = 120
 const val MAX_TAGS = 12
 const val MAX_TAG_LENGTH = 32
+val REPORT_CATEGORIES = listOf("offensive", "harmful", "inaccurate", "other")
+const val MAX_REPORT_NOTE = 2000
 
 /** Coverage may rise at most one level per dimension per turn... */
 private const val MAX_LEVEL_RISE_PER_TURN = 1
@@ -195,6 +197,134 @@ fun setDraftText(session: Session, text: JsonElement?, now: JsonElement = num(0)
 
 fun setDraftAnswer(session: Session, text: JsonElement?, now: JsonElement = num(0)): Session =
     bump(session, listOf("draftAnswer" to text), now)
+
+/** Copy generated text only, never an export containing answers or older private reports. */
+fun reportableOutput(session: Session, kind: String?, turnId: String? = null): JsonObject? {
+    val turns = recordArray(session["turns"])
+    if (kind == "result") {
+        val parts = mutableListOf<String>()
+        val synthesis = session["synthesis"]
+        if (nonEmpty(synthesis["text"])) {
+            if (nonEmpty(session["title"])) parts += stringOf(session["title"])!!
+            parts += stringOf(synthesis["text"])!!
+            parts += items(synthesis["assumptions"]).filter(::nonEmpty).map { stringOf(it)!! }
+            for (q in recordArray(session["openQuestions"])) {
+                if (nonEmpty(q["question"])) parts += stringOf(q["question"])!!
+                if (nonEmpty(q["why_it_matters"])) parts += stringOf(q["why_it_matters"])!!
+            }
+        }
+        for (turn in turns) {
+            if (stringOf(turn["questionSource"]) == "model") {
+                if (nonEmpty(turn["bridge"])) parts += stringOf(turn["bridge"])!!
+                if (nonEmpty(turn["question"])) parts += stringOf(turn["question"])!!
+            }
+            parts += generatedSuggestions(turn)
+        }
+        if (parts.isNotEmpty()) for (id in DIMENSION_IDS) {
+            if (nonEmpty(session["coverage"][id]["gap"])) parts += stringOf(session["coverage"][id]["gap"])!!
+        }
+        return if (parts.isEmpty()) null else obj(
+            "kind" to str(kind), "turnId" to JsonNull, "question" to JsonNull, "text" to str(parts.joinToString("\n\n")),
+        )
+    }
+    val turn = turns.firstOrNull { stringOf(it["id"]) == turnId } ?: return null
+    if (!nonEmpty(turn["question"])) return null
+    val text = when (kind) {
+        "question" -> if (stringOf(turn["questionSource"]) == "model")
+            listOfNotNull(turn["bridge"], turn["question"]).filter(::nonEmpty).joinToString("\n\n") { stringOf(it)!! } else ""
+        "suggestions" -> generatedSuggestions(turn).joinToString("\n")
+        else -> ""
+    }
+    return if (text.isEmpty()) null else obj(
+        "kind" to str(kind!!), "turnId" to str(turnId!!), "question" to turn["question"], "text" to str(text),
+    )
+}
+
+private fun generatedSuggestions(turn: JsonObject): List<String> {
+    val texts = if (stringOf(turn["questionSource"]) == "model")
+        items(turn["chips"]).filter(::nonEmpty).map { stringOf(it)!! }.toMutableList() else mutableListOf()
+    if (isLowConfidence(turn) && nonEmpty(turn["answer"]) && stringOf(turn["answer"]) !in texts)
+        texts += stringOf(turn["answer"])!!
+    return texts
+}
+
+private fun reportId(id: JsonElement?): Boolean = stringOf(id)?.let {
+    it.length in 1..128 && it.all { c -> c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c == '_' || c == '-' }
+} == true
+
+private fun normalizeReport(raw: JsonElement?): JsonObject? {
+    val report = raw as? JsonObject ?: return null
+    val note = stringOf(report["note"]) ?: return null
+    if (!reportId(report["id"]) || stringOf(report["category"]) !in REPORT_CATEGORIES || note.length > MAX_REPORT_NOTE
+        || !isFiniteNumber(report["at"]) || toNumber(report["at"]) < 0 || toNumber(report["at"]) > 8.64e15) return null
+    val output = report["output"] as? JsonObject ?: return null
+    val text = stringOf(output["text"]) ?: return null
+    if (!nonEmpty(output["text"]) || text.length > 262144) return null
+    if (stringOf(output["kind"]) == "result") {
+        if (output["turnId"] !is JsonNull || output["question"] !is JsonNull) return null
+    } else if (stringOf(output["kind"]) !in setOf("question", "suggestions") || !reportId(output["turnId"])
+        || !nonEmpty(output["question"]) || stringOf(output["question"])!!.length > 262144) return null
+    return obj(
+        "id" to report["id"], "at" to report["at"], "category" to report["category"], "note" to str(jsTrim(note)),
+        "output" to obj("kind" to output["kind"], "turnId" to output["turnId"],
+            "question" to output["question"], "text" to output["text"]),
+    )
+}
+
+private fun reportsOf(session: Session): List<JsonObject> =
+    recordArray(session["contentReports"]).mapNotNull(::normalizeReport).distinctBy { stringOf(it["id"]) }
+
+/** Bind a report to the exact output shown, not whatever a delayed save now sees. */
+fun addContentReport(
+    session: Session, id: JsonElement?, output: JsonElement?, category: JsonElement?,
+    note: JsonElement = str(""), now: JsonElement = num(0),
+): Session {
+    val report = normalizeReport(obj("id" to id, "output" to output, "category" to category, "note" to note, "at" to now))
+        ?: throw IllegalArgumentException("Invalid content report category, note or output.")
+    val reports = reportsOf(session)
+    reports.firstOrNull { it["id"] == id }?.let { existing ->
+        if (existing["category"] == report["category"] && existing["note"] == report["note"] && existing["output"] == report["output"])
+            return session
+        throw IllegalArgumentException("This report id already belongs to another report.")
+    }
+    val snapshot = report["output"] as JsonObject
+    val current = reportableOutput(session, stringOf(snapshot["kind"]), stringOf(snapshot["turnId"]))
+    if (current != snapshot) throw IllegalStateException("The reported output changed. Reopen Report for that output.")
+    return bump(session, listOf("contentReports" to arr(reports + report)), now)
+}
+
+/** A settled turn/draft may have begun before a report became durable. */
+fun mergeContentReports(session: Session, latest: Session?, now: JsonElement = num(0)): Session {
+    val reports = linkedMapOf<String, JsonObject>()
+    for (report in reportsOf(session) + reportsOf(latest ?: obj())) reports[stringOf(report["id"])!!] = report
+    val merged = arr(reports.values.toList())
+    if (reports.isEmpty() || merged == session["contentReports"]) return session
+    return bump(session, listOf("contentReports" to merged), now)
+}
+
+/** Same turn and dimension, with no new answer or second coverage judgement. */
+fun replaceReportedQuestion(session: Session, reportId: String?, now: JsonElement = num(0)): Session {
+    val open = openTurn(session)
+    val report = reportsOf(session).firstOrNull { stringOf(it["id"]) == reportId }
+    if (stringOf(session["status"]) != "interviewing" || truthy(session["pending"]) || open == null || report == null
+        || stringOf(report["output"]["kind"]) !in setOf("question", "suggestions")
+        || stringOf(open["questionSource"]) != "model" || open["id"] != report["output"]["turnId"]
+        || open["question"] != report["output"]["question"]) {
+        throw IllegalStateException("Only the reported current unanswered question can be replaced.")
+    }
+    val asked = turnsOf(session).mapNotNull { stringOf(it["question"]) }.toMutableSet()
+    for (r in reportsOf(session)) stringOf(r["output"]["question"])?.let(asked::add)
+    val dimension = stringOf(open["dimension"])
+    val question = dimension?.let { getDimension(it)["bank"] as? JsonArray }
+        ?.mapNotNull(::stringOf)?.firstOrNull { it !in asked }
+        ?: throw IllegalStateException("No different checklist question is available for this dimension.")
+    val turns = turnsOf(session).toMutableList()
+    turns[turns.lastIndex] = open.spread(
+        "question" to str(question), "bridge" to JsonNull, "chips" to arr(emptyList()), "move" to JsonNull,
+        "questionSource" to str("replacement"), "askedAt" to now,
+    )
+    return bump(session, listOf("turns" to arr(turns)), now)
+}
 
 /** True when this answer's provenance means it cannot support a `covered` grade. */
 fun isLowConfidence(turn: JsonElement?): Boolean =
@@ -388,6 +518,7 @@ fun migrate(stored: JsonElement?): Session? {
     merged["turns"] = arr(recordArray(stored["turns"]).map { turn ->
         turn.spread("chips" to arr((turn["chips"] as? JsonArray)?.filter(::isString) ?: emptyList()))
     })
+    if (stored.containsKey("contentReports")) merged["contentReports"] = arr(reportsOf(stored))
     merged["facts"] = arr(recordArray(stored["facts"]))
     merged["moveHistory"] = arr((stored["moveHistory"] as? JsonArray)?.filter(::isString) ?: emptyList())
     merged["openQuestions"] = arr(recordArray(stored["openQuestions"]))
