@@ -366,6 +366,8 @@ prevents a cancelled catalogue read from dropping a concurrent speaker's engine.
 Loading, engine failures, an empty list and a retained missing choice stay distinct; reload
 is explicit. Each subsequent native speak re-reads prefs and retains the existing reported
 default fallback. Hosted speech/key/verification/consents and inference remain independent.
+`VoiceStage` renders the retained successful speech result's missing-voice warning alongside
+any hosted-fallback reason, without changing the saved choice or the speech backend.
 
 **Native Result and export.** `ResultScreen.kt` owns responsive action priority, one
 selectable reading canvas and persistent operation errors. `ResultViewModel` distinguishes

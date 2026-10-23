@@ -834,7 +834,7 @@ class UxCaptureDeviceTest {
         } }
         val deviceVoices = bundle.getString("uxDeviceVoicesProbe") == "true"
         val frames = if (deviceVoices) listOf("device-default", "device-long-choice", "device-selected",
-            "device-loading", "device-error", "device-empty", "device-missing")
+            "device-loading", "device-error", "device-empty", "device-missing", "device-spoken-fallback")
         else listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
             "cancel-forget", "about", "connection-failure", "checking", "backup-failure")
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
@@ -849,8 +849,21 @@ class UxCaptureDeviceTest {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
                     for (frame in frames) {
-                        val state = UxState("settings-$frame", "settings", "real-app", null, null, null)
+                        val isolated = if (frame == "device-spoken-fallback")
+                            UxFixtureActivity.requestedVoiceState(fixtures, "voice-fallback") else null
+                        val state = isolated?.copy(id = "settings-$frame")
+                            ?: UxState("settings-$frame", "settings", "real-app", null, null, null)
                         try {
+                            if (isolated != null) {
+                                prepare(isolated, config)
+                                val controls = navigate(isolated) +
+                                    UxControl("spoken-device-warning", hasTestTag("voice-fallback"), actionRequired = false)
+                                compose.onNodeWithTag("voice-fallback").performScrollTo().assertIsDisplayed()
+                                check(nodeText("voice-fallback").contains("selected device voice is unavailable"))
+                                recorder.capture(state, config, checkNotNull(activity), controls,
+                                    nativeSurface = "voice", nativeMapping = UxFixtureActivity.nativeMapping(isolated))
+                                continue
+                            }
                             val checker = ProviderCheck { _, _ ->
                                 when (frame) {
                                     "checking" -> awaitCancellation()

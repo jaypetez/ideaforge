@@ -527,7 +527,8 @@ selection/recreation, pending engine read, error, empty list and retained missin
 Both rendering-enabled profiles run light/dark at actual font scales 1.0/1.3/2.0.
 Require actual passing selected-method XML, both complete clean-SHA `ux-device-voices`
 manifests and all original/reachability PNGs. The controlled engine also asserts subsequent
-native speaker configuration/fallback; these captures do not play real speech, request
+native speaker configuration/fallback. An eighth, explicitly isolated voice-stage frame
+shows both the reported missing-device-voice warning and hosted fallback. These captures do not play real speech, request
 microphone permission or prove physical voice quality, offline compatibility or TalkBack.
 
 For native Result, `-f evidence=result` selects

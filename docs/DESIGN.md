@@ -260,8 +260,9 @@ The saved choice stays visible during loading or failure; empty and missing-sele
 states explain recovery through Reload or a deliberate different selection. Selecting
 never previews speech or changes hosted settings. `evidence=device-voices` reuses the
 Settings capture route and strict recorder for default, long-choice, selected/recreated,
-loading, error, empty and missing states on both rendering profiles/themes at actual
-font scales 1.0/1.3/2.0. Engine metadata and subsequent-speak configuration are controlled
+loading, error, empty and missing states, plus an explicitly isolated voice-stage frame
+showing missing-voice and hosted-fallback warnings together, on both rendering profiles/themes
+at actual font scales 1.0/1.3/2.0. Engine metadata and subsequent-speak configuration are controlled
 test effects, not physical voice-quality or network/offline compatibility evidence.
 
 Hosted speech and transcription retain their separate keys/grants/checks and now retain

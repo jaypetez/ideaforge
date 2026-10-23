@@ -167,8 +167,13 @@ fun VoiceStage(
                     modifier = Modifier.testTag("voice-detail"),
                 )
             }
-            state.lastSpeech?.fallback?.takeIf { it != state.detail }?.let {
-                IdeaForgeStatusText(it, tone = StatusTone.Warning, modifier = Modifier.testTag("voice-fallback"))
+            state.lastSpeech?.let { speech ->
+                val warnings = listOfNotNull(speech.fallback, speech.message.takeIf { speech.voiceMissing })
+                    .distinct().filter { it != state.detail }
+                if (warnings.isNotEmpty()) {
+                    IdeaForgeStatusText(warnings.joinToString(" "), tone = StatusTone.Warning,
+                        modifier = Modifier.testTag("voice-fallback"))
+                }
             }
             if (microphoneDenied) MicrophoneSettingsAction()
             if (notificationsOff) IdeaForgeStatusText(
