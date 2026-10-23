@@ -299,7 +299,8 @@ The shared reducers/export own portable report metadata, with no new web reporti
 Android-only presentation is the agreed native scope. `evidence=reporting` reuses
 `UxCaptureDeviceTest` and the fail-closed recorder across both windows/themes and all
 three font scales. Its fixed real-app subset includes controlled held-lock loading,
-write failure/retry, saved/replaced output and every reporting surface. Require the
+write failure/retry, saved/replaced output and every reporting surface, including
+reporting after Back to Ideas while the app-graph drive survives. Require the
 selected test, complete clean-SHA manifests and actual PNGs. Scripted voice effects,
 intent tests and emulator geometry do not prove physical recognition, real email
 delivery, manual TalkBack or Play compliance.

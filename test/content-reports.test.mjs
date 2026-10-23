@@ -4,8 +4,10 @@ import {
   createSession, askQuestion, addContentReport, reportableOutput, replaceReportedQuestion, setDraftText,
   mergeContentReports, migrate, answerQuestion, setDraftAnswer, setSynthesis,
   applyCoverage,
+  setStatusField,
 } from '../src/core/session.js';
-import { seedTurn } from '../src/runtime/turn.js';
+import { seedTurn, submitAnswer, runTurn } from '../src/runtime/turn.js';
+import { runSynthesis } from '../src/runtime/synthesize.js';
 import { buildTurnPrompt, selectNextDimension, legalMoves } from '../src/core/engine.js';
 import { buildSynthesisPrompt } from '../src/core/synthesis.js';
 import { buildExport } from '../src/core/markdown.js';
@@ -136,14 +138,6 @@ test('the document report contains generated parts but no raw user answers or lo
     openQuestions: [{ question: 'Neutral open question?', why_it_matters: 'Neutral reason.' }], now: 6,
   });
 
-  test('an imported unedited generated draft remains reportable without labelling its static question as AI', () => {
-    const seed = seedTurn(createSession({ id: 's_imported_draft' }));
-    const drafted = setDraftText(seed, 'Neutral generated draft marker.', 2);
-    const answered = answerQuestion(drafted, { text: drafted.draftAnswer, source: 'draft', now: 3 });
-    assert.equal(reportableOutput(answered, { kind: 'question', turnId: 't1' }), null);
-    assert.equal(reportableOutput(answered, { kind: 'suggestions', turnId: 't1' }).text, drafted.draftAnswer);
-    assert.equal(reportableOutput(answered, { kind: 'result' }).text, drafted.draftAnswer);
-  });
   const output = reportableOutput(written, { kind: 'result' });
   assert.match(output.text, /Neutral generated prompt marker/);
   assert.match(output.text, /Neutral generated question marker/);
@@ -152,4 +146,36 @@ test('the document report contains generated parts but no raw user answers or lo
   assert.match(output.text, /Neutral open question/);
   assert.match(output.text, /Neutral generated gap marker/);
   assert.doesNotMatch(output.text, /PRIVATE_RAW_ANSWER_MARKER|turnsSpent|Coverage/);
+});
+
+test('an imported unedited generated draft remains reportable without labelling its static question as AI', () => {
+  const seed = seedTurn(createSession({ id: 's_imported_draft' }));
+  const drafted = setDraftText(seed, 'Neutral generated draft marker.', 2);
+  const answered = answerQuestion(drafted, { text: drafted.draftAnswer, source: 'draft', now: 3 });
+  assert.equal(reportableOutput(answered, { kind: 'question', turnId: 't1' }), null);
+  assert.equal(reportableOutput(answered, { kind: 'suggestions', turnId: 't1' }).text, drafted.draftAnswer);
+  assert.equal(reportableOutput(answered, { kind: 'result' }).text, drafted.draftAnswer);
+});
+
+test('generated gaps remain reportable after the only model question is replaced and synthesis fails', async () => {
+  let s = submitAnswer(seedTurn(createSession({ id: 's_gap_only' })),
+    { text: 'A neutral test idea with enough initial detail.' });
+  s = (await runTurn(s, { provider: { async sampleJson() { return { json: {
+    question: 'Which neutral detail matters most for the initial example?', dimension: 'outcome',
+    move: 'concretize', chips: [], coverage: { outcome: { level: 'partial', gap: 'Neutral generated gap marker.' } },
+  } }; } } })).session;
+  const turn = s.turns.at(-1);
+  s = addContentReport(s, { id: 'r_gap', output: reportableOutput(s, { kind: 'question', turnId: turn.id }),
+    category: 'other' });
+  s = replaceReportedQuestion(s, { reportId: 'r_gap' });
+  s = submitAnswer(s, { text: 'Another neutral user-written answer.' });
+  const unavailable = { async sampleJson() { throw Object.assign(new Error('Neutral outage.'), { code: 'network' }); } };
+  s = (await runTurn(s, { provider: unavailable })).session;
+  s = setStatusField((await runSynthesis(s, { provider: unavailable })).session, 'done');
+  assert.ok(s.turns.every((t) => t.questionSource !== 'model'));
+  assert.equal(s.synthesis.text, '');
+  const output = reportableOutput(s, { kind: 'result' });
+  assert.ok(output, 'a generated coverage gap is still visible AI output in Result');
+  assert.equal(output.text, 'Neutral generated gap marker.');
+  assert.equal(addContentReport(s, { id: 'r_gap_result', output, category: 'inaccurate' }).contentReports.length, 2);
 });

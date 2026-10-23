@@ -169,9 +169,7 @@ export function reportableOutput(session, { kind, turnId = null } = {}) {
       }
       parts.push(...generatedSuggestions(t));
     }
-    if (parts.length) {
-      for (const id of DIMENSION_IDS) if (nonEmpty(session.coverage?.[id]?.gap)) parts.push(session.coverage[id].gap);
-    }
+    for (const id of DIMENSION_IDS) if (nonEmpty(session.coverage?.[id]?.gap)) parts.push(session.coverage[id].gap);
     return parts.length ? { kind, turnId: null, question: null, text: parts.join('\n\n') } : null;
   }
   const turn = turns.find((t) => t.id === turnId);

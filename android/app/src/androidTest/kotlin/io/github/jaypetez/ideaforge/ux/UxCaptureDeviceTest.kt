@@ -1870,18 +1870,6 @@ class UxCaptureDeviceTest {
         click("report-cancel")
         closeFixture()
 
-        val library = fixtures.state("library-long")
-        prepare(library, config)
-        navigate(library)
-        val libraryGraph = checkNotNull(fixtureGraph)
-        val librarySession = libraryGraph.sessionStore.get(id)!!
-        val libraryTurn = (librarySession["turns"] as JsonArray).first { stringOf(it["questionSource"]) == "model" }
-        click("report-library-question-${stringOf(libraryTurn["id"])}")
-        await("content-report-dialog")
-        capture("library", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
-        click("report-cancel")
-        closeFixture()
-
         prepare(base, config)
         val voiceGraph = checkNotNull(fixtureGraph)
         val starts = AtomicInteger()
@@ -1905,6 +1893,32 @@ class UxCaptureDeviceTest {
         capture("voice", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
         assertEquals("opening Report never restarts speech", 1, speeches.get())
         assertEquals("opening Report never starts another service", 1, starts.get())
+        click("report-cancel")
+        compose.runOnUiThread { voiceGraph.driveController.resume() }
+        compose.waitUntil(DEVICE_TIMEOUT) { speeches.get() == 2 }
+        scenario!!.onActivity { (it as androidx.activity.ComponentActivity).onBackPressedDispatcher.onBackPressed() }
+        await(LibraryTags.DETAIL)
+        assertEquals("Back preserves the app-graph run until reporting pauses it", VoiceMode.ACTIVE,
+            voiceGraph.driveController.state.value.mode)
+        val libraryBefore = voiceGraph.sessionStore.get(id)!!
+        val libraryTurn = io.github.jaypetez.ideaforge.core.openTurn(libraryBefore)!!
+        click("report-library-question-${stringOf(libraryTurn["id"])}")
+        await("content-report-dialog")
+        assertEquals("Ideas reporting must pause the same surviving run", VoiceMode.PAUSED,
+            voiceGraph.driveController.state.value.mode)
+        click("report-category-other")
+        click("report-save")
+        await("report-saved")
+        click("report-replace")
+        await("report-replaced")
+        val libraryAfter = voiceGraph.sessionStore.get(id)!!
+        assertEquals(libraryBefore["coverage"], libraryAfter["coverage"])
+        assertEquals((libraryBefore["turns"] as JsonArray).size, (libraryAfter["turns"] as JsonArray).size)
+        assertEquals(stringOf(io.github.jaypetez.ideaforge.core.openTurn(libraryAfter)!!["question"]),
+            voiceGraph.driveController.state.value.question)
+        assertEquals("replacement from Ideas never resumes speech", 2, speeches.get())
+        capture("library", listOf(UxControl("report-replaced", hasTestTag("report-replaced"), actionRequired = false),
+            tag("report-email"), tag("report-done")))
     }
 
     @Test

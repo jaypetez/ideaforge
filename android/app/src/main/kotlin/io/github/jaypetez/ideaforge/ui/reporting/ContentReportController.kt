@@ -15,13 +15,16 @@ import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.voice.DriveController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
@@ -66,14 +69,18 @@ class ContentReportController(
     private val scope: CoroutineScope,
     private val changed: (Session, replaced: Boolean) -> Unit = { _, _ -> },
     private val ids: IdGen = IdGen(clock),
+    private val drive: () -> DriveController? = { null },
 ) {
     private val _state = MutableStateFlow(ContentReportState())
     val state = _state.asStateFlow()
+    private var reportedDrive: DriveController? = null
 
-    fun open(session: Session, output: JsonObject) {
+    fun open(session: Session, output: JsonObject, activeDrive: DriveController? = drive()) {
         if (_state.value.busy) return
         val id = stringOf(session["id"]) ?: return
         if (reportableOutput(session, stringOf(output["kind"]), stringOf(output["turnId"])) != output) return
+        reportedDrive = activeDrive?.takeIf { it.state.value.sessionId == id && it.state.value.attached }
+        reportedDrive?.pause()
         _state.value = ContentReportState(sessionId = id, id = ids.newSessionId(), output = output)
     }
 
@@ -86,7 +93,10 @@ class ContentReportController(
     }
 
     fun dismiss() {
-        if (!_state.value.busy) _state.value = ContentReportState()
+        if (!_state.value.busy) {
+            _state.value = ContentReportState()
+            reportedDrive = null
+        }
     }
 
     fun save() {
@@ -112,14 +122,24 @@ class ContentReportController(
 
     private fun perform(draft: ContentReportState, replacing: Boolean, reduce: (Session) -> Session) {
         val id = draft.sessionId ?: return
+        val matchingDrive = reportedDrive?.takeIf { it.state.value.sessionId == id && it.state.value.attached }
+        // A notification Resume can happen after the dialog opened; retire that run too.
+        matchingDrive?.pause()
         val tag = worker.tag(id)
         _state.update { it.copy(busy = true, failure = null, detail = "") }
         val job = writes.async {
-            worker.run(tag, work = {
+            val outcome = worker.run(tag, work = {
                 store.load()
                 val latest = store.get(id) ?: error("This idea is no longer available.")
                 reduce(latest)
             }, commit = { store.save(it) })
+            if (outcome is SessionWorker.Outcome.Committed && matchingDrive != null) {
+                // The graph-owned drive outlives this dialog's ViewModel, just like its save.
+                withContext(scope.coroutineContext.minusKey(Job)) {
+                    store.get(id)?.let(matchingDrive::refreshReportedSession)
+                }
+            }
+            outcome
         }
         scope.launch {
             try {

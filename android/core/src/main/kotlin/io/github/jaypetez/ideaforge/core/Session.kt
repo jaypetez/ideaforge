@@ -220,7 +220,7 @@ fun reportableOutput(session: Session, kind: String?, turnId: String? = null): J
             }
             parts += generatedSuggestions(turn)
         }
-        if (parts.isNotEmpty()) for (id in DIMENSION_IDS) {
+        for (id in DIMENSION_IDS) {
             if (nonEmpty(session["coverage"][id]["gap"])) parts += stringOf(session["coverage"][id]["gap"])!!
         }
         return if (parts.isEmpty()) null else obj(

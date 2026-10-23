@@ -26,6 +26,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
+import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -60,6 +61,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.serialization.json.JsonArray
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -227,6 +229,72 @@ class AdaptiveShellTest {
                 .getOrNull(SemanticsProperties.EditableText)?.text)
             assertEquals(setOf("ux-long-active"), ids(graph))
             assertEquals(draft, stringOf(graph.sessionStore.get("ux-long-active")!!["draftAnswer"]))
+        }
+    }
+
+    @Test
+    fun reportingFromIdeasPausesTheSurvivingDriveAndRefreshesItsReplacementWithoutTouchingAnotherIdea() {
+        val active = fixture("ux-long-active")
+        val done = fixture("ux-long-done")
+        val graph = graph(active, done)
+        val speeches = AtomicInteger()
+        graph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult { speeches.incrementAndGet(); return awaitCancellation() }
+            override fun cancel() {}
+            override fun shutdown() {}
+        }
+        graph.driveService = object : DriveServiceControl {
+            override fun start() {}
+            override fun stop() {}
+        }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            try {
+                select(active)
+                await("answer")
+                scenario.onActivity { graph.driveController.start(active, "typed") }
+                await("voice-stage")
+                compose.waitUntil(10_000) {
+                    scenario.onActivity { }
+                    speeches.get() == 1
+                }
+                scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+                await(LibraryTags.DETAIL)
+                assertEquals("Back does not exit the app-graph voice run", VoiceMode.ACTIVE, graph.driveController.state.value.mode)
+                val open = io.github.jaypetez.ideaforge.core.openTurn(active)!!
+                compose.onNodeWithTag("report-library-question-${stringOf(open["id"])}").performScrollTo().performClick()
+                await("content-report-dialog")
+                assertEquals("every report surface must pause its matching surviving drive", VoiceMode.PAUSED,
+                    graph.driveController.state.value.mode)
+                compose.onNodeWithTag("report-category-other").performScrollTo().performClick()
+                compose.onNodeWithTag("report-save").performClick()
+                await("report-saved")
+                compose.onNodeWithTag("report-replace").performScrollTo().performClick()
+                await("report-replaced")
+                val saved = graph.sessionStore.get("ux-long-active")!!
+                val replacement = io.github.jaypetez.ideaforge.core.openTurn(saved)!!
+                assertEquals(active["coverage"], saved["coverage"])
+                assertEquals((active["turns"] as JsonArray).size, (saved["turns"] as JsonArray).size)
+                assertEquals("", stringOf(replacement["answer"]))
+                assertEquals(stringOf(replacement["question"]), graph.driveController.state.value.question)
+                assertEquals(1, speeches.get())
+                compose.onNodeWithTag("report-done").performClick()
+                scenario.onActivity { graph.driveController.resume() }
+                compose.waitUntil(10_000) {
+                    scenario.onActivity { }
+                    speeches.get() == 2
+                }
+                assertEquals(stringOf(replacement["question"]), graph.driveController.state.value.question)
+                compose.onNode(hasText(RuntimeEnvironment.getApplication().getString(R.string.idea_all)) and hasClickAction())
+                    .performScrollTo().performClick()
+                select(done)
+                await(ResultTags.OUTPUT)
+                compose.onNodeWithTag("report-result").assertIsDisplayed().performClick()
+                await("content-report-dialog")
+                assertEquals("reporting a different idea must not pause this drive", VoiceMode.ACTIVE,
+                    graph.driveController.state.value.mode)
+                compose.onNodeWithTag("report-cancel").performClick()
+                assertEquals(saved, graph.sessionStore.get("ux-long-active"))
+            } finally { scenario.onActivity { graph.driveController.exit() } }
         }
     }
 

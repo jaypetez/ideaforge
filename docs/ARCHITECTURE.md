@@ -169,6 +169,8 @@ in place with a distinct same-dimension checklist question; it never re-enters `
 or reapplies coverage. `ContentReportDialog.kt` is wired to current questions, suggestions,
 history, Ideas previews, Result and the real voice stage. Opening it during voice pauses
 the existing controller; a saved replacement refreshes only a paused/blocked stage.
+All report surfaces pause a matching app-graph drive before editing or saving, including
+one that survived Back to Ideas or Result. A different idea's drive is not paused.
 There is no automatic report transport. An optional, explicit email-composer handoff
 uses the canonical privacy policy's confirmed contact, bound by a docs check, without
 claiming receipt. Android-only UI is the agreed native scope; web imports/export retain

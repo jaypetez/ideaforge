@@ -325,10 +325,6 @@ fun InterviewScreen(
     var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val voiceAttached = voiceHere && voice?.attached == true
-    val reporting by vm.reports.state.collectAsStateWithLifecycle()
-    LaunchedEffect(reporting.latest) {
-        reporting.latest?.let { if (voiceAttached) drive?.refreshReportedSession(it) }
-    }
     ContentReportDialog(vm.reports, onReplace = { vm.replaceReportedQuestion(fromVoice = voiceAttached) })
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
@@ -399,8 +395,7 @@ fun InterviewScreen(
                 suggestionsOutput = session?.let { reportableOutput(it, "suggestions", turnId) },
                 onReport = { output ->
                     if (session != null && screenVisible && isCurrentView()) {
-                        drive.pause()
-                        vm.reports.open(session, output)
+                        vm.reports.open(session, output, drive)
                     }
                 },
             )

@@ -570,8 +570,9 @@ It selects `UxCaptureDeviceTest#requestedContentReportsKeepLocalPayloadAndQuesti
 with `uxReportingProbe=true`, using the existing private-store routes and strict recorder.
 The fixed journey covers generated questions/suggestions, the localized dialog, a genuinely
 held session-lock save, a refused report write with retry, local export, no-answer
-replacement, earlier history, Result, Ideas previews and reporting from the real paused
-voice stage. It uses compact/expanded windows, both themes and font scales 1.0/1.3/2.0.
+replacement, earlier history, Result, the real voice stage and a Back-to-Ideas report
+that pauses and refreshes the surviving app-graph drive. It uses compact/expanded
+windows, both themes and font scales 1.0/1.3/2.0.
 Require the selected passing JUnit method, complete clean-SHA `ux-reporting` manifests
 and inspected original/reachability PNGs from `android-ux-evidence-<SHA>`. Voice
 speech/service are scripted; no recognizer, live provider or email composer is invoked.

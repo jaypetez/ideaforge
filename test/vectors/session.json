@@ -1481,6 +1481,134 @@
         }
       ]
     },
+    "s_cov@4#200ded04c4": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 4,
+      "createdAt": 1760000000000,
+      "updatedAt": 0,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "What’s the actual thing you want back — an email, a script, a plan, a list? Be as concrete as you can.",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "replacement",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 0,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "Neutral generated gap marker.",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      },
+      "contentReports": [
+        {
+          "id": "r_vector",
+          "at": 2,
+          "category": "other",
+          "note": "Neutral private note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t1",
+            "question": "Neutral generated marker?",
+            "text": "Neutral bridge.\n\nNeutral generated marker?"
+          }
+        }
+      ]
+    },
     "s_walkthrough@16#0875ee064d": {
       "schema": 2,
       "id": "s_walkthrough",
@@ -6951,6 +7079,26 @@
           "turnId": "t1",
           "question": "In a sentence or two — what’s the idea?",
           "text": "Neutral generated draft marker."
+        }
+      }
+    },
+    {
+      "name": "reportableOutput gap-only after the model question was replaced",
+      "fn": "reportableOutput",
+      "args": [
+        {
+          "$ref": "s_cov@4#200ded04c4"
+        },
+        {
+          "kind": "result"
+        }
+      ],
+      "expect": {
+        "value": {
+          "kind": "result",
+          "turnId": null,
+          "question": null,
+          "text": "Neutral generated gap marker."
         }
       }
     },
