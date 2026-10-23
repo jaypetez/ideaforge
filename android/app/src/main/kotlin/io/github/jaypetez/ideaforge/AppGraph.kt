@@ -32,6 +32,7 @@ import io.github.jaypetez.ideaforge.voice.DriveService
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.Recognizer
 import io.github.jaypetez.ideaforge.voice.TextToSpeechSpeaker
+import io.github.jaypetez.ideaforge.voice.TtsEngine
 import io.github.jaypetez.ideaforge.voice.androidRecognizerFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +60,7 @@ class AppGraph(
     providerSource: ProviderSource = ProviderSource.FromKeyring,
     preferences: PrefsStore? = null,
     sessionStorage: SessionStore? = null,
+    ttsEngine: TtsEngine? = null,
 ) {
     /**
      * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
@@ -104,11 +106,13 @@ class AppGraph(
     }
 
     /**
-     * Native speech output, with the voice and pace read from prefs at each speak. Lazy, and
-     * the engine inside it is lazy too: nothing binds TextToSpeech until something talks.
+     * One lazy native engine for the Settings catalogue and speech. Listing voices neither
+     * speaks nor configures the next utterance; voice and pace are read at each speak.
      */
+    val nativeTtsEngine: TtsEngine by lazy { ttsEngine ?: AndroidTtsEngine(context) }
+
     val nativeSpeaker: Speaker by lazy {
-        TextToSpeechSpeaker(AndroidTtsEngine(context), AndroidAudioFocus(context), prefs = { prefsStore.current() })
+        TextToSpeechSpeaker(nativeTtsEngine, AndroidAudioFocus(context), prefs = { prefsStore.current() })
     }
 
     /**

@@ -29,9 +29,10 @@ class FakeCheck(var answer: (ProviderChoice, ProviderConfig) -> List<String> = {
  * the app starts as a returning user would.
  */
 fun installTestGraph(check: ProviderCheck = FakeCheck(), ring: JsonObject? = null, key: SoftwareKey = SoftwareKey(),
-    inferenceAgreed: Boolean = false, preferences: PrefsStore? = null): AppGraph {
+    inferenceAgreed: Boolean = false, preferences: PrefsStore? = null,
+    ttsEngine: io.github.jaypetez.ideaforge.voice.TtsEngine? = null): AppGraph {
     val app = RuntimeEnvironment.getApplication() as IdeaForgeApp
-    val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences)
+    val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences, ttsEngine = ttsEngine)
     runBlocking {
         if (ring != null) graph.keyringStore.save(ring)
         graph.keyringStore.load()

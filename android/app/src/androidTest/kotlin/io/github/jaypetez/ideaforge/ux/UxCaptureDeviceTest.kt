@@ -84,6 +84,9 @@ import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.Speaker
 import io.github.jaypetez.ideaforge.voice.VoiceMode
+import io.github.jaypetez.ideaforge.voice.DeviceVoice
+import io.github.jaypetez.ideaforge.voice.SpeakStatus
+import io.github.jaypetez.ideaforge.voice.TtsEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -129,7 +132,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe").any {
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe").any {
         InstrumentationRegistry.getArguments().getString(it) == "true"
     }) {
         // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
@@ -148,6 +151,7 @@ class UxCaptureDeviceTest {
     private var nextGraph = 0
     private var heldLibraryRead: CountDownLatch? = null
     private var libraryReadEntered: CountDownLatch? = null
+    private var heldVoiceInit: CompletableDeferred<Boolean>? = null
     private val walkthroughFrames = listOf("seed", "chip", "result")
 
     @Test
@@ -828,10 +832,13 @@ class UxCaptureDeviceTest {
         val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
             listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
         } }
-        val frames = listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
+        val deviceVoices = bundle.getString("uxDeviceVoicesProbe") == "true"
+        val frames = if (deviceVoices) listOf("device-default", "device-long-choice", "device-selected",
+            "device-loading", "device-error", "device-empty", "device-missing", "device-spoken-fallback")
+        else listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
             "cancel-forget", "about", "connection-failure", "checking", "backup-failure")
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
-            File(outputPath, "ux-settings"),
+            File(outputPath, if (deviceVoices) "ux-device-voices" else "ux-settings"),
             matrix.flatMap { config -> frames.map { "${config.id}/settings-$it" } }.toSet())
         val originalGraph = app.graph
         runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
@@ -842,8 +849,21 @@ class UxCaptureDeviceTest {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
                     for (frame in frames) {
-                        val state = UxState("settings-$frame", "settings", "real-app", null, null, null)
+                        val isolated = if (frame == "device-spoken-fallback")
+                            UxFixtureActivity.requestedVoiceState(fixtures, "voice-fallback") else null
+                        val state = isolated?.copy(id = "settings-$frame")
+                            ?: UxState("settings-$frame", "settings", "real-app", null, null, null)
                         try {
+                            if (isolated != null) {
+                                prepare(isolated, config)
+                                val controls = navigate(isolated) +
+                                    UxControl("spoken-device-warning", hasTestTag("voice-fallback"), actionRequired = false)
+                                compose.onNodeWithTag("voice-fallback").performScrollTo().assertIsDisplayed()
+                                check(nodeText("voice-fallback").contains("selected device voice is unavailable"))
+                                recorder.capture(state, config, checkNotNull(activity), controls,
+                                    nativeSurface = "voice", nativeMapping = UxFixtureActivity.nativeMapping(isolated))
+                                continue
+                            }
                             val checker = ProviderCheck { _, _ ->
                                 when (frame) {
                                     "checking" -> awaitCancellation()
@@ -853,11 +873,25 @@ class UxCaptureDeviceTest {
                                 }
                             }
                             val base = fixtures.state("ready")
-                            prepare(base, config, inferenceAgreed = frame != "connection-lan", checker = checker)
+                            val engine = if (deviceVoices) FixtureDeviceVoiceEngine(frame) else null
+                            heldVoiceInit = engine?.pending
+                            prepare(base, config, inferenceAgreed = frame != "connection-lan", checker = checker,
+                                nativeEngine = engine)
+                            val graph = checkNotNull(fixtureGraph)
+                            val savedVoice = if (frame in setOf("device-loading", "device-error", "device-missing"))
+                                "retained-unavailable-voice" else ""
+                            if (deviceVoices) runBlocking {
+                                check(graph.prefsStore.update { it.copy(speechVoice = savedVoice) })
+                            }
+                            val ringBefore = graph.keyringStore.state.value.ring
+                            val keyGeneration = graph.keyringStore.generation.value
+                            val prefsBefore = runBlocking { graph.prefsStore.current() }
                             navigate(base)
                             compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
                             await(SettingsTags.PROVIDER)
-                            when (frame) {
+                            if (deviceVoices) {
+                                prepareDeviceVoiceFrame(frame, checkNotNull(engine))
+                            } else when (frame) {
                                 "connection-lan" -> {
                                     compose.onNodeWithTag(SettingsTags.PROVIDER).performScrollTo().performClick()
                                     compose.onNodeWithTag(SettingsTags.provider("ollama")).performScrollTo().performClick()
@@ -919,7 +953,7 @@ class UxCaptureDeviceTest {
                                     revealControl("settings-section-$section")
                                 }
                             }
-                            val controls = when (frame) {
+                            val controls = if (deviceVoices) deviceVoiceControls(frame) else when (frame) {
                                 "voice" -> listOf(tag(SettingsTags.HANDS_FREE), tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE))
                                 "hosted-consents" -> listOf(tag(HostedSpeechTags.VOICE_MARIN), tag(HostedSpeechTags.VOICE_CEDAR),
                                     tag(HostedSpeechTags.CONSENT_SYNTHETIC), tag(HostedSpeechTags.CONSENT_TEXT), tag(HostedSpeechTags.CONSENT_METERED))
@@ -931,8 +965,40 @@ class UxCaptureDeviceTest {
                                 "connection-lan" -> listOf(tag("inference-consent"))
                                 else -> listOf(tag(SettingsTags.PROVIDER), tag(SettingsTags.CHECK), tag(SettingsTags.SAVE))
                             }
+                            if (deviceVoices) {
+                                assertTrue("opening Settings and selecting voices do not speak", engine!!.spoken.isEmpty())
+                                assertEquals("a native edit cannot change hosted/inference keys", ringBefore, graph.keyringStore.state.value.ring)
+                                assertEquals(keyGeneration, graph.keyringStore.generation.value)
+                                assertEquals("native voice edits change only speechVoice", prefsBefore.copy(
+                                    speechVoice = if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else savedVoice,
+                                ), runBlocking { graph.prefsStore.current() })
+                                assertEquals("Settings starts no voice run", null, graph.driveController.state.value.mode)
+                            }
                             recorder.capture(state, config, checkNotNull(activity), controls, nativeSurface = "settings",
-                                nativeMapping = "Real MainActivity Settings $frame; scripted connection/backup error, no file picker, hosted preview or real provider.")
+                                nativeMapping = if (deviceVoices)
+                                    "Real MainActivity Settings $frame; controlled engine identity/locale/network metadata and pending/error reads. UI/configuration proof, not real voice quality, network/offline support or physical-device evidence."
+                                else "Real MainActivity Settings $frame; scripted connection/backup error, no file picker, hosted preview or real provider.",
+                                rootSurfaceRole = if (frame in setOf("device-long-choice", "device-empty"))
+                                    "surfaceContainerHigh" else "background")
+                            if (deviceVoices) {
+                                when (frame) {
+                                    "device-selected", "device-missing" -> {
+                                        val result = runBlocking { graph.nativeSpeaker.speak("Controlled subsequent native output.") }
+                                        assertEquals(SpeakStatus.SPOKEN, result.status)
+                                        assertEquals(frame == "device-missing", result.voiceMissing)
+                                        assertEquals(if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else savedVoice,
+                                            result.requestedVoice)
+                                        assertEquals(if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else "", result.voice)
+                                        assertEquals(result.voice, engine!!.selected)
+                                    }
+                                    "device-loading" -> assertTrue("loading remains a real pending engine read", !engine!!.pending.isCompleted)
+                                    "device-error" -> {
+                                        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_RELOAD).performScrollTo().assertIsDisplayed().performClick()
+                                        compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.DEVICE_VOICE_STATUS) }
+                                        assertEquals(savedVoice, runBlocking { graph.prefsStore.current().speechVoice })
+                                    }
+                                }
+                            }
                         } catch (error: Throwable) {
                             recorder.failed(state, config, error, activity)
                         } finally { closeFixture() }
@@ -947,6 +1013,64 @@ class UxCaptureDeviceTest {
                 { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
             )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
         }
+    }
+
+    private fun prepareDeviceVoiceFrame(frame: String, engine: FixtureDeviceVoiceEngine) {
+        await(SettingsTags.DEVICE_VOICE)
+        if (frame in setOf("device-loading", "device-error", "device-empty")) {
+            await(SettingsTags.DEVICE_VOICE_STATUS)
+            val status = when (frame) {
+                "device-loading" -> "Loading device voices"
+                "device-error" -> "did not start"
+                else -> "no installed voices"
+            }
+            compose.waitUntil(DEVICE_TIMEOUT) { nodeText(SettingsTags.DEVICE_VOICE_STATUS).contains(status) }
+            compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_STATUS).performScrollTo().assertIsDisplayed()
+        } else {
+            compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.DEVICE_VOICE_STATUS) }
+        }
+        when (frame) {
+            "device-long-choice", "device-selected", "device-empty" -> {
+                compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed().performClick()
+                await(SettingsTags.DEVICE_VOICE_DEFAULT)
+                if (frame != "device-empty") {
+                    // Existence alone does not mean a scrolled option can actually be clicked.
+                    compose.onNodeWithTag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID))
+                        .performScrollTo().assertIsDisplayed()
+                }
+                if (frame == "device-selected") {
+                    compose.onNodeWithTag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID)).performClick()
+                    compose.waitUntil(DEVICE_TIMEOUT) {
+                        runBlocking { fixtureGraph!!.prefsStore.current().speechVoice } == FixtureDeviceVoiceEngine.LONG_ID
+                    }
+                    scenario!!.recreate()
+                    scenario!!.onActivity { activity = it }
+                    await(SettingsTags.DEVICE_VOICE)
+                    compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed()
+                    assertTrue(nodeText(SettingsTags.DEVICE_VOICE).contains(FixtureDeviceVoiceEngine.LONG_ID))
+                    assertTrue(engine.spoken.isEmpty())
+                }
+            }
+            "device-missing" -> {
+                await(SettingsTags.DEVICE_VOICE_MISSING)
+                compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_MISSING).performScrollTo().assertIsDisplayed()
+            }
+            "device-default" -> compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    private fun deviceVoiceControls(frame: String): List<UxControl> = when (frame) {
+        "device-long-choice" -> listOf(tag(SettingsTags.DEVICE_VOICE_DEFAULT),
+            tag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID)), tag(SettingsTags.DEVICE_VOICE_CLOSE))
+        "device-empty" -> listOf(UxControl("empty-voices", hasTestTag(SettingsTags.DEVICE_VOICE_STATUS), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE_DEFAULT), tag(SettingsTags.DEVICE_VOICE_CLOSE))
+        "device-loading", "device-error" -> listOf(
+            UxControl("voice-read-status", hasTestTag(SettingsTags.DEVICE_VOICE_STATUS), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE_RELOAD), tag(SettingsTags.DEVICE_VOICE))
+        "device-missing" -> listOf(
+            UxControl("missing-voice-warning", hasTestTag(SettingsTags.DEVICE_VOICE_MISSING), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.DEVICE_VOICE_RELOAD))
+        else -> listOf(tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.DEVICE_VOICE_RELOAD))
     }
 
     @Test
@@ -2099,6 +2223,7 @@ class UxCaptureDeviceTest {
         inferenceAgreed: Boolean = true,
         checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
         reportWritesRejected: AtomicBoolean? = null,
+        nativeEngine: TtsEngine? = null,
     ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
@@ -2126,6 +2251,7 @@ class UxCaptureDeviceTest {
             providerCheck = checker,
             providerSource = ProviderSource { controlled },
             sessionStorage = storage,
+            ttsEngine = nativeEngine,
             preferences = io.github.jaypetez.ideaforge.data.PrefsStore.create(
                 CoroutineScope(SupervisorJob() + Dispatchers.IO).also { fixturePreferencesScope = it },
             ) { context.preferencesDataStoreFile("prefs") },
@@ -2452,6 +2578,8 @@ class UxCaptureDeviceTest {
     }
 
     private fun closeFixture() {
+        heldVoiceInit?.complete(false)
+        heldVoiceInit = null
         heldLibraryRead?.countDown()
         heldLibraryRead = null
         libraryReadEntered = null
@@ -2465,10 +2593,45 @@ class UxCaptureDeviceTest {
         UxEvidence.finish(null, listOf(
             { compose.runOnUiThread { graph?.driveController?.exit() } },
             { closing?.close() },
+            { graph?.nativeTtsEngine?.shutdown() },
             { runBlocking { graph?.mainScope?.coroutineContext?.get(Job)?.cancelAndJoin() } },
             { runBlocking { graph?.appScope?.coroutineContext?.get(Job)?.cancelAndJoin() } },
             { runBlocking { preferences?.coroutineContext?.get(Job)?.cancelAndJoin() } },
         )) {}
+    }
+
+    private class FixtureDeviceVoiceEngine(private val frame: String) : TtsEngine {
+        companion object {
+            const val LONG_ID = "en-GB-installed-voice-with-a-deliberately-long-engine-name-for-readable-wrapping-and-selection"
+        }
+        val pending = CompletableDeferred<Boolean>()
+        val spoken = mutableListOf<String>()
+        var selected = ""
+            private set
+        private var reads = 0
+        private var listener: TtsEngine.Listener? = null
+        override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
+        override suspend fun awaitReady(): Boolean = when {
+            // Hold only this controlled boundary until the named loading frame is retained.
+            frame == "device-loading" -> kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { pending.await() }
+            frame == "device-error" && ++reads == 1 -> false
+            else -> true
+        }
+        override fun voiceDetails() = if (frame == "device-empty") emptyList() else listOf(
+            DeviceVoice("en-US-device-local", "en-US", false), DeviceVoice(LONG_ID, "en-GB", true))
+        override fun voices() = voiceDetails().map { it.id }
+        override fun setVoice(id: String): Boolean { selected = id; return id in voices() }
+        override fun useDefaultVoice() { selected = "" }
+        override fun setRate(rate: Float) {}
+        override fun speak(text: String, utteranceId: String): Boolean {
+            spoken += text
+            checkNotNull(listener).onStart(utteranceId)
+            checkNotNull(listener).onDone(utteranceId)
+            return true
+        }
+        override fun stop() {}
+        override fun reset() {}
+        override fun shutdown() { pending.complete(false) }
     }
 
     private fun nativeSurface(state: UxState): String = when {

@@ -102,6 +102,17 @@ source wins over prose, and a generated artifact wins over a description of that
   `Backup.kt`/`BackupJobs` retain session-only, collision-as-copy, failed-write behavior.
   Re-check Android Voice/Your data labels, DESIGN measures, Cancel/Back focus and actual
   `evidence=settings` fixed real-app matrix, not physical/live paid speech claims.
+  `DeviceVoiceSettings.kt`, `SettingsViewModel` and `PrefsStore.speechVoice` own the native
+  choice, separate from hosted state. `AppGraph.nativeTtsEngine` shares lazy initialization
+  and `AndroidTtsEngine.voiceDetails` metadata with `TextToSpeechSpeaker`; reload/error/
+  empty/missing choices never replace a preference. Re-check the Android guide, DESIGN,
+  architecture and CONTRIBUTING's `evidence=device-voices` Settings subset, including actual
+  selection/recreation/subsequent-speak/fallback tests, 48dp native touch bounds, both
+  rendering profiles/themes/fonts and inspected clean-SHA manifests/PNGs. Controlled engine
+  metadata is not physical speech quality, network/offline compatibility or TalkBack proof.
+  `VoiceStage` displays native `lastSpeech.voiceMissing`/`message` independently of hosted
+  `fallback`; its actual-speaker-result regression and the isolated `voice-fallback` fixture
+  protect both messages. The focused device-voices matrix includes that isolated frame.
 - **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
   Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
   errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and

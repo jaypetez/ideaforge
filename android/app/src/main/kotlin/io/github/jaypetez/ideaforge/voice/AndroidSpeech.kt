@@ -10,6 +10,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
 
 /** Speech, for an assistant: what both the engine and the focus request declare. */
@@ -19,8 +21,8 @@ internal val SPEECH_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
     .build()
 
 /**
- * [TtsEngine] on the platform TextToSpeech. Created lazily on the first speak, so an app
- * that never talks never binds the engine. A failed initialisation is reported (awaitReady
+ * [TtsEngine] on the platform TextToSpeech. Created lazily for speech or the Settings voice
+ * catalogue; enumeration never speaks. A failed initialisation is reported (awaitReady
  * returns false) and dropped, so the next speak tries a fresh engine rather than failing
  * for the life of the process.
  */
@@ -33,8 +35,10 @@ class AndroidTtsEngine(
 ) : TtsEngine {
     private val app = context.applicationContext
     private val lock = Any()
+    private val initialization = Mutex()
     private var tts: TextToSpeech? = null
     private var ready: CompletableDeferred<Boolean>? = null
+    private var initialized = false
     @Volatile private var listener: TtsEngine.Listener? = null
 
     private val progress = object : UtteranceProgressListener() {
@@ -48,37 +52,43 @@ class AndroidTtsEngine(
 
     override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
 
-    override suspend fun awaitReady(): Boolean {
-        val pending = withContext(main) {
-            synchronized(lock) {
-                ready ?: CompletableDeferred<Boolean>().also { d ->
-                    ready = d
-                    // The callback only reports: it may belong to an engine already dropped,
-                    // or fire before `create` has returned.
-                    tts = create(app) { status -> d.complete(status == TextToSpeech.SUCCESS) }
-                }
-            }
-        }
+    override suspend fun awaitReady(): Boolean = initialization.withLock {
+        if (synchronized(lock) { initialized }) return@withLock true
+        var pending: CompletableDeferred<Boolean>? = null
         // Bounded here, with the cleanup in `finally`: a caller's timeout cancels this await,
         // and a cleanup after it would never run, leaving `ready` pending for ever and the
         // half-built TextToSpeech leaked. A failed, hung or abandoned init is dropped, so the
         // next speak builds a fresh engine.
         var ok = false
         try {
-            ok = withTimeoutOrNull(initTimeoutMs) { pending.await() } ?: false
+            val awaiting = withContext(main) {
+                synchronized(lock) {
+                    (ready ?: CompletableDeferred<Boolean>().also { ready = it }).also { d ->
+                        pending = d
+                        if (tts == null) {
+                            // A late callback belongs only to its original engine.
+                            tts = create(app) { status -> d.complete(status == TextToSpeech.SUCCESS) }
+                        }
+                    }
+                }
+            }
+            ok = withTimeoutOrNull(initTimeoutMs) { awaiting.await() } ?: false
             if (ok) {
-                val current = synchronized(lock) { tts.takeIf { ready === pending } }
-                if (current == null) {
-                    ok = false
-                } else {
-                    current.setOnUtteranceProgressListener(progress)
-                    current.setAudioAttributes(SPEECH_ATTRIBUTES)
+                synchronized(lock) {
+                    val current = tts.takeIf { ready === awaiting }
+                    if (current == null) {
+                        ok = false
+                    } else {
+                        current.setOnUtteranceProgressListener(progress)
+                        current.setAudioAttributes(SPEECH_ATTRIBUTES)
+                        initialized = true
+                    }
                 }
             }
         } finally {
-            if (!ok) drop(pending)
+            if (!ok) pending?.let { drop(it) }
         }
-        return ok
+        ok
     }
 
     private fun drop(only: CompletableDeferred<Boolean>? = null) {
@@ -87,13 +97,21 @@ class AndroidTtsEngine(
             runCatching { tts?.shutdown() }
             tts = null
             ready = null
+            initialized = false
         }
     }
 
-    private fun engine(): TextToSpeech? = synchronized(lock) { tts.takeIf { ready?.isCompleted == true } }
+    private fun engine(): TextToSpeech? = synchronized(lock) { tts.takeIf { initialized } }
 
     override fun voices(): List<String> =
         engine()?.voices?.mapNotNull { it?.name }.orEmpty()
+
+    override fun voiceDetails(): List<DeviceVoice> {
+        val current = checkNotNull(engine()) { "The speech engine is not ready." }
+        return checkNotNull(current.voices) { "The speech engine could not read its voices." }.mapNotNull { voice ->
+            voice?.let { DeviceVoice(it.name, it.locale.toLanguageTag(), it.isNetworkConnectionRequired) }
+        }
+    }
 
     override fun setVoice(id: String): Boolean {
         val e = engine() ?: return false

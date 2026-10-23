@@ -32,6 +32,11 @@ import io.github.jaypetez.ideaforge.voice.VoiceStageState
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.SpeakStatus
 import io.github.jaypetez.ideaforge.voice.SpeechBackend
+import io.github.jaypetez.ideaforge.voice.FakeEngine
+import io.github.jaypetez.ideaforge.voice.FakeFocus
+import io.github.jaypetez.ideaforge.voice.TextToSpeechSpeaker
+import io.github.jaypetez.ideaforge.data.Prefs
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -154,6 +159,21 @@ class VoiceStageTest {
         compose.onNodeWithTag("voice-levels").assertDoesNotExist()
         assertNull("live partials are readable without repeated automatic announcements",
             compose.onNodeWithTag("voice-caption").fetchSemanticsNode().config.getOrNull(SemanticsProperties.LiveRegion))
+    }
+
+    @Test
+    fun aMissingSelectedDeviceVoiceIsVisiblyReportedAlongsideAnyHostedFallback() {
+        val native = TextToSpeechSpeaker(FakeEngine(), FakeFocus(), prefs = { Prefs(speechVoice = "missing-device-voice") })
+        val result = runBlocking { native.speak("The next native question.") }
+        assertTrue(result.voiceMissing)
+        val hostedReason = "OpenAI failed; the device voice took over."
+        val state = mutableStateOf(listening.copy(lastSpeech = result.copy(fallback = hostedReason)))
+        compose.setContent { IdeaForgeTheme { Surface { VoiceStage(state.value, {}, {}, {}) } } }
+        compose.onNodeWithTag("voice-fallback").performScrollTo()
+            .assertTextContains(hostedReason, substring = true)
+            .assertTextContains(result.message!!, substring = true)
+        compose.runOnIdle { state.value = state.value.copy(lastSpeech = result) }
+        compose.onNodeWithTag("voice-fallback").performScrollTo().assertTextContains(result.message!!, substring = true)
     }
 
     @Test

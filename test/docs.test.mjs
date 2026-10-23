@@ -679,6 +679,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both Settings devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'settings' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true'/g) || []).length, 2,
     'both Settings devices must opt into the complete matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'device-voices' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries'/g) || []).length, 2,
+    'device-voice evidence must explicitly select the existing Settings test on both rendering profiles');
+  assert.equal((workflow.match(/inputs\.evidence == 'device-voices' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxDeviceVoicesProbe=true'/g) || []).length, 2,
+    'both voice-choice devices must opt into their fixed named-state matrix');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
     'both Result devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,

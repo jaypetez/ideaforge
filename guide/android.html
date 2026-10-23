@@ -150,7 +150,12 @@
             <tr>
               <th scope="row">Spoken replies</th>
               <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
-                its suggestions, at the speaking pace from Voice. Optional OpenAI speech
+                its suggestions, at the speaking pace from Voice. In <strong>Settings &rarr;
+                Voice &rarr; Device voice choice</strong>, choose <strong>Engine default</strong>
+                or an installed name and locale. The saved choice applies to subsequent device
+                speech, including fallback from OpenAI. Local/network labels are engine metadata,
+                not a quality ranking or an offline guarantee. Opening Settings and choosing a
+                voice never play a preview or request the microphone. Optional OpenAI speech
                 (Marin or Cedar) is in Settings under Voice: it needs its own OpenAI key
                 (never your interview key), three consents (an AI-generated voice, the spoken
                 text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
@@ -251,6 +256,15 @@
         current theme and library state, not a generic connected verdict. Index navigation
         preserves unsaved fields. Speech and transcription report their own outcomes;
         a failed check stays an error beside its action, not a successful toast.
+      </p>
+      <p>
+        <strong>Device voice choice</strong> keeps the saved identifier while the engine loads
+        or fails. Use <strong>Reload device voices</strong> to retry, including after installing
+        voices in the system text-to-speech settings. An empty list is reported explicitly.
+        If the saved voice disappears, it is kept and a warning explains that subsequent
+        device speech uses the engine default and reports the fallback. Choose another voice
+        or Engine default deliberately to replace it. This setting does not change the
+        separate OpenAI voice, key, successful check or consents.
       </p>
       <p>
         <strong>Your data</strong> separates <strong>Backup ideas</strong> /

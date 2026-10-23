@@ -5,6 +5,7 @@ import io.github.jaypetez.ideaforge.core.speechChunksForRate
 import io.github.jaypetez.ideaforge.core.speechTimeoutMs
 import io.github.jaypetez.ideaforge.data.Prefs
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
@@ -69,6 +70,23 @@ data class SpeakResult(
 
 enum class SpeechBackend { NATIVE, HOSTED }
 
+/** Engine-supplied identity and metadata, not a quality or offline guarantee. */
+data class DeviceVoice(val id: String, val locale: String = "", val networkRequired: Boolean? = null)
+
+class DeviceVoiceLoadException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/** Enumerate through the same lazy engine as speech, without speaking or taking audio focus. */
+suspend fun TtsEngine.loadDeviceVoices(): List<DeviceVoice> = try {
+    if (withTimeoutOrNull(TextToSpeechSpeaker.INIT_TIMEOUT_MS) { awaitReady() } != true) {
+        throw DeviceVoiceLoadException("The device speech engine did not start. Try again.")
+    }
+    voiceDetails().distinctBy { it.id }.sortedWith(compareBy({ it.locale }, { it.id }))
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (failure: RuntimeException) {
+    throw DeviceVoiceLoadException("The device speech engine could not list its voices. Try again.", failure)
+}
+
 /** The question, then its suggestions as a second utterance (null when there were none). */
 data class QuestionSpeech(val question: SpeakResult, val examples: SpeakResult?)
 
@@ -118,6 +136,8 @@ interface TtsEngine {
 
     /** Installed voice identifiers (android.speech.tts.Voice.getName). */
     fun voices(): List<String>
+
+    fun voiceDetails(): List<DeviceVoice> = voices().map { DeviceVoice(it) }
 
     fun setVoice(id: String): Boolean
 

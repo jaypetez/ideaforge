@@ -519,6 +519,18 @@ and a labelled scripted backup-job failure. No file picker, hosted preview or re
 provider is invoked. Require actual selected-method XML and complete clean-SHA
 compact/expanded, light/dark, enlarged manifests/PNGs; it is not the full inventory.
 
+For device voice selection, dispatch `-f evidence=device-voices` on the exact feature ref.
+It selects the same Settings method with `uxSettingsProbe=true` and
+`uxDeviceVoicesProbe=true`, reusing the private graph and strict recorder rather than a
+new runner. The fixed seven states are engine default, long installed choice, actual
+selection/recreation, pending engine read, error, empty list and retained missing choice.
+Both rendering-enabled profiles run light/dark at actual font scales 1.0/1.3/2.0.
+Require actual passing selected-method XML, both complete clean-SHA `ux-device-voices`
+manifests and all original/reachability PNGs. The controlled engine also asserts subsequent
+native speaker configuration/fallback. An eighth, explicitly isolated voice-stage frame
+shows both the reported missing-device-voice warning and hosted fallback. These captures do not play real speech, request
+microphone permission or prove physical voice quality, offline compatibility or TalkBack.
+
 For native Result, `-f evidence=result` selects
 `UxCaptureDeviceTest#requestedNativeResultKeepsDocumentAndCanonicalActions` with
 `uxResultProbe=true`. Its fixed six-frame matrix covers long/scrolled/short documents,
