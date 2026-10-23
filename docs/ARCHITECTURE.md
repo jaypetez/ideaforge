@@ -358,6 +358,14 @@ owners; saved configuration is not a connectivity or voice-quality verdict.
 their keyring or preference shapes, and errors cannot be replaced by success after a
 refused credential write. BackupJobs remains app-scoped; Forget keeps synchronous revoke
 and saveIf generation checks. Native dialogs preserve cancellation/focus and data boundaries.
+`DeviceVoiceSettings.kt` selects the existing `Prefs.speechVoice`; `SettingsViewModel`
+loads metadata without writing a preference or playing a preview. `AppGraph.nativeTtsEngine`
+is the one lazy engine shared with `TextToSpeechSpeaker`. Its serialized initialization
+prevents a cancelled catalogue read from dropping a concurrent speaker's engine.
+`AndroidTtsEngine.voiceDetails` reads names, locales and network flags, not a quality score.
+Loading, engine failures, an empty list and a retained missing choice stay distinct; reload
+is explicit. Each subsequent native speak re-reads prefs and retains the existing reported
+default fallback. Hosted speech/key/verification/consents and inference remain independent.
 
 **Native Result and export.** `ResultScreen.kt` owns responsive action priority, one
 selectable reading canvas and persistent operation errors. `ResultViewModel` distinguishes

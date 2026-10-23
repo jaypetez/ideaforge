@@ -31,6 +31,8 @@ class FakeEngine : TtsEngine {
     /** Generations that refuse every speak, as a TextToSpeech whose service died does. */
     var deadGenerations = emptySet<Int>()
     var installed = listOf("en-us-x-iol-local", "en-gb-x-rjs-network")
+    var details: List<DeviceVoice>? = null
+    var initCalls = 0
     /** Chunk indexes the engine accepts and then never finishes (no onDone, ever). */
     var hangs = emptySet<Int>()
     var errors = emptyMap<Int, Int>()
@@ -44,9 +46,12 @@ class FakeEngine : TtsEngine {
     private lateinit var listener: TtsEngine.Listener
 
     override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
-    override suspend fun awaitReady(): Boolean =
-        if (generation in initHangs) awaitCancellation() else init ?: awaitCancellation()
+    override suspend fun awaitReady(): Boolean {
+        initCalls++
+        return if (generation in initHangs) awaitCancellation() else init ?: awaitCancellation()
+    }
     override fun voices() = installed
+    override fun voiceDetails() = details ?: super.voiceDetails()
     override fun setVoice(id: String): Boolean { voice = id; return true }
     override fun useDefaultVoice() { voice = null; defaultVoiceUsed++ }
     override fun setRate(rate: Float) { this.rate = rate }
@@ -93,6 +98,28 @@ class SpeakerTest {
     private val focus = FakeFocus()
     private var prefs = Prefs()
     private val speaker = TextToSpeechSpeaker(engine, focus, prefs = { prefs })
+
+    @Test
+    fun voiceEnumerationIsBoundedReportsEngineFailuresAndNeverSpeaksOrChangesTheVoice() = runTest {
+        engine.details = listOf(DeviceVoice("en-test", "en-GB", true))
+        assertEquals(engine.details, engine.loadDeviceVoices())
+        assertTrue(engine.spoken.isEmpty())
+        assertNull(engine.voice)
+        assertEquals(0, engine.defaultVoiceUsed)
+        assertEquals(0, focus.requests)
+        engine.init = false
+        assertTrue(runCatching { engine.loadDeviceVoices() }.exceptionOrNull() is DeviceVoiceLoadException)
+        engine.init = null
+        val start = currentTime
+        assertTrue(runCatching { engine.loadDeviceVoices() }.exceptionOrNull() is DeviceVoiceLoadException)
+        assertEquals(TextToSpeechSpeaker.INIT_TIMEOUT_MS, currentTime - start)
+        val refused = object : TtsEngine by engine {
+            override suspend fun awaitReady() = true
+            override fun voiceDetails(): List<DeviceVoice> = error("controlled service failure")
+        }
+        assertTrue("a failed read must not become an empty voice list",
+            runCatching { refused.loadDeviceVoices() }.exceptionOrNull() is DeviceVoiceLoadException)
+    }
 
     @Test
     fun speaksTheWebsChunksNeverTheWholeTextAtOnce() = runTest {

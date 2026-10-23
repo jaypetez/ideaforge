@@ -253,6 +253,17 @@ theme, library availability/count and version from their owners, not a live heal
 An expanded window with sufficient font-scaled space adds a narrow section index; direct
 section navigation scrolls/focuses the heading without discarding editor state.
 
+Device voice choice opens a native scrolling radio dialog with an explicit Engine default
+and engine-supplied names/locales. Full labels wrap; rows retain at least 48dp native touch
+targets. Local/network metadata is neither a quality rank nor an offline promise.
+The saved choice stays visible during loading or failure; empty and missing-selected
+states explain recovery through Reload or a deliberate different selection. Selecting
+never previews speech or changes hosted settings. `evidence=device-voices` reuses the
+Settings capture route and strict recorder for default, long-choice, selected/recreated,
+loading, error, empty and missing states on both rendering profiles/themes at actual
+font scales 1.0/1.3/2.0. Engine metadata and subsequent-speak configuration are controlled
+test effects, not physical voice-quality or network/offline compatibility evidence.
+
 Hosted speech and transcription retain their separate keys/grants/checks and now retain
 separate operation notices. Failures use semantic error status; cancellation is not a
 passing check. Both hosted voice choices are vertical native radio targets at large fonts.

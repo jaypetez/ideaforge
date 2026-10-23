@@ -112,6 +112,14 @@ object SettingsTags {
     const val TRIGGER_NOTE = "settings-trigger-note"
     const val TRIGGER_WARNING = "settings-trigger-warning"
     const val PACE = "settings-pace"
+    const val DEVICE_VOICE = "settings-device-voice"
+    const val DEVICE_VOICE_DEFAULT = "settings-device-voice-default"
+    const val DEVICE_VOICE_STATUS = "settings-device-voice-status"
+    const val DEVICE_VOICE_MISSING = "settings-device-voice-missing"
+    const val DEVICE_VOICE_RELOAD = "settings-device-voice-reload"
+    const val DEVICE_VOICE_CLOSE = "settings-device-voice-close"
+    const val DEVICE_VOICE_SAVE_PROBLEM = "settings-device-voice-save-problem"
+    fun deviceVoice(id: String) = "settings-device-voice-$id"
     const val FORGET = "settings-forget"
     const val FORGET_CONFIRM = "settings-forget-confirm"
     const val VERSION = "settings-version"
@@ -213,7 +221,7 @@ fun SettingsScreen(
                         Modifier.onGloballyPositioned { offsets[part] = it.positionInParent().y.roundToInt() }) {
                         when (part) {
                             SettingsPart.Connection -> Connection(state, vm)
-                            SettingsPart.Voice -> { Listening(state, vm); HostedSpeechSection() }
+                            SettingsPart.Voice -> { Listening(state, vm); DeviceVoiceSettings(state, vm); HostedSpeechSection() }
                             SettingsPart.Appearance -> Appearance(state, vm)
                             SettingsPart.Data -> { BackupSection(); if (state.canForget) Forget(state, vm) }
                             SettingsPart.About -> About()
