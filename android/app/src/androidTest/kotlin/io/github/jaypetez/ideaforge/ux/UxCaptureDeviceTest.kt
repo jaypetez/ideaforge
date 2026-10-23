@@ -1773,7 +1773,10 @@ class UxCaptureDeviceTest {
 
     private fun captureReportingJourney(config: UxConfiguration, recorder: UxCaptureRecorder) {
         fun click(name: String) {
-            if (!exists(name)) compose.onNodeWithTag("thread").performScrollToNode(hasTestTag(name))
+            // Lazy history can be composed but unplaced; node existence is not visibility.
+            val lazyHistory = name.startsWith("report-history-") &&
+                compose.onAllNodes(hasTestTag("thread") and hasScrollToIndexAction()).fetchSemanticsNodes().isNotEmpty()
+            if (lazyHistory || !exists(name)) compose.onNodeWithTag("thread").performScrollToNode(hasTestTag(name))
             runCatching { compose.onNodeWithTag(name).performScrollTo() }
             compose.onNodeWithTag(name).assertIsDisplayed().performClick()
         }
