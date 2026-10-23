@@ -140,6 +140,10 @@ export async function presentUxState(win, scene, fixtures) {
     const card = doc.querySelector(`.idea-card[data-session-id="${scene.sessionId}"]`);
     const primary = card?.querySelector('.idea-actions > button');
     click(primary);
+    if (primary.textContent === 'Details') {
+      await awaitUx(() => $('library-detail').dataset.sessionId === scene.sessionId, 'selected idea');
+      click($('library-detail').querySelector('.idea-actions > button'));
+    }
     await awaitUx(() => visible($('panel-interview')) || visible($('panel-done')), 'opened idea');
   } else if (!['fresh', 'ready'].includes(scene.id)) {
     click($('b-start'));

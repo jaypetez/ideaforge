@@ -297,6 +297,34 @@ async function phoneLayout(check) {
   }
 }
 
+async function libraryLayout(check) {
+  for (let i = 0; i < 12; i++) {
+    await saveSession(setTitle(seedTurn(createSession({ id: `s_toast_library_${i}`, now: i + 1 })),
+      `Saved idea ${i + 1}`, i + 1));
+  }
+  const app = await openApp(check, 'Ideas focus', { width: 390, height: 844 });
+  try {
+    await until(() => app.$('library-rows').querySelectorAll('.idea-card').length === 12);
+    await Promise.all(app.$('panel-library').getAnimations().map((animation) => animation.finished));
+    const last = [...app.$('library-rows').querySelectorAll('.idea-card')].at(-1).querySelector('.idea-more');
+    last.id = 'library-toast-target';
+    for (const theme of ['light', 'dark']) for (const scale of [1, 2]) {
+      app.doc.documentElement.dataset.theme = theme;
+      app.doc.documentElement.style.fontSize = `${scale * 100}%`;
+      raiseBoth(app);
+      last.focus();
+      last.scrollIntoView({ block: 'end', behavior: 'instant' });
+      hitTest(app, check, `${theme} Ideas text ${scale}`, [last.id]);
+      const target = last.getBoundingClientRect();
+      check(`${theme} Ideas text ${scale}: focused last-row action clears the persistent error and navigation`,
+        app.doc.activeElement === last && target.top >= 0
+          && target.bottom <= app.$('err-toast').getBoundingClientRect().top);
+    }
+  } finally {
+    app.frame.remove();
+  }
+}
+
 async function voiceLayout(check, width) {
   await import('./fixtures/fake-voice.js');
   const fake = window.__FakeVoice;
@@ -387,6 +415,8 @@ export default async function run(check) {
     await resumeNote(check);
     await cleanStorage();
     await phoneLayout(check);
+    await cleanStorage();
+    await libraryLayout(check);
     await cleanStorage();
     await phoneDone(check);
     await cleanStorage();

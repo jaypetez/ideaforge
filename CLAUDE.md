@@ -236,8 +236,9 @@ tokens, and nothing hardcodes a pixel value it could name instead.
   stale whole-ring snapshots alone still loses independent updates. Connection/Start owns
   its submitted inference and STT branches; TTS verification has an independent writer.
   A retired durable STT put must not override the next Start's explicit dictation choice.
-  Library's current `confirmDelete` is synchronous: its future dialog integration must
-  await the result, not treat a Promise as permission.
+  Library Delete awaits `confirmDelete`'s boolean from that same native dialog; a Promise
+  is never permission. Cancel/Escape removes nothing, and mutations restore available-row
+  or heading focus. Rename/tags use one explicit dialog, preserving failed edits for retry.
 - **Start and Settings are two views of `#panel-setup`**, picked by `data-view` from the
   destination passed to `show()`; app.css hides `.start-only` / `.settings-only` from that
   attribute alone. Every id stays in the one section. Start's provider/fields/ready phases

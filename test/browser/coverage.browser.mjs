@@ -189,7 +189,9 @@ export default async function run(report) {
     $('b-library').click();
     const card = await until(() => visible($('panel-library'))
       && $('library-rows').querySelector(`[data-session-id="${ID}"]`));
-    const resume = card && [...card.querySelectorAll('button')].find((b) => b.textContent === 'Continue');
+    card?.querySelector('.idea-select').click();
+    const resume = [...$('library-detail').querySelectorAll('button')]
+      .find((b) => b.textContent === 'Continue');
     if (!resume) { check('coverage: the seeded idea can be continued', false, JSON.stringify(meterState())); return; }
     resume.click();
     const opened = await until(() => visible($('manual-interview')) && !$('answer').disabled);

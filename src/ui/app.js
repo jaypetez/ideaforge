@@ -81,6 +81,7 @@ for (const id of [
   'panel-library', 'library-search', 'library-status', 'library-tag',
   'library-rows', 'library-empty', 'library-zero', 'b-library-zero-new', 'library-count',
   'b-library-new', 'b-backup', 'b-import', 'backup-file', 'library-detail',
+  'library-filter-summary', 'b-library-clear', 'library-unavailable', 'b-library-retry',
   'settings-index', 'theme-choice',
   'panel-done', 'done-title', 'done-meta', 'output',
   'done-actions', 'b-done-more', 'done-menu',
@@ -216,6 +217,7 @@ function show(panel, destination) {
   }
   if (view !== shownView) {
     cancelConfirmation();
+    state.library?.cancelEdit();
     shownView = view;
     say('');
     fail(null);
@@ -2794,38 +2796,30 @@ async function openLibrary(swap) {
 }
 
 async function editLibrarySession(session, { name, tags }) {
-  try {
-    const pending = workBySession.get(session.id);
-    if (pending) await pending.promise;
-    const latest = await loadSession(session.id);
-    if (!latest || deletedSessions.has(session.id)) return;
-    const changedAt = now();
-    let updated = renameSession(latest, name, changedAt);
-    updated = setSessionTags(updated, tags, changedAt);
-    await saveSession(updated);
-    if (state.session && state.session.id === updated.id) state.session = updated;
-    say('Idea details saved.');
-    await refreshLibrary();
-  } catch (error) {
-    fail(error);
-  }
+  const pending = workBySession.get(session.id);
+  if (pending) await pending.promise;
+  const latest = await loadSession(session.id);
+  if (!latest || deletedSessions.has(session.id)) throw new Error('This idea is no longer available.');
+  const changedAt = now();
+  let updated = renameSession(latest, name, changedAt);
+  updated = setSessionTags(updated, tags, changedAt);
+  await saveSession(updated);
+  if (state.session && state.session.id === updated.id) state.session = updated;
+  say('Idea details saved.');
+  await refreshLibrary();
 }
 
 async function setArchived(session, archived) {
-  try {
-    const pending = workBySession.get(session.id);
-    if (pending) await pending.promise;
-    const latest = await loadSession(session.id);
-    if (!latest || deletedSessions.has(session.id)) return;
-    const updated = archived ? archiveSession(latest, now()) : restoreSession(latest, now());
-    await saveSession(updated);
-    if (state.session && state.session.id === updated.id) state.session = updated;
-    say(archived ? 'Idea archived.' : 'Idea restored.');
-    await refreshLibrary();
-    await renderResumeList();
-  } catch (error) {
-    fail(error);
-  }
+  const pending = workBySession.get(session.id);
+  if (pending) await pending.promise;
+  const latest = await loadSession(session.id);
+  if (!latest || deletedSessions.has(session.id)) throw new Error('This idea is no longer available.');
+  const updated = archived ? archiveSession(latest, now()) : restoreSession(latest, now());
+  await saveSession(updated);
+  if (state.session && state.session.id === updated.id) state.session = updated;
+  say(archived ? 'Idea archived.' : 'Idea restored.');
+  await refreshLibrary();
+  await renderResumeList();
 }
 
 async function removeLibrarySession(session) {
@@ -2846,7 +2840,7 @@ async function removeLibrarySession(session) {
     await renderResumeList();
   } catch (error) {
     deletedSessions.delete(session.id);
-    fail(error);
+    throw error;
   }
 }
 
@@ -2910,6 +2904,10 @@ function setupLibrary() {
       importFile: els['backup-file'],
       newButton: els['b-library-new'],
       detail: els['library-detail'],
+      filterSummary: els['library-filter-summary'],
+      clearFilters: els['b-library-clear'],
+      unavailable: els['library-unavailable'],
+      retry: els['b-library-retry'],
     },
     renderPreview: (into, session) => renderMarkdown(into, exportFor(session)),
     onOpen: resumeInterview,
@@ -2923,6 +2921,10 @@ function setupLibrary() {
     onImport: importLibraryBackup,
     onError: fail,
     onNew: () => openStart(),
+    onRetry: () => {
+      fail(null);
+      return refreshLibrary();
+    },
   });
 }
 

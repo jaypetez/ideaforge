@@ -86,7 +86,10 @@ function menuButton(card, label) {
   const trigger = card.querySelector('.idea-more');
   const menu = card.querySelector('[popover]');
   if (!trigger || !menu) return null;
-  if (!menu.matches(':popover-open')) trigger.click();
+  if (!menu.matches(':popover-open')) {
+    trigger.focus();
+    trigger.click();
+  }
   if (!menu.matches(':popover-open')) return null;
   const found = findButton(menu, label);
   return found && found.getClientRects().length > 0 ? found : null;
@@ -101,6 +104,8 @@ export default async function run(check) {
     }),
     completedSession('s_done', now + 10, 'a conference name helper', 'Conference helper'),
     activeSession('s_search', now + 20, 'A quiet tool', {
+      name: 'Long Unicode 東京 — mémoire <b>literal</b> '.repeat(4),
+      tags: Array.from({ length: 12 }, (_, i) => `context-${i + 1}`),
       draft: 'A quiet tool with the unique needle phrase',
     }),
     activeSession('s_four', now + 30, 'A fourth idea'),
@@ -135,6 +140,23 @@ export default async function run(check) {
   check('the setup screen shows only three recent ideas',
     $('resume-rows').children.length === 3, `${$('resume-rows').children.length} rows`);
 
+  frame.width = 390;
+  frame.height = 844;
+  await settle(100);
+  await Promise.all($('panel-library').getAnimations().map((animation) => animation.finished));
+  const firstRows = [...$('library-rows').querySelectorAll('.idea-card')].slice(0, 3)
+    .map((row) => row.getBoundingClientRect());
+  const navigationTop = doc.querySelector('.bar-right').getBoundingClientRect().top;
+  check('at 390x844 the first short-title idea starts by y=320',
+    firstRows.length === 3 && firstRows[0].top <= 320,
+    firstRows.map((row) => `${Math.round(row.top)}–${Math.round(row.bottom)}`).join(', '));
+  check('at 390x844 three complete short-title ideas fit above navigation',
+    firstRows.length === 3 && firstRows.every((row) => row.bottom <= navigationTop),
+    `rows end ${firstRows.map((row) => Math.round(row.bottom)).join(', ')}; navigation ${navigationTop}`);
+  frame.width = 900;
+  frame.height = 800;
+  await settle(100);
+
   $('b-nav-new').click();
   await settle(300);
   check('New idea leaves the library for Start', rendered('panel-setup') && !rendered('panel-library'));
@@ -145,6 +167,23 @@ export default async function run(check) {
   check('the library shows every stored idea',
     $('library-rows').children.length === sessions.length,
     `${$('library-rows').children.length} cards`);
+  const filters = doc.querySelector('.library-filter-options');
+  check('Status and Tag are in one initially collapsed filter disclosure',
+    !filters.open && filters.contains($('library-status')) && filters.contains($('library-tag'))
+      && !$('library-status').checkVisibility() && !$('library-tag').checkVisibility());
+  filters.open = true;
+  check('opening Filters exposes both labelled controls',
+    $('library-status').getClientRects().length > 0 && $('library-tag').getClientRects().length > 0);
+  $('library-status').value = 'active';
+  $('library-status').dispatchEvent(new win.Event('change'));
+  $('library-tag').value = 'research';
+  $('library-tag').dispatchEvent(new win.Event('change'));
+  check('status/tag filters share a truthful compact summary and clear together',
+    $('library-rows').children.length === 1
+      && /Active.*research/.test($('library-filter-summary').textContent)
+      && !$('b-library-clear').hidden);
+  $('b-library-clear').click();
+  filters.open = false;
 
   $('library-search').value = 'unique needle';
   $('library-search').dispatchEvent(new win.Event('input'));
@@ -156,15 +195,14 @@ export default async function run(check) {
   $('library-search').value = '';
   $('library-search').dispatchEvent(new win.Event('input'));
 
-  // One primary action, one overflow trigger, one <details>. The primary action follows the
+  // One primary action and one overflow trigger, without a repeated editor. The action follows the
   // same status rule as everywhere else: a finished idea is viewed, any other is continued.
   const cards = [...$('library-rows').querySelectorAll('.idea-card')];
   const primary = (card) => card.querySelector('.idea-actions > button:not(.idea-more)');
-  check('every card has exactly one <details>, the rename-and-tag editor',
+  check('rows have no repeated rename disclosures or input fields',
     cards.length === sessions.length
-      && cards.every((card) => card.querySelectorAll('details').length === 1
-        && card.querySelector('details').classList.contains('idea-edit')),
-    cards.map((card) => card.querySelectorAll('details').length).join(','));
+      && cards.every((card) => !card.querySelector('details, input')),
+    cards.map((card) => card.querySelectorAll('details, input').length).join(','));
   check('every card shows exactly one primary action beside its overflow trigger',
     cards.every((card) => card.querySelectorAll('.idea-actions > button').length === 2
       && card.querySelectorAll('.idea-more').length === 1),
@@ -178,6 +216,52 @@ export default async function run(check) {
     cards.map((card) => primary(card).textContent).join(','));
   check('the secondary actions are hidden until the overflow menu opens',
     cards.every((card) => !findButton(card, 'Delete').getClientRects().length));
+  const longCard = $('library-rows').querySelector('[data-session-id="s_search"]');
+  const longTags = longCard.querySelector('.idea-tags');
+  check('many tags have two visible labels and an accessible remaining-tag count',
+    longTags.children.length === 3 && longTags.lastElementChild.textContent.includes('+10 more tags'));
+  menuButton(longCard, 'Rename or tag').click();
+  const allTagsEditor = doc.querySelector('dialog.idea-editor');
+  const storedLong = await loadSession('s_search');
+  check('the explicit editor reveals every tag, not only the two shown in its row',
+    allTagsEditor.querySelector('#idea-editor-tags').value.split(',').length === 12
+      && allTagsEditor.querySelector('#idea-editor-tags').value.includes('context-12'));
+  allTagsEditor.querySelector('#idea-editor-name').value = 'Do not save this name';
+  findButton(allTagsEditor, 'Cancel').click();
+  await settle(30);
+  check('Cancel leaves the saved long name and every tag unchanged',
+    (await loadSession('s_search')).name === storedLong.name
+      && (await loadSession('s_search')).tags.join('|') === storedLong.tags.join('|'));
+  const originalFont = doc.documentElement.style.fontSize;
+  const originalTheme = doc.documentElement.dataset.theme;
+  try {
+    for (const theme of ['light', 'dark']) for (const scale of [1, 2]) {
+      doc.documentElement.dataset.theme = theme;
+      doc.documentElement.style.fontSize = `${scale * 100}%`;
+      for (const width of [320, 360, 390, 600, 840, 1280, 1440]) {
+        frame.width = width;
+        await settle(35);
+        const fits = cards.every((card) => {
+          const row = card.getBoundingClientRect();
+          const summary = card.querySelector('.idea-summary').getBoundingClientRect();
+          const actions = [...card.querySelectorAll('.idea-actions > button')]
+            .map((button) => button.getBoundingClientRect());
+          return !card.querySelector('button button') && actions.every((r) => r.width >= 48
+            && r.height >= 48 && r.left >= summary.right && r.right <= row.right)
+            && summary.left >= row.left && summary.right <= row.right;
+        });
+        check(`${theme} ${width}px text ${scale}: long Unicode/tags reflow beside separate 48px row actions`,
+          fits && doc.documentElement.scrollWidth <= doc.documentElement.clientWidth,
+          `${doc.documentElement.scrollWidth}/${doc.documentElement.clientWidth}`);
+      }
+    }
+  } finally {
+    doc.documentElement.style.fontSize = originalFont;
+    if (originalTheme === undefined) delete doc.documentElement.dataset.theme;
+    else doc.documentElement.dataset.theme = originalTheme;
+    frame.width = 900;
+    await settle(100);
+  }
   const archivedCard = $('library-rows').querySelector('[data-session-id="s_archived"]');
   check('an archived idea’s menu offers Restore rather than Archive',
     Boolean(menuButton(archivedCard, 'Restore')) && !findButton(archivedCard, 'Archive'));
@@ -222,17 +306,38 @@ export default async function run(check) {
   await settle(100);
 
   let draftCard = $('library-rows').querySelector('[data-session-id="s_draft"]');
-  const edit = draftCard.querySelector('details');
-  edit.open = true;
+  menuButton(draftCard, 'Rename or tag').click();
+  await settle(50);
+  const edit = doc.querySelector('dialog.idea-editor');
+  check('Rename or tag opens one labelled modal editor for the intended idea',
+    edit?.matches(':modal') && edit.textContent.includes('Customer notebook')
+      && doc.activeElement === edit.querySelector('input')
+      && [...edit.querySelectorAll('input')].every((input) =>
+        edit.querySelector(`label[for="${input.id}"]`)));
   const inputs = edit.querySelectorAll('input');
   inputs[0].value = 'Renamed customer notebook';
   inputs[1].value = 'Research, Mobile';
+  const put = win.IDBObjectStore.prototype.put;
+  win.IDBObjectStore.prototype.put = function (...args) {
+    if (this.name === 'sessions') throw new win.DOMException('Scripted edit storage failure', 'QuotaExceededError');
+    return put.apply(this, args);
+  };
+  findButton(edit, 'Save details').click();
+  await settle(150);
+  check('a failed edit keeps the entered details and a named inline retry error',
+    edit.open && /Details could not be saved/.test(edit.querySelector('[role="alert"]').textContent)
+      && inputs[0].value === 'Renamed customer notebook' && !inputs[0].disabled
+      && (await loadSession('s_draft')).name === 'Customer notebook');
+  win.IDBObjectStore.prototype.put = put;
   findButton(edit, 'Save details').click();
   await settle(250);
   const edited = await loadSession('s_draft');
   check('renaming an idea persists through IndexedDB', edited.name === 'Renamed customer notebook');
   check('tag edits are normalized and persisted',
     edited.tags.join('|') === 'Research|Mobile', edited.tags.join('|'));
+  check('a successful edit closes its dialog, clears the retry error and restores row focus',
+    !edit.isConnected && $('err-toast').hidden
+      && doc.activeElement.closest('.idea-card')?.dataset.sessionId === 's_draft');
 
   draftCard = $('library-rows').querySelector('[data-session-id="s_draft"]');
   menuButton(draftCard, 'Archive').click();
@@ -370,18 +475,27 @@ export default async function run(check) {
 
   $('b-library').click();
   await settle(250);
-  let asked = 0;
-  win.confirm = () => { asked++; return false; };
   let removable = $('library-rows').querySelector('[data-session-id="s_six"]');
   menuButton(removable, 'Delete').click();
-  await settle(250);
-  check('Delete asks first, and declining keeps the idea',
-    asked === 1 && Boolean(await loadSession('s_six')), `asked ${asked}`);
-  win.confirm = () => true;
+  await settle(50);
+  let confirmation = doc.querySelector('dialog[open]');
+  check('Delete awaits an actual modal, with Cancel focused and no early deletion',
+    confirmation?.matches(':modal')
+      && doc.activeElement === confirmation.querySelector('[value="cancel"]')
+      && Boolean(await loadSession('s_six')));
+  confirmation.querySelector('[value="cancel"]').click();
+  await settle(100);
+  check('cancelling Delete keeps the idea and returns focus to its More trigger',
+    Boolean(await loadSession('s_six')) && doc.activeElement === removable.querySelector('.idea-more'));
   removable = $('library-rows').querySelector('[data-session-id="s_six"]');
   menuButton(removable, 'Delete').click();
+  await settle(50);
+  confirmation = doc.querySelector('dialog[open]');
+  confirmation.querySelector('[value="confirm"]').click();
   await settle(250);
-  check('permanent delete removes the IndexedDB record', (await loadSession('s_six')) === null);
+  check('confirmed Delete removes only its idea and restores focus to an available row',
+    (await loadSession('s_six')) === null && Boolean(await loadSession('s_five'))
+      && Boolean(doc.activeElement.closest('.idea-card')));
 
   // Filters that match nothing are not the same as having no ideas.
   $('library-search').value = 'nothing in any saved idea says this';
@@ -389,10 +503,12 @@ export default async function run(check) {
   check('filters matching nothing show the empty-filter message, not the first-run state',
     rendered('library-empty') && !rendered('library-zero')
       && $('library-rows').children.length === 0 && visible($('library-search')));
-  $('library-search').value = '';
-  $('library-search').dispatchEvent(new win.Event('input'));
-  check('…and clearing the filter brings the ideas back',
-    !rendered('library-empty') && $('library-rows').children.length > 0);
+  check('no-match keeps an explicit Clear filters action', visible($('b-library-clear')));
+  $('b-library-clear').click();
+  check('Clear filters restores the list and search focus',
+    !rendered('library-empty') && $('library-rows').children.length > 0
+      && doc.activeElement === $('library-search') && $('library-status').value === 'all'
+      && !$('library-tag').value);
 
   // No ideas at all: the first-run state, with a way to start one.
   for (const session of sessions) await deleteSession(session.id);
@@ -531,13 +647,14 @@ export default async function run(check) {
     !$2('library-rows').hasAttribute('aria-busy') && $2('library-rows').children.length === 0);
   check('…and says what went wrong', !$2('err-toast').hidden && $2('err').textContent.length > 0,
     $2('err').textContent);
+  check('unavailable storage has an explicit retry, not an empty-library action',
+    shown2('library-unavailable') && shown2('b-library-retry') && !shown2('library-zero'));
   win2.IDBObjectStore.prototype.getAll = getAll;
-  $2('b-settings').click();
-  await settle(200);
-  $2('b-library').click();
+  $2('b-library-retry').click();
   await settle(400);
   check('the next successful read shows the stored ideas',
-    Boolean($2('library-rows').querySelector('[data-session-id="s_kept"]')) && !shown2('library-zero'));
+    Boolean($2('library-rows').querySelector('[data-session-id="s_kept"]'))
+      && !shown2('library-zero') && $2('err-toast').hidden);
   await deleteSession('s_kept');
   second.remove();
 }

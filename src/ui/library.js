@@ -2,6 +2,8 @@
 // view receives rows and delegates every mutation back to it.
 
 import { availableTags, filterSessions, libraryCard } from '../core/library.js';
+import { MAX_SESSION_NAME } from '../core/session.js';
+import { confirmAction } from './dialog.js';
 import { wireOverflowMenu } from './menu.js';
 
 function button(label, className = 'ghost small') {
@@ -37,8 +39,14 @@ export function createLibraryView({
   onBackup,
   onImport,
   onNew,
+  onRetry,
   onError = () => {},
-  confirmDelete = (title) => confirm(`Permanently delete “${title}”?`),
+  confirmDelete = (title) => confirmAction({
+    title: 'Delete this idea?',
+    message: `“${title}” and its interview will be permanently removed from this device.`
+      + ' There is no undo; only an existing backup can restore it.',
+    action: 'Delete idea',
+  }),
   // Draws one idea's export into an element (app.js passes the Done panel's renderer, so the
   // preview is the same rendered markdown, built with textContent, never innerHTML).
   renderPreview = null,
@@ -52,13 +60,117 @@ export function createLibraryView({
   const {
     search, status, tag, rows, empty, zero, zeroNew, count,
     backup, importButton, importFile, newButton, detail,
+    filterSummary, clearFilters, unavailable, retry,
   } = elements;
   // The idea the desktop pane shows. Kept across re-renders and filter changes while it is
   // still listed; meaningless below 1024px, where nothing is marked or shown.
   let selectedId = null;
+  let editor = null;
   // The panel says which of its states it is in, so the stylesheet can drop the search and
   // filters when there is nothing to search: 'loading', 'zero' or 'ready'.
   const panel = rows.closest('section') || rows.parentElement;
+
+  function focusIdea(id, index, previous) {
+    if (panel.hidden) return;
+    const focused = document.activeElement;
+    if (focused !== document.body && focused !== previous && focused?.isConnected) return;
+    const cards = [...rows.querySelectorAll('.idea-card')];
+    const card = cards.find((element) => element.dataset.sessionId === id)
+      || cards[Math.min(index, cards.length - 1)];
+    const target = card?.querySelector('.idea-open') || panel.querySelector('h2');
+    target?.focus();
+  }
+
+  async function mutate(session, action) {
+    const index = shownSessions().findIndex((row) => row.id === session.id);
+    const previous = document.activeElement;
+    await action();
+    focusIdea(session.id, index, previous);
+  }
+
+  function cancelEdit() {
+    if (editor?.open) editor.close();
+  }
+
+  function editIdea(session, card) {
+    if (editor) throw new Error('Finish editing the open idea first.');
+    const previous = document.activeElement;
+    const index = shownSessions().findIndex((row) => row.id === session.id);
+    const dialog = document.createElement('dialog');
+    editor = dialog;
+    dialog.className = 'idea-editor';
+    dialog.setAttribute('aria-labelledby', 'idea-editor-title');
+    const heading = document.createElement('h2');
+    heading.id = 'idea-editor-title';
+    heading.textContent = `Rename or tag “${card.title}”`;
+    const form = document.createElement('form');
+    const field = (label, id, value) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'field';
+      const caption = document.createElement('label');
+      caption.htmlFor = id;
+      caption.textContent = label;
+      const input = document.createElement('input');
+      input.id = id;
+      input.value = value;
+      wrapper.append(caption, input);
+      form.append(wrapper);
+      return input;
+    };
+    const name = field('Idea name', 'idea-editor-name', session.name || '');
+    name.maxLength = MAX_SESSION_NAME;
+    name.placeholder = card.title;
+    const tags = field('Tags, separated by commas', 'idea-editor-tags', card.tags.join(', '));
+    const error = document.createElement('p');
+    error.className = 'field-error';
+    error.setAttribute('role', 'alert');
+    const actions = document.createElement('div');
+    actions.className = 'btns';
+    const cancel = button('Cancel', 'ghost');
+    cancel.onclick = () => dialog.close();
+    const save = button('Save details', '');
+    save.type = 'submit';
+    actions.append(cancel, save);
+    form.append(error, actions);
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      if (save.disabled) return;
+      save.disabled = true;
+      // Dismissing a queued save does not cancel the submitted edit.
+      cancel.textContent = 'Close';
+      name.disabled = true;
+      tags.disabled = true;
+      save.textContent = 'Saving details…';
+      error.textContent = '';
+      form.setAttribute('aria-busy', 'true');
+      try {
+        await onEdit(session, { name: name.value, tags: tags.value.split(',') });
+        if (dialog.open) dialog.close();
+        else focusIdea(session.id, index, previous);
+      } catch (failure) {
+        error.textContent = `Details could not be saved. Try again: ${failure.message}`;
+        if (!dialog.open) onError(failure);
+      } finally {
+        save.disabled = false;
+        cancel.textContent = 'Cancel';
+        name.disabled = false;
+        tags.disabled = false;
+        save.textContent = 'Save details';
+        form.removeAttribute('aria-busy');
+      }
+    };
+    dialog.addEventListener('close', () => {
+      if (editor === dialog) editor = null;
+      dialog.remove();
+      if (panel.hidden) return;
+      if (previous?.isConnected) previous.focus();
+      else focusIdea(session.id, index, document.activeElement);
+    }, { once: true });
+    dialog.append(heading, form);
+    document.body.append(dialog);
+    dialog.showModal();
+    name.focus();
+  }
 
   function renderFilters() {
     const selected = tag.value;
@@ -78,7 +190,7 @@ export function createLibraryView({
 
   // The title, status, counts and tags of one idea: the top of its card, and the top of the
   // desktop detail pane, which must say exactly the same thing about the same idea.
-  function renderSummary(session, card, headingTag) {
+  function renderSummary(session, card, headingTag, compact = false) {
     const heading = document.createElement('div');
     heading.className = 'idea-head';
     const title = document.createElement(headingTag);
@@ -86,33 +198,49 @@ export function createLibraryView({
     const badge = document.createElement('span');
     badge.className = `idea-status ${card.status}`;
     badge.textContent = card.status;
-    heading.append(title, badge);
+    heading.append(title);
+    if (!compact) heading.append(badge);
 
     const meta = document.createElement('p');
     meta.className = 'idea-meta';
     const updated = card.updatedAt ? new Date(card.updatedAt).toLocaleDateString() : 'unknown date';
-    meta.textContent = `${card.questionCount} question${card.questionCount === 1 ? '' : 's'}`
-      + ` · ${card.coverage}% coverage · updated ${updated}`;
+    meta.textContent = (compact ? ''
+      : `${card.questionCount} question${card.questionCount === 1 ? '' : 's'} · `)
+      + `${card.coverage}% coverage · updated ${updated}`;
+    if (compact) meta.prepend(badge, ' · ');
 
     const tagList = document.createElement('div');
     tagList.className = 'idea-tags';
-    for (const value of card.tags) {
+    for (const value of compact ? card.tags.slice(0, 2) : card.tags) {
       const chip = document.createElement('span');
       chip.textContent = value;
       tagList.append(chip);
+    }
+    if (compact && card.tags.length > 2) {
+      const remaining = document.createElement('span');
+      remaining.textContent = `+${card.tags.length - 2}`;
+      const label = document.createElement('span');
+      label.className = 'sr-only';
+      label.textContent = ` more tags: ${card.tags.slice(2).join(', ')}`;
+      remaining.append(label);
+      tagList.append(remaining);
     }
     return { heading, title, meta, tagList };
   }
 
   // One primary action and the overflow menu beside it. `menuId` is the popover's id, which
   // has to be unique on the page: the card and the detail pane can show the same idea.
-  function renderActions(session, card, menuId) {
+  function renderActions(session, card, menuId, row = false) {
     // One primary action per card. Everything else lives in the overflow menu, so the card
     // reads as "this idea, and the one thing you would do next" rather than a toolbar.
     const actions = document.createElement('div');
     actions.className = 'idea-actions';
-    const open = button(session.status === 'done' ? 'View result' : 'Continue', '');
-    open.onclick = run(open, () => onOpen(session.id), onError);
+    const label = session.status === 'done' ? 'View result' : 'Continue';
+    const open = button(row && isWide() ? 'Details' : label,
+      row ? 'quiet small idea-open idea-select' : '');
+    open.dataset.openLabel = label;
+    open.onclick = run(open, () => row && isWide()
+      ? select(session.id, { focus: true }) : onOpen(session.id), onError);
 
     // A native popover: Esc and light dismiss close it, and focus goes back to the trigger,
     // with no script of ours to get wrong. The buttons keep their exact labels, because the
@@ -140,6 +268,12 @@ export function createLibraryView({
     // closes it on resize and moves focus into it.
     const close = wireOverflowMenu(menu, more);
 
+    const edit = item('Rename or tag', 'edit-note');
+    edit.onclick = () => {
+      close();
+      try { editIdea(session, card); } catch (error) { onError(error); }
+    };
+
     if (card.canExport) {
       const share = item('Share .md', 'share');
       const shareAction = run(share, () => onShare(session), onError);
@@ -150,15 +284,15 @@ export function createLibraryView({
 
     const archived = card.status === 'archived';
     const archive = item(archived ? 'Restore' : 'Archive', archived ? 'unarchive' : 'archive');
-    const archiveAction = run(archive, () =>
-      archived ? onRestore(session) : onArchive(session), onError);
+    const archiveAction = run(archive, () => mutate(session, () =>
+      archived ? onRestore(session) : onArchive(session)), onError);
     archive.onclick = () => { close(); archiveAction(); };
     // Delete is the one action on this card that cannot be undone, so it is the one that
     // gets a different colour, and it still asks first. Same label — the browser probe finds
     // it by visible text.
     const remove = item('Delete', 'delete', 'quiet danger');
     const removeAction = run(remove, async () => {
-      if (confirmDelete(card.title)) await onDelete(session);
+      if (await confirmDelete(card.title)) await mutate(session, () => onDelete(session));
     }, onError);
     remove.onclick = () => { close(); removeAction(); };
     return { actions, menu };
@@ -170,48 +304,11 @@ export function createLibraryView({
     article.className = 'idea-card';
     article.dataset.sessionId = session.id;
 
-    const { heading, meta, tagList } = renderSummary(session, card, 'h3');
-    const { actions, menu } = renderActions(session, card, `idea-menu-${session.id}`);
-
-    // Desktop only (app.css hides it below 1024px, where there is no detail pane): show this
-    // idea in the pane beside the list. A button of its own, so the keyboard has a way in;
-    // the card body is the pointer's shortcut to the same thing (see the click handler below).
-    const details = button('Details', 'quiet small idea-select');
-    details.setAttribute('aria-controls', detail ? detail.id : '');
-    details.setAttribute('aria-label', `Show details for ${card.title}`);
-    details.onclick = () => select(session.id, { focus: true });
-    heading.append(details);
-
-    const edit = document.createElement('details');
-    edit.className = 'idea-edit';
-    const summary = document.createElement('summary');
-    summary.textContent = 'Rename or tag';
-    const nameLabel = document.createElement('label');
-    nameLabel.textContent = 'Idea name';
-    // These labels wrapped nothing and pointed at nothing, so both inputs were announced
-    // unlabelled. The id is per session because several cards are open at once.
-    nameLabel.htmlFor = `idea-name-${session.id}`;
-    const name = document.createElement('input');
-    name.id = nameLabel.htmlFor;
-    name.value = session.name || '';
-    name.placeholder = card.title;
-    name.maxLength = 120;
-    const tagsLabel = document.createElement('label');
-    tagsLabel.textContent = 'Tags';
-    tagsLabel.htmlFor = `idea-tags-${session.id}`;
-    const tags = document.createElement('input');
-    tags.id = tagsLabel.htmlFor;
-    tags.value = card.tags.join(', ');
-    tags.placeholder = 'work, writing, product';
-    const save = button('Save details', '');
-    save.onclick = run(save, async () => {
-      await onEdit(session, {
-        name: name.value,
-        tags: tags.value.split(','),
-      });
-      edit.open = false;
-    }, onError);
-    edit.append(summary, nameLabel, name, tagsLabel, tags, save);
+    const { heading, meta, tagList } = renderSummary(session, card, 'h3', true);
+    const { actions, menu } = renderActions(session, card, `idea-menu-${session.id}`, true);
+    const summary = document.createElement('div');
+    summary.className = 'idea-summary';
+    summary.append(heading, meta, tagList);
 
     // Clicking the card's body selects it, on a wide screen. Anything interactive inside the
     // card keeps its own meaning: the primary still navigates, the menu still opens, and the
@@ -222,15 +319,13 @@ export function createLibraryView({
       select(session.id);
     });
 
-    article.append(heading, meta, tagList, actions, menu, edit);
+    article.append(summary, actions, menu);
     return article;
   }
 
   // ─────────────────────────────────────────────── desktop detail pane (≥1024px)
   //
-  // Wide screens show the list on the left and one idea on the right. The pane is filled
-  // only while the wide query matches: below it there is no pane, and the cards' DOM is
-  // what it always was, so nothing narrower can find a second "Continue" or "Delete".
+  // The row's primary selects on wide screens and opens directly on compact screens.
 
   function isWide() {
     return Boolean(detail && wide && wide.matches);
@@ -272,7 +367,18 @@ export function createLibraryView({
       if (on) article.setAttribute('aria-current', 'true');
       else article.removeAttribute('aria-current');
       const pick = article.querySelector('.idea-select');
-      if (pick) pick.setAttribute('aria-pressed', String(on));
+      if (pick) {
+        pick.textContent = wideNow ? 'Details' : pick.dataset.openLabel;
+        const title = article.querySelector('h3').textContent;
+        pick.setAttribute('aria-label', `${wideNow ? 'Show details for' : pick.textContent} ${title}`);
+        if (wideNow) {
+          pick.setAttribute('aria-pressed', String(on));
+          pick.setAttribute('aria-controls', detail.id);
+        } else {
+          pick.removeAttribute('aria-pressed');
+          pick.removeAttribute('aria-controls');
+        }
+      }
     }
     renderDetail(wideNow ? shown.find((session) => session.id === selectedId) : null);
   }
@@ -305,12 +411,34 @@ export function createLibraryView({
     preview.setAttribute('aria-label', `Preview of ${card.title}`);
     preview.setAttribute('role', 'document');
     let drawn = false;
-    if (card.canExport && renderPreview) {
+    if (!session.synthesis.text && session.status !== 'done') {
+      const heading = document.createElement('h4');
+      heading.textContent = 'No write-up yet';
+      const hint = document.createElement('p');
+      hint.textContent = session.status === 'synthesizing'
+        ? 'The write-up has not finished. Continue to return to it.'
+        : 'Continue the interview; your questions, answers and draft are saved here.';
+      preview.append(heading, hint);
+      const latest = session.turns.at(-1);
+      const answered = [...session.turns].reverse().find((turn) => turn.answer);
+      for (const [label, text] of [
+        ['Latest question', latest?.question], ['Latest answer', answered?.answer],
+        ['Unfinished draft', session.draftAnswer],
+      ]) {
+        if (!text) continue;
+        const paragraph = document.createElement('p');
+        const caption = document.createElement('strong');
+        caption.textContent = `${label}: `;
+        paragraph.append(caption, document.createTextNode(text));
+        preview.append(paragraph);
+      }
+      drawn = true;
+    } else if (card.canExport && renderPreview) {
       try {
         renderPreview(preview, session);
         drawn = preview.childNodes.length > 0;
       } catch (error) {
-        drawn = false;
+        onError(error);
       }
     }
     if (!drawn) {
@@ -327,9 +455,21 @@ export function createLibraryView({
   }
 
   function renderRows() {
+    const focused = document.activeElement;
+    const owner = focused?.closest('.idea-card, .library-detail');
+    const rememberedFocus = owner && panel.contains(owner) ? {
+      id: owner.dataset.sessionId,
+      detail: owner === detail,
+      selector: focused.matches('.idea-more') || focused.closest('[popover]')
+        ? '.idea-more' : focused.matches('.library-detail-title')
+          ? '.library-detail-title' : '.idea-actions > button:first-child',
+    } : null;
     const shown = shownSessions();
+    filterSummary.textContent = `${status.selectedOptions[0].textContent} · ${tag.value || 'All tags'}`;
+    clearFilters.hidden = !search.value && status.value === 'all' && !tag.value;
     rows.innerHTML = '';
     rows.removeAttribute('aria-busy');
+    unavailable.hidden = loaded;
     if (!loaded) {
       panel.dataset.libraryState = 'unavailable';
       // renderLoading said "Loading ideas…"; a read that failed must not leave that behind.
@@ -348,6 +488,15 @@ export function createLibraryView({
     zero.hidden = !none;
     empty.hidden = none || shown.length !== 0;
     syncSelection();
+    // A redraw must not turn another idea's focus into permission for a late save to take it.
+    if (rememberedFocus && !focused.isConnected
+      && document.activeElement === document.body && !panel.hidden) {
+      const nextOwner = rememberedFocus.detail
+        ? detail.dataset.sessionId === rememberedFocus.id ? detail : null
+        : [...rows.querySelectorAll('.idea-card')]
+          .find((row) => row.dataset.sessionId === rememberedFocus.id);
+      nextOwner?.querySelector(rememberedFocus.selector)?.focus();
+    }
   }
 
   // Placeholder cards while IndexedDB answers. They are decoration, so they are hidden from
@@ -362,6 +511,7 @@ export function createLibraryView({
     count.textContent = 'Loading ideas…';
     zero.hidden = true;
     empty.hidden = true;
+    unavailable.hidden = true;
     for (let i = 0; i < placeholders; i++) {
       const skeleton = document.createElement('div');
       skeleton.className = 'idea-skeleton';
@@ -379,6 +529,17 @@ export function createLibraryView({
   search.addEventListener('input', renderRows);
   status.addEventListener('change', renderRows);
   tag.addEventListener('change', renderRows);
+  clearFilters.onclick = () => {
+    search.value = '';
+    status.value = 'all';
+    tag.value = '';
+    renderRows();
+    search.focus();
+  };
+  retry.onclick = run(retry, async () => {
+    renderLoading();
+    await onRetry();
+  }, onError);
   backup.onclick = run(backup, onBackup, onError);
   importButton.onclick = () => importFile.click();
   importFile.onchange = async () => {
@@ -419,5 +580,6 @@ export function createLibraryView({
     focus() {
       search.focus();
     },
+    cancelEdit,
   };
 }
