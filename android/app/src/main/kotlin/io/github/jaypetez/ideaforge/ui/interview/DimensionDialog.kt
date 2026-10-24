@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,8 @@ data class DimensionEdit(
     val saved: Boolean = false,
     val failure: DimensionFailure? = null,
     val detail: String = "",
+    val retainedDraft: String = "",
+    val retainedQuestion: String = "",
 )
 
 @Composable
@@ -79,6 +82,16 @@ internal fun DimensionDialog(
                     Modifier.testTag("dimension-stored-reason"))
                 Text(stringResource(R.string.dimension_disclosure), Modifier.testTag("dimension-disclosure"),
                     style = MaterialTheme.typography.bodyMedium)
+                if (edit.retainedDraft.isNotEmpty()) {
+                    Text(stringResource(R.string.dimension_retained_disclosure), Modifier.testTag("dimension-retained-disclosure"))
+                    SelectionContainer {
+                        Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+                            Text(stringResource(R.string.dimension_retained_question, edit.retainedQuestion),
+                                Modifier.testTag("dimension-retained-question"), style = MaterialTheme.typography.bodySmall)
+                            Text(edit.retainedDraft, Modifier.testTag("dimension-retained-draft"))
+                        }
+                    }
+                }
                 if (edit.saved) {
                     IdeaForgeStatusText(stringResource(R.string.dimension_saved),
                         Modifier.testTag("dimension-saved").bringIntoViewRequester(feedback))

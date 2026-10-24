@@ -72,6 +72,8 @@ import java.io.IOException
 /** The web's queueDraftSave timer (src/ui/app.js): one write per pause in typing. */
 const val DRAFT_DEBOUNCE_MS = 600L
 
+private data class DraftWrite(val text: String, val turn: JsonObject, val tag: SessionWorker.Tag)
+
 /** What the interview is waiting for, for the loading line. */
 enum class Busy { Thinking, Resuming, Writing }
 
@@ -199,9 +201,10 @@ class InterviewViewModel(
      * Text queued for a draft write and not yet saved. The debounce job cannot answer this:
      * viewModelScope is cancelled before onCleared runs, so a flush that asked whether the job
      * was still active always found it dead and dropped a draft typed just before leaving.
+     * Its question and epoch are captured now, never borrowed from the editor at execution.
      */
     @Volatile
-    private var pendingDraft: String? = null
+    private var pendingDraft: DraftWrite? = null
 
     private fun now(): JsonElement = work.now()
 
@@ -223,7 +226,7 @@ class InterviewViewModel(
             // Keep this pending until the replacement is durable, including a failed-save retry.
             draftJob?.cancel()
             draftJob = null
-            pendingDraft = _state.value.answer
+            pendingDraft = _state.value.openTurn?.let { DraftWrite(_state.value.answer, it, worker.tag(sessionId)) }
         }
         reports.replace(if (fromVoice) null else _state.value.answer)
     }
@@ -493,11 +496,12 @@ class InterviewViewModel(
 
     private fun queueDraft(text: String) {
         draftJob?.cancel()
-        if (_state.value.openTurn == null) return
-        pendingDraft = text
+        val turn = _state.value.openTurn ?: return
+        val draft = DraftWrite(text, turn, worker.tag(sessionId))
+        pendingDraft = draft
         draftJob = viewModelScope.launch {
             delay(draftDelayMs)
-            writeDraft(text)
+            writeDraft(draft)
         }
     }
 
@@ -507,15 +511,12 @@ class InterviewViewModel(
         pendingDraft = null
     }
 
-    private suspend fun writeDraft(text: String) {
+    private suspend fun writeDraft(draft: DraftWrite) {
         val s = _state.value.session ?: return
-        if (openTurn(s) == null) {
-            if (pendingDraft == text) pendingDraft = null
-            return
-        }
-        val expected = openTurn(s) ?: return
+        val expected = draft.turn
+        val text = draft.text
         try {
-            val out = worker.run(worker.tag(sessionId), work = {
+            val out = worker.run(draft.tag, work = {
                 val latest = store.get(sessionId) ?: s.takeIf { sessionId !in store.knownIds() } ?: return@run null
                 val open = openTurn(latest) ?: return@run null
                 if (open["id"] != expected["id"] || open["question"] != expected["question"]) return@run null
@@ -529,7 +530,7 @@ class InterviewViewModel(
                     if (it.answer == text && it.openTurn?.get("id") == expected["id"] &&
                         it.openTurn?.get("question") == expected["question"]) it.copy(session = drafted) else it
                 }
-                if (pendingDraft == text) pendingDraft = null
+                if (pendingDraft === draft) pendingDraft = null
             }
         } catch (e: CancellationException) {
             throw e
@@ -544,10 +545,10 @@ class InterviewViewModel(
      * dead, and through writeDraft so it takes the session's lock like every other write.
      */
     fun flushDraft() {
-        val text = pendingDraft ?: return
+        val draft = pendingDraft ?: return
         draftJob?.cancel()
         draftJob = null
-        writes.launch { withContext(NonCancellable) { runCatching { writeDraft(text) } } }
+        writes.launch { withContext(NonCancellable) { runCatching { writeDraft(draft) } } }
     }
 
     // ─────────────────────────────────────────────────────────── dimension choices
@@ -617,23 +618,11 @@ class InterviewViewModel(
                 val saved = (outcome as? SessionWorker.Outcome.Committed)?.value
                 val latest = store.get(sessionId)
                 if (saved == null || latest == null || !worker.isCurrent(origin.first)) {
-                    _state.update { it.copy(session = latest ?: it.session, dimensionEdit = edit.copy(failure =
+                    dimensionResult(edit, latest, failure =
                         if (outcome is SessionWorker.Outcome.Stale || !worker.isCurrent(origin.first) || latest == null)
-                            DimensionFailure.Retired else DimensionFailure.Changed, detail = "")) }
+                            DimensionFailure.Retired else DimensionFailure.Changed)
                 } else {
-                    _state.update {
-                        val sameQuestion = it.openTurn?.get("id") == openTurn(latest)?.get("id") &&
-                            it.openTurn?.get("question") == openTurn(latest)?.get("question")
-                        val answer = if (sameQuestion && pendingDraft != null) it.answer else stringOf(latest["draftAnswer"]).orEmpty()
-                        val chips = (openTurn(latest)?.get("chips") as? JsonArray).orEmpty()
-                        it.copy(session = latest, answer = answer,
-                            answerSource = if (sameQuestion && answer == it.answer) it.answerSource
-                                else if (chips.any { chip -> stringOf(chip) == answer }) "chip" else "typed",
-                            dimensionEdit = edit.copy(saved = true, failure = null, detail = "",
-                                status = stringOf(latest["coverage"][edit.id]["status"]).orEmpty(),
-                                level = stringOf(latest["coverage"][edit.id]["level"]).orEmpty(),
-                                storedReason = stringOf(latest["coverage"][edit.id]["waivedReason"]).orEmpty()))
-                    }
+                    dimensionResult(edit, latest, failure = null)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -650,6 +639,33 @@ class InterviewViewModel(
     private fun dimensionFailed(edit: DimensionEdit, error: Exception) = _state.update {
         if (it.dimensionEdit?.request != edit.request) it
         else it.copy(dimensionEdit = edit.copy(failure = DimensionFailure.Save, detail = message(error)))
+    }
+
+    private fun dimensionResult(edit: DimensionEdit, latest: Session?, failure: DimensionFailure?) {
+        val before = _state.value
+        if (before.dimensionEdit?.request != edit.request) return
+        val changedQuestion = latest != null && (before.session?.get("status") != latest["status"] ||
+            before.openTurn?.get("id") != openTurn(latest)?.get("id") ||
+            before.openTurn?.get("question") != openTurn(latest)?.get("question"))
+        if (changedQuestion) cancelDraft()
+        _state.update {
+            val answer = if (changedQuestion) stringOf(latest?.get("draftAnswer")).orEmpty() else it.answer
+            // Metadata alone cannot turn a newer durable draft into permission to upload
+            // older displayed text. Keep that editor's observed baseline until it settles.
+            val session = if (latest != null && !changedQuestion && it.answer != stringOf(latest["draftAnswer"]).orEmpty()) {
+                it.session?.let { current -> withLibraryMetadata(current, latest, now()) } ?: latest
+            } else latest ?: it.session
+            val chips = (latest?.let(::openTurn)?.get("chips") as? JsonArray).orEmpty()
+            it.copy(session = session, answer = answer,
+                answerSource = if (!changedQuestion) it.answerSource
+                    else if (chips.any { chip -> stringOf(chip) == answer }) "chip" else "typed",
+                dimensionEdit = edit.copy(saved = failure == null, failure = failure, detail = "",
+                    status = stringOf(latest?.get("coverage")?.get(edit.id)?.get("status")) ?: edit.status,
+                    level = stringOf(latest?.get("coverage")?.get(edit.id)?.get("level")) ?: edit.level,
+                    storedReason = if (latest == null) edit.storedReason else stringOf(latest["coverage"][edit.id]["waivedReason"]).orEmpty(),
+                    retainedDraft = if (changedQuestion) before.answer else "",
+                    retainedQuestion = if (changedQuestion) stringOf(before.openTurn?.get("question")).orEmpty() else ""))
+        }
     }
 
     // ─────────────────────────────────────────────────────────── voice

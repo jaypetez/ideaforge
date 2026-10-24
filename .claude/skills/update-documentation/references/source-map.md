@@ -145,11 +145,16 @@ source wins over prose, and a generated artifact wins over a description of that
   drives before private reason entry; dismissal never resumes audio.
   Pending/failed edit recovery survives temporary Stop/recreation in the ViewModel,
   while successful retry clears prior error feedback.
+  Draft writes capture question/epoch before debounce/flush. Same-question metadata
+  refresh keeps the visible editor's observed baseline; a changed question retires
+  the old timer and retains earlier text for selectable local copying in that dialog.
   Re-check Android/interview guides, DESIGN, architecture, CONTRIBUTING and focused
   transition/persistence/reopen/stale-work/manual-input tests. `evidence=coverage`
   reuses `UxCaptureDeviceTest#requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion`
   and the strict recorder on both rendering profiles/themes/fonts. Its fixed inventory
-  includes actual lock-held loading and refused-write retry; require selected passing
+  includes actual lock-held loading, refused-write retry and earlier-draft recovery
+  after a competing editor's canonical in-memory scripted turn through `InterviewWork`.
+  Dimension actions themselves request no inference. Require selected passing
   XML, complete clean-SHA manifests and inspected original PNGs. Long reason text is
   generated from `tools/fixtures/ux.mjs`; no core/vector changes or physical/TalkBack claim.
 - **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact

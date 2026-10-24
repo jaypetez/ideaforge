@@ -71,6 +71,7 @@ import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.BOTTOM_BAR
 import io.github.jaypetez.ideaforge.ui.NAVIGATION_RAIL
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
+import io.github.jaypetez.ideaforge.ui.interview.InterviewWork
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
@@ -1861,7 +1862,7 @@ class UxCaptureDeviceTest {
         val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
             listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
         } }
-        val frames = listOf("details", "confirmation", "saving", "save-failure", "waived", "deferred", "resumed", "reopened", "long")
+        val frames = listOf("details", "confirmation", "saving", "save-failure", "waived", "deferred", "resumed", "reopened", "long", "retained-draft")
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
             matrix.flatMap { config -> frames.map { "${config.id}/coverage-$it" } }.toSet())
         val originalGraph = app.graph
@@ -1904,7 +1905,7 @@ class UxCaptureDeviceTest {
         }
         fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
             UxState("coverage-$frame", "interview", "real-app", null, null, null), config, checkNotNull(activity), controls,
-            nativeMapping = "Real MainActivity coverage actions, existing reducers/store/worker and same-session reopen. Loading holds the actual session lock; the named save error refuses an actual write. Neutral shared long text; no model, speech, service, microphone or OS permission effect.",
+            nativeMapping = "Real MainActivity coverage actions, reducers/store/worker and same-session reopen. Loading holds the actual lock; the named error refuses a real write. Recovery uses one competing editor's canonical scripted turn through InterviewWork. Dimension actions request no inference; no network, real model, speech, service, microphone or OS permission effect.",
             rootSurfaceRole = if (dialog) "surfaceContainerHigh" else "background",
         )
         val base = fixtures.state("interview-long")
@@ -2008,6 +2009,60 @@ class UxCaptureDeviceTest {
             before["turns"], graph.sessionStore.get(id)!!["turns"])
         assertEquals(before["draftAnswer"], graph.sessionStore.get(id)!!["draftAnswer"])
         assertEquals("dimension actions and reopening make no inference requests", 0, requests.get())
+
+        closeFixture()
+        prepare(fixtures.state("ready"), config)
+        val competingGraph = checkNotNull(fixtureGraph)
+        competingGraph.providerSource = ProviderSource {
+            object : Provider {
+                override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
+                    requests.incrementAndGet()
+                    error("Dimension recovery must never request inference.")
+                }
+            }
+        }
+        launchMain()
+        await(NAVIGATION)
+        compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+        await("new-idea-type")
+        click("new-idea-type")
+        awaitEditableQuestion()
+        compose.onNodeWithTag("answer").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(reason)) }
+        scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        compose.waitUntil(DEVICE_TIMEOUT) { competingGraph.sessionStore.sessions.value.size == 1 }
+        assertEquals(reason, editableAnswer())
+        val original = competingGraph.sessionStore.sessions.value.single()
+        val competingId = stringOf(original["id"])!!
+        val vector = Json.parseToJsonElement(target.assets.open(ScriptedProvider.ASSET).bufferedReader().use { it.readText() })
+        val steps = (vector["cases"] as JsonArray).single { stringOf(it["name"]) == "a chip answer" }["input"]["steps"] as JsonArray
+        val model = ScriptedProvider(ScriptedProvider.loadScript(target))
+        val now = num(competingGraph.clock.now())
+        val submitted = io.github.jaypetez.ideaforge.core.runtime.submitAnswer(original, steps.first()["text"], now = now)
+        val work = InterviewWork(competingId, competingGraph.sessionStore, competingGraph.sessionWorker, competingGraph.clock, competingGraph.appScope)
+        runBlocking { withTimeout(DEVICE_TIMEOUT) {
+            work.turn(submitted, { competingGraph.inferenceConsent.require(); model }, resume = false).await()
+        } }
+        assertEquals("model", stringOf(io.github.jaypetez.ideaforge.core.openTurn(competingGraph.sessionStore.get(competingId)!!)?.get("questionSource")))
+        runBlocking { withTimeout(DEVICE_TIMEOUT) { competingGraph.sessionWorker.exclusive(competingId) {
+            competingGraph.sessionStore.save(io.github.jaypetez.ideaforge.core.setDraftAnswer(
+                competingGraph.sessionStore.get(competingId)!!, str("The later question's own draft."), now))
+        } } }
+        click("coverage-details")
+        click("pill-constraints")
+        click("dimension-defer")
+        click("dimension-confirm")
+        await("dimension-retained-draft")
+        assertEquals(reason, nodeText("dimension-retained-draft"))
+        capture("retained-draft", listOf(
+            UxControl("dimension-retained-disclosure", hasTestTag("dimension-retained-disclosure"), actionRequired = false),
+            UxControl("dimension-retained-question", hasTestTag("dimension-retained-question"), actionRequired = false),
+            UxControl("dimension-retained-draft", hasTestTag("dimension-retained-draft"), actionRequired = false), tag("dimension-done")))
+        click("dimension-done")
+        assertEquals("The later question's own draft.", editableAnswer())
+        assertEquals("The later question's own draft.", stringOf(competingGraph.sessionStore.get(competingId)!!["draftAnswer"]))
+        assertEquals("dimension actions do not borrow the competing editor's scripted call", 0, requests.get())
     }
 
     @Test

@@ -251,7 +251,7 @@ class InterviewViewModelTest {
     }
 
     @Test
-    fun aDimensionSaveKeepsAndDisplaysAnotherEditorsNewerDurableDraft() {
+    fun aDimensionSaveKeepsNewerDurableDraftWithoutRebasingOlderVisibleEdits() {
         val vm = h.vm(ScriptedModel())
         idle()
         vm.onAnswerChange("Original draft.")
@@ -266,7 +266,44 @@ class InterviewViewModelTest {
         idle()
         assertTrue(vm.state.value.dimensionEdit!!.saved)
         assertEquals("Newer durable draft from the other editor.", stringOf(stored()!!["draftAnswer"]))
-        assertEquals("Newer durable draft from the other editor.", vm.state.value.answer)
+        assertEquals("the visible older draft keeps its own observed baseline", "Original draft.", vm.state.value.answer)
+        assertEquals("Original draft.", stringOf(vm.state.value.session!!["draftAnswer"]))
+    }
+
+    @Test
+    fun aDimensionCompletionCannotMoveAnOlderQuestionsDebouncedDraftOntoTheNewQuestion() {
+        for (flush in listOf(false, true)) {
+            val id = "s_dimension_origin_$flush"
+            val model = ScriptedModel()
+            val vm = h.vm(model, id)
+            idle()
+            answer(vm, ANSWERS[0])
+            val other = h.vm(model, id)
+            idle()
+            vm.onAnswerChange("Only for the earlier question.")
+            other.onAnswerChange(ANSWERS[1])
+            other.send()
+            h.scheduler.runCurrent()
+            assertEquals(3, turns(stored(id)).size)
+            other.onAnswerChange("The new question's durable draft.")
+            other.flushDraft()
+            h.scheduler.runCurrent()
+            assertEquals("The new question's durable draft.", stringOf(stored(id)!!["draftAnswer"]))
+            vm.openDimension("constraints")
+            vm.chooseDimension(DimensionAction.Defer)
+            vm.confirmDimension()
+            h.scheduler.runCurrent()
+            assertTrue(vm.state.value.dimensionEdit!!.saved)
+            if (flush) vm.flushDraft()
+            h.scheduler.advanceTimeBy(DRAFT_DEBOUNCE_MS + 1)
+            idle()
+            assertEquals("an older ${if (flush) "flush" else "timer"} cannot borrow a later question",
+                "The new question's durable draft.", stringOf(stored(id)!!["draftAnswer"]))
+            assertEquals("The new question's durable draft.", vm.state.value.answer)
+            assertEquals("deferred", stringOf(stored(id)!!["coverage"]["constraints"]["status"]))
+            assertEquals("Only for the earlier question.", vm.state.value.dimensionEdit!!.retainedDraft)
+            assertEquals(stringOf(turns(stored(id))[1]["question"]), vm.state.value.dimensionEdit!!.retainedQuestion)
+        }
     }
 
     @Test
@@ -410,8 +447,8 @@ class InterviewViewModelTest {
             duringWrite = null
             interleave?.invoke()
         })
-        for (flush in listOf(false, true)) {
-            val id = "s_reverted_$flush"
+        for (flush in listOf(false, true)) for (changeDimension in listOf(false, true)) {
+            val id = "s_reverted_${flush}_$changeDimension"
             val vm = h.vm(ScriptedModel(), id)
             idle()
             answer(vm, ANSWERS[0])
@@ -429,10 +466,18 @@ class InterviewViewModelTest {
             assertEquals("the cancelled write never updated this older UI snapshot",
                 "Neutral draft A", stringOf(vm.state.value.session!!["draftAnswer"]))
 
+            if (changeDimension) {
+                vm.openDimension("audience")
+                vm.chooseDimension(DimensionAction.Defer)
+                vm.confirmDimension()
+                h.scheduler.runCurrent()
+                assertTrue(vm.state.value.dimensionEdit!!.saved)
+            }
             if (flush) vm.flushDraft()
             idle()
             assertEquals("the final text survives ${if (flush) "flush" else "debounce"}",
                 "Neutral draft A", stringOf(stored(id)!!["draftAnswer"]))
+            if (changeDimension) assertEquals("deferred", stringOf(stored(id)!!["coverage"]["audience"]["status"]))
             val reopened = h.vm(ScriptedModel(), id)
             idle()
             assertEquals("Neutral draft A", reopened.state.value.answer)

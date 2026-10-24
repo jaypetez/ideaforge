@@ -378,6 +378,11 @@ snapshot. Pending work settles first; an epoch/conflict check refuses stale or d
 origins. Confirmed writes stay in the app scope when navigation clears the screen.
 `withLibraryMetadata` also carries durable dimension statuses/reasons into older turn
 snapshots, without replacing ratcheted levels, facts, reports or drafts.
+Draft jobs carry their original question and work tag through debounce and flush.
+Dimension-only refreshes preserve the visible editor's observed draft baseline;
+they cannot authorize stale dictation against a newly read draft. A changed question
+retires its earlier queued write and retains the text in the existing dialog for
+local copying before dismissal, without changing the later question's durable draft.
 The current question is neither answered nor skipped, as with web waivers.
 Opening controls retires the shared manual input intent and exits any surviving
 app-graph drive before accepting private reason text; dismissal never resumes it.

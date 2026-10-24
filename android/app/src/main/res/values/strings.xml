@@ -219,6 +219,8 @@
     <string name="dimension_save_failed">The change was not saved. Choice and reason kept for retry. %1$s</string>
     <string name="dimension_changed">The idea or dimension changed. Nothing was overwritten. Close and reopen to review its current state. %1$s</string>
     <string name="dimension_retired">This operation ended. Close these controls; a deleted idea stays deleted. %1$s</string>
+    <string name="dimension_retained_disclosure">The question changed elsewhere. Your earlier draft is kept below, not applied to the new question. Copy it before closing these controls.</string>
+    <string name="dimension_retained_question">Earlier question: %1$s</string>
     <!-- #turnline: "question 3 of up to 25 · audience · from the built-in checklist" -->
     <string name="interview_turnline">question %1$d of up to %2$d</string>
     <string name="interview_turnline_dimension">question %1$d of up to %2$d · %3$s</string>

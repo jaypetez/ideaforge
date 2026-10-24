@@ -349,4 +349,32 @@ class ManualDictationTest {
         assertEquals(1, vm.state.value.turnCount)
         assertTrue(model.requests.isEmpty())
     }
+
+    @Test fun aDimensionConflictCannotAdoptANewerDraftAsTheBaselineForOlderDisplayedWords() {
+        val vm = vm()
+        vm.onAnswerChange("Original displayed draft.")
+        h.scheduler.advanceUntilIdle()
+        val other = h.vm(ScriptedModel(), id = id, dictation = input)
+        h.scheduler.advanceUntilIdle()
+        vm.openDimension("outcome")
+        other.onAnswerChange("Newer durable draft.")
+        h.scheduler.advanceUntilIdle()
+        other.openDimension("outcome")
+        other.chooseDimension(DimensionAction.Defer)
+        other.confirmDimension()
+        h.scheduler.advanceUntilIdle()
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("Retained optional reason.")
+        vm.confirmDimension()
+        h.scheduler.advanceUntilIdle()
+        assertEquals(DimensionFailure.Changed, vm.state.value.dimensionEdit!!.failure)
+        vm.dismissDimension()
+        scripts += listOf(At(100, Ev.Partial("must not overwrite newer words", final = true)))
+        permission(vm, request(vm))
+        h.scheduler.runCurrent()
+        assertTrue("refreshing dimension metadata cannot authorize stale editor text", factory.engines.isEmpty())
+        assertEquals(DictationOutcome.CANCELLED, vm.state.value.dictation.outcome)
+        assertEquals("Original displayed draft.", vm.state.value.answer)
+        assertEquals("Newer durable draft.", stringOf(h.store.get(id)!!["draftAnswer"]))
+    }
 }
