@@ -134,6 +134,22 @@ source wins over prose, and a generated artifact wins over a description of that
   seven-state real-app subset, both visual profiles/themes and actual font1/1.3/2.
   Controlled callbacks and one real OS microphone grant on an owned managed emulator do not
   prove physical #89, recognition quality, hosted CORS or manual TalkBack.
+- **Native dimension actions.** Sources: `InterviewScreen.CoverageStrip` and
+  [`DimensionDialog.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/DimensionDialog.kt)
+  own accessible current-status controls, intentional waiver confirmation, optional
+  reason and explicit saving/failure feedback. `InterviewViewModel` uses existing core
+  status reducers against latest durable state under `SessionWorker`, with original
+  epoch/status/reason checks; `withLibraryMetadata` preserves choices in older turn
+  snapshots without owning scores. The current question/draft stay, matching web
+  waivers. Opening controls retires manual input intent and exits retained app-graph
+  drives before private reason entry; dismissal never resumes audio.
+  Re-check Android/interview guides, DESIGN, architecture, CONTRIBUTING and focused
+  transition/persistence/reopen/stale-work/manual-input tests. `evidence=coverage`
+  reuses `UxCaptureDeviceTest#requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion`
+  and the strict recorder on both rendering profiles/themes/fonts. Its fixed inventory
+  includes actual lock-held loading and refused-write retry; require selected passing
+  XML, complete clean-SHA manifests and inspected original PNGs. Long reason text is
+  generated from `tools/fixtures/ux.mjs`; no core/vector changes or physical/TalkBack claim.
 - **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
   Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
   errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and

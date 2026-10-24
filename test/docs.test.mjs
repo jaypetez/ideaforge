@@ -687,6 +687,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both rendering profiles must select the real manual-dictation journey');
   assert.equal((workflow.match(/inputs\.evidence == 'dictation' && '-Pandroid\.testInstrumentationRunnerArguments\.uxDictationProbe=true'/g) || []).length, 2,
     'manual dictation must opt into its complete literal-draft, listening, error and enlarged-state matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'coverage' && '#requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion'/g) || []).length, 2,
+    'both rendering profiles must select the actual dimension action journey');
+  assert.equal((workflow.match(/inputs\.evidence == 'coverage' && '-Pandroid\.testInstrumentationRunnerArguments\.uxCoverageProbe=true'/g) || []).length, 2,
+    'dimension evidence must opt into the complete confirmation, real save failure/loading and reopen matrix');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
     'both Result devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,

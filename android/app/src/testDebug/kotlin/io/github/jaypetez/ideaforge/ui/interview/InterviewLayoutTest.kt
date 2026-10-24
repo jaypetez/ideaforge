@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
@@ -79,6 +80,52 @@ class InterviewLayoutTest {
     @Test
     fun enlargedCoverageDetailsKeepEveryLevelAndTheComposerReachable() {
         requireLongInterviewReachable(coverageDetails = true)
+    }
+
+    @Test
+    fun enlargedCompactDimensionConfirmationKeepsNativeTargetsAndCompleteLabelsReachable() {
+        requireDimensionConfirmationReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun enlargedExpandedDimensionConfirmationKeepsNativeTargetsAndCompleteLabelsReachable() {
+        requireDimensionConfirmationReachable()
+    }
+
+    private fun requireDimensionConfirmationReachable() {
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
+        graph.providerSource = ProviderSource { ScriptedModel() }
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 5_000)
+            compose.onNodeWithTag("new-idea-type").performScrollTo().performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("coverage-details"), 5_000)
+            compose.onNodeWithTag("coverage-details").performScrollTo().performClick()
+            for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension")
+            compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+            for (tag in listOf("dimension-waive", "dimension-defer", "dimension-cancel")) requireReachable(tag)
+            compose.onNodeWithTag("dimension-waive").performScrollTo().performClick()
+            compose.onNodeWithTag("dimension-reason").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(
+                    "This belongs to a later project. Keep all original notes and the current question while I choose the scope.")) }
+            for (tag in listOf("dimension-reason", "dimension-confirm", "dimension-cancel")) {
+                requireReachable(tag)
+                val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
+                val touch = UxEvidence.touchBounds(node)
+                val density = node.layoutInfo.density.density
+                UxEvidence.requireTarget(tag, touch.width / density, touch.height / density)
+            }
+            compose.onNodeWithTag("dimension-confirm").performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("dimension-saved"), 5_000)
+            requireReachable("dimension-done")
+            compose.onNodeWithTag("dimension-done").performClick()
+            compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+            requireReachable("dimension-resume")
+            requireReachable("dimension-stored-reason", actionRequired = false)
+            compose.onNodeWithTag("dimension-cancel").performClick()
+        }
     }
 
     @Test
@@ -148,7 +195,7 @@ class InterviewLayoutTest {
             if (coverageDetails) {
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
-                for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension", actionRequired = false)
+                for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension")
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
             }

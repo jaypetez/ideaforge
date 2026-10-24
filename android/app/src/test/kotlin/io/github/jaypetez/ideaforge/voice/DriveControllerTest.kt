@@ -104,6 +104,39 @@ class DriveControllerTest {
     }
 
     @Test
+    fun dimensionControlsExitASurvivingOtherIdeasDriveBeforePrivateReasonsAndNotificationResumeCannotRestartIt() {
+        rig.scripts += listOf(At(300, Ev.Ready), At(800, Ev.Partial("Retained drive words")))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption == "Retained drive words" })
+        val starts = rig.starts()
+        val spoken = rig.speaker.said.size
+        val vm = InterviewViewModel(
+            "s_dimension_other", rig.store, rig.worker, rig.clock, ring = { rig.ring },
+            providers = ProviderSource { rig.model }, writes = rig.writes, inference = rig.inference,
+            reportDrive = { rig.controller },
+        )
+        rig.scheduler.runCurrent()
+        vm.openDimension("outcome")
+        assertFalse("a local busy flag cannot stand in for retiring app-graph audio", rig.state.attached)
+        rig.scheduler.runCurrent()
+        assertTrue(rig.until { rig.draft() == "Retained drive words" })
+        val otherBefore = rig.saved()
+        vm.chooseDimension(io.github.jaypetez.ideaforge.ui.interview.DimensionAction.Waive)
+        vm.dimensionReason("Private scope reason for the other idea.")
+        rig.controller.resume()
+        vm.confirmDimension()
+        rig.advance(60_000)
+        assertEquals(starts, rig.starts())
+        assertEquals(spoken, rig.speaker.said.size)
+        assertEquals(1, rig.service.starts)
+        assertEquals(1, rig.service.stops)
+        assertEquals(CaptureState.IDLE, rig.recognizer.state.value)
+        assertEquals(otherBefore, rig.saved())
+        assertEquals("waived", stringOf(rig.store.get("s_dimension_other")!!["coverage"]["outcome"]["status"]))
+        assertTrue(rig.model.requests.isEmpty())
+    }
+
+    @Test
     fun aReportedQuestionReplacementUpdatesAPausedStageWithoutStartingAnyEffects() {
         rig.scripts += spoken("neutral first answer over")
         rig.scripts += listOf(At(300, Ev.Ready), At(800, Ev.Partial("neutral retained words")))

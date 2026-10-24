@@ -380,6 +380,21 @@ while Voice/Type entry and the hands-free finish word retain their meanings.
 
 Coverage starts as a factual percentage and Coverage details action. The disclosure
 shows dimension names and textual levels from the Kotlin contract, not confidence.
+Each dimension is a labelled native target of at least 48dp. Its dialog offers
+Not relevant/Defer only while probing, and Resume only while set aside. A second,
+explicit confirmation explains waivers and accepts an optional reason. Saved reasons
+remain available by reopening the dimension; a reason indicator does not truncate a
+long reason into the interactive target. Waived/deferred dimensions leave readiness
+and the percentage without gaining a level. Resume retains the level and clears the
+waiver reason. The current question and draft stay unchanged, matching the web's
+waiver behavior; Skip remains a separate action.
+Opening dimension controls retires manual permission/capture/transcription and exits
+any retained app-graph drive, including another idea's run, so notification Resume
+cannot turn a private reason into captured answer text. No audio restarts on dismissal.
+The existing session lock applies reducers to latest durable state; loading waits
+for actual work, a failed save keeps the choice/reason for retry, and stale/deleted
+origins cannot overwrite another choice or restore a row. Turn work merges durable
+dimension statuses/reasons before using an older editor's snapshot.
 Show earlier includes the settled exchange count; Current question closes that view.
 New turn results do not scroll a reader away from expanded earlier history. Thinking
 retains the submitted question/answer rather than replacing all context with activity.
@@ -403,6 +418,16 @@ busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. T
 uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
 wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
 This is a declared Interview subset, not a full-UX or physical-device result.
+
+`evidence=coverage` selects `requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion`
+in the existing recorder. Its fixed nine frames cover details, confirmation,
+session-lock loading, refused save/retry, waived/deferred/resumed results, actual
+same-idea reopen and long content on both rendering profiles, themes and actual
+font scales 1.0/1.3/2.0. Native touch bounds and painted labels remain fail-closed.
+Shared long reason text comes from the reducer-built UX fixture source; no core
+behavior or golden vector changes. No provider, microphone, speech or service runs.
+Require actual selected passing XML, complete clean-SHA manifests and inspected
+original PNGs; scripted state transitions are not physical-device or TalkBack proof.
 
 `evidence=dictation` reuses the real-app capture routes and strict native recorder for
 ready/listening/stopped/error/long/report/Settings states: both visual profiles, both

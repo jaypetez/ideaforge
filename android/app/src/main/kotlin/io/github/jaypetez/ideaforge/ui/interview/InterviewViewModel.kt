@@ -8,10 +8,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.jaypetez.ideaforge.IdeaForgeApp
 import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
+import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.archiveSession
 import io.github.jaypetez.ideaforge.core.buildTurnPrompt
 import io.github.jaypetez.ideaforge.core.createSession
+import io.github.jaypetez.ideaforge.core.deferDimension
+import io.github.jaypetez.ideaforge.core.resumeDimension
+import io.github.jaypetez.ideaforge.core.waiveDimension
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.obj
 import io.github.jaypetez.ideaforge.core.js.str
@@ -57,10 +61,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
+import java.io.IOException
 
 /** The web's queueDraftSave timer (src/ui/app.js): one write per pause in typing. */
 const val DRAFT_DEBOUNCE_MS = 600L
@@ -130,6 +137,7 @@ data class InterviewState(
     val writeUpFailed: Boolean = false,
     val consentRequired: Boolean = false,
     val dictation: DictationState = DictationState(),
+    val dimensionEdit: DimensionEdit? = null,
 ) {
     val openTurn: JsonObject? get() = session?.let(::openTurn)
 
@@ -139,9 +147,9 @@ data class InterviewState(
     val turnCount: Int get() = (session?.get("turns") as? JsonArray)?.size ?: 0
 
     /** The web shows "That's enough — write it up" from the fourth question on. */
-    val canWriteUp: Boolean get() = session != null && turnCount >= 4 && busy == null && !consentRequired
+    val canWriteUp: Boolean get() = session != null && turnCount >= 4 && busy == null && !consentRequired && dimensionEdit == null
 
-    val canAnswer: Boolean get() = openTurn != null && busy == null && !consentRequired
+    val canAnswer: Boolean get() = openTurn != null && busy == null && !consentRequired && dimensionEdit == null
 }
 
 /**
@@ -166,7 +174,7 @@ class InterviewViewModel(
     private val writes: CoroutineScope,
     private val inference: InferenceConsent,
     private val draftDelayMs: Long = DRAFT_DEBOUNCE_MS,
-    reportDrive: () -> DriveController? = { null },
+    private val reportDrive: () -> DriveController? = { null },
     private val dictation: ManualDictation? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(InterviewState())
@@ -183,6 +191,8 @@ class InterviewViewModel(
     private var dictationCapture: ManualDictation.Capture? = null
     private var dictationJob: Job? = null
     val canDictate: Boolean get() = dictation != null
+    private var dimensionRequest = 0L
+    private var dimensionOrigin: Pair<SessionWorker.Tag, Session>? = null
 
     /**
      * Text queued for a draft write and not yet saved. The debounce job cannot answer this:
@@ -204,7 +214,7 @@ class InterviewViewModel(
                 else -> st.copy(session = mergeContentReports(current, latest, now()))
             }
         }
-    }, drive = reportDrive, beforeOpen = { retireVoiceInput() })
+    }, drive = reportDrive, beforeOpen = { dismissDimension(); retireVoiceInput() })
 
     fun replaceReportedQuestion(fromVoice: Boolean) {
         cancelDictation()
@@ -407,7 +417,7 @@ class InterviewViewModel(
         }
         _state.update {
             it.copy(
-                session = settled,
+                session = store.get(sessionId) ?: settled,
                 busy = null,
                 wrapOffer = advisory,
                 notice = out.error?.let { e -> InterviewNotice.Fallback(message(e), e) } ?: it.notice,
@@ -426,7 +436,7 @@ class InterviewViewModel(
     fun writeUp() {
         refreshConsent()
         val st = _state.value
-        if (st.session == null || st.busy != null || st.consentRequired) return
+        if (st.session == null || st.busy != null || st.consentRequired || st.dimensionEdit != null) return
         writeUp(resume = false)
     }
 
@@ -539,10 +549,112 @@ class InterviewViewModel(
         writes.launch { withContext(NonCancellable) { runCatching { writeDraft(text) } } }
     }
 
+    // ─────────────────────────────────────────────────────────── dimension choices
+
+    fun openDimension(id: String) {
+        val st = _state.value
+        val s = store.get(sessionId) ?: st.session ?: return
+        if (id !in DIMENSION_IDS || st.dimensionEdit?.busy == true || st.busy == Busy.Writing ||
+            stringOf(s["status"]) != "interviewing" || reports.state.value.output != null) return
+        retireVoiceInput()
+        // A surviving drive can belong to another screen/idea. Exit also retires notification
+        // Resume, so it cannot capture a private reason while this dialog is open.
+        reportDrive()?.takeIf { it.state.value.attached }?.exit()
+        val entry = s["coverage"][id]
+        dimensionOrigin = worker.tag(sessionId) to s
+        _state.update { it.copy(dimensionEdit = DimensionEdit(
+            id, ++dimensionRequest, stringOf(entry["status"]).orEmpty(), stringOf(entry["level"]).orEmpty(),
+            stringOf(entry["waivedReason"]).orEmpty(),
+        )) }
+    }
+
+    fun chooseDimension(action: DimensionAction) {
+        _state.update {
+            val edit = it.dimensionEdit ?: return@update it
+            val eligible = if (edit.status == "probing") action != DimensionAction.Resume else action == DimensionAction.Resume
+            if (!eligible || edit.busy || edit.saved) it else it.copy(dimensionEdit = edit.copy(action = action))
+        }
+    }
+
+    fun dimensionReason(text: String) = _state.update {
+        val edit = it.dimensionEdit
+        if (edit == null || edit.busy || edit.saved) it else it.copy(dimensionEdit = edit.copy(reason = text))
+    }
+
+    fun dismissDimension(leaving: Boolean = false) {
+        if (_state.value.dimensionEdit?.busy == true && !leaving) return
+        dimensionOrigin = null
+        _state.update { it.copy(dimensionEdit = null) }
+    }
+
+    fun confirmDimension() {
+        val edit = _state.value.dimensionEdit ?: return
+        val action = edit.action ?: return
+        val origin = dimensionOrigin ?: return
+        if (edit.busy || edit.saved || edit.failure in setOf(DimensionFailure.Changed, DimensionFailure.Retired)) return
+        _state.update { it.copy(dimensionEdit = edit.copy(busy = true, failure = null, detail = "")) }
+        val job = writes.async {
+            worker.run(origin.first, work = {
+                store.load()
+                val latest = store.get(sessionId) ?: origin.second.takeIf { sessionId !in store.knownIds() }
+                    ?: return@run null
+                val current = latest["coverage"][edit.id]
+                val original = origin.second["coverage"][edit.id]
+                if (stringOf(latest["status"]) != "interviewing" || current["status"] != original["status"] ||
+                    current["waivedReason"] != original["waivedReason"]) return@run null
+                when (action) {
+                    DimensionAction.Waive -> waiveDimension(latest, edit.id, if (edit.reason.isBlank()) JsonNull else str(edit.reason), now())
+                    DimensionAction.Defer -> deferDimension(latest, edit.id, now())
+                    DimensionAction.Resume -> resumeDimension(latest, edit.id, now())
+                }
+            }, commit = { if (it != null) store.save(it) })
+        }
+        viewModelScope.launch {
+            try {
+                val outcome = job.await()
+                if (_state.value.dimensionEdit?.request != edit.request) return@launch
+                val saved = (outcome as? SessionWorker.Outcome.Committed)?.value
+                val latest = store.get(sessionId)
+                if (saved == null || latest == null || !worker.isCurrent(origin.first)) {
+                    _state.update { it.copy(session = latest ?: it.session, dimensionEdit = edit.copy(failure =
+                        if (outcome is SessionWorker.Outcome.Stale || !worker.isCurrent(origin.first) || latest == null)
+                            DimensionFailure.Retired else DimensionFailure.Changed)) }
+                } else {
+                    _state.update {
+                        val sameQuestion = it.openTurn?.get("id") == openTurn(latest)?.get("id") &&
+                            it.openTurn?.get("question") == openTurn(latest)?.get("question")
+                        val answer = if (sameQuestion && pendingDraft != null) it.answer else stringOf(latest["draftAnswer"]).orEmpty()
+                        val chips = (openTurn(latest)?.get("chips") as? JsonArray).orEmpty()
+                        it.copy(session = latest, answer = answer,
+                            answerSource = if (sameQuestion && answer == it.answer) it.answerSource
+                                else if (chips.any { chip -> stringOf(chip) == answer }) "chip" else "typed",
+                            dimensionEdit = edit.copy(saved = true, status = stringOf(latest["coverage"][edit.id]["status"]).orEmpty(),
+                                level = stringOf(latest["coverage"][edit.id]["level"]).orEmpty(),
+                                storedReason = stringOf(latest["coverage"][edit.id]["waivedReason"]).orEmpty()))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                dimensionFailed(edit, e)
+            } catch (e: SecurityException) {
+                dimensionFailed(edit, e)
+            } catch (e: IllegalStateException) {
+                dimensionFailed(edit, e)
+            }
+        }
+    }
+
+    private fun dimensionFailed(edit: DimensionEdit, error: Exception) = _state.update {
+        if (it.dimensionEdit?.request != edit.request) it
+        else it.copy(dimensionEdit = edit.copy(failure = DimensionFailure.Save, detail = message(error)))
+    }
+
     // ─────────────────────────────────────────────────────────── voice
 
     suspend fun requestDictation(ownsView: () -> Boolean): DictationRequest? {
-        if (dictation == null || !_state.value.canAnswer || reports.state.value.output != null || !ownsView()) return null
+        if (dictation == null || !_state.value.canAnswer || _state.value.dimensionEdit != null ||
+            reports.state.value.output != null || !ownsView()) return null
         val permit = inference.state.value.permit ?: return null
         cancelDictation()
         val audioRevision = dictation.reserve()
@@ -659,7 +771,7 @@ class InterviewViewModel(
             worker.isCurrent(request.tag) && inference.current(request.permit) &&
             answerRevision == request.answerRevision && st.answer == request.draft &&
             st.openTurn?.get("id") == request.turn["id"] && st.openTurn?.get("question") == request.turn["question"] &&
-            reports.state.value.output == null
+            reports.state.value.output == null && st.dimensionEdit == null
     }
 
     private suspend fun dictationOrigin(request: DictationRequest): Session? {
@@ -760,6 +872,7 @@ class InterviewViewModel(
     fun finishedShown() = _state.update { it.copy(finished = false) }
 
     override fun onCleared() {
+        dismissDimension(leaving = true)
         cancelDictation()
         flushDraft()
     }
@@ -807,7 +920,7 @@ internal fun withPendingTurn(session: Session, now: JsonElement): Session {
 }
 
 /**
- * Keep durable library edits and local reports when interview work held an older copy.
+ * Keep durable local choices and reports when interview work held an older copy.
  */
 internal fun withLibraryMetadata(session: Session, latest: Session?, now: JsonElement): Session {
     if (latest == null) return session
@@ -816,6 +929,17 @@ internal fun withLibraryMetadata(session: Session, latest: Session?, now: JsonEl
     if (s["tags"] != latest["tags"]) s = setSessionTags(s, latest["tags"], now)
     if (s["archivedAt"] != latest["archivedAt"]) {
         s = if (truthy(latest["archivedAt"])) archiveSession(s, latest["archivedAt"]!!) else restoreSession(s, now)
+    }
+    for (id in DIMENSION_IDS) {
+        val current = s["coverage"][id]
+        val durable = latest["coverage"][id]
+        if (current["status"] == durable["status"] && current["waivedReason"] == durable["waivedReason"]) continue
+        s = when (stringOf(durable["status"])) {
+            "waived" -> waiveDimension(s, id, durable["waivedReason"] ?: JsonNull, now)
+            // Defer retains a reason, so carry the durable one across before its final status.
+            "deferred" -> deferDimension(waiveDimension(s, id, durable["waivedReason"] ?: JsonNull, now), id, now)
+            else -> resumeDimension(s, id, now)
+        }
     }
     return mergeContentReports(s, latest, now)
 }

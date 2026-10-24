@@ -132,7 +132,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe").any {
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe", "uxCoverageProbe").any {
         InstrumentationRegistry.getArguments().getString(it) == "true"
     }) {
         // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
@@ -1845,6 +1845,170 @@ class UxCaptureDeviceTest {
     }
 
     @Test
+    fun requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxCoverageProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion") != true) {
+                "the selected dimension acceptance requires uxCoverageProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "dimension acceptance has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-coverage")
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("details", "confirmation", "saving", "save-failure", "waived", "deferred", "resumed", "reopened", "long")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
+            matrix.flatMap { config -> frames.map { "${config.id}/coverage-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-coverage-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primary: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        captureDimensionJourney(config, recorder)
+                    } catch (error: Throwable) {
+                        recorder.failedRun(error)
+                        var diagnostic = activity
+                        for (key in UxEvidence.unrecorded(frames.map { "${config.id}/coverage-$it" }.toSet(), recorder.recordedKeys)) {
+                            recorder.failed(UxState(key.substringAfter('/'), "interview", "real-app", null, null, null),
+                                config, error, diagnostic)
+                            diagnostic = null
+                        }
+                    } finally { closeFixture() }
+                }
+            }
+        } catch (error: Throwable) {
+            primary = error
+        } finally {
+            UxEvidence.finish(primary, listOf(
+                { closeFixture() }, { app.graph = originalGraph }, { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    private fun captureDimensionJourney(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        fun click(name: String) {
+            compose.onNodeWithTag(name).performScrollTo().assertIsDisplayed().performClick()
+        }
+        fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
+            UxState("coverage-$frame", "interview", "real-app", null, null, null), config, checkNotNull(activity), controls,
+            nativeMapping = "Real MainActivity coverage actions, existing reducers/store/worker and same-session reopen. Loading holds the actual session lock; the named save error refuses an actual write. Neutral shared long text; no model, speech, service, microphone or OS permission effect.",
+            rootSurfaceRole = if (dialog) "surfaceContainerHigh" else "background",
+        )
+        val base = fixtures.state("interview-long")
+        val rejected = AtomicBoolean(false)
+        prepare(base, config, dimensionWritesRejected = rejected)
+        val graph = checkNotNull(fixtureGraph)
+        val requests = AtomicInteger()
+        graph.providerSource = ProviderSource {
+            object : Provider {
+                override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
+                    requests.incrementAndGet()
+                    error("Dimension controls must never request inference.")
+                }
+            }
+        }
+        navigate(base)
+        val id = requireNotNull(base.sessionId)
+        val before = checkNotNull(graph.sessionStore.get(id))
+        click("coverage-details")
+        capture("details", listOf(tag("coverage-details")) + DIMENSION_IDS.map { tag("pill-$it") }, dialog = false)
+        click("pill-constraints")
+        click("dimension-waive")
+        val reason = fixtures.text("dimensionReason")
+        compose.onNodeWithTag("dimension-reason").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(reason)) }
+        assertEquals(reason, compose.onNodeWithTag("dimension-reason").fetchSemanticsNode()
+            .config.getOrNull(SemanticsProperties.EditableText)?.text)
+        // SetText seeds exact text without focusing the dialog field or opening its IME.
+        capture("confirmation", listOf(tag("dimension-reason"), tag("dimension-confirm"), tag("dimension-cancel")))
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val hold = graph.appScope.launch { graph.sessionWorker.exclusive(id) { entered.complete(Unit); release.await() } }
+        try {
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { entered.await() } }
+            rejected.set(true)
+            click("dimension-confirm")
+            await("dimension-saving")
+            assertEquals(before, graph.sessionStore.get(id))
+            capture("saving", listOf(UxControl("dimension-saving", hasTestTag("dimension-saving"), actionRequired = false),
+                tag("dimension-confirm"), tag("dimension-cancel")))
+        } finally {
+            release.complete(Unit)
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { hold.join() } }
+        }
+        await("dimension-error")
+        assertTrue(nodeText("dimension-error").contains("not saved"))
+        assertEquals(before, graph.sessionStore.get(id))
+        assertEquals(reason, compose.onNodeWithTag("dimension-reason").fetchSemanticsNode()
+            .config.getOrNull(SemanticsProperties.EditableText)?.text)
+        capture("save-failure", listOf(UxControl("dimension-error", hasTestTag("dimension-error"), actionRequired = false),
+            tag("dimension-reason"), tag("dimension-confirm"), tag("dimension-cancel")))
+        rejected.set(false)
+        click("dimension-confirm")
+        await("dimension-saved")
+        val waived = graph.sessionStore.get(id)!!
+        assertEquals("waived", stringOf(waived["coverage"]["constraints"]["status"]))
+        assertEquals(reason, stringOf(waived["coverage"]["constraints"]["waivedReason"]))
+        for (key in listOf("turns", "facts", "draftAnswer", "zeroGainStreak", "opening", "name", "tags", "synthesis"))
+            assertEquals("a scope choice leaves $key unchanged", before[key], waived[key])
+        for (dimension in DIMENSION_IDS) for (key in listOf("level", "gap", "evidence", "turnsSpent", "lastTurn"))
+            assertEquals("$dimension $key is not manufactured", before["coverage"][dimension][key], waived["coverage"][dimension][key])
+        assertTrue(exportFor(waived).contains(reason))
+        capture("waived", listOf(tag("dimension-done"),
+            UxControl("dimension-status", hasTestTag("dimension-status"), actionRequired = false)))
+        click("dimension-done")
+        click("pill-audience")
+        click("dimension-defer")
+        click("dimension-confirm")
+        await("dimension-saved")
+        assertEquals("deferred", stringOf(graph.sessionStore.get(id)!!["coverage"]["audience"]["status"]))
+        capture("deferred", listOf(tag("dimension-done"),
+            UxControl("dimension-status", hasTestTag("dimension-status"), actionRequired = false)))
+        click("dimension-done")
+        click("pill-audience")
+        compose.onNodeWithTag("dimension-waive").assertDoesNotExist()
+        compose.onNodeWithTag("dimension-defer").assertDoesNotExist()
+        click("dimension-resume")
+        click("dimension-confirm")
+        await("dimension-saved")
+        assertEquals("probing", stringOf(graph.sessionStore.get(id)!!["coverage"]["audience"]["status"]))
+        assertEquals("null", graph.sessionStore.get(id)!!["coverage"]["audience"]["waivedReason"].toString())
+        capture("resumed", listOf(tag("dimension-done"),
+            UxControl("dimension-status", hasTestTag("dimension-status"), actionRequired = false)))
+        click("dimension-done")
+        scenario!!.onActivity { (it as androidx.activity.ComponentActivity).onBackPressedDispatcher.onBackPressed() }
+        await(NAVIGATION)
+        selectSession(id)
+        awaitEditableQuestion()
+        assertEquals(fixtures.text("answer"), editableAnswer())
+        assertEquals(fixtures.text("question"), nodeText("question"))
+        if (!exists("pill-constraints")) click("coverage-details")
+        click("pill-constraints")
+        assertTrue(nodeText("dimension-stored-reason").contains(reason))
+        capture("reopened", listOf(UxControl("dimension-stored-reason", hasTestTag("dimension-stored-reason"), actionRequired = false),
+            tag("dimension-resume"), tag("dimension-cancel")))
+        click("dimension-cancel")
+        click("coverage-details")
+        capture("long", interviewControls(), dialog = false)
+        assertEquals("the current question is unchanged, not silently skipped",
+            before["turns"], graph.sessionStore.get(id)!!["turns"])
+        assertEquals(before["draftAnswer"], graph.sessionStore.get(id)!!["draftAnswer"])
+        assertEquals("dimension actions and reopening make no inference requests", 0, requests.get())
+    }
+
+    @Test
     fun requestedContentReportsKeepLocalPayloadAndQuestionIdentity() {
         val bundle = InstrumentationRegistry.getArguments()
         if (bundle.getString("uxReportingProbe") != "true") {
@@ -2429,6 +2593,7 @@ class UxCaptureDeviceTest {
         inferenceAgreed: Boolean = true,
         checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
         reportWritesRejected: AtomicBoolean? = null,
+        dimensionWritesRejected: AtomicBoolean? = null,
         nativeEngine: TtsEngine? = null,
         manualNative: Boolean = false,
     ) = runBlocking {
@@ -2445,14 +2610,15 @@ class UxCaptureDeviceTest {
                 if (!gate.await(DEVICE_TIMEOUT, TimeUnit.MILLISECONDS)) throw IOException("controlled UX library read exceeded its capture budget")
                 Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
             })
-        } ?: reportWritesRejected?.let { refused ->
+        } ?: if (reportWritesRejected != null || dimensionWritesRejected != null) {
             SessionStore(File(context.filesDir, "sessions"), writer = { file, bytes ->
-                if (refused.get() && (Json.parseToJsonElement(bytes.decodeToString()) as JsonObject).containsKey("contentReports")) {
+                if (dimensionWritesRejected?.get() == true) throw IOException("Controlled dimension write failure.")
+                if (reportWritesRejected?.get() == true && (Json.parseToJsonElement(bytes.decodeToString()) as JsonObject).containsKey("contentReports")) {
                     throw IOException("Neutral controlled report write failure; retry keeps the note.")
                 }
                 SessionStore.write(file, bytes)
             })
-        }
+        } else null
         val graph = AppGraph(
             context, clock = Clock { fixtures.now }, keyringKey = FixtureKey(),
             providerCheck = checker,
@@ -2629,7 +2795,7 @@ class UxCaptureDeviceTest {
                         revealControl("coverage-details")
                         compose.onNodeWithTag("coverage-details").performClick()
                         return listOf(tag("coverage-details")) + DIMENSION_IDS.map {
-                            UxControl("pill-$it", hasTestTag("pill-$it"), actionRequired = false)
+                            tag("pill-$it")
                         }
                     }
                     "interview-ime" -> {

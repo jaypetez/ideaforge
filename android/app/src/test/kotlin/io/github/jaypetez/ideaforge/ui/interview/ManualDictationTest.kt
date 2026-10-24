@@ -302,4 +302,51 @@ class ManualDictationTest {
         assertEquals(1, model.requests.size)
         assertNotNull(vm.reports.state.value.report)
     }
+
+    @Test fun dimensionReasonsRetirePermissionNativeCaptureAndLateTranscriptionWithoutChangingTheAnswer() {
+        val model = ScriptedModel()
+        val vm = vm(model)
+        vm.onAnswerChange("The existing answer draft.")
+        val pending = request(vm)
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("A private reason, not dictated answer text.")
+        permission(vm, pending)
+        assertTrue("the old OS result cannot start audio in the reason dialog", factory.engines.isEmpty())
+        val blocked = h.writes.async { vm.requestDictation { true } }
+        h.scheduler.runCurrent()
+        assertNull(runBlocking { blocked.await() })
+        vm.dismissDimension()
+
+        scripts += listOf(At(100, Ev.Partial("unfinished capture")))
+        permission(vm, request(vm))
+        h.scheduler.advanceTimeBy(200)
+        h.scheduler.runCurrent()
+        vm.openDimension("outcome")
+        assertTrue("input is released synchronously before accepting a private reason", factory.engines.single().destroyed)
+        assertEquals(DictationOutcome.CANCELLED, vm.state.value.dictation.outcome)
+        assertEquals("The existing answer draft.", vm.state.value.answer)
+        vm.dismissDimension()
+
+        nativeAvailable = false
+        val mic = FakePcm(listOf(600L to 40, 2000L to 8000))
+        val response = CompletableDeferred<String>()
+        fallback = WhisperListener({ mic }, { _, _ -> withContext(NonCancellable) { response.await() } },
+            maxAnswerMs = 4000, io = h.dispatcher)
+        permission(vm, request(vm))
+        assertEquals(DictationPhase.TRANSCRIBING, vm.state.value.dictation.phase)
+        assertFalse(mic.open)
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("Keep this reason separate.")
+        vm.confirmDimension()
+        response.complete("retired transcript must not enter a reason or draft")
+        h.scheduler.advanceUntilIdle()
+        assertTrue(vm.state.value.dimensionEdit!!.saved)
+        assertEquals("Keep this reason separate.", stringOf(h.store.get(id)!!["coverage"]["outcome"]["waivedReason"]))
+        assertEquals("The existing answer draft.", vm.state.value.answer)
+        assertEquals("The existing answer draft.", stringOf(h.store.get(id)!!["draftAnswer"]))
+        assertEquals(1, vm.state.value.turnCount)
+        assertTrue(model.requests.isEmpty())
+    }
 }

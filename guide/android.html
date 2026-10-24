@@ -96,7 +96,8 @@
               <th scope="row">Interview</th>
               <td>The current question and expanding answer box lead. <em>Show earlier</em>
                 reveals the counted conversation; <em>Coverage details</em> shows factual
-                dimension levels. Suggestions stay editable, the wrap offer has distinct
+                dimension levels and explicit <a href="#dimension-actions">dimension actions</a>.
+                Suggestions stay editable, the wrap offer has distinct
                 actions, and the built-in checklist takes over when the model fails.
                 Manual errors remain until Dismiss. An interrupted turn resumes.</td>
             </tr>
@@ -140,7 +141,7 @@
                 and phrases such as &ldquo;skip this one&rdquo; remain literal text here.
                 This is tap-to-start/tap-to-stop, not press-and-hold or automatic submission.
                 Only microphone permission is needed; no notification or background service
-                starts. Leaving the screen, editing, opening Report or starting hands-free
+                starts. Leaving the screen, editing, opening Report or dimension actions, or starting hands-free
                 cancels unfinished dictation and keeps the existing draft. Denial, no speech
                 and input failures are reported beside the draft, without erasing it.</td>
             </tr>
@@ -314,6 +315,32 @@
         brought into view and you can try again; reading the policy does not check a provider.
       </p>
 
+      <h2 id="dimension-actions">Set a dimension aside or resume it</h2>
+      <p>
+        In the manual interview, open <strong>Coverage details</strong> and tap a dimension.
+        A dimension still being asked about offers <strong>Not relevant</strong> and
+        <strong>Defer</strong>. Confirm Not relevant deliberately; an optional reason is saved
+        with the idea and included in its export. Not relevant means deliberately left out.
+        Defer means a decision still to make, set aside until you choose <strong>Resume</strong>.
+        Both stop future questions about that dimension and exclude it from readiness and
+        the coverage percentage; neither raises its coverage level.
+      </p>
+      <p>
+        A waived or deferred dimension offers Resume instead. Resume includes it again at
+        its previous level and clears any not-relevant reason. Reopening the idea retains
+        its actual saved status; tap a dimension with a saved reason to read it.
+        These actions do not submit an answer, skip the current question or call the model.
+        Your current question and unsent draft remain; use <strong>Skip</strong> separately
+        if you do not want to answer that question.
+      </p>
+      <p>
+        Opening dimension actions cancels unfinished manual dictation and exits any
+        surviving hands-free run before a reason can be entered. It never resumes voice
+        automatically. Cancel leaves the saved dimension unchanged. A failed save keeps
+        the selected action and reason for retry and explains that the previous saved
+        status remains; a changed or deleted idea requires closing and reviewing again.
+      </p>
+
       <h2 id="report-ai-output">Report AI output without sending it automatically</h2>
       <p>
         <strong>Report</strong> is beside generated questions and suggestion groups,
@@ -398,6 +425,15 @@
         spoken output, service or hosted request runs. Require the selected passing test,
         complete clean-SHA manifests and inspected original screenshots. This does not
         certify physical recognition, speech quality, manual TalkBack or #89.
+      </p>
+      <p>
+        The focused <code>evidence=coverage</code> route records real dimension controls,
+        confirmation, a genuinely held session-lock save, an actual refused write and retry,
+        waive/defer/resume results, same-idea reopening and long content. Both rendering
+        profiles run light/dark at actual font scales 1.0, 1.3 and 2.0, measuring native
+        targets and complete labels. Require its selected passing XML, complete clean-SHA
+        manifests and inspected original screenshots. It makes no microphone, speech,
+        service or model request and is not physical-device or manual TalkBack evidence.
       </p>
       <p>
         The focused <code>evidence=reporting</code> route uses the same native recorder

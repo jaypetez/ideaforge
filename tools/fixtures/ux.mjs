@@ -17,6 +17,7 @@ export const UX_CHIPS = [
   'Keep the useful details on this device so an unreliable connection does not erase them.',
   'Make the question easy to read with enlarged text and a narrow window.',
 ];
+export const UX_DIMENSION_REASON = 'This area belongs to a later project. Keep the original notes and the current question while I decide what is relevant to this idea.';
 export const UX_MARKDOWN = `## Task
 Build a calm, local-first notebook. Preserve the user's words.
 
@@ -125,7 +126,7 @@ export function buildUxFixtures() {
     long.updatedAt + 1);
   return {
     schema: 1, now: UX_NOW, states: UX_STATES,
-    text: { question: UX_QUESTION, answer: UX_ANSWER, chips: UX_CHIPS, markdown: UX_MARKDOWN },
+    text: { question: UX_QUESTION, answer: UX_ANSWER, chips: UX_CHIPS, markdown: UX_MARKDOWN, dimensionReason: UX_DIMENSION_REASON },
     datasets: {
       mixed: ideas(12, true),
       hundred: ideas(100, false),

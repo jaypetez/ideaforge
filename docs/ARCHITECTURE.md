@@ -369,6 +369,21 @@ default fallback. Hosted speech/key/verification/consents and inference remain i
 `VoiceStage` renders the retained successful speech result's missing-voice warning alongside
 any hosted-fallback reason, without changing the saved choice or the speech backend.
 
+**Native dimension choices.** `InterviewScreen.CoverageStrip` exposes the core dimension
+statuses through accessible targets; `DimensionDialog.kt` owns explanation, intentional
+waiver confirmation, optional reason and persistent save feedback. `InterviewViewModel`
+uses the existing `waiveDimension`/`deferDimension`/`resumeDimension` reducers under
+`SessionWorker`, reading the latest durable session rather than saving the dialog's
+snapshot. Pending work settles first; an epoch/conflict check refuses stale or deleted
+origins. Confirmed writes stay in the app scope when navigation clears the screen.
+`withLibraryMetadata` also carries durable dimension statuses/reasons into older turn
+snapshots, without replacing ratcheted levels, facts, reports or drafts.
+The current question is neither answered nor skipped, as with web waivers.
+Opening controls retires the shared manual input intent and exits any surviving
+app-graph drive before accepting private reason text; dismissal never resumes it.
+Core coverage/turn/export behavior and vectors are unchanged. The focused
+`evidence=coverage` route reuses the actual app and existing strict native recorder.
+
 **Native Result and export.** `ResultScreen.kt` owns responsive action priority, one
 selectable reading canvas and persistent operation errors. `ResultViewModel` distinguishes
 load failure from a missing row and retains a retry; `exportFor` remains the canonical
