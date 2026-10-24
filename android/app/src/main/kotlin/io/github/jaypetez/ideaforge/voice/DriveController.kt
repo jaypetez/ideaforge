@@ -32,6 +32,7 @@ import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -178,7 +179,8 @@ class DriveController(
     private var job: Job? = null
     private var watch: Job? = null
     private var serviceRunning = false
-    private var recognizerBuilt = false
+    private var ownedRecognizer: Recognizer? = null
+    private var releaseWhisperInput: (() -> Unit)? = null
     /** The recogniser said it is unavailable once: the rest of the drive records instead. */
     private var recognizerUnavailable = false
     /**
@@ -192,7 +194,13 @@ class DriveController(
     /** The caption Pause/Exit keep: the recogniser's, or Whisper's while it is the one listening. */
     private fun liveCaption(): String = if (whisperListening) whisperText else recognizer().caption.value
 
-    private fun recognizer(): Recognizer = recognizerSource().also { recognizerBuilt = true }
+    private fun recognizer(): Recognizer = recognizerSource().also { ownedRecognizer = it }
+
+    private fun releaseRecognizer() {
+        val rec = ownedRecognizer
+        ownedRecognizer = null
+        if (rec != null) runCatching { rec.release() }
+    }
 
     /** The last draft write, for tests and for Exit to be sure it landed. */
     var draftWrite: Job? = null
@@ -246,9 +254,17 @@ class DriveController(
     fun pause() = pauseRun(command = false, detail = null)
 
     /** Pause with a reason: hosted speech or transcription was revoked, or Forget ran. */
-    fun pauseFor(detail: String) = pauseRun(command = false, detail = detail)
+    fun pauseFor(detail: String) {
+        pauseRun(command = false, detail = detail)
+        // Manual handoff must surrender the shared recognizer, including when already paused.
+        releaseRecognizer()
+    }
 
-    fun blockForInference(detail: String) {
+    fun blockForInference(detail: String) = blockInput(detail)
+
+    fun microphoneDenied(detail: String) = blockInput(detail)
+
+    private fun blockInput(detail: String) {
         if (_state.value.mode == VoiceMode.ACTIVE) {
             pauseRun(command = false, detail = detail, blocked = true)
         } else if (_state.value.mode != null) {
@@ -428,6 +444,10 @@ class DriveController(
     private fun stopEffects() {
         loop?.stop()
         loop = null
+        val releaseInput = releaseWhisperInput
+        releaseWhisperInput = null
+        releaseInput?.invoke()
+        whisperListening = false
         job?.cancel()
         job = null
         watch?.cancel()
@@ -441,7 +461,7 @@ class DriveController(
         serviceOff()
         // The run is over (Exit, done, a fatal stand-down): give the recognition service back.
         // Only one this controller actually built; reading the provider would build one.
-        if (recognizerBuilt) runCatching { recognizer().release() }
+        releaseRecognizer()
     }
 
     private fun pauseRun(command: Boolean, detail: String?, blocked: Boolean = false) {
@@ -591,18 +611,29 @@ class DriveController(
          */
         private suspend fun transcribed(firstWordMs: Long): String {
             inference.require(allowed)
-            if (recognizerBuilt) runCatching { recognizer().release() }
+            releaseRecognizer()
             val w = whisper() ?: throw ListenFailure(
                 "Speech recognition is unavailable on this device. To dictate, turn on transcription in Settings " +
                     "with its own key and consent to send audio.",
                 name = "RecognizerUnavailable", recoverable = false,
             )
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (!running()) return ""
             whisperText = ""
             whisperListening = true
+            var thisInput: (() -> Unit)? = null
             try {
                 return w.listenForDrive(
                     triggerWord, firstWordMs,
                     onTranscribing = { busy -> if (my == epoch) _state.update { it.copy(transcribing = busy) } },
+                    onRecording = { release ->
+                        if (release != null) {
+                            if (!running()) release() else {
+                                thisInput = release
+                                releaseWhisperInput = release
+                            }
+                        } else if (releaseWhisperInput === thisInput) releaseWhisperInput = null
+                    },
                 ) { heard ->
                     if (my == epoch) {
                         whisperText = heard

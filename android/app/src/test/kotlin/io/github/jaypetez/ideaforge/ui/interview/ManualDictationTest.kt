@@ -252,6 +252,26 @@ class ManualDictationTest {
         assertTrue(factory.engines.all { it.destroyed })
     }
 
+    @Test fun anAlreadyNewerDurableDraftIsNotAdoptedAsPermissionToOverwriteItFromAStaleEditor() {
+        val vm = vm()
+        vm.onAnswerChange("Original editor's draft.")
+        h.scheduler.advanceUntilIdle()
+        val other = h.vm(ScriptedModel(), id = id, dictation = input)
+        h.scheduler.advanceUntilIdle()
+        other.onAnswerChange("Already newer durable words.")
+        h.scheduler.advanceUntilIdle()
+        assertEquals("Original editor's draft.", vm.state.value.answer)
+        scripts += listOf(At(100, Ev.Partial("stale dictated suffix", final = true)))
+        permission(vm, request(vm))
+        h.scheduler.advanceTimeBy(200)
+        h.scheduler.runCurrent()
+        finish(vm)
+        assertTrue("a stale editor must not open audio against a newer durable draft", factory.engines.isEmpty())
+        assertEquals("Already newer durable words.", stringOf(h.store.get(id)!!["draftAnswer"]))
+        assertEquals("Original editor's draft.", vm.state.value.answer)
+        assertEquals(DictationOutcome.CANCELLED, vm.state.value.dictation.outcome)
+    }
+
     @Test fun openingAnyGeneratedOutputReportCancelsInputBeforePrivateReportNotesAndReplacement() {
         val model = ScriptedModel()
         val vm = vm(model)

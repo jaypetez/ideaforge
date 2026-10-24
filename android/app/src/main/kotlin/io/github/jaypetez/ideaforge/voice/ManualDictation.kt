@@ -31,15 +31,33 @@ class ManualDictation(
     private val whisper: suspend () -> WhisperListener? = { null },
 ) {
     private var active: Capture? = null
+    private val _revision = MutableStateFlow(0L)
+    val revision = _revision.asStateFlow()
 
-    fun start(permit: InferencePermit): Capture {
+    /** The visible manual tap retires older work before its authorization can suspend. */
+    fun reserve(): Long {
         cancel()
-        return Capture(permit).also { active = it; it.begin() }
+        val intent = _revision.value
+        beforeCapture()
+        return intent
     }
 
-    fun cancel() { active?.cancel() }
+    fun current(intent: Long): Boolean = intent == _revision.value
 
-    inner class Capture internal constructor(private val permit: InferencePermit) {
+    fun start(permit: InferencePermit, intent: Long = reserve()): Capture {
+        if (!current(intent)) throw CancellationException("Dictation intent was retired")
+        active?.cancel()
+        return Capture(permit, intent).also { active = it; it.begin() }
+    }
+
+    fun cancel() {
+        _revision.value++
+        active?.cancel()
+    }
+
+    fun cancel(intent: Long) { if (current(intent)) cancel() }
+
+    inner class Capture internal constructor(private val permit: InferencePermit, private val intent: Long) {
         private val _state = MutableStateFlow(ManualCaptureState())
         val state = _state.asStateFlow()
         private var job: Deferred<CaptureResult>? = null
@@ -54,8 +72,7 @@ class ManualDictation(
                 try {
                     inference.require(permit)
                     ensureActive()
-                    if (active !== this@Capture || stopped) throw CancellationException("Dictation cancelled")
-                    beforeCapture()
+                    if (active !== this@Capture || stopped || !current(intent)) throw CancellationException("Dictation cancelled")
                     val captured = if (recognitionAvailable()) {
                         try {
                             val rec = recognizer().also { ownedRecognizer = it }

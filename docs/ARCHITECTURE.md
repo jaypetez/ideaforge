@@ -430,8 +430,13 @@ own explicit method and opt-in.
 command parser: results are literal draft text and only Send advances. `InterviewViewModel`
 binds permission and result continuations to the original permit, visible entry, question,
 draft revision and session-work tag, and rechecks durable question/draft identity.
-The graph shares audio ownership with the drive; manual Start pauses a surviving drive,
-and drive Start/Resume retires manual capture before output. Navigation, disposal, edits
+The editor's observed durable draft is the baseline, not a newer row read at Start.
+The graph shares input-intent revisions and audio ownership with the drive, including
+pending authorization/permission. Manual selection retires older hands-free setup and
+pauses a surviving drive; drive Start/Resume retires manual intent before output.
+The paused drive surrenders its recognizer so its later Exit cannot release newer input.
+Whisper supplies an immediate idempotent recording-release handle for blocked-read handoff.
+Navigation, disposal, edits
 and Report cancel unfinished input. The existing Whisper fallback remains restricted to
 native unavailability and its own current key/audio consent; manual Stop releases recording
 before its bounded transcription. `Prefs.handsFree` round-trips legacy storage but has no

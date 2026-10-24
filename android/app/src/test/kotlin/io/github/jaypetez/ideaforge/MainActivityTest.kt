@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.printToString
 import androidx.test.core.app.ActivityScenario
 import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.unit.dp
@@ -261,10 +262,15 @@ class MainActivityTest {
     }
 
     private fun awaitManualStart(engine: ManualEngine) {
-        compose.waitUntil(10_000) {
-            var started = 0
-            scenario.onActivity { started = engine.starts }
-            started == 1
+        try {
+            compose.waitUntil(10_000) {
+                var started = 0
+                scenario.onActivity { started = engine.starts }
+                started == 1
+            }
+        } catch (failure: androidx.compose.ui.test.ComposeTimeoutException) {
+            throw AssertionError("Expected one manual capture, starts=${engine.starts}, destroyed=${engine.destroyed}; " +
+                compose.onNodeWithTag("interview").printToString(), failure)
         }
     }
 
@@ -360,6 +366,93 @@ class MainActivityTest {
         awaitRows(1)
         assertEquals("Keep my manual text.", stringOf(graph.sessionStore.sessions.value.single()["draftAnswer"]))
         assertEquals(0, serviceStarts.get())
+    }
+
+    @Test
+    fun aLateHandsFreePermissionReplyCannotStartOrBorrowANewerManualRequest() {
+        val engine = ManualEngine()
+        scenario.onActivity {
+            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory { engine }, graph.mainScope)
+        }
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-start"), 10_000)
+        compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        compose.waitUntil(10_000) {
+            var requested = false
+            scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+            requested
+        }
+        var oldRequest: Pair<Int, Array<String>>? = null
+        scenario.onActivity {
+            val request = shadowOf(it).lastRequestedPermission
+            oldRequest = request.requestCode to request.requestedPermissions.copyOf()
+        }
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        scenario.onActivity {
+            val old = checkNotNull(oldRequest)
+            shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+                Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+            it.onRequestPermissionsResult(old.first, old.second,
+                IntArray(old.second.size) { PackageManager.PERMISSION_GRANTED })
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("voice-mic-rationale").assertIsDisplayed()
+        assertEquals(0, engine.starts)
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        awaitManualStart(engine)
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+    }
+
+    @Test
+    fun deniedMicrophoneOnResumeBlocksTheSameDriveWithoutLosingItsRetainedDraft() {
+        graph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+            override fun cancel() = Unit
+            override fun shutdown() = Unit
+        }
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+            Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+        compose.onNodeWithTag("answer").performTextReplacement("Keep this typed prefix.")
+        compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-stage"), 10_000)
+        compose.waitUntil(10_000) {
+            var admitted = false
+            scenario.onActivity { admitted = serviceStarts.get() == 1 }
+            admitted
+        }
+        compose.onNodeWithTag("voice-pause").performClick()
+        shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(Manifest.permission.RECORD_AUDIO)
+        compose.onNodeWithTag("voice-resume").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        compose.waitUntil(10_000) {
+            var requested = false
+            scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+            requested
+        }
+        scenario.onActivity {
+            val request = shadowOf(it).lastRequestedPermission
+            it.onRequestPermissionsResult(request.requestCode, request.requestedPermissions,
+                request.requestedPermissions.map { permission ->
+                    if (permission == Manifest.permission.RECORD_AUDIO) PackageManager.PERMISSION_DENIED else PackageManager.PERMISSION_GRANTED
+                }.toIntArray())
+        }
+        compose.waitForIdle()
+        scenario.onActivity {
+            assertEquals(io.github.jaypetez.ideaforge.voice.VoiceMode.BLOCKED, graph.driveController.state.value.mode)
+            assertEquals("Keep this typed prefix.", graph.driveController.state.value.caption)
+        }
+        compose.onNodeWithTag("voice-mic-settings").performScrollTo().assertIsDisplayed()
+        assertEquals(1, serviceStarts.get())
     }
 
     // The version is read from package.json at build time, not copied; if the two ever

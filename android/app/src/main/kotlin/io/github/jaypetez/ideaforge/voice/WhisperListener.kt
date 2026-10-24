@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sqrt
 
 // Record-and-transcribe for hands-free or manual dictation, ONLY when the recogniser is unavailable
@@ -207,6 +208,8 @@ class WhisperListener(
     suspend fun listenForDrive(
         trigger: String, firstWordMs: Long,
         onTranscribing: (Boolean) -> Unit = {},
+        /** An owned, immediate release handle, cleared on completion; cancellation need not wait for a blocked read. */
+        onRecording: ((() -> Unit)?) -> Unit = {},
         onText: (String) -> Unit = {},
     ): String {
         val mic = source()
@@ -215,7 +218,10 @@ class WhisperListener(
         val frameMs = 20L
         var answer = ""
         var recorded = 0L
+        val released = AtomicBoolean()
+        fun release() { if (released.compareAndSet(false, true)) mic.stop() }
         try {
+            onRecording(::release)
             while (recorded < maxAnswerMs) {
                 val g = SegmentGate(gate.copy(noSpeechMs = if (answer.isEmpty()) firstWordMs else 0))
                 val pcm = ByteArrayOutputStream()
@@ -268,7 +274,8 @@ class WhisperListener(
             }
             return answer
         } finally {
-            mic.stop()
+            release()
+            onRecording(null)
         }
     }
 }

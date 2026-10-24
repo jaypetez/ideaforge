@@ -368,9 +368,13 @@ only Send submits, with the existing voice source when words were added. Finish 
 and commands are ordinary dictation. Denial, empty capture, cancellation and input/upload
 failure keep the existing draft and report an inline status. Editing, Report, navigation
 and disposal retire unfinished input, including delayed permission/transcription.
-Original entry/permit/question/edit/worker and durable-draft guards refuse late work.
-The graph pauses a surviving drive before manual input and retires manual capture before
-drive Start/Resume, including notification actions, preserving serial output/input.
+Original entry/permit/question/edit/worker and observed durable-draft guards refuse late
+work, including a newer durable draft already present at Start. Shared input-intent
+revisions retire preparing/permission continuations as well as active capture.
+Manual selection retires older hands-free setup and pauses a surviving drive; drive
+Start/Resume retires manual intent before output. The paused drive's later Exit cannot
+release manual input. A blocked Whisper read has an immediate owned release handle,
+preserving serial output/input without waiting for coroutine teardown.
 The no-effect global Hands-free switch is absent; its stored field still round-trips,
 while Voice/Type entry and the hands-free finish word retain their meanings.
 

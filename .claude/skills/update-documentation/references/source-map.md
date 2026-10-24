@@ -116,11 +116,15 @@ source wins over prose, and a generated artifact wins over a description of that
 - **Native manual dictation and explicit modes.** Sources: `InterviewScreen.kt` owns the
   tap-start/tap-stop control, microphone-only permission intent and lifecycle teardown.
   `InterviewViewModel` owns literal draft/voice-source updates and original
-  entry/permit/question/edit/worker/durable-draft guards, with explicit Send unchanged.
+  entry/permit/question/edit/worker/observed-durable-draft guards, with explicit Send unchanged.
   [`ManualDictation.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/ManualDictation.kt)
   reuses `Recognizer.PRESS_TO_TALK`, never the drive parser. `AppGraph` and
   `DriveController.beforeStart` serialize input against a surviving drive, including
-  notification Resume; Report cancels manual input before accepting private notes.
+  notification Resume. Its shared input-intent revision also retires pending authorization/
+  permission in both modes; the paused drive surrenders its recognizer before handoff so
+  notification Exit cannot release newer input. `WhisperListener.listenForDrive` exposes
+  an immediate idempotent recording-release handle for blocked-read cancellation.
+  Report retires input intent before accepting private notes.
   `WhisperListener.manualCapture` retains existing fallback eligibility/key-generation/
   audio-consent/recording bounds and releases input before uploading. `Prefs.handsFree`
   round-trips legacy storage only; its Settings control/writer are absent and finish word

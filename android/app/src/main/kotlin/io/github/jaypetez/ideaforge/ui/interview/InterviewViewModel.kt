@@ -85,8 +85,9 @@ class DictationRequest internal constructor(
     internal val turn: JsonObject,
     internal val answerRevision: Long,
     internal val draft: String,
-    internal val durableDraft: String?,
+    internal val baselineDraft: String,
     internal val permit: InferencePermit,
+    internal val audioRevision: Long,
     internal val ownsView: () -> Boolean,
 )
 
@@ -203,7 +204,7 @@ class InterviewViewModel(
                 else -> st.copy(session = mergeContentReports(current, latest, now()))
             }
         }
-    }, drive = reportDrive, beforeOpen = { cancelDictation() })
+    }, drive = reportDrive, beforeOpen = { retireVoiceInput() })
 
     fun replaceReportedQuestion(fromVoice: Boolean) {
         cancelDictation()
@@ -218,6 +219,12 @@ class InterviewViewModel(
 
     init {
         viewModelScope.launch { open() }
+        if (dictation != null) viewModelScope.launch {
+            dictation.revision.collect {
+                val request = dictationRequest
+                if (request != null && !dictation.current(request.audioRevision)) cancelDictation()
+            }
+        }
     }
 
     fun refreshConsent() {
@@ -538,10 +545,11 @@ class InterviewViewModel(
         if (dictation == null || !_state.value.canAnswer || reports.state.value.output != null || !ownsView()) return null
         val permit = inference.state.value.permit ?: return null
         cancelDictation()
+        val audioRevision = dictation.reserve()
         val st = _state.value
         val request = DictationRequest(
             worker.tag(sessionId), st.openTurn ?: return null, answerRevision, st.answer,
-            store.get(sessionId)?.let { stringOf(it["draftAnswer"]).orEmpty() }, permit, ownsView,
+            stringOf(st.session?.get("draftAnswer")).orEmpty(), permit, audioRevision, ownsView,
         )
         dictationRequest = request
         _state.update { it.copy(dictation = DictationState(phase = DictationPhase.PREPARING)) }
@@ -564,7 +572,7 @@ class InterviewViewModel(
             return
         }
         if (!authorizeDictation(request)) return
-        val capture = checkNotNull(dictation).start(request.permit)
+        val capture = checkNotNull(dictation).start(request.permit, request.audioRevision)
         dictationCapture = capture
         dictationJob = viewModelScope.launch {
             val watch = launch {
@@ -647,6 +655,7 @@ class InterviewViewModel(
     private fun ownsDictation(request: DictationRequest): Boolean {
         val st = _state.value
         return dictationRequest === request && request.ownsView() && st.canAnswer &&
+            dictation?.current(request.audioRevision) == true &&
             worker.isCurrent(request.tag) && inference.current(request.permit) &&
             answerRevision == request.answerRevision && st.answer == request.draft &&
             st.openTurn?.get("id") == request.turn["id"] && st.openTurn?.get("question") == request.turn["question"] &&
@@ -661,7 +670,7 @@ class InterviewViewModel(
             val current = latest?.let(::openTurn) ?: if (latest == null) _state.value.openTurn else null
             if (current?.get("id") != request.turn["id"] || current["question"] != request.turn["question"]) return@run null
             val durable = latest?.let { stringOf(it["draftAnswer"]).orEmpty() }
-            if (durable != request.durableDraft && durable != request.draft) return@run null
+            if (latest != null && durable != request.baselineDraft && durable != request.draft) return@run null
             latest ?: _state.value.session
         })
         return (read as? SessionWorker.Outcome.Committed)?.value
@@ -680,14 +689,23 @@ class InterviewViewModel(
     }
 
     fun cancelDictation() {
-        val pending = dictationRequest != null
+        val request = dictationRequest
         dictationRequest = null
+        if (request != null) dictation?.cancel(request.audioRevision)
         dictationCapture?.cancel()
         dictationCapture = null
         dictationJob?.cancel()
         dictationJob = null
-        if (pending) _state.update { it.copy(dictation = DictationState(outcome = DictationOutcome.CANCELLED)) }
+        if (request != null) _state.update { it.copy(dictation = DictationState(outcome = DictationOutcome.CANCELLED)) }
     }
+
+    fun retireVoiceInput(): Long {
+        cancelDictation()
+        dictation?.cancel()
+        return dictation?.revision?.value ?: 0L
+    }
+
+    fun ownsVoiceInput(revision: Long): Boolean = dictation?.current(revision) != false
 
     /**
      * Hand the open question to the hands-free drive: the session with the answer box as its

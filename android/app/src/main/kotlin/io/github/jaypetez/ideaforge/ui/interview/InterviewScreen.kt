@@ -127,6 +127,11 @@ data class CoveragePill(val id: String, val label: String, val level: String, va
 /** One settled exchange in the thread. */
 data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean, val id: String = "")
 
+private data class VoicePermissionIntent(
+    val request: Long, val permit: InferencePermit, val inputRevision: Long,
+    val fromEntry: Boolean, val resume: Boolean,
+)
+
 internal fun pillsOf(state: InterviewState): List<CoveragePill> = DIMENSIONS.map { d ->
     val id = stringOf(d["id"]).orEmpty()
     val c = state.session?.get("coverage")?.get(id)
@@ -179,7 +184,7 @@ fun InterviewScreen(
     var initialVoicePending by rememberSaveable(vm.sessionId) { mutableStateOf(voiceOnEntry) }
     var entryVoiceInProgress by remember(vm.sessionId) { mutableStateOf(false) }
     val voiceRequest = remember(vm.sessionId) { mutableLongStateOf(0L) }
-    var permissionRequest by remember(vm.sessionId) { mutableStateOf<Long?>(null) }
+    var launchedVoicePermission by remember(vm.sessionId) { mutableStateOf<VoicePermissionIntent?>(null) }
     var screenVisible by remember(vm.sessionId) { mutableStateOf(false) }
     var dictationRationale by remember(vm.sessionId) { mutableStateOf<DictationRequest?>(null) }
     // Keep the launched request immutable until its OS callback, even if Stop retires it.
@@ -199,14 +204,13 @@ fun InterviewScreen(
         notificationsHeld = hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
     }
     var rationale by remember { mutableStateOf(false) }
-    var permissionPermit by remember { mutableStateOf<InferencePermit?>(null) }
+    var voicePermissionIntent by remember { mutableStateOf<VoicePermissionIntent?>(null) }
     LaunchedEffect(inference) {
         vm.refreshConsent()
         if (inference.blocked) {
             voiceRequest.longValue++
             rationale = false
-            permissionPermit = null
-            permissionRequest = null
+            voicePermissionIntent = null
             entryVoiceInProgress = false
             initialVoicePending = false
             onVoiceEntryConsumed()
@@ -219,21 +223,41 @@ fun InterviewScreen(
             if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
             initialVoicePending = false
             entryVoiceInProgress = false
-            permissionPermit = null
-            permissionRequest = null
+            voicePermissionIntent = null
             onVoiceEntryConsumed()
         }
     }
-    // The answer to the permission prompt, then the tap's intent carried out.
+    fun ownsVoiceIntent(intent: VoicePermissionIntent): Boolean =
+        intent.request == voiceRequest.longValue && vm.ownsVoiceInput(intent.inputRevision) &&
+            screenVisible && isCurrentView() && vm.reports.state.value.output == null
+
+    fun beginAdmittedVoice(intent: VoicePermissionIntent, mic: Boolean) {
+        if (!ownsVoiceIntent(intent) || drive == null) return
+        if (intent.fromEntry && !mic) {
+            vm.voiceNotStarted(entryDenied)
+            return
+        }
+        if (intent.fromEntry && !vm.state.value.canAnswer) {
+            vm.voiceNotStarted(entryCancelled)
+            return
+        }
+        if (intent.resume) {
+            val current = drive.state.value
+            if (current.sessionId == vm.sessionId && current.mode in setOf(VoiceMode.PAUSED, VoiceMode.BLOCKED)) {
+                if (mic) drive.resume() else drive.microphoneDenied(deniedMessage)
+            }
+        } else beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
+    }
+
+    // Keep the actual launched intent until its callback, never a newer rationale's permit.
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        val intent = launchedVoicePermission
+        launchedVoicePermission = null
         scope0.launch(Dispatchers.Main.immediate) {
-            val expected = permissionPermit
-            val my = permissionRequest
-            if (expected == null || my == null || my != voiceRequest.longValue) return@launch
-            permissionPermit = null
-            permissionRequest = null
-            val allowed = vm.authorizeVoice(expected)
-            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (intent == null || !ownsVoiceIntent(intent)) return@launch
+            if (voicePermissionIntent === intent) voicePermissionIntent = null
+            val allowed = vm.authorizeVoice(intent.permit)
+            if (!ownsVoiceIntent(intent)) return@launch
             if (!allowed) {
                 entryVoiceInProgress = false
                 return@launch
@@ -241,27 +265,12 @@ fun InterviewScreen(
             val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
             microphoneHeld = mic
             notificationsHeld = grants[Manifest.permission.POST_NOTIFICATIONS] ?: hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            val fromEntry = entryVoiceInProgress
             entryVoiceInProgress = false
-            if (!mic && fromEntry) {
-                vm.voiceNotStarted(entryDenied)
-                return@launch
-            }
-            if (drive == null) return@launch
-            if (fromEntry && !vm.state.value.canAnswer) {
-                vm.voiceNotStarted(entryCancelled)
-                return@launch
-            }
-            val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-            if (attached) {
-                if (mic) drive.resume()
-            } else {
-                beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
-            }
+            beginAdmittedVoice(intent, mic)
         }
     }
     fun requestVoice(fromEntry: Boolean) {
-        vm.cancelDictation()
+        val inputRevision = vm.retireVoiceInput()
         dictationRationale = null
         if (!fromEntry) {
             initialVoicePending = false
@@ -270,9 +279,18 @@ fun InterviewScreen(
         val my = ++voiceRequest.longValue
         entryVoiceInProgress = fromEntry
         vm.voiceRetry()
+        val expected = vm.inferenceState.value.permit ?: run {
+            entryVoiceInProgress = false
+            vm.refreshConsent()
+            return
+        }
+        val resume = drive?.state?.value?.let {
+            it.sessionId == vm.sessionId && it.mode in setOf(VoiceMode.PAUSED, VoiceMode.BLOCKED)
+        } == true
+        val intent = VoicePermissionIntent(my, expected, inputRevision, fromEntry, resume)
         scope0.launch(Dispatchers.Main.immediate) {
-            val allowed = vm.authorizeVoice()
-            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            val allowed = vm.authorizeVoice(expected)
+            if (!ownsVoiceIntent(intent)) return@launch
             if (!allowed) {
                 entryVoiceInProgress = false
                 return@launch
@@ -282,12 +300,12 @@ fun InterviewScreen(
                 vm.voiceNotStarted(entryCancelled)
                 return@launch
             }
-            permissionPermit = vm.inferenceState.value.permit
+            voicePermissionIntent = intent
             if (drive != null) {
-                if (voicePermissionsHeld(context)) {
+                val ready = if (intent.resume) hasPermission(context, Manifest.permission.RECORD_AUDIO) else voicePermissionsHeld(context)
+                if (ready) {
                     entryVoiceInProgress = false
-                    val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-                    if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
+                    beginAdmittedVoice(intent, mic = true)
                 } else {
                     rationale = true
                 }
@@ -316,13 +334,12 @@ fun InterviewScreen(
         dictationRationale = null
         vm.flushDraft()
         screenVisible = false
+        voiceRequest.longValue++
+        rationale = false
+        voicePermissionIntent = null
         if (initialVoicePending || entryVoiceInProgress) {
-            voiceRequest.longValue++
-            rationale = false
             initialVoicePending = false
             entryVoiceInProgress = false
-            permissionPermit = null
-            permissionRequest = null
             onVoiceEntryConsumed()
             vm.voiceNotStarted(entryInterrupted)
         }
@@ -380,13 +397,12 @@ fun InterviewScreen(
         VoicePermissionDialog(
             notificationsNeeded = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
             onContinue = {
-                val my = voiceRequest.longValue
+                val intent = voicePermissionIntent
                 scope0.launch(Dispatchers.Main.immediate) {
-                    val expected = permissionPermit
-                    if (expected != null && vm.authorizeVoice(expected) && my == voiceRequest.longValue
-                        && rationale && isCurrentView()) {
+                    if (intent != null && vm.authorizeVoice(intent.permit) && ownsVoiceIntent(intent)
+                        && voicePermissionIntent === intent && rationale && launchedVoicePermission == null) {
                         rationale = false
-                        permissionRequest = my
+                        launchedVoicePermission = intent
                         permissions.launch(voicePermissions())
                     }
                 }
@@ -394,8 +410,7 @@ fun InterviewScreen(
             onDismiss = {
                 voiceRequest.longValue++
                 rationale = false
-                permissionPermit = null
-                permissionRequest = null
+                voicePermissionIntent = null
                 if (entryVoiceInProgress) {
                     entryVoiceInProgress = false
                     vm.voiceNotStarted(entryCancelled)
@@ -413,16 +428,9 @@ fun InterviewScreen(
             SnackbarHost(snackbar)
             VoiceStage(
                 voice,
-                onPause = drive::pause,
-                onResume = {
-                    scope0.launch {
-                        if (vm.authorizeVoice() && isCurrentView()) {
-                            permissionPermit = vm.inferenceState.value.permit
-                            if (!hasPermission(context, Manifest.permission.RECORD_AUDIO)) rationale = true else drive.resume()
-                        }
-                    }
-                },
-                onExit = drive::exit,
+                onPause = { voiceRequest.longValue++; voicePermissionIntent = null; rationale = false; drive.pause() },
+                onResume = askOrStart,
+                onExit = { voiceRequest.longValue++; voicePermissionIntent = null; rationale = false; drive.exit() },
                 modifier = Modifier.weight(1f),
                 ideaTitle = state.session?.let(::sessionDisplayTitle).orEmpty(),
                 microphoneDenied = voice.mode == VoiceMode.BLOCKED && !microphoneHeld,
@@ -483,12 +491,20 @@ fun InterviewScreen(
                         onDictation = if (!vm.canDictate) null else {
                             {
                                 if (state.dictation.active) vm.stopDictation()
-                                else if (dictationPermission == null) scope0.launch(Dispatchers.Main.immediate) {
-                                    val request = vm.requestDictation { screenVisible && isCurrentView() }
-                                    if (request != null) {
-                                        if (hasPermission(context, Manifest.permission.RECORD_AUDIO)) {
-                                            vm.dictationPermission(request, true)
-                                        } else dictationRationale = request
+                                else if (dictationPermission == null) {
+                                    voiceRequest.longValue++
+                                    voicePermissionIntent = null
+                                    rationale = false
+                                    entryVoiceInProgress = false
+                                    initialVoicePending = false
+                                    onVoiceEntryConsumed()
+                                    scope0.launch(Dispatchers.Main.immediate) {
+                                        val request = vm.requestDictation { screenVisible && isCurrentView() }
+                                        if (request != null) {
+                                            if (hasPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                                vm.dictationPermission(request, true)
+                                            } else dictationRationale = request
+                                        }
                                     }
                                 }
                             }
