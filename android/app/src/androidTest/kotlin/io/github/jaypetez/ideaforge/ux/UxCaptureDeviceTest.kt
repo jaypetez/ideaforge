@@ -1899,7 +1899,8 @@ class UxCaptureDeviceTest {
 
     private fun captureDimensionJourney(config: UxConfiguration, recorder: UxCaptureRecorder) {
         fun click(name: String) {
-            compose.onNodeWithTag(name).performScrollTo().assertIsDisplayed().performClick()
+            revealControl(name)
+            compose.onNodeWithTag(name).assertIsDisplayed().performClick()
         }
         fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
             UxState("coverage-$frame", "interview", "real-app", null, null, null), config, checkNotNull(activity), controls,
@@ -1958,6 +1959,7 @@ class UxCaptureDeviceTest {
         rejected.set(false)
         click("dimension-confirm")
         await("dimension-saved")
+        compose.onNodeWithTag("dimension-error").assertDoesNotExist()
         val waived = graph.sessionStore.get(id)!!
         assertEquals("waived", stringOf(waived["coverage"]["constraints"]["status"]))
         assertEquals(reason, stringOf(waived["coverage"]["constraints"]["waivedReason"]))

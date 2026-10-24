@@ -137,6 +137,7 @@ data class InterviewState(
     val writeUpFailed: Boolean = false,
     val consentRequired: Boolean = false,
     val dictation: DictationState = DictationState(),
+    /** Retry work belongs to this ViewModel across a temporary Stop or recreation, not audio. */
     val dimensionEdit: DimensionEdit? = null,
 ) {
     val openTurn: JsonObject? get() = session?.let(::openTurn)
@@ -618,7 +619,7 @@ class InterviewViewModel(
                 if (saved == null || latest == null || !worker.isCurrent(origin.first)) {
                     _state.update { it.copy(session = latest ?: it.session, dimensionEdit = edit.copy(failure =
                         if (outcome is SessionWorker.Outcome.Stale || !worker.isCurrent(origin.first) || latest == null)
-                            DimensionFailure.Retired else DimensionFailure.Changed)) }
+                            DimensionFailure.Retired else DimensionFailure.Changed, detail = "")) }
                 } else {
                     _state.update {
                         val sameQuestion = it.openTurn?.get("id") == openTurn(latest)?.get("id") &&
@@ -628,7 +629,8 @@ class InterviewViewModel(
                         it.copy(session = latest, answer = answer,
                             answerSource = if (sameQuestion && answer == it.answer) it.answerSource
                                 else if (chips.any { chip -> stringOf(chip) == answer }) "chip" else "typed",
-                            dimensionEdit = edit.copy(saved = true, status = stringOf(latest["coverage"][edit.id]["status"]).orEmpty(),
+                            dimensionEdit = edit.copy(saved = true, failure = null, detail = "",
+                                status = stringOf(latest["coverage"][edit.id]["status"]).orEmpty(),
                                 level = stringOf(latest["coverage"][edit.id]["level"]).orEmpty(),
                                 storedReason = stringOf(latest["coverage"][edit.id]["waivedReason"]).orEmpty()))
                     }

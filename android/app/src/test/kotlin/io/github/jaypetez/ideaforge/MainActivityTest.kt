@@ -29,6 +29,8 @@ import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
@@ -46,6 +48,9 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.RuntimeEnvironment
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+import java.io.IOException
+import io.github.jaypetez.ideaforge.data.SessionStore
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -57,12 +62,17 @@ class MainActivityTest {
     private lateinit var scenario: ActivityScenario<MainActivity>
     private lateinit var graph: AppGraph
     private val serviceStarts = AtomicInteger()
+    private val rejectWrites = AtomicBoolean()
 
     // A returning user: with no usable provider the app opens on onboarding instead
     // (OnboardingFlowTest covers that path).
     @Before
     fun launch() {
-        graph = installTestGraph(ring = usableRing(), inferenceAgreed = true, recognitionAvailable = { true })
+        val sessions = SessionStore(File(RuntimeEnvironment.getApplication().filesDir, "sessions"), writer = { file, bytes ->
+            if (rejectWrites.get()) throw IOException("Controlled dimension save failure.")
+            SessionStore.write(file, bytes)
+        })
+        graph = installTestGraph(ring = usableRing(), inferenceAgreed = true, recognitionAvailable = { true }, sessionStorage = sessions)
         graph.driveService = object : DriveServiceControl {
             override fun start() { serviceStarts.incrementAndGet() }
             override fun stop() {}
@@ -215,6 +225,52 @@ class MainActivityTest {
         compose.onNodeWithTag("voice-mic-rationale").assertDoesNotExist()
         compose.onNodeWithText("Voice setup was interrupted.", substring = true).assertExists()
         scenario.onActivity { assertNull(shadowOf(it).lastRequestedPermission) }
+        assertEquals(0, serviceStarts.get())
+    }
+
+    @Test
+    fun aStoppedThenRecreatedInterviewKeepsFailedDimensionSaveReasonAndRetryFeedback() {
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+        compose.onNodeWithTag("answer").performTextReplacement("Keep my existing draft.")
+        scenario.moveToState(Lifecycle.State.CREATED)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        awaitRows(1)
+        val before = graph.sessionStore.sessions.value.single()
+        val id = stringOf(before["id"])!!
+        compose.onNodeWithTag("coverage-details").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-waive").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-reason").performScrollTo().performTextReplacement("Retain this exact optional reason.")
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val hold = graph.appScope.launch {
+            graph.sessionWorker.exclusive(id) { entered.complete(Unit); release.await() }
+        }
+        try {
+            runBlocking { entered.await() }
+            rejectWrites.set(true)
+            compose.onNodeWithTag("dimension-confirm").performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("dimension-saving"), 10_000)
+            scenario.moveToState(Lifecycle.State.CREATED)
+        } finally {
+            release.complete(Unit)
+            runBlocking { hold.join() }
+        }
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitUntilAtLeastOneExists(hasTestTag("dimension-error"), 10_000)
+        compose.onNodeWithTag("dimension-reason").assertTextContains("Retain this exact optional reason.")
+        assertEquals(before["coverage"], graph.sessionStore.get(id)!!["coverage"])
+        assertEquals(before["draftAnswer"], graph.sessionStore.get(id)!!["draftAnswer"])
+        scenario.recreate()
+        compose.waitUntilAtLeastOneExists(hasTestTag("dimension-error"), 10_000)
+        compose.onNodeWithTag("dimension-reason").assertTextContains("Retain this exact optional reason.")
+        rejectWrites.set(false)
+        compose.onNodeWithTag("dimension-confirm").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("dimension-saved"), 10_000)
+        compose.onNodeWithTag("dimension-error").assertDoesNotExist()
+        assertEquals("waived", stringOf(graph.sessionStore.get(id)!!["coverage"]["outcome"]["status"]))
+        assertEquals("Retain this exact optional reason.", stringOf(graph.sessionStore.get(id)!!["coverage"]["outcome"]["waivedReason"]))
         assertEquals(0, serviceStarts.get())
     }
 

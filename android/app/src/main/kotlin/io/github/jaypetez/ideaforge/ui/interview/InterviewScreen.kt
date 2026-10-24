@@ -221,7 +221,6 @@ fun InterviewScreen(
     }
     DisposableEffect(vm.sessionId) {
         onDispose {
-            vm.dismissDimension(leaving = true)
             vm.cancelDictation()
             voiceRequest.longValue++
             if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
@@ -334,7 +333,6 @@ fun InterviewScreen(
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
-        vm.dismissDimension(leaving = true)
         vm.cancelDictation()
         dictationRationale = null
         vm.flushDraft()

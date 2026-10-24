@@ -143,6 +143,8 @@ source wins over prose, and a generated artifact wins over a description of that
   snapshots without owning scores. The current question/draft stay, matching web
   waivers. Opening controls retires manual input intent and exits retained app-graph
   drives before private reason entry; dismissal never resumes audio.
+  Pending/failed edit recovery survives temporary Stop/recreation in the ViewModel,
+  while successful retry clears prior error feedback.
   Re-check Android/interview guides, DESIGN, architecture, CONTRIBUTING and focused
   transition/persistence/reopen/stale-work/manual-input tests. `evidence=coverage`
   reuses `UxCaptureDeviceTest#requestedDimensionActionsKeepStoredChoicesAndCurrentQuestion`

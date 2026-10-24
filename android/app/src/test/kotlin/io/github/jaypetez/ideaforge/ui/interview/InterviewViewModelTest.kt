@@ -209,6 +209,8 @@ class InterviewViewModelTest {
         vm.confirmDimension()
         idle()
         assertTrue(vm.state.value.dimensionEdit!!.saved)
+        assertNull("successful retry must remove the previous failure", vm.state.value.dimensionEdit!!.failure)
+        assertEquals("", vm.state.value.dimensionEdit!!.detail)
         assertEquals("My optional reason.", stringOf(stored()!!["coverage"]["outcome"]["waivedReason"]))
         val saved = stored()
         vm.confirmDimension()

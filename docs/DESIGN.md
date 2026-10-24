@@ -395,6 +395,8 @@ The existing session lock applies reducers to latest durable state; loading wait
 for actual work, a failed save keeps the choice/reason for retry, and stale/deleted
 origins cannot overwrite another choice or restore a row. Turn work merges durable
 dimension statuses/reasons before using an older editor's snapshot.
+The ViewModel retains the dialog and failed-save reason across temporary Stop and
+recreation, independently of retired audio. A successful retry clears the old error.
 Show earlier includes the settled exchange count; Current question closes that view.
 New turn results do not scroll a reader away from expanded earlier history. Thinking
 retains the submitted question/answer rather than replacing all context with activity.
