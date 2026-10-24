@@ -2181,11 +2181,12 @@ class UxCaptureDeviceTest {
                                         await("content-report-dialog")
                                         assertTrue("the input is released before any private report note", engine.destroyed.get())
                                         compose.onNodeWithTag("report-note").performScrollTo().assertIsDisplayed()
-                                            .performTextReplacement("Neutral private report note, not dictated answer text.")
+                                            .performSemanticsAction(SemanticsActions.SetText) {
+                                                it(androidx.compose.ui.text.AnnotatedString("Neutral private report note, not dictated answer text."))
+                                            }
                                         assertEquals("Neutral private report note, not dictated answer text.",
                                             compose.onNodeWithTag("report-note").fetchSemanticsNode().config
                                                 .getOrNull(SemanticsProperties.EditableText)?.text)
-                                        hideKeyboard()
                                         controls = listOf(tag("report-note"), tag("report-cancel"))
                                     } else {
                                         revealControl("dictation-toggle")
