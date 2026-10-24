@@ -2133,15 +2133,21 @@ class UxCaptureDeviceTest {
                             } else if (frame != "dictation-ready") {
                                 if (frame == "dictation-report") {
                                     revealControl("answer")
-                                    compose.onNodeWithTag("answer").performTextReplacement("A local idea for remembering names.")
+                                    compose.onNodeWithTag("answer").assertIsEnabled()
+                                        .performTextReplacement("A local idea for remembering names.")
+                                    compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "A local idea for remembering names." }
                                     hideKeyboard()
+                                    assertEquals("the opening draft survives keyboard dismissal",
+                                        "A local idea for remembering names.", editableAnswer())
                                     revealControl("send")
-                                    compose.onNodeWithTag("send").assertIsDisplayed().performClick()
+                                    compose.onNodeWithTag("send").assertIsDisplayed().assertIsEnabled().performClick()
                                     await("report-current-question")
                                 }
                                 revealControl("answer")
-                                compose.onNodeWithTag("answer").performTextReplacement("Already typed words.")
+                                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement("Already typed words.")
+                                compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "Already typed words." }
                                 hideKeyboard()
+                                assertEquals("the typed prefix is present before manual input starts", "Already typed words.", editableAnswer())
                                 revealControl("dictation-toggle")
                                 compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
                                 allowManualMicrophoneIfRequested()
@@ -2176,6 +2182,10 @@ class UxCaptureDeviceTest {
                                         assertTrue("the input is released before any private report note", engine.destroyed.get())
                                         compose.onNodeWithTag("report-note").performScrollTo().assertIsDisplayed()
                                             .performTextReplacement("Neutral private report note, not dictated answer text.")
+                                        assertEquals("Neutral private report note, not dictated answer text.",
+                                            compose.onNodeWithTag("report-note").fetchSemanticsNode().config
+                                                .getOrNull(SemanticsProperties.EditableText)?.text)
+                                        hideKeyboard()
                                         controls = listOf(tag("report-note"), tag("report-cancel"))
                                     } else {
                                         revealControl("dictation-toggle")
@@ -2196,7 +2206,8 @@ class UxCaptureDeviceTest {
                             assertEquals("manual input never starts a hands-free service", 0, serviceStarts.get())
                             assertTrue("manual input never attaches a drive", !graph.driveController.state.value.attached)
                             recorder.capture(state, config, checkNotNull(activity), controls,
-                                nativeMapping = "Real MainActivity/manual controller and PRESS_TO_TALK recognizer with controlled native callbacks; literal editable draft and explicit Send. The real microphone permission is granted through its OS dialog only when needed on this owned managed device. No real recognizer, recording, speech, service or hosted request; not physical #89 evidence.")
+                                nativeMapping = "Real MainActivity/manual controller and PRESS_TO_TALK recognizer with controlled native callbacks; literal editable draft and explicit Send. The real microphone permission is granted through its OS dialog only when needed on this owned managed device. No real recognizer, recording, speech, service or hosted request; not physical #89 evidence.",
+                                rootSurfaceRole = if (frame == "dictation-report") "surfaceContainerHigh" else "background")
                         } catch (failure: Throwable) {
                             recorder.failed(state, config, failure, activity)
                         } finally { closeFixture() }
