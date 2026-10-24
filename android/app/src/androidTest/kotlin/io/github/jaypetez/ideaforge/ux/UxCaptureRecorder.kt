@@ -49,7 +49,7 @@ internal data class UxConfiguration(
 
 internal data class UxControl(
     val name: String, val matcher: SemanticsMatcher, val actionRequired: Boolean = true,
-    val minHeightDp: Float = if (name in setOf("new-idea-voice", "voice-start", "voice-pause", "voice-resume", "voice-exit",
+    val minHeightDp: Float = if (name in setOf("new-idea-voice", "dictation-toggle", "voice-start", "voice-pause", "voice-resume", "voice-exit",
             "foundation-voice-pause", "foundation-voice-exit")) 64f else 48f,
 )
 

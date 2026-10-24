@@ -137,7 +137,7 @@ const val DEAF_MAX_LEVELS = 10
 enum class CaptureMode {
     /** Ends on the trigger word; bounded by firstWordMs before the first word. */
     HANDS_FREE,
-    /** Ends when the button is released; unlimited thinking time. */
+    /** Ends on an explicit stop (tap-to-stop in the manual editor); unlimited thinking time. */
     PRESS_TO_TALK,
 }
 
@@ -155,7 +155,7 @@ enum class CaptureState { IDLE, LISTENING, HEARING, DEAF, FINISHING }
 enum class CaptureEnd {
     /** The trigger word ended a hands-free answer. */
     TRIGGER,
-    /** stop(): press-to-talk released, or Pause keeping the draft. */
+    /** Explicit stop(): manual dictation stopped, or Pause keeping the draft. */
     STOPPED,
     /** Hands-free: no word before firstWordMs. Text is "". */
     MISSED,
@@ -217,7 +217,7 @@ class Recognizer(
         scope.coroutineContext[ContinuationInterceptor] ?: error("scope needs a dispatcher")
 
     private fun engine(): RecognizerEngine = engine ?: factory.create().also {
-        it.setListener(Relay())
+        it.setListener(Relay(it))
         engine = it
     }
 
@@ -229,9 +229,9 @@ class Recognizer(
     }
 
     /** Callbacks go to whichever capture is active; one arriving after it settled is dropped. */
-    private inner class Relay : RecognizerEngine.Listener {
+    private inner class Relay(private val source: RecognizerEngine) : RecognizerEngine.Listener {
         private fun to(block: Capture.() -> Unit) {
-            synchronized(lock) { active?.takeUnless { it.done }?.block() }
+            synchronized(lock) { if (engine === source) active?.takeUnless { it.done }?.block() }
         }
         override fun onReady() = to { ready() }
         override fun onBeginningOfSpeech() = to { alive() }
@@ -341,7 +341,7 @@ class Recognizer(
             }
         }
 
-        /** Press-to-talk release, or Pause: end now and keep what was said, final or not. */
+        /** Manual Stop or Pause: end now and keep what was said, final or not. */
         fun stop() = synchronized(lock) {
             if (!done) finish(CaptureEnd.STOPPED)
         }

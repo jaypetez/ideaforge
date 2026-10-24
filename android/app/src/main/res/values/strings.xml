@@ -9,7 +9,6 @@
     <string name="screen_result">Result</string>
     <string name="screen_settings">Settings</string>
     <string name="action_how_it_works">How it works</string>
-    <string name="pref_hands_free">Hands-free</string>
     <string name="control_busy">Working</string>
     <string name="notice_dismiss">Dismiss</string>
     <string name="status_warning_message">Warning: %1$s</string>
@@ -36,7 +35,6 @@
     <string name="settings_check_connection">Check the connection</string>
     <string name="settings_save">Save</string>
     <string name="settings_listening">Voice</string>
-    <string name="settings_hands_free_hint">Keep this device’s hands-free preference. New idea still asks you to choose Voice or Type; navigation never starts the microphone.</string>
     <string name="settings_trigger">Finish word</string>
     <string name="settings_trigger_hint">Say this when you have finished an answer, and the interview moves on by itself. You can also say “repeat that”, “skip this one”, “scratch that”, “wrap it up”, “pause voice” or “exit voice”.</string>
     <string name="settings_pace">Speaking pace: %1$s×</string>

@@ -70,7 +70,9 @@ class InterviewHarness(val dir: File, val scheduler: TestCoroutineScheduler = Te
         id: String = "s_test_00000001",
         clock: Clock = Clock { 1_760_000_000_000 },
         source: ProviderSource = ProviderSource { provider ?: throw ProviderException("config", "no provider") },
-    ) = InterviewViewModel(id, store, worker, clock, ring = { testInferenceRing() }, providers = source, writes = writes, inference = inference)
+        dictation: io.github.jaypetez.ideaforge.voice.ManualDictation? = null,
+    ) = InterviewViewModel(id, store, worker, clock, ring = { testInferenceRing() }, providers = source, writes = writes,
+        inference = inference, dictation = dictation)
 
     /** A fresh process over the same files: new store, new worker, new app scope. */
     fun restart() {

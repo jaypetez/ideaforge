@@ -256,13 +256,16 @@ private fun MicrophoneSettingsAction() {
 }
 
 @Composable
-internal fun VoicePermissionDialog(notificationsNeeded: Boolean, onContinue: () -> Unit, onDismiss: () -> Unit) {
+internal fun VoicePermissionDialog(
+    notificationsNeeded: Boolean, onContinue: () -> Unit, onDismiss: () -> Unit, manual: Boolean = false,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.voice_mic_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content)) {
-                Text(stringResource(R.string.voice_mic_rationale), modifier = Modifier.testTag("voice-mic-rationale"))
+                Text(stringResource(if (manual) R.string.dictation_mic_rationale else R.string.voice_mic_rationale),
+                    modifier = Modifier.testTag("voice-mic-rationale"))
                 if (notificationsNeeded) {
                     Text(stringResource(R.string.voice_notifications_title), style = MaterialTheme.typography.titleSmall)
                     Text(stringResource(R.string.voice_notifications_rationale), modifier = Modifier.testTag("voice-notification-rationale"))

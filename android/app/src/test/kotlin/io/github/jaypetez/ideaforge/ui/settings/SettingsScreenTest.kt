@@ -309,7 +309,8 @@ class SettingsScreenTest {
     @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
     fun voiceHitAreasHaveTheirOwnFullNativeHeightInsteadOfOffscreenExpansion() {
         openSettings(usableRing())
-        for (tag in listOf(SettingsTags.HANDS_FREE, SettingsTags.PACE)) {
+        compose.onNodeWithText("Hands-free").assertDoesNotExist()
+        for (tag in listOf(SettingsTags.TRIGGER, SettingsTags.PACE, SettingsTags.DEVICE_VOICE)) {
             compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         }
     }

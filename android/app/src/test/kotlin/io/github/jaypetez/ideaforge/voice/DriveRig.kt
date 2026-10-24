@@ -91,6 +91,7 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Bo
     var whisper: WhisperListener? = null
     var whisperAsked = 0
     val service = FakeService()
+    var beforeVoiceStart: () -> Unit = {}
     val clock = Clock { 1_760_000_000_000 }
     val id = "s_drive_00000001"
     var ring = testInferenceRing()
@@ -110,6 +111,7 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Bo
         inference = inference,
         recognitionAvailable = { recognitionAvailable },
         whisper = { whisperAsked++; whisper },
+        beforeStart = { beforeVoiceStart() },
     )
 
     val seeded: Session = seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now()))

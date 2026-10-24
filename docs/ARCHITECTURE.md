@@ -413,7 +413,7 @@ allows private networks instead, and enforces it at DNS resolution rather than b
 the URL. Android cloud backup is off, so the only backup is the user's own export, which is
 the same file the web app reads and writes.
 
-**On a device.** Native speech capture and press-to-talk, and the hands-free voice stage
+**On a device.** Tap-start/tap-stop manual dictation and the hands-free voice stage
 with its drive loop running as a foreground service, live under
 `android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/`. An instrumented
 walkthrough in `android/app/src/androidTest/` drives the debug build's scripted interview to
@@ -426,6 +426,24 @@ on both standard AOSP visual profiles, with clean checkout checks.
 JUnit results independently of Gradle's exit status; the recorder still requires complete
 manifests, real rendered pixels and reachable controls. The separate shell route keeps its
 own explicit method and opt-in.
+`ManualDictation` uses the existing recognizer's `PRESS_TO_TALK` mode, not the drive's
+command parser: results are literal draft text and only Send advances. `InterviewViewModel`
+binds permission and result continuations to the original permit, visible entry, question,
+draft revision and session-work tag, and rechecks durable question/draft identity.
+The editor's observed durable draft is the baseline, not a newer row read at Start.
+The graph shares input-intent revisions and audio ownership with the drive, including
+pending authorization/permission. Manual selection retires older hands-free setup and
+pauses a surviving drive; drive Start/Resume retires manual intent before output.
+The paused drive surrenders its recognizer so its later Exit cannot release newer input.
+Whisper supplies an immediate idempotent recording-release handle for blocked-read handoff.
+Navigation, disposal, edits
+and Report cancel unfinished input. The existing Whisper fallback remains restricted to
+native unavailability and its own current key/audio consent; manual Stop releases recording
+before its bounded transcription. `Prefs.handsFree` round-trips legacy storage but has no
+UI or capture decision. The finish word still belongs only to hands-free.
+`evidence=dictation` selects the real manual journey with controlled recognizer callbacks
+on both visual profiles, both themes and actual font scales 1.0/1.3/2.0, with the same
+selected-test, clean-SHA, rendered-pixel and reachability guards.
 Its opt-in `evidence=microphone-demo` route instead uses the standard Google APIs
 `pixel2Api34Voice` image and `MicrophoneDemoDeviceTest`: private setup stores and the debug
 scripted model, but real native speech/recognition, runtime Allow dialogs, microphone,

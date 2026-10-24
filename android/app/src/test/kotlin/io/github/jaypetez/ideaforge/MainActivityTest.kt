@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -13,6 +14,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.printToString
 import androidx.test.core.app.ActivityScenario
 import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.unit.dp
@@ -57,7 +62,7 @@ class MainActivityTest {
     // (OnboardingFlowTest covers that path).
     @Before
     fun launch() {
-        graph = installTestGraph(ring = usableRing(), inferenceAgreed = true)
+        graph = installTestGraph(ring = usableRing(), inferenceAgreed = true, recognitionAvailable = { true })
         graph.driveService = object : DriveServiceControl {
             override fun start() { serviceStarts.incrementAndGet() }
             override fun stop() {}
@@ -121,7 +126,7 @@ class MainActivityTest {
     @Test
     fun theBottomBarNavigatesBetweenDestinations() {
         navItem("Settings").performClick()
-        compose.onNodeWithText("Hands-free").assertExists()
+        compose.onNodeWithText("Hands-free").assertDoesNotExist()
         navItem("New idea").performClick()
         compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 10_000)
         compose.onNodeWithTag("new-idea-type").performClick()
@@ -243,6 +248,211 @@ class MainActivityTest {
         assertEquals(1, serviceStarts.get())
         compose.onNodeWithTag("voice-exit").performClick()
         compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+    }
+
+    private class ManualEngine : io.github.jaypetez.ideaforge.voice.RecognizerEngine {
+        lateinit var callbacks: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener
+        @Volatile var starts = 0
+        @Volatile var destroyed = false
+        override fun setListener(listener: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener) { callbacks = listener }
+        override fun start(language: String) { starts++; callbacks.onReady() }
+        override fun stop() { callbacks.onResults("skip this one over") }
+        override fun cancel() = Unit
+        override fun destroy() { destroyed = true }
+    }
+
+    private fun awaitManualStart(engine: ManualEngine) {
+        try {
+            compose.waitUntil(10_000) {
+                var started = 0
+                scenario.onActivity { started = engine.starts }
+                started == 1
+            }
+        } catch (failure: androidx.compose.ui.test.ComposeTimeoutException) {
+            throw AssertionError("Expected one manual capture, starts=${engine.starts}, destroyed=${engine.destroyed}; " +
+                compose.onNodeWithTag("interview").printToString(), failure)
+        }
+    }
+
+    @Test
+    fun manualTapStopKeepsLiteralWordsEditableAndSendDoesNotStartHandsFree() {
+        val model = io.github.jaypetez.ideaforge.ui.interview.ScriptedModel()
+        graph.providerSource = io.github.jaypetez.ideaforge.ui.interview.ProviderSource { model }
+        val engine = ManualEngine()
+        scenario.onActivity {
+            assertTrue("the activity uses the injected graph", graph === (it.application as IdeaForgeApp).graph)
+            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory { engine }, graph.mainScope)
+        }
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+        assertEquals(0, engine.starts)
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed()
+            .assertHeightIsAtLeast(64.dp).assertWidthIsAtLeast(64.dp).assertTextContains("Start dictation")
+        compose.onNodeWithTag("answer").performTextReplacement("Existing draft.")
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+        awaitManualStart(engine)
+        scenario.onActivity { engine.callbacks.onPartial("skip this one over", null, true) }
+        compose.waitUntilAtLeastOneExists(hasTestTag("dictation-caption"), 10_000)
+        compose.onNodeWithTag("dictation-toggle").assertTextContains("Stop dictation")
+            .assertHeightIsAtLeast(64.dp).assertWidthIsAtLeast(64.dp)
+        compose.onNodeWithTag("answer").assertTextContains("Existing draft.")
+        assertTrue(model.requests.isEmpty())
+        compose.onNodeWithTag("dictation-toggle").performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Dictation added", substring = true), 10_000)
+        compose.onNodeWithTag("answer").assertTextContains("Existing draft. skip this one over")
+        assertTrue(engine.destroyed)
+        assertTrue("Stop does not submit", model.requests.isEmpty())
+        compose.onNodeWithTag("answer").performScrollTo().performTextReplacement("Edited literal words over")
+        compose.onNodeWithTag("send").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            var calls = 0
+            scenario.onActivity { calls = model.requests.size }
+            calls == 1
+        }
+        awaitRows(1)
+        val first = (graph.sessionStore.sessions.value.single()["turns"] as kotlinx.serialization.json.JsonArray).first()
+        assertEquals("Edited literal words over", stringOf(first["answer"]))
+        assertEquals("voice", stringOf(first["answerSource"]))
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+    }
+
+    @Test
+    fun manualPermissionAsksOnlyForTheMicrophoneAndItsLateGrantCannotOverrideNewerEditing() {
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("dictation-toggle"), 10_000)
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("voice-notification-rationale").assertDoesNotExist()
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        compose.waitUntil(10_000) {
+            var requested = false
+            scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+            requested
+        }
+        compose.onNodeWithTag("answer").performScrollTo().performTextReplacement("Newer edits before the permission reply.")
+        scenario.onActivity {
+            val request = shadowOf(it).lastRequestedPermission
+            assertEquals(listOf(Manifest.permission.RECORD_AUDIO), request.requestedPermissions.toList())
+            it.onRequestPermissionsResult(request.requestCode, request.requestedPermissions, intArrayOf(PackageManager.PERMISSION_GRANTED))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("dictation-status").assertTextContains("Dictation cancelled.", substring = true)
+        compose.onNodeWithTag("answer").assertTextContains("Newer edits before the permission reply.")
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+        compose.onNodeWithTag("dictation-caption").assertDoesNotExist()
+    }
+
+    @Test
+    fun navigatingAndBackgroundingReleaseManualAudioWithoutSubmittingTheDraft() {
+        val engine = ManualEngine()
+        scenario.onActivity {
+            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory { engine }, graph.mainScope)
+        }
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("dictation-toggle"), 10_000)
+        compose.onNodeWithTag("answer").performTextReplacement("Keep my manual text.")
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+        awaitManualStart(engine)
+        scenario.moveToState(Lifecycle.State.CREATED)
+        assertTrue(engine.destroyed)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.onNodeWithTag("answer").assertTextContains("Keep my manual text.")
+        navItem("Ideas").performClick()
+        awaitRows(1)
+        assertEquals("Keep my manual text.", stringOf(graph.sessionStore.sessions.value.single()["draftAnswer"]))
+        assertEquals(0, serviceStarts.get())
+    }
+
+    @Test
+    fun aLateHandsFreePermissionReplyCannotStartOrBorrowANewerManualRequest() {
+        val engine = ManualEngine()
+        scenario.onActivity {
+            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory { engine }, graph.mainScope)
+        }
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-start"), 10_000)
+        compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        compose.waitUntil(10_000) {
+            var requested = false
+            scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+            requested
+        }
+        var oldRequest: Pair<Int, Array<String>>? = null
+        scenario.onActivity {
+            val request = shadowOf(it).lastRequestedPermission
+            oldRequest = request.requestCode to request.requestedPermissions.copyOf()
+        }
+        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        scenario.onActivity {
+            val old = checkNotNull(oldRequest)
+            shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+                Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+            it.onRequestPermissionsResult(old.first, old.second,
+                IntArray(old.second.size) { PackageManager.PERMISSION_GRANTED })
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("voice-mic-rationale").assertIsDisplayed()
+        assertEquals(0, engine.starts)
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        awaitManualStart(engine)
+        assertEquals(0, serviceStarts.get())
+        assertNull(graph.driveController.state.value.mode)
+    }
+
+    @Test
+    fun deniedMicrophoneOnResumeBlocksTheSameDriveWithoutLosingItsRetainedDraft() {
+        graph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult = awaitCancellation()
+            override fun cancel() = Unit
+            override fun shutdown() = Unit
+        }
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+            Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+        compose.onNodeWithTag("answer").performTextReplacement("Keep this typed prefix.")
+        compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-stage"), 10_000)
+        compose.waitUntil(10_000) {
+            var admitted = false
+            scenario.onActivity { admitted = serviceStarts.get() == 1 }
+            admitted
+        }
+        compose.onNodeWithTag("voice-pause").performClick()
+        shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(Manifest.permission.RECORD_AUDIO)
+        compose.onNodeWithTag("voice-resume").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
+        compose.onNodeWithTag("voice-mic-continue").performClick()
+        compose.waitUntil(10_000) {
+            var requested = false
+            scenario.onActivity { requested = shadowOf(it).lastRequestedPermission != null }
+            requested
+        }
+        scenario.onActivity {
+            val request = shadowOf(it).lastRequestedPermission
+            it.onRequestPermissionsResult(request.requestCode, request.requestedPermissions,
+                request.requestedPermissions.map { permission ->
+                    if (permission == Manifest.permission.RECORD_AUDIO) PackageManager.PERMISSION_DENIED else PackageManager.PERMISSION_GRANTED
+                }.toIntArray())
+        }
+        compose.waitForIdle()
+        scenario.onActivity {
+            assertEquals(io.github.jaypetez.ideaforge.voice.VoiceMode.BLOCKED, graph.driveController.state.value.mode)
+            assertEquals("Keep this typed prefix.", graph.driveController.state.value.caption)
+        }
+        compose.onNodeWithTag("voice-mic-settings").performScrollTo().assertIsDisplayed()
+        assertEquals(1, serviceStarts.get())
     }
 
     // The version is read from package.json at build time, not copied; if the two ever

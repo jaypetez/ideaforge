@@ -40,12 +40,18 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import io.github.jaypetez.ideaforge.voice.DriveController
+import io.github.jaypetez.ideaforge.voice.CaptureEnd
+import io.github.jaypetez.ideaforge.voice.DictationPhase
+import io.github.jaypetez.ideaforge.voice.ManualDictation
+import io.github.jaypetez.ideaforge.core.runtime.ListenFailure
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,6 +67,29 @@ const val DRAFT_DEBOUNCE_MS = 600L
 
 /** What the interview is waiting for, for the loading line. */
 enum class Busy { Thinking, Resuming, Writing }
+
+enum class DictationOutcome { ADDED, EMPTY, DENIED, CANCELLED, INTERRUPTED, FAILED }
+
+data class DictationState(
+    val phase: DictationPhase? = null,
+    val caption: String = "",
+    val outcome: DictationOutcome? = null,
+    val detail: String = "",
+) {
+    val active: Boolean get() = phase != null
+}
+
+/** Bound before any permission or provider suspension; never replaced by a later tap. */
+class DictationRequest internal constructor(
+    internal val tag: SessionWorker.Tag,
+    internal val turn: JsonObject,
+    internal val answerRevision: Long,
+    internal val draft: String,
+    internal val baselineDraft: String,
+    internal val permit: InferencePermit,
+    internal val audioRevision: Long,
+    internal val ownsView: () -> Boolean,
+)
 
 /** Something to tell the user once, as a snackbar. [detail] is the underlying error text. */
 sealed interface InterviewNotice {
@@ -89,7 +118,7 @@ data class InterviewState(
     /** Null until the stored idea has been read (or a new one seeded). */
     val session: Session? = null,
     val answer: String = "",
-    /** `typed` or `chip`: what submitAnswer is told. An unedited chip is the model's words. */
+    /** `typed`, `voice` or `chip`: an unedited chip is the model's words. */
     val answerSource: String = "typed",
     val busy: Busy? = null,
     /** The engine's wrap advisory, while the offer is on screen. */
@@ -100,6 +129,7 @@ data class InterviewState(
     /** The write-up behind [finished] failed; the result screen says so (ResultRoute). */
     val writeUpFailed: Boolean = false,
     val consentRequired: Boolean = false,
+    val dictation: DictationState = DictationState(),
 ) {
     val openTurn: JsonObject? get() = session?.let(::openTurn)
 
@@ -137,6 +167,7 @@ class InterviewViewModel(
     private val inference: InferenceConsent,
     private val draftDelayMs: Long = DRAFT_DEBOUNCE_MS,
     reportDrive: () -> DriveController? = { null },
+    private val dictation: ManualDictation? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(InterviewState())
     val state: StateFlow<InterviewState> = _state.asStateFlow()
@@ -147,6 +178,11 @@ class InterviewViewModel(
     private var providerRing: JsonElement? = null
     private val work = InterviewWork(sessionId, store, worker, clock, writes)
     private var draftJob: Job? = null
+    private var answerRevision = 0L
+    private var dictationRequest: DictationRequest? = null
+    private var dictationCapture: ManualDictation.Capture? = null
+    private var dictationJob: Job? = null
+    val canDictate: Boolean get() = dictation != null
 
     /**
      * Text queued for a draft write and not yet saved. The debounce job cannot answer this:
@@ -168,9 +204,10 @@ class InterviewViewModel(
                 else -> st.copy(session = mergeContentReports(current, latest, now()))
             }
         }
-    }, drive = reportDrive)
+    }, drive = reportDrive, beforeOpen = { retireVoiceInput() })
 
     fun replaceReportedQuestion(fromVoice: Boolean) {
+        cancelDictation()
         if (!fromVoice) {
             // Keep this pending until the replacement is durable, including a failed-save retry.
             draftJob?.cancel()
@@ -182,12 +219,19 @@ class InterviewViewModel(
 
     init {
         viewModelScope.launch { open() }
+        if (dictation != null) viewModelScope.launch {
+            dictation.revision.collect {
+                val request = dictationRequest
+                if (request != null && !dictation.current(request.audioRevision)) cancelDictation()
+            }
+        }
     }
 
     fun refreshConsent() {
         val consent = inference.state.value
-        if (consent.blocked) _state.update {
-            it.copy(consentRequired = true, notice = InterviewNotice.Consent(consent.problem.orEmpty()))
+        if (consent.blocked) {
+            cancelDictation()
+            _state.update { it.copy(consentRequired = true, notice = InterviewNotice.Consent(consent.problem.orEmpty())) }
         } else if (consent.permit != null && _state.value.session != null) {
             _state.update { it.copy(consentRequired = false) }
         }
@@ -283,6 +327,8 @@ class InterviewViewModel(
     fun onAnswerChange(text: String) {
         val st = _state.value
         if (text == st.answer) return
+        cancelDictation()
+        answerRevision++
         _state.update { it.copy(answer = text, answerSource = if (it.answerSource == "chip") "typed" else it.answerSource) }
         queueDraft(text)
     }
@@ -292,6 +338,8 @@ class InterviewViewModel(
      * user's, and the ratchet caps it at `partial` for exactly that reason, unless it is edited.
      */
     fun onChip(text: String) {
+        cancelDictation()
+        answerRevision++
         _state.update { it.copy(answer = text, answerSource = "chip") }
         queueDraft(text)
     }
@@ -303,6 +351,7 @@ class InterviewViewModel(
         if (!st.canAnswer) return
         val body = st.answer.trim()
         if (body.isEmpty()) return
+        cancelDictation()
         cancelDraft()
         advance(submitAnswer(s, str(body), st.answerSource, now()))
     }
@@ -312,6 +361,7 @@ class InterviewViewModel(
         val st = _state.value
         val s = st.session ?: return
         if (!st.canAnswer) return
+        cancelDictation()
         cancelDraft()
         advance(skipQuestion(s, now()))
     }
@@ -386,6 +436,7 @@ class InterviewViewModel(
      * belongs to viewModelScope.
      */
     private fun writeUp(resume: Boolean) {
+        cancelDictation()
         val session = _state.value.session ?: return
         cancelDraft()
         _state.update { it.copy(busy = Busy.Writing, wrapOffer = null) }
@@ -490,6 +541,172 @@ class InterviewViewModel(
 
     // ─────────────────────────────────────────────────────────── voice
 
+    suspend fun requestDictation(ownsView: () -> Boolean): DictationRequest? {
+        if (dictation == null || !_state.value.canAnswer || reports.state.value.output != null || !ownsView()) return null
+        val permit = inference.state.value.permit ?: return null
+        cancelDictation()
+        val audioRevision = dictation.reserve()
+        val st = _state.value
+        val request = DictationRequest(
+            worker.tag(sessionId), st.openTurn ?: return null, answerRevision, st.answer,
+            stringOf(st.session?.get("draftAnswer")).orEmpty(), permit, audioRevision, ownsView,
+        )
+        dictationRequest = request
+        _state.update { it.copy(dictation = DictationState(phase = DictationPhase.PREPARING)) }
+        if (!authorizeVoice(permit) || !ownsDictation(request)) {
+            if (dictationRequest === request) cancelDictation()
+            return null
+        }
+        _state.update { it.copy(dictation = DictationState(phase = DictationPhase.PERMISSION)) }
+        return request
+    }
+
+    /** Only the original tap's permission result may open audio, never a newer request. */
+    suspend fun dictationPermission(request: DictationRequest, granted: Boolean) {
+        if (!ownsDictation(request)) {
+            if (dictationRequest === request) cancelDictation()
+            return
+        }
+        if (!granted) {
+            dictationFinished(request, DictationOutcome.DENIED)
+            return
+        }
+        if (!authorizeDictation(request)) return
+        val capture = checkNotNull(dictation).start(request.permit, request.audioRevision)
+        dictationCapture = capture
+        dictationJob = viewModelScope.launch {
+            val watch = launch {
+                capture.state.collect { input ->
+                    if (ownsDictation(request)) _state.update {
+                        it.copy(dictation = DictationState(phase = input.phase, caption = input.caption))
+                    }
+                }
+            }
+            try {
+                val result = capture.await()
+                watch.cancel()
+                if (!ownsDictation(request)) return@launch
+                // A different editor, reported replacement or deletion may have changed disk
+                // while audio/transcription was pending, without changing this VM's snapshot.
+                val latest = dictationOrigin(request)
+                if (!ownsDictation(request)) return@launch
+                if (latest == null || result.end == CaptureEnd.CANCELLED) {
+                    dictationFinished(request, DictationOutcome.CANCELLED)
+                    return@launch
+                }
+                val heard = result.text.trim()
+                if (heard.isNotEmpty()) {
+                    val text = if (request.draft.isEmpty()) heard else request.draft.trimEnd() + " " + heard
+                    _state.update { it.copy(session = latest, answer = text, answerSource = "voice") }
+                    queueDraft(text)
+                }
+                dictationFinished(request, when {
+                    result.end in setOf(CaptureEnd.INTERRUPTED, CaptureEnd.WATCHDOG) -> DictationOutcome.INTERRUPTED
+                    heard.isEmpty() -> DictationOutcome.EMPTY
+                    else -> DictationOutcome.ADDED
+                })
+            } catch (cancelled: CancellationException) {
+                if (!currentCoroutineContext().isActive) throw cancelled
+                dictationFinished(request, DictationOutcome.CANCELLED)
+            } catch (failure: ProviderException) {
+                if (failure.code == "consent") consentFailed(failure)
+                dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            } catch (failure: ListenFailure) {
+                dictationFinished(request, if (failure.name == "AbortError") DictationOutcome.CANCELLED else DictationOutcome.FAILED,
+                    message(failure))
+            } catch (failure: java.io.IOException) {
+                dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            } catch (failure: SecurityException) {
+                dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            } catch (failure: IllegalStateException) {
+                dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            } finally {
+                watch.cancel()
+                capture.cancel()
+                if (dictationCapture === capture) dictationCapture = null
+                if (dictationRequest === request) dictationFinished(request, DictationOutcome.CANCELLED)
+            }
+        }
+    }
+
+    /** The rationale Continue and the OS result both revalidate this same original intent. */
+    suspend fun authorizeDictation(request: DictationRequest): Boolean {
+        if (!ownsDictation(request) || !authorizeVoice(request.permit) || !ownsDictation(request)) {
+            if (dictationRequest === request) cancelDictation()
+            return false
+        }
+        val origin = try {
+            dictationOrigin(request)
+        } catch (failure: java.io.IOException) {
+            dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            return false
+        } catch (failure: SecurityException) {
+            dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            return false
+        } catch (failure: IllegalStateException) {
+            dictationFinished(request, DictationOutcome.FAILED, message(failure))
+            return false
+        }
+        if (origin != null && ownsDictation(request)) return true
+        if (dictationRequest === request) cancelDictation()
+        return false
+    }
+
+    private fun ownsDictation(request: DictationRequest): Boolean {
+        val st = _state.value
+        return dictationRequest === request && request.ownsView() && st.canAnswer &&
+            dictation?.current(request.audioRevision) == true &&
+            worker.isCurrent(request.tag) && inference.current(request.permit) &&
+            answerRevision == request.answerRevision && st.answer == request.draft &&
+            st.openTurn?.get("id") == request.turn["id"] && st.openTurn?.get("question") == request.turn["question"] &&
+            reports.state.value.output == null
+    }
+
+    private suspend fun dictationOrigin(request: DictationRequest): Session? {
+        val read = worker.run(request.tag, work = {
+            val latest = store.get(sessionId)
+            if (latest == null && sessionId in store.knownIds()) return@run null
+            if (latest != null && (truthy(latest["pending"]) || stringOf(latest["status"]) != "interviewing")) return@run null
+            val current = latest?.let(::openTurn) ?: if (latest == null) _state.value.openTurn else null
+            if (current?.get("id") != request.turn["id"] || current["question"] != request.turn["question"]) return@run null
+            val durable = latest?.let { stringOf(it["draftAnswer"]).orEmpty() }
+            if (latest != null && durable != request.baselineDraft && durable != request.draft) return@run null
+            latest ?: _state.value.session
+        })
+        return (read as? SessionWorker.Outcome.Committed)?.value
+    }
+
+    private fun dictationFinished(request: DictationRequest, outcome: DictationOutcome, detail: String = "") {
+        if (dictationRequest !== request) return
+        dictationRequest = null
+        _state.update { it.copy(dictation = DictationState(outcome = outcome, detail = detail)) }
+    }
+
+    fun stopDictation() {
+        val capture = dictationCapture
+        if (capture == null || _state.value.dictation.phase in setOf(DictationPhase.TRANSCRIBING, DictationPhase.STOPPING)) cancelDictation()
+        else capture.stop()
+    }
+
+    fun cancelDictation() {
+        val request = dictationRequest
+        dictationRequest = null
+        if (request != null) dictation?.cancel(request.audioRevision)
+        dictationCapture?.cancel()
+        dictationCapture = null
+        dictationJob?.cancel()
+        dictationJob = null
+        if (request != null) _state.update { it.copy(dictation = DictationState(outcome = DictationOutcome.CANCELLED)) }
+    }
+
+    fun retireVoiceInput(): Long {
+        cancelDictation()
+        dictation?.cancel()
+        return dictation?.revision?.value ?: 0L
+    }
+
+    fun ownsVoiceInput(revision: Long): Boolean = dictation?.current(revision) != false
+
     /**
      * Hand the open question to the hands-free drive: the session with the answer box as its
      * draft, and that draft's source, or null when there is nothing to answer. The queued
@@ -497,6 +714,7 @@ class InterviewViewModel(
      * screen shows the voice stage and writes nothing.
      */
     fun handOffToVoice(): Pair<Session, String>? {
+        cancelDictation()
         refreshConsent()
         val st = _state.value
         val s = st.session ?: return null
@@ -531,6 +749,7 @@ class InterviewViewModel(
      * finished interview goes on to the result exactly as it does on open.
      */
     fun reload() {
+        cancelDictation()
         cancelDraft()
         _state.update { it.copy(wrapOffer = null) }
         viewModelScope.launch { open() }
@@ -541,6 +760,7 @@ class InterviewViewModel(
     fun finishedShown() = _state.update { it.copy(finished = false) }
 
     override fun onCleared() {
+        cancelDictation()
         flushDraft()
     }
 
@@ -558,6 +778,7 @@ class InterviewViewModel(
                     writes = graph.appScope,
                     inference = graph.inferenceConsent,
                     reportDrive = { graph.driveController },
+                    dictation = graph.manualDictation,
                 )
             }
         }

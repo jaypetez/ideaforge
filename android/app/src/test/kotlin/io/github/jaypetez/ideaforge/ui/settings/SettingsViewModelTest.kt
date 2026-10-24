@@ -188,13 +188,12 @@ class SettingsViewModelTest {
     @Test
     fun everyPreferencePersistsAcrossProcessDeath() {
         val cases: List<Triple<String, (SettingsViewModel) -> Job?, (Prefs) -> Any?>> = listOf(
-            Triple("handsFree", { vm -> vm.setHandsFree(true) }, { p -> p.handsFree }),
             Triple("trigger", { vm -> vm.setTriggerDraft("  Bananas! "); vm.commitTrigger() }, { p -> p.trigger }),
             Triple("theme", { vm -> vm.setTheme(Prefs.THEME_DARK) }, { p -> p.theme }),
             Triple("speechRate", { vm -> vm.setSpeechRate(1.2) }, { p -> p.speechRate }),
             Triple("speechVoice", { vm -> vm.setSpeechVoice("en-GB-test") }, { p -> p.speechVoice }),
         )
-        val expected = mapOf<String, Any?>("handsFree" to true, "trigger" to "bananas", "theme" to "dark", "speechRate" to 1.2,
+        val expected = mapOf<String, Any?>("trigger" to "bananas", "theme" to "dark", "speechRate" to 1.2,
             "speechVoice" to "en-GB-test")
         for ((name, set, read) in cases) {
             val file = prefsFile(name)
@@ -207,6 +206,20 @@ class SettingsViewModelTest {
             assertEquals("$name after a restart", expected[name], read(second.loaded().prefs!!))
             second.kill()
         }
+    }
+
+    @Test
+    fun editingCurrentSettingsPreservesTheLegacyHandsFreeValueWithoutSelectingAMode() {
+        val file = prefsFile("legacy-handsfree")
+        val first = Process(file)
+        first.loaded()
+        runBlocking { assertTrue(first.prefs.update { it.copy(handsFree = true) }) }
+        first.kill()
+        val second = Process(file)
+        assertTrue(second.loaded().prefs!!.handsFree)
+        second.join(second.vm.setTheme("dark"))
+        assertTrue(second.settle().prefs!!.handsFree)
+        second.kill()
     }
 
     @Test

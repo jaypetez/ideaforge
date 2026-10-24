@@ -132,7 +132,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe").any {
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe").any {
         InstrumentationRegistry.getArguments().getString(it) == "true"
     }) {
         // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
@@ -954,7 +954,10 @@ class UxCaptureDeviceTest {
                                 }
                             }
                             val controls = if (deviceVoices) deviceVoiceControls(frame) else when (frame) {
-                                "voice" -> listOf(tag(SettingsTags.HANDS_FREE), tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE))
+                                "voice" -> {
+                                    compose.onNodeWithTag("settings-handsfree").assertDoesNotExist()
+                                    listOf(tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE), tag(SettingsTags.DEVICE_VOICE))
+                                }
                                 "hosted-consents" -> listOf(tag(HostedSpeechTags.VOICE_MARIN), tag(HostedSpeechTags.VOICE_CEDAR),
                                     tag(HostedSpeechTags.CONSENT_SYNTHETIC), tag(HostedSpeechTags.CONSENT_TEXT), tag(HostedSpeechTags.CONSENT_METERED))
                                 "appearance" -> Prefs.THEMES.map { tag(SettingsTags.theme(it)) }
@@ -2067,6 +2070,209 @@ class UxCaptureDeviceTest {
     }
 
     @Test
+    fun requestedManualDictationKeepsLiteralDraftAndExplicitSend() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxDictationProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedManualDictationKeepsLiteralDraftAndExplicitSend") != true) {
+                "the selected manual-dictation method requires uxDictationProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "manual dictation has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-dictation")
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("dictation-ready", "dictation-listening", "dictation-stopped", "dictation-error",
+            "dictation-long", "dictation-report", "dictation-settings")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
+            matrix.flatMap { config -> frames.map { "${config.id}/$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-dictation-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primary: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState(frame, if (frame == "dictation-settings") "settings" else "interview",
+                            "real-app", null, null, null)
+                        try {
+                            prepare(state, config, nativeEngine = FixtureDeviceVoiceEngine("device-default"), manualNative = true)
+                            val graph = checkNotNull(fixtureGraph)
+                            val engines = mutableListOf<FixtureManualEngine>()
+                            val serviceStarts = AtomicInteger()
+                            graph.driveService = object : DriveServiceControl {
+                                override fun start() { serviceStarts.incrementAndGet() }
+                                override fun stop() = Unit
+                            }
+                            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory {
+                                    FixtureManualEngine(graph.mainScope).also(engines::add)
+                                }, graph.mainScope)
+                            launchMain()
+                            await(NAVIGATION)
+                            compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                            await("new-idea-type")
+                            compose.onNodeWithTag("new-idea-type").performScrollTo().assertIsDisplayed().performClick()
+                            awaitEditableQuestion()
+                            assertTrue("Type/entry never starts recognition", engines.isEmpty())
+                            var controls = interviewControls()
+                            if (frame == "dictation-settings") {
+                                compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+                                await(SettingsTags.TRIGGER)
+                                revealControl(SettingsTags.TRIGGER)
+                                compose.onNodeWithTag(SettingsTags.TRIGGER).assertIsDisplayed()
+                                compose.onNodeWithTag("settings-handsfree").assertDoesNotExist()
+                                assertTrue("opening Settings is never a microphone decision", engines.isEmpty())
+                                controls = listOf(tag(SettingsTags.TRIGGER), tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.PACE))
+                            } else if (frame != "dictation-ready") {
+                                if (frame == "dictation-report") {
+                                    revealControl("answer")
+                                    compose.onNodeWithTag("answer").assertIsEnabled()
+                                        .performTextReplacement("A local idea for remembering names.")
+                                    compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "A local idea for remembering names." }
+                                    hideKeyboard()
+                                    assertEquals("the opening draft survives keyboard dismissal",
+                                        "A local idea for remembering names.", editableAnswer())
+                                    revealControl("send")
+                                    compose.onNodeWithTag("send").assertIsDisplayed().assertIsEnabled().performClick()
+                                    await("report-current-question")
+                                }
+                                revealControl("answer")
+                                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement("Already typed words.")
+                                compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "Already typed words." }
+                                hideKeyboard()
+                                assertEquals("the typed prefix is present before manual input starts", "Already typed words.", editableAnswer())
+                                revealControl("dictation-toggle")
+                                compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+                                allowManualMicrophoneIfRequested()
+                                compose.waitUntil(DEVICE_TIMEOUT) { engines.size == 1 && engines.single().starts.get() == 1 }
+                                val engine = engines.single()
+                                val words = if (frame == "dictation-long") fixtures.text("answer") + " skip this one over"
+                                    else "We went over budget; skip this one over."
+                                engine.text = words
+                                compose.runOnUiThread {
+                                    if (frame == "dictation-error") engine.callbacks.onError(
+                                        io.github.jaypetez.ideaforge.voice.RecognizerError.AUDIO)
+                                    else engine.callbacks.onPartial(words, null, true)
+                                }
+                                if (frame == "dictation-error") {
+                                    compose.waitUntil(DEVICE_TIMEOUT) { nodeText("dictation-status").contains(target.getString(R.string.dictation_failed)) }
+                                    controls += UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false)
+                                    assertEquals("Already typed words.", editableAnswer())
+                                    assertTrue("an engine failure releases its audio owner", engine.destroyed.get())
+                                } else {
+                                    await("dictation-caption")
+                                    assertEquals(words, nodeText("dictation-caption"))
+                                    assertEquals(target.getString(R.string.dictation_stop), nodeText("dictation-toggle"))
+                                    assertEquals("a manual final/finish word never auto-sends or changes the editor", "Already typed words.", editableAnswer())
+                                    if (frame == "dictation-listening") {
+                                        controls += listOf(
+                                            UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false),
+                                            UxControl("dictation-caption", hasTestTag("dictation-caption"), actionRequired = false))
+                                    } else if (frame == "dictation-report") {
+                                        revealControl("report-current-question")
+                                        compose.onNodeWithTag("report-current-question").assertIsDisplayed().performClick()
+                                        await("content-report-dialog")
+                                        assertTrue("the input is released before any private report note", engine.destroyed.get())
+                                        compose.onNodeWithTag("report-note").performScrollTo().assertIsDisplayed()
+                                            .performSemanticsAction(SemanticsActions.SetText) {
+                                                it(androidx.compose.ui.text.AnnotatedString("Neutral private report note, not dictated answer text."))
+                                            }
+                                        assertEquals("Neutral private report note, not dictated answer text.",
+                                            compose.onNodeWithTag("report-note").fetchSemanticsNode().config
+                                                .getOrNull(SemanticsProperties.EditableText)?.text)
+                                        controls = listOf(tag("report-note"), tag("report-cancel"))
+                                    } else {
+                                        revealControl("dictation-toggle")
+                                        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+                                        compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "Already typed words. $words" }
+                                        assertTrue(engine.destroyed.get())
+                                        controls += UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false)
+                                    }
+                                }
+                                if (frame != "dictation-report") {
+                                    val session = graph.sessionStore.sessions.value.singleOrNull()
+                                    val turns = session?.get("turns") as? JsonArray
+                                    assertTrue("no manual settlement, error or Stop submits an answer",
+                                        turns == null || turns.size == 1 && stringOf(turns.first()["answer"]).isNullOrEmpty())
+                                    assertEquals(SEED_QUESTION, nodeText("question"))
+                                }
+                            }
+                            assertEquals("manual input never starts a hands-free service", 0, serviceStarts.get())
+                            assertTrue("manual input never attaches a drive", !graph.driveController.state.value.attached)
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeMapping = "Real MainActivity/manual controller and PRESS_TO_TALK recognizer with controlled native callbacks; literal editable draft and explicit Send. The real microphone permission is granted through its OS dialog only when needed on this owned managed device. No real recognizer, recording, speech, service or hosted request; not physical #89 evidence.",
+                                rootSurfaceRole = if (frame == "dictation-report") "surfaceContainerHigh" else "background")
+                        } catch (failure: Throwable) {
+                            recorder.failed(state, config, failure, activity)
+                        } finally { closeFixture() }
+                    }
+                }
+            }
+        } catch (failure: Throwable) {
+            primary = failure
+        } finally {
+            UxEvidence.finish(primary, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not remove owned dictation fixture files" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
+
+    private fun editableAnswer() = compose.onNodeWithTag("answer").fetchSemanticsNode().config
+        .getOrNull(SemanticsProperties.EditableText)?.text.orEmpty()
+
+    private fun allowManualMicrophoneIfRequested() {
+        if (target.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        await("voice-mic-continue")
+        compose.onNodeWithTag("voice-notification-rationale").assertDoesNotExist()
+        compose.onNodeWithTag("voice-mic-continue").assertIsDisplayed().performClick()
+        val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
+        var clicked = false
+        while (!clicked && SystemClock.uptimeMillis() < deadline) {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            val nodes = root?.findAccessibilityNodeInfosByViewId(
+                "com.android.permissioncontroller:id/permission_allow_foreground_only_button").orEmpty()
+                .filter { it.isVisibleToUser && it.isEnabled && it.isClickable }
+            check(nodes.size <= 1) { "ambiguous native microphone permission action" }
+            clicked = nodes.singleOrNull()?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true
+            if (!clicked) SystemClock.sleep(100)
+        }
+        check(clicked) { "the actual native microphone Allow action was not found" }
+        compose.waitUntil(DEVICE_TIMEOUT) {
+            target.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private class FixtureManualEngine(private val main: CoroutineScope) : io.github.jaypetez.ideaforge.voice.RecognizerEngine {
+        lateinit var callbacks: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener
+        val starts = AtomicInteger()
+        val destroyed = AtomicBoolean()
+        var text = ""
+        private var readings: Job? = null
+        override fun setListener(listener: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener) { callbacks = listener }
+        override fun start(language: String) {
+            starts.incrementAndGet()
+            callbacks.onReady()
+            readings = main.launch {
+                while (true) {
+                    kotlinx.coroutines.delay(1000)
+                    callbacks.onRms(-1.5f)
+                }
+            }
+        }
+        override fun stop() { callbacks.onResults(text) }
+        override fun cancel() { readings?.cancel(); readings = null }
+        override fun destroy() { cancel(); destroyed.set(true) }
+    }
+
+    @Test
     fun requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful() {
         val bundle = InstrumentationRegistry.getArguments()
         val probe = bundle.getString("uxInterviewProbe")
@@ -2224,6 +2430,7 @@ class UxCaptureDeviceTest {
         checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
         reportWritesRejected: AtomicBoolean? = null,
         nativeEngine: TtsEngine? = null,
+        manualNative: Boolean = false,
     ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
@@ -2252,6 +2459,7 @@ class UxCaptureDeviceTest {
             providerSource = ProviderSource { controlled },
             sessionStorage = storage,
             ttsEngine = nativeEngine,
+            recognitionAvailable = { manualNative || android.speech.SpeechRecognizer.isRecognitionAvailable(context) },
             preferences = io.github.jaypetez.ideaforge.data.PrefsStore.create(
                 CoroutineScope(SupervisorJob() + Dispatchers.IO).also { fixturePreferencesScope = it },
             ) { context.preferencesDataStoreFile("prefs") },
@@ -2522,7 +2730,7 @@ class UxCaptureDeviceTest {
     }
 
     private fun interviewControls(): List<UxControl> = buildList {
-        add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("voice-start"))
+        add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("dictation-toggle")); add(tag("voice-start"))
         if (exists("write-up")) add(tag("write-up"))
         add(tag("interview-back"))
     }
@@ -2591,7 +2799,7 @@ class UxCaptureDeviceTest {
         fixtureGraph = null
         fixturePreferencesScope = null
         UxEvidence.finish(null, listOf(
-            { compose.runOnUiThread { graph?.driveController?.exit() } },
+            { compose.runOnUiThread { graph?.manualDictation?.cancel(); graph?.driveController?.exit() } },
             { closing?.close() },
             { graph?.nativeTtsEngine?.shutdown() },
             { runBlocking { graph?.mainScope?.coroutineContext?.get(Job)?.cancelAndJoin() } },
