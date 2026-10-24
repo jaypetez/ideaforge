@@ -149,6 +149,8 @@ class DriveController(
      * is missing. Asked for only when the recogniser is unavailable, never alongside it.
      */
     private val whisper: suspend () -> WhisperListener? = { null },
+    /** The graph retires a foreground manual capture before any drive can own audio. */
+    private val beforeStart: () -> Unit = {},
 ) {
     private val _state = MutableStateFlow(VoiceStageState())
     val state: StateFlow<VoiceStageState> = _state.asStateFlow()
@@ -205,6 +207,7 @@ class DriveController(
     fun start(session: Session, draftSource: String) {
         val id = stringOf(session["id"]) ?: return
         if (_state.value.mode == VoiceMode.ACTIVE && sessionId == id) return
+        beforeStart()
         if (_state.value.mode != null) halt()
         adopt(id, session, draftSource)
         _state.value = VoiceStageState(sessionId = id, mode = VoiceMode.ACTIVE, question = questionOf(session), caption = prefix)
@@ -261,6 +264,7 @@ class DriveController(
         val st = _state.value
         if (st.mode != VoiceMode.PAUSED && st.mode != VoiceMode.BLOCKED) return
         val id = sessionId ?: return
+        beforeStart()
         _state.update { it.copy(mode = VoiceMode.ACTIVE, phase = null, detail = "", exit = null) }
         epoch++
         val my = epoch

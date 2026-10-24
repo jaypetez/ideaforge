@@ -359,8 +359,20 @@ It is a focused Ideas inventory, not a claim that the full UX matrix passed.
 `InterviewScreen.kt` gives the literal current question/bridge the primary reading
 hierarchy, with a quiet source/turn line and a bounded `IdeaForgeWidths.reading` column.
 The composer starts with one line and expands; Send is primary, with separate Skip,
-Answer by voice and Write it up actions. Suggestion chips still fill the editable draft
+Start/Stop dictation, Hands-free interview and Write it up actions. Suggestion chips still fill the editable draft
 through the same ViewModel, preserving unchanged/edited provenance.
+
+Manual dictation uses explicit taps and at least 64dp targets, not a hold gesture or the
+drive loop. Real capture/status and literal captions stay beside the editable draft;
+only Send submits, with the existing voice source when words were added. Finish words
+and commands are ordinary dictation. Denial, empty capture, cancellation and input/upload
+failure keep the existing draft and report an inline status. Editing, Report, navigation
+and disposal retire unfinished input, including delayed permission/transcription.
+Original entry/permit/question/edit/worker and durable-draft guards refuse late work.
+The graph pauses a surviving drive before manual input and retires manual capture before
+drive Start/Resume, including notification actions, preserving serial output/input.
+The no-effect global Hands-free switch is absent; its stored field still round-trips,
+while Voice/Type entry and the hands-free finish word retain their meanings.
 
 Coverage starts as a factual percentage and Coverage details action. The disclosure
 shows dimension names and textual levels from the Kotlin contract, not confidence.
@@ -368,7 +380,7 @@ Show earlier includes the settled exchange count; Current question closes that v
 New turn results do not scroll a reader away from expanded earlier history. Thinking
 retains the submitted question/answer rather than replacing all context with activity.
 
-Short panes, enlarged text and expanded coverage use the existing single page scroller
+Short panes, enlarged text, dictation feedback and expanded coverage use the existing single page scroller
 for conversation and composer. Ordinary-height, default-text interviews retain their
 lazy thread and bounded docked editor. The contextual bar still joins the scroller only
 when a short window has the real keyboard open. Full labels/actions remain reachable
@@ -387,6 +399,15 @@ busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. T
 uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
 wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
 This is a declared Interview subset, not a full-UX or physical-device result.
+
+`evidence=dictation` reuses the real-app capture routes and strict native recorder for
+ready/listening/stopped/error/long/report/Settings states: both visual profiles, both
+themes and actual font scales 1.0/1.3/2.0. The manual controller and recognizer use
+controlled native callbacks, with an actual system microphone grant only when needed
+on the owned managed emulator. No real recognizer, recording, speech, service or hosted
+request runs. Require the selected passing XML, complete clean-SHA manifests and original
+PNGs, including reachability/label/native-touch bounds. This is not #89, real-phone
+recognition/quality, a full UX matrix or manual TalkBack proof.
 
 ### Native focused voice presentation
 

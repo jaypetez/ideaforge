@@ -152,7 +152,7 @@ class InterviewLayoutTest {
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
             }
-            val controls = listOf("answer", "send", "skip", "voice-start", "chip-0", "chip-1") +
+            val controls = listOf("answer", "send", "skip", "dictation-toggle", "voice-start", "chip-0", "chip-1") +
                 if (bank) emptyList() else listOf("write-up", "chip-2")
             for (tag in controls) {
                 requireReachable(tag)
@@ -194,6 +194,72 @@ class InterviewLayoutTest {
             chip.performScrollTo().performClick()
             assertEquals("the turn-four chip must be reached and tapped, not just composed outside the thread viewport", expected,
                 compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+        }
+    }
+
+    @Test
+    fun compactEnlargedManualListeningLongCaptionAndErrorKeepRealTargetsAndLabelsReachable() {
+        requireManualCaptureReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun expandedEnlargedManualListeningLongCaptionAndErrorKeepRealTargetsAndLabelsReachable() {
+        requireManualCaptureReachable()
+    }
+
+    private fun requireManualCaptureReachable() {
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true, recognitionAvailable = { true }).also { graphs += it }
+        graph.providerSource = ProviderSource { ScriptedModel() }
+        val engines = mutableListOf<io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener>()
+        val words = "Over the years we grew carefully. Keep the complete literal phrase skip this one over, " +
+            "including the finish word, for a later edit and explicit Send."
+        graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+            io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory {
+                object : io.github.jaypetez.ideaforge.voice.RecognizerEngine {
+                    lateinit var callbacks: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener
+                    override fun setListener(listener: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener) {
+                        callbacks = listener
+                        engines += listener
+                    }
+                    override fun start(language: String) { callbacks.onReady() }
+                    override fun stop() { callbacks.onResults(words) }
+                    override fun cancel() = Unit
+                    override fun destroy() = Unit
+                }
+            }, graph.mainScope)
+        org.robolectric.Shadows.shadowOf(org.robolectric.RuntimeEnvironment.getApplication()).grantPermissions(
+            android.Manifest.permission.RECORD_AUDIO)
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 5_000)
+            compose.onNodeWithTag("new-idea-type").performScrollTo().performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("dictation-toggle"), 5_000)
+            requireReachable("dictation-toggle")
+            compose.onNodeWithTag("dictation-toggle").assertHeightIsAtLeast(IdeaForgeSpacing.voice)
+                .assertWidthIsAtLeast(IdeaForgeSpacing.voice).performClick()
+            compose.waitUntilAtLeastOneExists(hasText("Listening for dictation.", substring = true), 5_000)
+            compose.runOnUiThread { engines.single().onPartial(words, null, true) }
+            compose.waitUntilAtLeastOneExists(hasTestTag("dictation-caption"), 5_000)
+            for (tag in listOf("dictation-status", "dictation-caption")) requireReachable(tag, actionRequired = false)
+            requireReachable("dictation-toggle")
+            compose.onNodeWithTag("dictation-toggle").assertHeightIsAtLeast(IdeaForgeSpacing.voice)
+                .assertWidthIsAtLeast(IdeaForgeSpacing.voice).performClick()
+            compose.waitUntilAtLeastOneExists(hasText("Dictation added to your draft.", substring = true), 5_000)
+            assertEquals(words, compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.EditableText)?.text)
+            requireReachable("send")
+            requireReachable("dictation-toggle")
+            compose.onNodeWithTag("dictation-toggle").performClick()
+            compose.waitUntilAtLeastOneExists(hasText("Listening for dictation.", substring = true), 5_000)
+            compose.runOnUiThread { engines.last().onError(io.github.jaypetez.ideaforge.voice.RecognizerError.AUDIO) }
+            compose.waitUntilAtLeastOneExists(hasText("Dictation failed.", substring = true), 5_000)
+            requireReachable("dictation-status", actionRequired = false)
+            requireReachable("dictation-toggle")
+            requireReachable("send")
+            assertEquals(words, compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.EditableText)?.text)
         }
     }
 

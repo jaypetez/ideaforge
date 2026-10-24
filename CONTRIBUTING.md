@@ -437,7 +437,7 @@ permissions, wipe data or uninstall an app on a shared device.
 Gradle owns the ephemeral device, so the recording invokes the **same on-device
 `screenrecord` utility as `adb shell screenrecord`** through
 `UiAutomation.executeShellCommand`, with `--time-limit 55 --bit-rate 4000000`. It records
-the real Interview → Answer by voice → Allow → native hands-free listening → system
+the real Interview → Hands-free interview → Allow → native hands-free listening → system
 notification with Pause/Exit → notification Exit → same typed idea. Assertions require
 actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground
 `DriveService` and notification, then their teardown with no answer or wrap-up submitted.
@@ -577,6 +577,21 @@ their original display PNGs and requested window flags remain diagnostics; flags
 app-window PixelCopy alone cannot establish SystemUI paint. This does not certify production
 system bars or physical phones.
 
+For manual dictation, dispatch `-f evidence=dictation` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedManualDictationKeepsLiteralDraftAndExplicitSend` with
+`uxDictationProbe=true`, reusing the existing private graphs and strict recorder.
+The fixed seven states are ready, listening, stopped draft, engine error, long literal text,
+report cancellation and Settings without the old global switch. Both rendering-enabled
+profiles run light/dark at actual font scales 1.0/1.3/2.0: 42 records per window.
+The real manual controller and `PRESS_TO_TALK` recognizer consume controlled callbacks.
+On these owned managed devices only, a missing microphone grant is accepted through the
+actual system Allow action. No notification permission, real recognizer, audio recording,
+spoken output, service or provider request runs. Require actual passing selected-method
+XML, complete clean-SHA `ux-dictation` manifests and inspected original/reachability PNGs.
+This is neither full-inventory acceptance nor physical #89, voice quality or manual
+TalkBack proof; native/Whisper eligibility, original grants and stale callbacks have
+separate focused tests.
+
 For native AI-output reporting, dispatch `-f evidence=reporting` on the exact feature ref.
 It selects `UxCaptureDeviceTest#requestedContentReportsKeepLocalPayloadAndQuestionIdentity`
 with `uxReportingProbe=true`, using the existing private-store routes and strict recorder.
@@ -607,7 +622,8 @@ The normal real-app matrix continues to use system dynamic colours. See
 with real dependencies. It is a separate Gradle project: nothing under it is imported by,
 copied into or served beside the web app, and `test/wiring.test.mjs` pins that
 `tools/assemble-site.mjs` never publishes it. The app is an alpha that runs the typed
-interview and a hands-free voice interview: native speech capture (#91) and the voice stage,
+interview with tap-start/tap-stop dictation into an editable draft, plus a hands-free
+voice interview: native speech capture (#91) and the voice stage,
 kept hearing by a microphone foreground service (#92). CI uploads a debug APK; the release
 workflow attaches a signed one (see [cutting a release](#cutting-a-release)).
 

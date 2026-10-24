@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.map
 data class Prefs(
     /** The word that ends a spoken answer. Empty means "use the built-in default". */
     val trigger: String = "",
-    /** Whether hands-free was on last time, so a regular driver is not re-ticking a box. */
+    /** Legacy storage compatibility only. Voice/Type and explicit taps choose capture mode. */
     val handsFree: Boolean = false,
     val speechVoice: String = "",
     val speechRate: Double = 1.0,

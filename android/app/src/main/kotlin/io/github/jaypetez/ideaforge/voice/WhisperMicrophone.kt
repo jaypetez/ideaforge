@@ -16,7 +16,7 @@ import android.media.MediaRecorder
  * 16 kHz mono 16-bit PCM, the format Whisper wants and the smallest upload for it.
  */
 class WhisperMicrophone(override val sampleRate: Int = 16_000) : PcmSource {
-    private var record: AudioRecord? = null
+    @Volatile private var record: AudioRecord? = null
 
     // RECORD_AUDIO is requested before any voice start (the same grant the recogniser uses).
     @SuppressLint("MissingPermission")

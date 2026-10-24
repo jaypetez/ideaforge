@@ -434,8 +434,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setHandsFree(on: Boolean): Job = viewModelScope.launch { prefsStore.update { it.copy(handsFree = on) } }
-
     fun setSpeechRate(rate: Double): Job = viewModelScope.launch { prefsStore.update { it.copy(speechRate = rate) } }
 
     fun refreshDeviceVoices(): Job {

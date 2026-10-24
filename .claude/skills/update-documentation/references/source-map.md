@@ -113,6 +113,23 @@ source wins over prose, and a generated artifact wins over a description of that
   `VoiceStage` displays native `lastSpeech.voiceMissing`/`message` independently of hosted
   `fallback`; its actual-speaker-result regression and the isolated `voice-fallback` fixture
   protect both messages. The focused device-voices matrix includes that isolated frame.
+- **Native manual dictation and explicit modes.** Sources: `InterviewScreen.kt` owns the
+  tap-start/tap-stop control, microphone-only permission intent and lifecycle teardown.
+  `InterviewViewModel` owns literal draft/voice-source updates and original
+  entry/permit/question/edit/worker/durable-draft guards, with explicit Send unchanged.
+  [`ManualDictation.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/ManualDictation.kt)
+  reuses `Recognizer.PRESS_TO_TALK`, never the drive parser. `AppGraph` and
+  `DriveController.beforeStart` serialize input against a surviving drive, including
+  notification Resume; Report cancels manual input before accepting private notes.
+  `WhisperListener.manualCapture` retains existing fallback eligibility/key-generation/
+  audio-consent/recording bounds and releases input before uploading. `Prefs.handsFree`
+  round-trips legacy storage only; its Settings control/writer are absent and finish word
+  remains hands-free-only. Re-check README's Android section, the Android guide, DESIGN,
+  architecture, CONTRIBUTING, permission/draft/drive tests and all Interview/Settings/
+  walkthrough capture consumers. `evidence=dictation` selects the existing strict recorder's
+  seven-state real-app subset, both visual profiles/themes and actual font1/1.3/2.
+  Controlled callbacks and one real OS microphone grant on an owned managed emulator do not
+  prove physical #89, recognition quality, hosted CORS or manual TalkBack.
 - **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
   Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
   errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and

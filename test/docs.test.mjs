@@ -683,6 +683,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'device-voice evidence must explicitly select the existing Settings test on both rendering profiles');
   assert.equal((workflow.match(/inputs\.evidence == 'device-voices' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxDeviceVoicesProbe=true'/g) || []).length, 2,
     'both voice-choice devices must opt into their fixed named-state matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'dictation' && '#requestedManualDictationKeepsLiteralDraftAndExplicitSend'/g) || []).length, 2,
+    'both rendering profiles must select the real manual-dictation journey');
+  assert.equal((workflow.match(/inputs\.evidence == 'dictation' && '-Pandroid\.testInstrumentationRunnerArguments\.uxDictationProbe=true'/g) || []).length, 2,
+    'manual dictation must opt into its complete literal-draft, listening, error and enlarged-state matrix');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
     'both Result devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,
@@ -843,7 +847,7 @@ test('microphone declaration recording selects real native effects and retains p
   for (const id of ['foreground-service-declaration', 'fgs-functionality', 'fgs-impact']) {
     assert.ok(android.includes(`id="${id}"`), `the guide lost declaration field ${id}`);
   }
-  for (const fact of ['Background Audio Access', 'Answer by voice', 'Pause', 'Resume', 'Exit',
+  for (const fact of ['Background Audio Access', 'Hands-free interview', 'Pause', 'Resume', 'Exit',
     'unlisted YouTube', '30&ndash;60', '14 days', '13392821']) {
     assert.ok(android.includes(fact), `the guide omits ${fact}`);
   }

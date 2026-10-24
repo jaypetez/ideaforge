@@ -30,9 +30,11 @@ class FakeCheck(var answer: (ProviderChoice, ProviderConfig) -> List<String> = {
  */
 fun installTestGraph(check: ProviderCheck = FakeCheck(), ring: JsonObject? = null, key: SoftwareKey = SoftwareKey(),
     inferenceAgreed: Boolean = false, preferences: PrefsStore? = null,
-    ttsEngine: io.github.jaypetez.ideaforge.voice.TtsEngine? = null): AppGraph {
+    ttsEngine: io.github.jaypetez.ideaforge.voice.TtsEngine? = null,
+    recognitionAvailable: () -> Boolean = { android.speech.SpeechRecognizer.isRecognitionAvailable(RuntimeEnvironment.getApplication()) }): AppGraph {
     val app = RuntimeEnvironment.getApplication() as IdeaForgeApp
-    val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences, ttsEngine = ttsEngine)
+    val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences, ttsEngine = ttsEngine,
+        recognitionAvailable = recognitionAvailable)
     runBlocking {
         if (ring != null) graph.keyringStore.save(ring)
         graph.keyringStore.load()

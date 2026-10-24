@@ -70,6 +70,7 @@ class ContentReportController(
     private val changed: (Session, replaced: Boolean) -> Unit = { _, _ -> },
     private val ids: IdGen = IdGen(clock),
     private val drive: () -> DriveController? = { null },
+    private val beforeOpen: () -> Unit = {},
 ) {
     private val _state = MutableStateFlow(ContentReportState())
     val state = _state.asStateFlow()
@@ -79,6 +80,7 @@ class ContentReportController(
         if (_state.value.busy) return
         val id = stringOf(session["id"]) ?: return
         if (reportableOutput(session, stringOf(output["kind"]), stringOf(output["turnId"])) != output) return
+        beforeOpen()
         reportedDrive = activeDrive?.takeIf { it.state.value.sessionId == id && it.state.value.attached }
         reportedDrive?.pause()
         _state.value = ContentReportState(sessionId = id, id = ids.newSessionId(), output = output)

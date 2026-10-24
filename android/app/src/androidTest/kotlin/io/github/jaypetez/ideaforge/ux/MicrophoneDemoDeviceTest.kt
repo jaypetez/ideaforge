@@ -177,7 +177,7 @@ class MicrophoneDemoDeviceTest {
             await("new-idea-type")
             click("new-idea-type")
             await("voice-start")
-            check(!serviceRunning() && activeRecordings() == 0) { "voice effects began before the Answer by voice tap" }
+            check(!serviceRunning() && activeRecordings() == 0) { "voice effects began before the Hands-free interview tap" }
             began = SystemClock.elapsedRealtime()
             val descriptor = automation.executeShellCommand("screenrecord --time-limit 55 --bit-rate 4000000 ${video.absolutePath}")
             recording = reader.submit<String> {

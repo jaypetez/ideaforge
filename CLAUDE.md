@@ -582,6 +582,16 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   discards the utterance on stop, and it is written only while its question is still open.
   The stage's bars come from `Recognizer.samples` (numbered, so repeated -2.0 readings are
   still samples); no reading means "no level", never an animation.
+- **Manual dictation edits a draft, never drives.** `ManualDictation` reuses
+  `CaptureMode.PRESS_TO_TALK` with explicit Start/Stop taps, not a hold gesture, command
+  parser, finish word or auto-Send. `InterviewViewModel` binds original permission/result
+  work to a visible entry, inference permit, question, edit revision and worker tag,
+  including a durable question/draft recheck. Edits, Report, navigation and disposal retire
+  unfinished capture. The graph pauses any surviving drive before manual input and retires
+  manual capture before drive Start/Resume, including notification Resume. A handle releases
+  only its own resources. Native unavailability alone permits the existing Whisper fallback,
+  with its own key/generation/audio consent; Stop releases recording before transcription.
+  `Prefs.handsFree` remains a legacy round-trip field, never a mode or microphone decision.
 - **Hosted speech on Android is gated exactly as on the web, and the gate is read per
   speak.** `HostedSpeaker` (`voice/HostedSpeech.kt`) uses OpenAI only while
   `hostedSpeechReady` holds: `tts.kind` is `openai`, `tts.verified` (written only by a passing

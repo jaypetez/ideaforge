@@ -31,6 +31,8 @@ import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.DriveService
 import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.Recognizer
+import io.github.jaypetez.ideaforge.voice.ManualDictation
+import io.github.jaypetez.ideaforge.voice.WhisperListener
 import io.github.jaypetez.ideaforge.voice.TextToSpeechSpeaker
 import io.github.jaypetez.ideaforge.voice.TtsEngine
 import io.github.jaypetez.ideaforge.voice.androidRecognizerFactory
@@ -61,6 +63,7 @@ class AppGraph(
     preferences: PrefsStore? = null,
     sessionStorage: SessionStore? = null,
     ttsEngine: TtsEngine? = null,
+    private val recognitionAvailable: () -> Boolean = { SpeechRecognizer.isRecognitionAvailable(context) },
 ) {
     /**
      * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
@@ -101,7 +104,10 @@ class AppGraph(
     val inferenceConsent: InferenceConsent by lazy {
         InferenceConsent(
             prefsStore, ring = { keyringStore.state.value.ring }, scope = appScope,
-            onRetire = { message -> mainScope.launch { driveController.blockForInference(message) } },
+            onRetire = { message -> mainScope.launch {
+                manualDictation.cancel()
+                driveController.blockForInference(message)
+            } },
         )
     }
 
@@ -151,6 +157,28 @@ class AppGraph(
 
     val driveController: DriveController get() = driveOverride ?: defaultDrive
 
+    /** No service or speech output: this input is retired by navigation, Stop and drive taps. */
+    val manualDictation: ManualDictation by lazy {
+        ManualDictation(
+            mainScope, recognizer = { recognizer!! }, inference = inferenceConsent,
+            beforeCapture = {
+                driveController.pauseFor("Paused for manual dictation. Tap Resume to return to the voice interview.")
+            },
+            recognitionAvailable = recognitionAvailable,
+            whisper = ::transcriptionListener,
+        )
+    }
+
+    private suspend fun transcriptionListener(): WhisperListener? {
+        val generation = keyringStore.generation.value
+        return whisperFrom(
+            keyringStore.state.value.ring, prefsStore.current(),
+            stillAllowed = {
+                keyringStore.generation.value == generation && prefsStore.current().hostedTranscriptionAllowed
+            },
+        ) { WhisperMicrophone() }
+    }
+
     private val defaultDrive: DriveController by lazy {
         DriveController(
             sessionStore, sessionWorker, clock,
@@ -166,16 +194,9 @@ class AppGraph(
             },
             inference = inferenceConsent,
             trigger = { prefsStore.current().effectiveTrigger },
-            recognitionAvailable = { SpeechRecognizer.isRecognitionAvailable(context) },
-            whisper = {
-                val generation = keyringStore.generation.value
-                whisperFrom(
-                    keyringStore.state.value.ring, prefsStore.current(),
-                    stillAllowed = {
-                        keyringStore.generation.value == generation && prefsStore.current().hostedTranscriptionAllowed
-                    },
-                ) { WhisperMicrophone() }
-            },
+            recognitionAvailable = recognitionAvailable,
+            whisper = ::transcriptionListener,
+            beforeStart = { manualDictation.cancel() },
         )
     }
 }

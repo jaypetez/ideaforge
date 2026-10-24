@@ -114,6 +114,7 @@ import io.github.jaypetez.ideaforge.ui.voice.hasPermission
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissions
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
 import io.github.jaypetez.ideaforge.voice.DriveController
+import io.github.jaypetez.ideaforge.voice.DictationPhase
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -180,6 +181,16 @@ fun InterviewScreen(
     val voiceRequest = remember(vm.sessionId) { mutableLongStateOf(0L) }
     var permissionRequest by remember(vm.sessionId) { mutableStateOf<Long?>(null) }
     var screenVisible by remember(vm.sessionId) { mutableStateOf(false) }
+    var dictationRationale by remember(vm.sessionId) { mutableStateOf<DictationRequest?>(null) }
+    // Keep the launched request immutable until its OS callback, even if Stop retires it.
+    var dictationPermission by remember(vm.sessionId) { mutableStateOf<DictationRequest?>(null) }
+    val manualPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val request = dictationPermission
+        dictationPermission = null
+        if (request != null) scope0.launch(Dispatchers.Main.immediate) {
+            vm.dictationPermission(request, granted)
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { screenVisible = true }
     var microphoneHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECORD_AUDIO)) }
     var notificationsHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)) }
@@ -203,6 +214,7 @@ fun InterviewScreen(
     }
     DisposableEffect(vm.sessionId) {
         onDispose {
+            vm.cancelDictation()
             voiceRequest.longValue++
             if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
             initialVoicePending = false
@@ -249,6 +261,8 @@ fun InterviewScreen(
         }
     }
     fun requestVoice(fromEntry: Boolean) {
+        vm.cancelDictation()
+        dictationRationale = null
         if (!fromEntry) {
             initialVoicePending = false
             onVoiceEntryConsumed()
@@ -298,6 +312,8 @@ fun InterviewScreen(
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        vm.cancelDictation()
+        dictationRationale = null
         vm.flushDraft()
         screenVisible = false
         if (initialVoicePending || entryVoiceInProgress) {
@@ -325,6 +341,26 @@ fun InterviewScreen(
     var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val voiceAttached = voiceHere && voice?.attached == true
+    LaunchedEffect(state.dictation.active) {
+        if (!state.dictation.active) dictationRationale = null
+    }
+    dictationRationale?.let { request ->
+        VoicePermissionDialog(
+            notificationsNeeded = false,
+            manual = true,
+            onContinue = {
+                scope0.launch(Dispatchers.Main.immediate) {
+                    if (vm.authorizeDictation(request) && dictationRationale === request &&
+                        dictationPermission == null && screenVisible && isCurrentView()) {
+                        dictationRationale = null
+                        dictationPermission = request
+                        manualPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            },
+            onDismiss = { dictationRationale = null; vm.cancelDictation() },
+        )
+    }
     ContentReportDialog(vm.reports, onReplace = { vm.replaceReportedQuestion(fromVoice = voiceAttached) })
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
@@ -413,7 +449,8 @@ fun InterviewScreen(
             val historyBlock = if (threadOf(state).isNotEmpty()) IdeaForgeSpacing.control else 0.dp
             // Scroll the real content instead of weighting the editor down to zero.
             val shortWindow = bodyHeight - historyBlock < 240.dp * LocalDensity.current.fontScale
-            val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded
+            val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded ||
+                state.dictation.active || state.dictation.outcome != null
             // A fixed bar can leave less height than one enlarged editor above the IME.
             val scrollHeader = shortWindow && WindowInsets.isImeVisible
             val scroll = rememberScrollState()
@@ -438,11 +475,25 @@ fun InterviewScreen(
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
                     Conversation(state, vm, if (scrollWithComposer) Modifier else Modifier.weight(1f),
-                        scrollWithComposer, followCurrent = !coverageExpanded, expanded = historyExpanded,
+                        scrollWithComposer, followCurrent = !coverageExpanded && !state.dictation.active, expanded = historyExpanded,
                         onHistoryChange = { historyExpanded = it })
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
+                        onDictation = if (!vm.canDictate) null else {
+                            {
+                                if (state.dictation.active) vm.stopDictation()
+                                else if (dictationPermission == null) scope0.launch(Dispatchers.Main.immediate) {
+                                    val request = vm.requestDictation { screenVisible && isCurrentView() }
+                                    if (request != null) {
+                                        if (hasPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                            vm.dictationPermission(request, true)
+                                        } else dictationRationale = request
+                                    }
+                                }
+                            }
+                        },
+                        permissionPending = dictationPermission != null,
                         modifier = if (scrollWithComposer) Modifier else Modifier.heightIn(max = composerMaxHeight),
                         shortWindow = shortWindow,
                         scrollWithPage = scrollWithComposer,
@@ -789,12 +840,20 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
 @Composable
 private fun Composer(
     state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
+    onDictation: (() -> Unit)? = null,
+    permissionPending: Boolean = false,
     shortWindow: Boolean = false,
     scrollWithPage: Boolean = shortWindow,
     noticeHeight: Int = 0,
     readingDetails: Boolean = false,
 ) {
     val editor = remember { BringIntoViewRequester() }
+    val dictationAction = remember { BringIntoViewRequester() }
+    LaunchedEffect(state.dictation.phase, state.dictation.outcome) {
+        if (scrollWithPage && !readingDetails && (state.dictation.active || state.dictation.outcome != null)) {
+            dictationAction.bringIntoView()
+        }
+    }
     var editorVisible by remember { mutableStateOf(false) }
     val keepEditor = remember(state.notice, scrollWithPage, readingDetails) {
         scrollWithPage && editorVisible && !readingDetails
@@ -821,6 +880,7 @@ private fun Composer(
                     } else it.weight(1f, fill = false)
                 }.testTag("answer"),
             )
+            if (onDictation != null) DictationFeedback(state.dictation)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(
                     onClick = vm::send,
@@ -831,11 +891,27 @@ private fun Composer(
                 TextButton(onClick = vm::skip, enabled = state.canAnswer, busy = state.busy != null, modifier = Modifier.testTag("skip")) {
                     Text(stringResource(R.string.interview_skip))
                 }
+                if (onDictation != null) {
+                    FilledTonalButton(
+                        onClick = onDictation,
+                        enabled = state.canAnswer && (state.dictation.active || !permissionPending),
+                        voice = true,
+                        modifier = Modifier.widthIn(min = IdeaForgeSpacing.voice)
+                            .bringIntoViewRequester(dictationAction).testTag("dictation-toggle"),
+                    ) {
+                        Text(stringResource(when (state.dictation.phase) {
+                            DictationPhase.TRANSCRIBING, DictationPhase.STOPPING -> R.string.dictation_cancel
+                            null -> R.string.dictation_start
+                            else -> R.string.dictation_stop
+                        }))
+                    }
+                }
                 if (onVoice != null) {
                     FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, voice = true, busy = state.busy != null, modifier = Modifier.testTag("voice-start")) {
                         Text(stringResource(R.string.voice_start))
                     }
                 }
+
                 if (state.canWriteUp) {
                     TextButton(onClick = vm::writeUp, modifier = Modifier.testTag("write-up")) {
                         Text(stringResource(R.string.interview_write_up))
@@ -844,4 +920,38 @@ private fun Composer(
             }
         }
     }
+}
+
+@Composable
+private fun DictationFeedback(state: DictationState) {
+    val label = state.phase?.let { phase ->
+        stringResource(when (phase) {
+            DictationPhase.PREPARING -> R.string.dictation_preparing
+            DictationPhase.PERMISSION -> R.string.dictation_permission
+            DictationPhase.LISTENING -> R.string.dictation_listening
+            DictationPhase.STOPPING -> R.string.dictation_stopping
+            DictationPhase.TRANSCRIBING -> R.string.dictation_transcribing
+        })
+    } ?: state.outcome?.let { outcome ->
+        stringResource(when (outcome) {
+            DictationOutcome.ADDED -> R.string.dictation_added
+            DictationOutcome.EMPTY -> R.string.dictation_empty
+            DictationOutcome.DENIED -> R.string.dictation_denied
+            DictationOutcome.CANCELLED -> R.string.dictation_cancelled
+            DictationOutcome.INTERRUPTED -> R.string.dictation_interrupted
+            DictationOutcome.FAILED -> R.string.dictation_failed
+        })
+    }
+    if (label != null) {
+        IdeaForgeStatusText(
+            listOf(label, state.detail).filter { it.isNotEmpty() }.joinToString(" "),
+            modifier = Modifier.testTag("dictation-status"),
+            tone = if (state.outcome in setOf(DictationOutcome.DENIED, DictationOutcome.FAILED)) StatusTone.Error else StatusTone.Neutral,
+        )
+    } else {
+        Text(stringResource(R.string.dictation_hint), style = MaterialTheme.typography.bodySmall)
+    }
+    if (state.caption.isNotEmpty()) Text(
+        state.caption, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("dictation-caption"),
+    )
 }

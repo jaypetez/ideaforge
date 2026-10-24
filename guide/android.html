@@ -133,8 +133,20 @@
                 Appearance setting does not turn them on.</td>
             </tr>
             <tr>
-              <th scope="row">Voice input</th>
-              <td>Hands-free only. <em>Answer by voice</em> on the interview screen asks for the
+              <th scope="row">Manual dictation</th>
+              <td>In a typed interview, tap <strong>Start dictation</strong>, speak, then tap
+                <strong>Stop dictation</strong>. Recognised words are added to your editable
+                answer draft; review them and tap <strong>Send</strong> yourself. Finish words
+                and phrases such as &ldquo;skip this one&rdquo; remain literal text here.
+                This is tap-to-start/tap-to-stop, not press-and-hold or automatic submission.
+                Only microphone permission is needed; no notification or background service
+                starts. Leaving the screen, editing, opening Report or starting hands-free
+                cancels unfinished dictation and keeps the existing draft. Denial, no speech
+                and input failures are reported beside the draft, without erasing it.</td>
+            </tr>
+            <tr>
+              <th scope="row">Hands-free input</th>
+              <td><em>Hands-free interview</em> on the interview screen asks for the
                 microphone (and, on Android 13 and later, notifications), then reads each
                 question aloud and listens until you say your finish word from Voice. A
                 notification with Pause and Exit keeps the interview hearing with the screen
@@ -145,7 +157,7 @@
                 to keep typing. Notification permission is explained separately and is optional:
                 refusing it does not block voice, and the stage says the controls remain here.
                 The phone&rsquo;s speech service processes audio, on-device
-                where available; IdeaForge does not store audio. Press-to-talk is not there yet.</td>
+                where available; IdeaForge does not store audio.</td>
             </tr>
             <tr>
               <th scope="row">Spoken replies</th>
@@ -174,7 +186,11 @@
                 Whisper or OpenAI, paste a key for that service alone and agree to send
                 recorded audio. Hands-free answers are then recorded (at most 45 seconds per
                 segment and 120 seconds per answer) and transcribed. While the recogniser is
-                working, nothing is recorded or sent. Unticking the consent or Forget stops the
+                working, nothing is recorded or sent. Manual dictation uses the same eligibility
+                and its own current grant: Stop releases the microphone before one transcription,
+                with the existing 120-second recording and upload-size bounds. Silence does not
+                submit a manual answer, and transcribed commands remain ordinary draft text.
+                Unticking the consent or Forget stops the
                 next upload and pauses the interview; Pause keeps what was already
                 transcribed as your draft. Transcribing is shown only while an actual upload
                 is pending, and completed segments appear as captions.</td>
@@ -258,6 +274,12 @@
         a failed check stays an error beside its action, not a successful toast.
       </p>
       <p>
+        <strong>Voice</strong> keeps the hands-free finish word, speaking pace and device
+        voice choice. The old global Hands-free switch is gone: choose Voice or Type for a
+        new idea, or use the explicit dictation and hands-free actions in Interview.
+        Changing the finish word never turns manual dictation into a command listener.
+      </p>
+      <p>
         <strong>Device voice choice</strong> keeps the saved identifier while the engine loads
         or fails. Use <strong>Reload device voices</strong> to retry, including after installing
         voices in the system text-to-speech settings. An empty list is reported explicitly.
@@ -297,7 +319,8 @@
         <strong>Report</strong> is beside generated questions and suggestion groups,
         including earlier conversation and Ideas previews, and in the Result actions.
         The voice stage also offers it for its question and suggestions; opening a report
-        pauses voice and never resumes the microphone automatically. Generated questions
+        pauses hands-free voice or cancels manual dictation before the note can be entered,
+        and never resumes the microphone automatically. Generated questions
         and suggestions are labelled; a mixed document says it contains AI-generated
         content. The opening question, a checklist replacement and missing synthesis
         are not labelled as generated.
@@ -366,6 +389,17 @@
         <a href="https://github.com/jaypetez/ideaforge/blob/main/docs/DESIGN.md#complete-native-makeover-acceptance">the native acceptance commands and artifact requirements</a>.
       </p>
       <p>
+        The focused <code>evidence=dictation</code> route uses the real manual Interview,
+        capture owner and recogniser with controlled callbacks, not a drawn listening state.
+        It checks Start/Stop, literal editable drafts, error and long-text states, report
+        cancellation and Settings on compact and expanded rendering-enabled emulators,
+        both themes at font scales 1.0, 1.3 and 2.0. A missing microphone grant is accepted
+        through the real system dialog on that owned emulator; no recording, real recogniser,
+        spoken output, service or hosted request runs. Require the selected passing test,
+        complete clean-SHA manifests and inspected original screenshots. This does not
+        certify physical recognition, speech quality, manual TalkBack or #89.
+      </p>
+      <p>
         The focused <code>evidence=reporting</code> route uses the same native recorder
         on rendering-enabled compact and expanded emulators, both themes and font scales
         1.0, 1.3 and 2.0. It checks actual question/suggestion/history/Result/Ideas/voice
@@ -389,7 +423,7 @@
       <h3>Functionality (paste into the declaration)</h3>
       <blockquote id="fgs-functionality">
         IdeaForge offers a user-started, hands-free idea interview. From an Interview the
-        user taps Answer by voice (or chooses Start with voice for a new idea), then allows
+        user taps Hands-free interview (or chooses Start with voice for a new idea), then allows
         microphone access. A microphone foreground service keeps the active interview able
         to listen for answers and voice commands when the user switches apps or turns the
         screen off. With notification permission, an ongoing notification shows Pause and
@@ -417,7 +451,7 @@
         on-device engine lacks usable English support.
         It runs the real on-device <code>screenrecord</code> utility through Android
         UiAutomation&rsquo;s shell transport with a 55-second recording limit: Interview,
-        Answer by voice, the real system microphone and notification Allow dialogs, the
+        Hands-free interview, the real system microphone and notification Allow dialogs, the
         hands-free stage, the real notification&rsquo;s Pause/Exit controls, then Exit back
         to the same typed interview. It checks actual active audio recording and the
         foreground service, then verifies that Exit removes both and its notification.
