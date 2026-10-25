@@ -1,6 +1,7 @@
 package io.github.jaypetez.ideaforge.ui.library
 
 import android.content.ActivityNotFoundException
+import android.os.TransactionTooLargeException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.LocalIndication
@@ -221,6 +222,10 @@ fun LibraryScreen(
                     vm.exports.shareFailed(export, unavailable = false)
                 } catch (_: IllegalArgumentException) {
                     vm.exports.shareFailed(export, unavailable = false)
+                } catch (error: RuntimeException) {
+                    // Android wraps Binder's limit when the chooser carries a large EXTRA_TEXT.
+                    if (error.cause !is TransactionTooLargeException) throw error
+                    vm.exports.shareFailed(export, unavailable = false)
                 }
             }
         },
@@ -244,21 +249,28 @@ fun LibraryScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             val label = stringResource(R.string.nav_new_idea)
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
-                horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.library_title),
-                    Modifier.weight(1f).focusRequester(headingFocus).focusTarget()
-                        .testTag(LibraryTags.HEADING).semantics { heading() },
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-                Button(
-                    onClick = newIdea,
-                    modifier = Modifier.testTag(LibraryTags.NEW).semantics { contentDescription = label },
-                ) { Text(label) }
+            Column {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+                    horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.library_title),
+                        Modifier.weight(1f).focusRequester(headingFocus).focusTarget()
+                            .testTag(LibraryTags.HEADING).semantics { heading() },
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Button(
+                        onClick = newIdea,
+                        modifier = Modifier.testTag(LibraryTags.NEW).semantics { contentDescription = label },
+                    ) { Text(label) }
+                }
+                exports.notice?.let { notice ->
+                    Box(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight)) {
+                        ExportNotice(notice, vm.exports::dismissNotice)
+                    }
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -273,8 +285,7 @@ fun LibraryScreen(
                     // library on every launch (seen on the API 36 emulator). A focus target
                     // around the list takes that focus itself; a tap still reaches the field.
                     Box(Modifier.focusTarget()) {
-                        LibraryList(state, selectedId, vm, actions, onboarding, directOpen = detailHidden,
-                            exportNotice = exports.notice.takeUnless { listHidden })
+                        LibraryList(state, selectedId, vm, actions, onboarding, directOpen = detailHidden)
                     }
                 }
             },
@@ -288,8 +299,6 @@ fun LibraryScreen(
                         reports = vm.reports,
                         actions = actions,
                         back = if (listHidden) ({ scope.launch { navigator.navigateBack() } }) else null,
-                        exportNotice = exports.notice.takeIf { listHidden },
-                        dismissExportNotice = vm.exports::dismissNotice,
                     )
                 }
             },
@@ -355,15 +364,11 @@ private fun LibraryList(
     actions: IdeaActions,
     onboarding: () -> Unit,
     directOpen: Boolean,
-    exportNotice: LibraryExportNotice?,
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
     ) {
-        if (exportNotice != null) item(key = LibraryTags.EXPORT_NOTICE) {
-            ExportNotice(exportNotice, vm.exports::dismissNotice)
-        }
         if (state.loadProblem != null) {
             item {
                 Column(
@@ -389,7 +394,7 @@ private fun LibraryList(
                 }
             }
         } else {
-            item(key = LibraryTags.FILTERS) { Filters(state, vm) }
+            item { Filters(state, vm) }
             if (state.nothingMatches) {
                 item {
                     Column(Modifier.testTag(LibraryTags.EMPTY), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
@@ -631,15 +636,12 @@ private fun IdeaDetail(
     reports: ContentReportController,
     actions: IdeaActions,
     back: (() -> Unit)?,
-    exportNotice: LibraryExportNotice?,
-    dismissExportNotice: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content),
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         if (back != null) TextButton(onClick = back) { Text(stringResource(R.string.idea_all)) }
-        if (exportNotice != null) ExportNotice(exportNotice, dismissExportNotice)
         if (item == null) {
             Text(stringResource(R.string.idea_select), color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@Column
@@ -681,7 +683,8 @@ private fun ExportNotice(notice: LibraryExportNotice, dismiss: () -> Unit) {
     Column(Modifier.fillMaxWidth().testTag(LibraryTags.EXPORT_NOTICE).semantics { liveRegion = LiveRegionMode.Polite },
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
         Text(stringResource(text, notice.title),
-            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium)
         TextButton(onClick = dismiss, modifier = Modifier.testTag(LibraryTags.EXPORT_DISMISS)) {
             Text(stringResource(R.string.notice_dismiss))
         }

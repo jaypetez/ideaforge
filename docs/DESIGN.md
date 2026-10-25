@@ -354,7 +354,7 @@ before an Android share sheet or document picker. One pending picker/write preve
 later action from replacing its source. It uses `ResultActions` and the same SAF sink as
 Result, with no provider construction, inference admission, session write or selection
 change. Named cancellation/failure/saved feedback is independent of mutation errors;
-inserting it preserves the search item's stable key and never requests focus. A write
+it stays in the library header outside either pane's scroll and never requests focus. A write
 failure does not claim a complete file, and an opened share sheet does not claim delivery.
 The existing device workflow's `evidence=ideas` selects the focused method explicitly,
 reusing the general recorder for ready/empty/unavailable, normal/100-row/archived/filtered

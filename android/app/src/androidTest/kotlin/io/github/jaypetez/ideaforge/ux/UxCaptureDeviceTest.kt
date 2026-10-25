@@ -2074,6 +2074,12 @@ class UxCaptureDeviceTest {
     }
 
     private fun captureLibraryExports(config: UxConfiguration, recorder: UxCaptureRecorder, systemOutput: File) {
+        check(fixtureGraph == null && scenario == null && heldLibraryRead == null) {
+            "export evidence must start after the preceding fixture's complete cleanup"
+        }
+        check(libraryExportFrames.none { "${config.id}/$it" in recorder.recordedKeys }) {
+            "export evidence must run exactly once per configuration"
+        }
         val base = fixtures.state("library-long")
         val id = "ux-long-active"
         val calls = AtomicInteger()
@@ -2489,19 +2495,6 @@ class UxCaptureDeviceTest {
                                 assertTrue("loading did not become an empty or failed read", !fixtureGraph!!.sessionStore.loadState.value.ready &&
                                     fixtureGraph!!.sessionStore.loadState.value.problem == null)
                             }
-                            if (nativeIdeas) {
-                                try {
-                                    captureLibraryExports(config, recorder, File(outputPath, "ux/${config.id}/native-system"))
-                                } catch (error: Throwable) {
-                                    recorder.failedRun(error)
-                                    var diagnostic = activity
-                                    for (key in UxEvidence.unrecorded(libraryExportFrames.map { "${config.id}/$it" }.toSet(), recorder.recordedKeys)) {
-                                        recorder.failed(fixtures.state("library-long").copy(id = key.substringAfter('/')),
-                                            config, error, diagnostic)
-                                        diagnostic = null
-                                    }
-                                } finally { closeFixture() }
-                            }
                             if (state.id == "interview-ime") {
                                 assertTrue("reachability keeps the actual keyboard open",
                                     activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime()))
@@ -2511,6 +2504,19 @@ class UxCaptureDeviceTest {
                         } finally {
                             closeFixture()
                         }
+                    }
+                    if (nativeIdeas) {
+                        try {
+                            captureLibraryExports(config, recorder, File(outputPath, "ux/${config.id}/native-system"))
+                        } catch (error: Throwable) {
+                            recorder.failedRun(error)
+                            var diagnostic = activity
+                            for (key in UxEvidence.unrecorded(libraryExportFrames.map { "${config.id}/$it" }.toSet(), recorder.recordedKeys)) {
+                                recorder.failed(fixtures.state("library-long").copy(id = key.substringAfter('/')),
+                                    config, error, diagnostic)
+                                diagnostic = null
+                            }
+                        } finally { closeFixture() }
                     }
                     if (walkthrough.isNotEmpty()) {
                         captureWalkthrough(config, recorder)

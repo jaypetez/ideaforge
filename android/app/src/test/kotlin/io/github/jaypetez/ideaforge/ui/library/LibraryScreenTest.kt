@@ -154,7 +154,7 @@ class LibraryScreenTest {
         return s
     }
 
-    private fun show(vararg sessions: Session, shareUnavailable: Boolean = false): LibraryViewModel {
+    private fun show(vararg sessions: Session, shareFailure: RuntimeException? = null): LibraryViewModel {
         runBlocking { sessions.forEach { store.save(it) } }
         // Unconfined writes: a click's save has landed on disk by the time performClick returns.
         val vm = LibraryViewModel(
@@ -166,9 +166,9 @@ class LibraryScreenTest {
                 inputMode = LocalInputModeManager.current
                 owner = LocalView.current
                 val actual = LocalContext.current
-                val context = if (shareUnavailable) object : ContextWrapper(actual) {
+                val context = if (shareFailure != null) object : ContextWrapper(actual) {
                     override fun startActivity(intent: Intent) {
-                        if (intent.action == Intent.ACTION_CHOOSER) throw ActivityNotFoundException("private exception detail")
+                        if (intent.action == Intent.ACTION_CHOOSER) throw shareFailure
                         super.startActivity(intent)
                     }
                 } else actual
@@ -602,16 +602,65 @@ class LibraryScreenTest {
     @Test
     fun anUnavailableShareIsNamedPersistentAndDoesNotExposePrivateExceptionDetails() {
         prepareShareProvider()
-        show(*library(), shareUnavailable = true)
+        show(*library(), shareFailure = ActivityNotFoundException("private exception detail"))
         compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
         compose.onNodeWithTag(LibraryTags.share(podcast)).performClick()
         compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertExists()
-        compose.onNodeWithText("No sharing app could be opened for “Soil talk”. Try Save .md instead.").assertExists()
+        compose.onNodeWithText("Cannot open Share .md for “Soil talk”. Try Save .md.").assertExists()
         compose.onNodeWithText("private exception detail", substring = true).assertDoesNotExist()
         assertEquals(library()[1], stored(podcast))
         assertTrue(opened.isEmpty())
         compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).performClick()
         compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertDoesNotExist()
+    }
+
+    @Test
+    fun aBinderSizeFailureIsAnExplicitShareErrorRatherThanAnUncaughtClick() {
+        prepareShareProvider()
+        show(*library(), shareFailure = RuntimeException(android.os.TransactionTooLargeException("private oversized payload")))
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertIsDisplayed()
+        compose.onNodeWithText("private oversized payload", substring = true).assertDoesNotExist()
+        assertEquals(library()[1], stored(podcast))
+        assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun aFailureFromTheLastLibraryRowIsVisibleWithoutScrollingBackToTheTop() {
+        prepareShareProvider()
+        val sources = (1..30).map { idea("s_export_row_$it", it.toLong(), "Local conversation $it") }
+        show(*sources.toTypedArray(), shareFailure = ActivityNotFoundException("controlled missing app"))
+        val lastId = "s_export_row_1"
+        compose.onNode(androidx.compose.ui.test.hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
+            .performScrollToNode(hasTestTag(LibraryTags.more(lastId)))
+        compose.onNodeWithTag(LibraryTags.more(lastId)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(lastId)).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertIsDisplayed()
+        compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed()
+        assertEquals(sources.first(), stored(lastId))
+        assertTrue(opened.isEmpty())
+        assertFalse(shown(LibraryTags.DETAIL))
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h720dp", fontScale = 2f)
+    fun aMaximumNameFailureKeepsItsCompleteMessageAndLibraryControlsReachable() {
+        prepareShareProvider()
+        val name = "A deliberately long idea name ".padEnd(120, 'x')
+        show(idea(garden, 1, "A local conversation", name = name),
+            shareFailure = RuntimeException(android.os.TransactionTooLargeException("controlled Binder limit")))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo().performClick()
+        compose.onNodeWithTag(LibraryTags.share(garden)).performScrollTo().performClick()
+        val message = compose.onNodeWithText("Share .md failed for “$name”. Your idea is unchanged.")
+        message.assertIsDisplayed()
+        val node = message.fetchSemanticsNode()
+        assertTrue("the named error is fully visible, not a clipped live region",
+            node.layoutInfo.coordinates.size.height <= node.boundsInRoot.height + 1)
+        compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        assertTrue(opened.isEmpty())
     }
 
     @Test
