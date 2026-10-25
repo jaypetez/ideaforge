@@ -377,6 +377,15 @@ heading/type and local code/table scroll. It never serializes a replacement expo
 FileProvider temporary-share identity/TTL, CreateDocument and same-session reopen stay
 with ResultActions/the existing ViewModel and guards.
 
+**Native Ideas export.** `ui/library/LibraryExports.kt` captures `exportFor`, the canonical
+filename and clicked idea identity before yielding to Android. `LibraryScreen.kt` offers
+Share/Save in row overflow and selected detail, leaving Continue/View result primary.
+The single pending picker/write cannot borrow a newer selection; cancellation and
+named errors remain separate from mutation notices and do not request focus. The
+controller reads the existing store but never writes a session or constructs a provider.
+Both it and Result use AppGraph's `documentSink`/`ContentResolverSink`; shared files still
+use ResultActions' existing FileProvider/URI grants and independent temporary directories.
+
 **Privacy-policy entry points.** `ui/PrivacyPolicyLink.kt` owns the native policy URL
 and the shared localized action in Settings About and the common onboarding footer.
 It uses the platform URI handler and reports a missing/blocked external handler inline

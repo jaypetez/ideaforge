@@ -561,6 +561,13 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   into the *debug* assets. The release source set's `DebugProviders` returns null and
   packages neither the script nor the provider. It replaces only the interview model; it
   does not skip onboarding.
+- **Ideas export is local and snapshot-bound.** `LibraryExports` captures `exportFor`,
+  the canonical filename and clicked idea before Share/Save yields to Android. It uses
+  ResultActions/the existing SAF sink, never a provider, a session write or rendered text.
+  Keep one pending picker/write, immutable share files, and separate named export feedback:
+  cancellation, late completion or deletion must not change selection, steal newer focus,
+  resurrect a session or clear a newer mutation error. Missing source after process death
+  is an explicit retry, never permission to export the current selection.
 - **New idea is an explicit mode choice, not a microphone request.** `NewIdeaRoute` opens
   before an id is allocated; Voice/Type selection alone creates a fresh Interview entry,
   guarded by the originating entry and admission revision. The new-entry voice flag is

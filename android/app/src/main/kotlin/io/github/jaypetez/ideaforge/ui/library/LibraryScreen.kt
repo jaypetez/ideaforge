@@ -1,5 +1,8 @@
 package io.github.jaypetez.ideaforge.ui.library
 
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +64,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.res.painterResource
@@ -84,6 +88,7 @@ import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeButton as Button
+import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeField as OutlinedTextField
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeFilterChip as FilterChip
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeTextButton as TextButton
@@ -94,10 +99,13 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.controls
 import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import io.github.jaypetez.ideaforge.ui.reporting.ContentReportDialog
+import io.github.jaypetez.ideaforge.ui.result.MARKDOWN_MIME
+import io.github.jaypetez.ideaforge.ui.result.ResultActions
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import java.text.DateFormat
 import java.util.Date
+import java.io.IOException
 
 /** Test tags. The two empty states reuse the web's element ids. */
 object LibraryTags {
@@ -117,10 +125,14 @@ object LibraryTags {
     const val CARD = "idea-card"
     const val NAME = "idea-name"
     const val TAGS = "idea-tags"
+    const val EXPORT_NOTICE = "library-export-notice"
+    const val EXPORT_DISMISS = "library-export-dismiss"
     fun tagChip(tag: String) = "library-tag-$tag"
     fun more(id: String) = "idea-more-$id"
     fun details(id: String) = "idea-details-$id"
     fun detailMore(id: String) = "idea-detail-more-$id"
+    fun share(id: String) = "idea-share-$id"
+    fun save(id: String) = "idea-save-$id"
 }
 
 /**
@@ -141,6 +153,10 @@ fun LibraryScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val sessions by vm.sessions.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
+    val exports by vm.exports.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val chooserTitle = stringResource(R.string.result_share_chooser)
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(MARKDOWN_MIME), vm.exports::saveResult)
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -192,6 +208,33 @@ fun LibraryScreen(
             deletingId = item.id
             restoreFocus = restore
         },
+        exportEnabled = !exports.busy,
+        share = { item ->
+            vm.exports.share(item.id)?.let { export ->
+                try {
+                    context.startActivity(ResultActions.chooser(context, export.markdown, export.filename, export.title, chooserTitle, vm.now()))
+                } catch (_: ActivityNotFoundException) {
+                    vm.exports.shareFailed(export, unavailable = true)
+                } catch (_: IOException) {
+                    vm.exports.shareFailed(export, unavailable = false)
+                } catch (_: SecurityException) {
+                    vm.exports.shareFailed(export, unavailable = false)
+                } catch (_: IllegalArgumentException) {
+                    vm.exports.shareFailed(export, unavailable = false)
+                }
+            }
+        },
+        save = { item ->
+            vm.exports.beginSave(item.id)?.let { export ->
+                try {
+                    save.launch(export.filename)
+                } catch (_: ActivityNotFoundException) {
+                    vm.exports.saveUnavailable(export)
+                } catch (_: SecurityException) {
+                    vm.exports.saveUnavailable(export)
+                }
+            }
+        },
         focusHeading = { headingFocus.requestFocus() },
     )
 
@@ -230,7 +273,8 @@ fun LibraryScreen(
                     // library on every launch (seen on the API 36 emulator). A focus target
                     // around the list takes that focus itself; a tap still reaches the field.
                     Box(Modifier.focusTarget()) {
-                        LibraryList(state, selectedId, vm, actions, onboarding, directOpen = detailHidden)
+                        LibraryList(state, selectedId, vm, actions, onboarding, directOpen = detailHidden,
+                            exportNotice = exports.notice.takeUnless { listHidden })
                     }
                 }
             },
@@ -244,6 +288,8 @@ fun LibraryScreen(
                         reports = vm.reports,
                         actions = actions,
                         back = if (listHidden) ({ scope.launch { navigator.navigateBack() } }) else null,
+                        exportNotice = exports.notice.takeIf { listHidden },
+                        dismissExportNotice = vm.exports::dismissNotice,
                     )
                 }
             },
@@ -286,6 +332,9 @@ private class IdeaActions(
     val edit: (LibraryItem, () -> Unit) -> Unit,
     val archive: (LibraryItem) -> Unit,
     val delete: (LibraryItem, () -> Unit) -> Unit,
+    val exportEnabled: Boolean,
+    val share: (LibraryItem) -> Unit,
+    val save: (LibraryItem) -> Unit,
     val focusHeading: () -> Unit,
 )
 
@@ -306,11 +355,15 @@ private fun LibraryList(
     actions: IdeaActions,
     onboarding: () -> Unit,
     directOpen: Boolean,
+    exportNotice: LibraryExportNotice?,
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
     ) {
+        if (exportNotice != null) item(key = LibraryTags.EXPORT_NOTICE) {
+            ExportNotice(exportNotice, vm.exports::dismissNotice)
+        }
         if (state.loadProblem != null) {
             item {
                 Column(
@@ -336,7 +389,7 @@ private fun LibraryList(
                 }
             }
         } else {
-            item { Filters(state, vm) }
+            item(key = LibraryTags.FILTERS) { Filters(state, vm) }
             if (state.nothingMatches) {
                 item {
                     Column(Modifier.testTag(LibraryTags.EMPTY), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
@@ -460,19 +513,21 @@ private fun IdeaRow(item: LibraryItem, selected: Boolean, actions: IdeaActions, 
         Modifier
             .fillMaxWidth()
             .sizeIn(minHeight = IdeaForgeSpacing.control)
-            .testTag(LibraryTags.CARD)
-            .semantics { this.selected = selected }
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, IdeaForgeShape.control)
-            .then(if (selected || focused) Modifier.border(2.dp, MaterialTheme.controls.focus, IdeaForgeShape.control) else Modifier)
+            .then(if (selected || focused) Modifier.border(2.dp, MaterialTheme.controls.focus, IdeaForgeShape.control) else Modifier),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            Modifier.weight(1f).sizeIn(minHeight = IdeaForgeSpacing.control)
+            .testTag(LibraryTags.CARD).semantics { this.selected = selected }
             .clickable(
                 interactionSource = interaction, indication = LocalIndication.current,
                 role = Role.Button, onClickLabel = actionLabel,
                 onClick = { if (directOpen) actions.open(item) else actions.select(item.id) },
             )
             .padding(start = IdeaForgeSpacing.tight, end = IdeaForgeSpacing.micro, top = IdeaForgeSpacing.related, bottom = IdeaForgeSpacing.related),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro),
+        ) {
             Text(item.title, style = MaterialTheme.typography.titleMedium, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 stringResource(R.string.idea_row_meta, stringResource(statusLabel(item.status)), item.coverage, updatedDate(item)),
@@ -538,6 +593,20 @@ private fun IdeaMenu(item: LibraryItem, actions: IdeaActions, detail: Boolean = 
                 onClick = { expanded = false; actions.select(item.id) },
                 modifier = Modifier.testTag(LibraryTags.details(item.id)),
             )
+            if (!detail && item.canExport) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.result_share)) },
+                    onClick = { expanded = false; actions.share(item) },
+                    enabled = actions.exportEnabled,
+                    modifier = Modifier.testTag(LibraryTags.share(item.id)),
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.result_save)) },
+                    onClick = { expanded = false; actions.save(item) },
+                    enabled = actions.exportEnabled,
+                    modifier = Modifier.testTag(LibraryTags.save(item.id)),
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.idea_edit)) },
                 onClick = { expanded = false; actions.edit(item, restore) },
@@ -555,18 +624,22 @@ private fun IdeaMenu(item: LibraryItem, actions: IdeaActions, detail: Boolean = 
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun IdeaDetail(
     item: LibraryItem?,
     session: Session?,
     reports: ContentReportController,
     actions: IdeaActions,
     back: (() -> Unit)?,
+    exportNotice: LibraryExportNotice?,
+    dismissExportNotice: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IdeaForgeSpacing.content),
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
     ) {
         if (back != null) TextButton(onClick = back) { Text(stringResource(R.string.idea_all)) }
+        if (exportNotice != null) ExportNotice(exportNotice, dismissExportNotice)
         if (item == null) {
             Text(stringResource(R.string.idea_select), color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@Column
@@ -580,7 +653,38 @@ private fun IdeaDetail(
         Button(onClick = { actions.open(item) }) {
             Text(stringResource(if (item.done) R.string.idea_view_result else R.string.idea_continue))
         }
+        if (item.canExport) FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+            verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+        ) {
+            OutlinedButton(onClick = { actions.share(item) }, enabled = actions.exportEnabled,
+                modifier = Modifier.testTag(LibraryTags.share(item.id))) { Text(stringResource(R.string.result_share)) }
+            OutlinedButton(onClick = { actions.save(item) }, enabled = actions.exportEnabled,
+                modifier = Modifier.testTag(LibraryTags.save(item.id))) { Text(stringResource(R.string.result_save)) }
+        }
         if (session != null) LibraryPreview(session) { reports.open(session, it) }
+    }
+}
+
+@Composable
+private fun ExportNotice(notice: LibraryExportNotice, dismiss: () -> Unit) {
+    val text = when (notice.result) {
+        LibraryExportResult.Saved -> R.string.idea_export_saved
+        LibraryExportResult.Cancelled -> R.string.idea_export_cancelled
+        LibraryExportResult.SaveUnavailable -> R.string.idea_export_save_unavailable
+        LibraryExportResult.SaveFailed -> R.string.idea_export_save_failed
+        LibraryExportResult.ShareUnavailable -> R.string.idea_export_share_unavailable
+        LibraryExportResult.ShareFailed -> R.string.idea_export_share_failed
+        LibraryExportResult.SourceLost -> R.string.idea_export_source_lost
+    }
+    val error = notice.result !in setOf(LibraryExportResult.Saved, LibraryExportResult.Cancelled)
+    Column(Modifier.fillMaxWidth().testTag(LibraryTags.EXPORT_NOTICE).semantics { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+        Text(stringResource(text, notice.title),
+            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+        TextButton(onClick = dismiss, modifier = Modifier.testTag(LibraryTags.EXPORT_DISMISS)) {
+            Text(stringResource(R.string.notice_dismiss))
+        }
     }
 }
 

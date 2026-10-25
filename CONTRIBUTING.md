@@ -542,12 +542,18 @@ Canonical output/picker cancellation and IO failures still need their action/VM 
 
 For native Ideas, dispatch `-f evidence=ideas` on the exact feature ref. It selects
 `UxCaptureDeviceTest#requestedIdeasAreCompactReachableAndTruthful`, reusing the existing
-recorder for nine declared states: ready/empty, unavailable, normal/100-row/archived/
+recorder for ready/empty, unavailable, normal/100-row/archived/
 filtered lists, long active detail and an actual pending SessionStore read. The injected
 store remains the graph's only store; the read is released during cleanup, not replaced
 with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0/1.3/2.0
-require 54 accepted capture records per window. Inspect the selected test's nonzero XML
-execution and complete SHA-matching manifests/PNGs; this is not the full UX inventory.
+also include the row export menu, long selected detail, cancelled Save, named controlled
+document-write failure and successful canonical Save. That journey reuses `UxSystemActions`
+for real share-sheet/document-picker interactions and exact file readback. It launches
+without the debug scripted-provider override, removes its private dummy key after opening
+Ideas, and has no inference grant. A separate admitted actual-app negative control must
+reach its installed rejecting provider. Inspect every original and export record,
+reachability/system PNG and nonzero selected-method XML on both clean SHA-matching
+profiles; this is not the full UX inventory or physical-device proof.
 
 For native Interview, dispatch `-f evidence=interview` on the exact feature ref. It selects
 `UxCaptureDeviceTest#requestedInterviewIsQuestionFirstKeyboardSafeAndTruthful` with
