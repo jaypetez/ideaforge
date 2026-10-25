@@ -548,7 +548,10 @@ store remains the graph's only store; the read is released during cleanup, not r
 with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0/1.3/2.0
 also include the row export menu, long selected detail, cancelled Save, named controlled
 document-write failure and successful canonical Save. That journey reuses `UxSystemActions`
-for real share-sheet/document-picker interactions and exact file readback. It launches
+for real share-sheet/document-picker interactions and exact file readback. System snapshots
+wait for UiAutomation idle: an accessible chooser/picker tree alone can precede its painted
+window and photograph the app underneath. Inspect the actual system PNGs, not just their
+tree files. It launches
 without the debug scripted-provider override, removes its private dummy key after opening
 Ideas, and has no inference grant. A separate admitted actual-app negative control must
 reach its installed rejecting provider. Inspect every original and export record,

@@ -54,6 +54,8 @@ internal class UxSystemActions(
     }
 
     fun snapshot(name: String) {
+        // A new window's accessibility tree can arrive before its first painted frame.
+        automation.waitForIdle(300, DEVICE_TIMEOUT)
         check(output.isDirectory || output.mkdirs())
         File(output, "$name-system.txt").writeText(tree(automation.rootInActiveWindow))
         val bitmap = checkNotNull(automation.takeScreenshot()) { "no system screenshot for $name" }
