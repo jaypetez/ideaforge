@@ -1,6 +1,7 @@
 package io.github.jaypetez.ideaforge
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -38,6 +39,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -51,6 +53,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean
 import java.io.IOException
 import io.github.jaypetez.ideaforge.data.SessionStore
+import io.github.jaypetez.ideaforge.core.PromptParts
+import io.github.jaypetez.ideaforge.core.runtime.Provider
+import io.github.jaypetez.ideaforge.core.runtime.SampleResult
+import io.github.jaypetez.ideaforge.core.vectors.Vectors
+import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
+import kotlinx.serialization.json.JsonArray
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -271,6 +279,39 @@ class MainActivityTest {
         compose.onNodeWithTag("dimension-error").assertDoesNotExist()
         assertEquals("waived", stringOf(graph.sessionStore.get(id)!!["coverage"]["outcome"]["status"]))
         assertEquals("Retain this exact optional reason.", stringOf(graph.sessionStore.get(id)!!["coverage"]["outcome"]["waivedReason"]))
+        assertEquals(0, serviceStarts.get())
+    }
+
+    @Test
+    fun coverageInferenceOracleFailsOnAnUnexpectedSampleThroughTheConfiguredAppProvider() {
+        scenario.close()
+        val requests = AtomicInteger()
+        graph.providerSource = ProviderSource {
+            object : Provider {
+                override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
+                    requests.incrementAndGet()
+                    error("Controlled unexpected app inference.")
+                }
+            }
+        }
+        val intent = Intent(RuntimeEnvironment.getApplication(), MainActivity::class.java)
+        scenario = ActivityScenario.launch(intent)
+        compose.waitUntilAtLeastOneExists(hasTestTag(BOTTOM_BAR), 10_000)
+        choose(false)
+        compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
+        val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
+        val answer = stringOf(steps.first()["text"])!!
+        compose.onNodeWithTag("answer").performTextReplacement(answer)
+        compose.onNodeWithTag("send").assertIsDisplayed().performClick()
+        compose.waitUntil(10_000) {
+            requests.get() > 0 || graph.sessionStore.sessions.value.any { (it["turns"] as JsonArray).size > 1 }
+        }
+        assertThrows("the configured app's explicit Send must trip the same zero-request oracle",
+            AssertionError::class.java) {
+            assertEquals("dimension actions must make no inference requests", 0, requests.get())
+        }
+        assertEquals("one deliberate negative-control sample reached the app provider", 1, requests.get())
+        assertEquals(answer, stringOf((graph.sessionStore.sessions.value.single()["turns"] as JsonArray).first()["answer"]))
         assertEquals(0, serviceStarts.get())
     }
 

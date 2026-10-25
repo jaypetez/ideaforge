@@ -103,6 +103,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -122,7 +123,7 @@ import javax.crypto.spec.SecretKeySpec
  * Opt-in development evidence. Normal connected/ATD runs retain the ordinary walkthrough.
  * A matrix requires an explicit SHA and Gradle's additional-test-output directory.
  *
- * Every real-app state uses MainActivity navigation and the existing scripted provider;
+ * Every real-app state uses MainActivity navigation and controlled providers;
  * only voice presentations launch the labelled debug-only isolated component activity.
  * Each graph has its own private files and in-memory dummy encryption key. No user session,
  * keyring, preference, microphone or real provider is read or changed. Permission state
@@ -1905,9 +1906,25 @@ class UxCaptureDeviceTest {
         }
         fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
             UxState("coverage-$frame", "interview", "real-app", null, null, null), config, checkNotNull(activity), controls,
-            nativeMapping = "Real MainActivity coverage actions, reducers/store/worker and same-session reopen. Loading holds the actual lock; the named error refuses a real write. Recovery uses one competing editor's canonical scripted turn through InterviewWork. Dimension actions request no inference; no network, real model, speech, service, microphone or OS permission effect.",
+            nativeMapping = "Real MainActivity coverage actions, reducers/store/worker and same-session reopen. Loading holds the actual lock; the named error refuses a real write. Recovery uses one competing editor's separate canonical scripted turn through InterviewWork. Dimension actions request no inference; an explicit post-capture Send negative control must reach each configured rejecting app provider. No network, real model, speech, service, microphone or OS permission effect.",
             rootSurfaceRole = if (dialog) "surfaceContainerHigh" else "background",
         )
+        fun verifyInferenceOracle(graph: AppGraph, id: String, requests: AtomicInteger, journey: String) {
+            val turns = (graph.sessionStore.get(id)!!["turns"] as JsonArray).size
+            // Only after all captures/invariants, explicitly Send the existing draft through the real UI.
+            click("send")
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                requests.get() > 0 || (graph.sessionStore.get(id)!!["turns"] as JsonArray).size > turns
+            }
+            assertThrows("an unexpected actual-app sample must trip the zero-request oracle", AssertionError::class.java) {
+                assertEquals("dimension actions make no inference requests", 0, requests.get())
+            }
+            assertEquals("one explicit Send reached the configured rejecting provider", 1, requests.get())
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                (graph.sessionStore.get(id)!!["turns"] as JsonArray).size > turns && !exists("interview-busy")
+            }
+            Log.i("IdeaForgeCoverage", "${config.id}/$journey: dimension samples=0; explicit Send negative-control samples=${requests.get()}")
+        }
         val base = fixtures.state("interview-long")
         val rejected = AtomicBoolean(false)
         prepare(base, config, dimensionWritesRejected = rejected)
@@ -1921,7 +1938,7 @@ class UxCaptureDeviceTest {
                 }
             }
         }
-        navigate(base)
+        navigate(base, scripted = false)
         val id = requireNotNull(base.sessionId)
         val before = checkNotNull(graph.sessionStore.get(id))
         click("coverage-details")
@@ -2009,19 +2026,21 @@ class UxCaptureDeviceTest {
             before["turns"], graph.sessionStore.get(id)!!["turns"])
         assertEquals(before["draftAnswer"], graph.sessionStore.get(id)!!["draftAnswer"])
         assertEquals("dimension actions and reopening make no inference requests", 0, requests.get())
+        verifyInferenceOracle(graph, id, requests, "stored-choice")
 
         closeFixture()
         prepare(fixtures.state("ready"), config)
         val competingGraph = checkNotNull(fixtureGraph)
+        val recoveryRequests = AtomicInteger()
         competingGraph.providerSource = ProviderSource {
             object : Provider {
                 override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult {
-                    requests.incrementAndGet()
+                    recoveryRequests.incrementAndGet()
                     error("Dimension recovery must never request inference.")
                 }
             }
         }
-        launchMain()
+        launchMain(scripted = false)
         await(NAVIGATION)
         compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
         await("new-idea-type")
@@ -2062,7 +2081,8 @@ class UxCaptureDeviceTest {
         click("dimension-done")
         assertEquals("The later question's own draft.", editableAnswer())
         assertEquals("The later question's own draft.", stringOf(competingGraph.sessionStore.get(competingId)!!["draftAnswer"]))
-        assertEquals("dimension actions do not borrow the competing editor's scripted call", 0, requests.get())
+        assertEquals("dimension actions do not borrow the competing editor's scripted call", 0, recoveryRequests.get())
+        verifyInferenceOracle(competingGraph, competingId, recoveryRequests, "retained-draft")
     }
 
     @Test
@@ -2719,7 +2739,10 @@ class UxCaptureDeviceTest {
         }
     }
 
-    private fun navigate(state: UxState): List<UxControl> {
+    private fun navigate(
+        state: UxState,
+        scripted: Boolean = state.id !in setOf("busy-turn", "writing", "synthesis-failure"),
+    ): List<UxControl> {
         if (state.evidence == "isolated-component") {
             val intent = Intent(target, UxFixtureActivity::class.java)
                 .putExtra("state", state.id).putExtra("theme", runBlocking { fixtureGraph!!.prefsStore.current().theme })
@@ -2762,11 +2785,11 @@ class UxCaptureDeviceTest {
             }
         }
         if (state.id == "interview-wrap") {
-            scriptedWalkthrough(compose, target, launch = ::launchMain, settleInput = ::hideKeyboard, wrapOnly = true)
+            scriptedWalkthrough(compose, target, launch = { launchMain(scripted) }, settleInput = ::hideKeyboard, wrapOnly = true)
             await("wrap-offer")
             return listOf(tag("wrap-accept"), tag("wrap-decline"), tag("interview-back"))
         }
-        launchMain(scripted = state.id !in setOf("busy-turn", "writing", "synthesis-failure"))
+        launchMain(scripted = scripted)
         if (state.id == "fresh") {
             await("provider-groq")
             return listOf(tag("provider-groq"), tag("provider-ollama"))
