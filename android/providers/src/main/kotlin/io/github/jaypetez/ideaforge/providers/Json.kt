@@ -27,7 +27,7 @@ fun extractJson(text: String?): JsonObject {
     val raw = jsTrim(text.orEmpty())
     if (raw.isEmpty()) throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "model returned an empty response")
     for (candidate in candidates(raw)) {
-        val parsed = runCatching { StrictJson(candidate).parse() }.getOrNull()
+        val parsed = runCatching { parseStrictJson(candidate) }.getOrNull()
         if (parsed is JsonObject) return parsed
     }
     throw ProviderException(
@@ -75,6 +75,8 @@ private fun withoutReasoning(raw: String): String {
  * refuses everything ECMA-404 refuses, keeps the last of duplicate keys in the first key's
  * position as a JS object does, and gives numbers their JS values (`1e5` is 100000, `-0` is 0).
  */
+internal fun parseStrictJson(text: String): JsonElement = StrictJson(text).parse()
+
 private class StrictJson(private val s: String) {
     private var i = 0
 

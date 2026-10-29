@@ -146,6 +146,65 @@ class AdaptersTest {
         assertEquals("/v1/models", server.takeRequest().url.encodedPath)
     }
 
+    private suspend fun rejectsCatalogue(body: String) {
+        for (validate in listOf(false, true)) {
+            reply(body)
+            val before = server.requestCount
+            val p = compat("openai")
+            val error = assertFailsWith<ProviderException>("validateKey=$validate, body=$body") {
+                if (validate) p.validateKey() else p.listModels()
+            }
+            assertEquals(ProviderErrorCode.BAD_RESPONSE, error.code)
+            assertFalse(isRetryable(error))
+            assertEquals(before + 1, server.requestCount, "a malformed catalogue is never retried")
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/v1/models", request.url.encodedPath)
+        }
+    }
+
+    @Test
+    fun malformedCatalogueJsonIsNotSuccessfulConnectionProof() = runBlocking {
+        for (body in listOf(
+            "<html>This is not a model API</html>",
+            """<html><script>{"data":[]}</script></html>""",
+            "", "  ", """{"data":""", """{"data":[]} trailing""",
+            """{"data":[{"id":unquoted}]}""", """{"data":[],}""",
+        )) rejectsCatalogue(body)
+    }
+
+    @Test
+    fun unsupportedCatalogueShapesAreNotSuccessfulConnectionProof() = runBlocking {
+        for (body in listOf(
+            "null", "true", "42", "\"not a catalogue\"", "{}",
+            """{"data":null}""", """{"data":{}}""", """{"models":"not a list"}""",
+            """{"choices":[]}""", """{"error":{"message":"not a model API"}}""",
+        )) rejectsCatalogue(body)
+    }
+
+    @Test
+    fun supportedCataloguesKeepEmptyListsAndTolerantNameFiltering() = runBlocking {
+        for ((body, expected) in listOf(
+            "[]" to emptyList(),
+            """{"data":[]}""" to emptyList(),
+            """{"models":[]}""" to emptyList(),
+            """["z","y"]""" to listOf("y", "z"),
+            """{"data":[{"id":" b "},{"id":"a"},{"id":"a"}]}""" to listOf("a", "b"),
+            """{"models":[{"name":"qwen"},{"model":"ignored"}]}""" to listOf("qwen"),
+            """{"data":null,"models":[{"name":"fallback"}]}""" to listOf("fallback"),
+            """{"data":[],"models":[{"name":"not selected"}]}""" to emptyList(),
+            """{"data":[null,{},{"id":5},{"id":""},{"id":${JsonPrimitive("x".repeat(121))}}]}""" to emptyList(),
+        )) {
+            val p = compat("openai")
+            reply(body)
+            assertEquals(expected, p.listModels(), body)
+            assertEquals("/v1/models", server.takeRequest().url.encodedPath)
+            reply(body)
+            assertTrue(p.validateKey(), body)
+            assertEquals("/v1/models", server.takeRequest().url.encodedPath)
+        }
+    }
+
     @Test
     fun aBadKeyIsReportedAsAuthWithItsStatus() {
         // In a browser this 401 arrives with no CORS headers and has to be guessed at; natively
@@ -174,8 +233,11 @@ class AdaptersTest {
             ProviderHttpClients.create(policy).newBuilder().addInterceptor(Interceptor { chain ->
                 val req = chain.request()
                 requests += req
-                val body = if (req.url.host == "api.anthropic.com") """{"content":[{"type":"text","text":"{}"}],"stop_reason":"end_turn"}"""
-                else """{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}"""
+                val body = when {
+                    req.method == "GET" && req.url.encodedPath.endsWith("/models") -> """{"data":[]}"""
+                    req.url.host == "api.anthropic.com" -> """{"content":[{"type":"text","text":"{}"}],"stop_reason":"end_turn"}"""
+                    else -> """{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}"""
+                }
                 Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(status).message("Scripted response")
                     .body(body.toResponseBody("application/json".toMediaType())).build()
             }).build()
