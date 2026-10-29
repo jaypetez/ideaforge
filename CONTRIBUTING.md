@@ -641,6 +641,12 @@ framework reaches its classpath, and checks that the session schema number match
 `src/core/session.js`. `:app` injects wall time and ids (`Clock` and `IdGen`, built in
 `AppGraph`), just as the web UI injects them into the runtime.
 
+Native model-catalogue checks in `OpenAiCompatProvider` require well-formed JSON and a
+supported array, `data` or `models` envelope before `ProviderCheck` can report success.
+A valid empty catalogue is still a successful read; name filtering remains the shared
+`parseModelList` contract. Catalogue nesting is bounded so an excessively deep response
+becomes `bad_response` rather than exhausting a native worker's stack.
+
 The build's facts live in Gradle, and `test/docs.test.mjs` fails if this table drifts from them:
 
 | Fact | Value | Owner |

@@ -75,9 +75,9 @@ private fun withoutReasoning(raw: String): String {
  * refuses everything ECMA-404 refuses, keeps the last of duplicate keys in the first key's
  * position as a JS object does, and gives numbers their JS values (`1e5` is 100000, `-0` is 0).
  */
-internal fun parseStrictJson(text: String): JsonElement = StrictJson(text).parse()
+internal fun parseStrictJson(text: String, maxDepth: Int = Int.MAX_VALUE): JsonElement = StrictJson(text, maxDepth).parse()
 
-private class StrictJson(private val s: String) {
+private class StrictJson(private val s: String, private val maxDepth: Int) {
     private var i = 0
 
     fun parse(): JsonElement {
@@ -92,12 +92,15 @@ private class StrictJson(private val s: String) {
     // JSON whitespace is these four and nothing else.
     private fun space() { while (i < s.length && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) i++ }
 
-    private fun value(): JsonElement {
+    private fun value(depth: Int = 0): JsonElement {
         space()
         if (i >= s.length) bad()
+        if (depth >= maxDepth && (s[i] == '{' || s[i] == '[')) {
+            throw IllegalArgumentException("JSON nesting exceeds $maxDepth levels")
+        }
         return when (s[i]) {
-            '{' -> obj()
-            '[' -> arr()
+            '{' -> obj(depth + 1)
+            '[' -> arr(depth + 1)
             '"' -> JsonPrimitive(string())
             't' -> word("true", JsonPrimitive(true))
             'f' -> word("false", JsonPrimitive(false))
@@ -112,7 +115,7 @@ private class StrictJson(private val s: String) {
         return v
     }
 
-    private fun obj(): JsonObject {
+    private fun obj(depth: Int): JsonObject {
         i++
         val out = LinkedHashMap<String, JsonElement>()
         space()
@@ -124,7 +127,7 @@ private class StrictJson(private val s: String) {
             space()
             if (i >= s.length || s[i] != ':') bad()
             i++
-            out[key] = value()
+            out[key] = value(depth)
             space()
             if (i >= s.length) bad()
             when (s[i++]) {
@@ -135,13 +138,13 @@ private class StrictJson(private val s: String) {
         }
     }
 
-    private fun arr(): JsonArray {
+    private fun arr(depth: Int): JsonArray {
         i++
         val out = ArrayList<JsonElement>()
         space()
         if (i < s.length && s[i] == ']') { i++; return JsonArray(out) }
         while (true) {
-            out += value()
+            out += value(depth)
             space()
             if (i >= s.length) bad()
             when (s[i++]) {

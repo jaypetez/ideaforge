@@ -120,6 +120,9 @@ private fun modelRows(body: JsonElement?): JsonArray? = when (body) {
 
 private fun stringOf(e: JsonElement?): String? = (e as? JsonPrimitive)?.takeIf { it.isString }?.content
 
+// Untrusted catalogue metadata must fail before exhausting a native worker's stack.
+private const val MAX_CATALOGUE_JSON_DEPTH = 256
+
 /**
  * @param baseUrl the root `/chat/completions` and `/models` are appended to
  * @param preset a key of [OPENAI_COMPAT_PRESETS], or null for a hand-typed server
@@ -189,9 +192,9 @@ class OpenAiCompatProvider(
         val request = http.request("$root/models", auth, apiKey).get().build()
         val text = http.executeText(request, hostLabel)
         val body = try {
-            parseStrictJson(text)
+            parseStrictJson(text, maxDepth = MAX_CATALOGUE_JSON_DEPTH)
         } catch (e: IllegalArgumentException) {
-            throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "$hostLabel returned a model list that is not valid JSON", e)
+            throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "$hostLabel returned a model list that could not be read as JSON", e)
         }
         // Both readers establish connection proof. Tolerant name filtering alone cannot
         // distinguish a valid empty catalogue from an unrelated successful response.

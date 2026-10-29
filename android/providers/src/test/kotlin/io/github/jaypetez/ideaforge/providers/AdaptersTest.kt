@@ -151,7 +151,7 @@ class AdaptersTest {
             reply(body)
             val before = server.requestCount
             val p = compat("openai")
-            val error = assertFailsWith<ProviderException>("validateKey=$validate, body=$body") {
+            val error = assertFailsWith<ProviderException>("validateKey=$validate, body=${body.take(120)} (${body.length} chars)") {
                 if (validate) p.validateKey() else p.listModels()
             }
             assertEquals(ProviderErrorCode.BAD_RESPONSE, error.code)
@@ -183,6 +183,13 @@ class AdaptersTest {
     }
 
     @Test
+    fun excessiveCatalogueNestingIsABadResponseInsteadOfCrashing() = runBlocking {
+        rejectsCatalogue("[".repeat(100_000))
+        rejectsCatalogue("""{"data":[],"metadata":""" + "[".repeat(256) + "0" + "]".repeat(256) + "}")
+        rejectsCatalogue("""{"data":[],"metadata":""" + """{"nested":""".repeat(256) + "0" + "}".repeat(257))
+    }
+
+    @Test
     fun supportedCataloguesKeepEmptyListsAndTolerantNameFiltering() = runBlocking {
         for ((body, expected) in listOf(
             "[]" to emptyList(),
@@ -194,6 +201,7 @@ class AdaptersTest {
             """{"data":null,"models":[{"name":"fallback"}]}""" to listOf("fallback"),
             """{"data":[],"models":[{"name":"not selected"}]}""" to emptyList(),
             """{"data":[null,{},{"id":5},{"id":""},{"id":${JsonPrimitive("x".repeat(121))}}]}""" to emptyList(),
+            ("""{"data":[],"metadata":""" + "[".repeat(255) + "0" + "]".repeat(255) + "}") to emptyList(),
         )) {
             val p = compat("openai")
             reply(body)
