@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.voice
 
+import androidx.lifecycle.ViewModelStore
 import io.github.jaypetez.ideaforge.core.Session
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -11,12 +12,14 @@ import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.runtime.seedTurn
 import io.github.jaypetez.ideaforge.core.setDraftAnswer
 import io.github.jaypetez.ideaforge.data.Clock
+import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.data.testInferenceConsent
 import io.github.jaypetez.ideaforge.data.testInferenceRing
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.interview.ScriptedModel
+import io.github.jaypetez.ideaforge.ui.library.LibraryViewModel
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -117,12 +120,17 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Bo
     val seeded: Session = seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now()))
 
     val state get() = controller.state.value
+    private val viewModels = ViewModelStore()
+    val library: LibraryViewModel by lazy {
+        LibraryViewModel(store, IdGen(clock), clock, worker, writes, reportDrive = { controller })
+            .also { viewModels.put("library", it) }
+    }
 
     /** Another idea, never saved, whose answer box held [draft]. */
     fun unsaved(id: String, draft: String): Session =
         setDraftAnswer(seedTurn(createSession(id, num(clock.now()), str("android")), num(clock.now())), str(draft), num(clock.now()))
 
-    /** The library's delete: retire the idea's work, then delete under its lock. */
+    /** Low-level deletion for store guards, without the real [library]'s effect retirement. */
     fun delete(id: String = this.id) {
         worker.retire(id)
         writes.launch { worker.exclusive(id) { store.delete(id) } }
@@ -153,6 +161,7 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Bo
     fun draft(): String? = stringOf(saved()?.get("draftAnswer"))
 
     fun close() {
+        viewModels.clear()
         main.cancel()
         writes.cancel()
         scheduler.runCurrent()
