@@ -2,9 +2,13 @@ package io.github.jaypetez.ideaforge.probe
 
 import android.content.Context
 import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import androidx.annotation.MainThread
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -51,31 +55,65 @@ class TtsClip(val pcm: ByteArray, val sampleRate: Int, val channels: Int) {
     }
 
     companion object {
-        /** Synthesises [text] to a WAV file and calls back with the clip or a reason, off the main thread. */
-        fun synthesize(context: Context, text: String, done: (TtsClip?, String) -> Unit) {
-            val out = File(context.cacheDir, "probe-tts.wav")
-            var tts: TextToSpeech? = null
-            tts = TextToSpeech(context.applicationContext) { status ->
-                // onInit(ERROR) can run inside the constructor, before `tts` is assigned (a
-                // phone with no TTS engine): never dereference it on that path.
-                if (status != TextToSpeech.SUCCESS) {
-                    done(null, "TTS init failed ($status)"); tts?.shutdown(); return@TextToSpeech
-                }
-                val engine = tts ?: run { done(null, "TTS init ran before the engine existed"); return@TextToSpeech }
-                engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(id: String?) {}
-                    override fun onDone(id: String?) {
-                        val clip = runCatching { parseWav(out.readBytes()) }
-                        done(clip.getOrNull(), clip.exceptionOrNull()?.message ?: "synthesised via ${engine.defaultEngine}")
-                        engine.shutdown()
-                    }
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(id: String?) { done(null, "TTS synthesis failed"); engine.shutdown() }
-                    override fun onError(id: String?, code: Int) { done(null, "TTS synthesis failed ($code)"); engine.shutdown() }
-                })
-                val rc = engine.synthesizeToFile(text, Bundle(), out, "probe")
-                if (rc != TextToSpeech.SUCCESS) { done(null, "synthesizeToFile returned $rc"); engine.shutdown() }
+        /** Calls back on main with the clip or a reason; cancellation releases this request without a callback. */
+        @MainThread
+        fun synthesize(context: Context, text: String, done: (TtsClip?, String) -> Unit): CancellationSignal {
+            val main = Handler(Looper.getMainLooper())
+            val cancellation = CancellationSignal()
+            val out = runCatching { File.createTempFile("probe-tts-", ".wav", context.cacheDir) }.getOrElse {
+                main.post { if (!cancellation.isCanceled) done(null, "TTS output file failed: ${it.message}") }
+                return cancellation
             }
+            var tts: TextToSpeech? = null
+            var finished = false
+            fun finish(clip: TtsClip?, why: String) {
+                val notify = !finished && !cancellation.isCanceled
+                finished = true
+                runCatching { tts?.shutdown() }
+                tts = null
+                // A late terminal callback may arrive after cancellation; its file is still
+                // ours to remove, never a later request's output.
+                out.delete()
+                if (notify) done(clip, why)
+            }
+            cancellation.setOnCancelListener {
+                if (Looper.myLooper() == Looper.getMainLooper()) finish(null, "cancelled")
+                else main.post { finish(null, "cancelled") }
+            }
+            try {
+                tts = TextToSpeech(context.applicationContext) { status ->
+                    // Even onInit(ERROR) may run inside the constructor. Queue all terminal
+                    // work on main so assignment, cancellation and file cleanup cannot race.
+                    main.post initialize@{
+                        if (finished || cancellation.isCanceled) { finish(null, "cancelled"); return@initialize }
+                        if (status != TextToSpeech.SUCCESS) { finish(null, "TTS init failed ($status)"); return@initialize }
+                        val engine = tts ?: run { finish(null, "TTS init ran before the engine existed"); return@initialize }
+                        try {
+                            engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                                override fun onStart(id: String?) {}
+                                override fun onDone(id: String?) {
+                                    main.post complete@{
+                                        if (finished || cancellation.isCanceled) { finish(null, "cancelled"); return@complete }
+                                        val clip = runCatching { parseWav(out.readBytes()) }
+                                        finish(clip.getOrNull(), clip.exceptionOrNull()?.message ?: "synthesised via ${engine.defaultEngine}")
+                                    }
+                                }
+                                @Deprecated("Deprecated in Java")
+                                override fun onError(id: String?) { main.post { finish(null, "TTS synthesis failed") } }
+                                override fun onError(id: String?, code: Int) { main.post { finish(null, "TTS synthesis failed ($code)") } }
+                                override fun onStop(id: String?, interrupted: Boolean) { main.post { finish(null, "TTS synthesis stopped") } }
+                            })
+                            val rc = engine.synthesizeToFile(text, Bundle(), out, "probe")
+                            if (rc != TextToSpeech.SUCCESS) finish(null, "synthesizeToFile returned $rc")
+                        } catch (e: Exception) {
+                            finish(null, "TTS synthesis failed: ${e.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                main.post { finish(null, "TTS init failed: ${e.message}") }
+            }
+            return cancellation
         }
 
         /** The PCM of a canonical 16-bit WAV, wherever its fmt and data chunks sit. */

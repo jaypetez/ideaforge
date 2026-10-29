@@ -1,9 +1,11 @@
 package io.github.jaypetez.ideaforge.probe
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.os.Looper
 import android.speech.RecognitionListener
+import android.speech.tts.TextToSpeech
 import android.content.pm.PackageManager
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -14,9 +16,12 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.usableRing
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,6 +29,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowPowerManager
+import org.robolectric.shadows.ShadowTextToSpeech
 import java.io.File
 import java.time.Duration
 
@@ -196,6 +203,229 @@ class RecognizerProbeTest {
         assertTrue(ProbeRunner.text().contains("no end callback 5 s after stopListening"))
     }
 
+    private val ttsInstances = mutableListOf<TextToSpeech>()
+
+    @After
+    fun releaseSyntheticPreparations() {
+        ttsInstances.forEach {
+            it.shutdown()
+            shadowOf(it).lastSynthesizeToFile?.delete()
+        }
+    }
+
+    private fun createdTts(): ShadowTextToSpeech =
+        ShadowTextToSpeech.getLastTextToSpeechInstance().let { tts ->
+            ttsInstances += tts
+            shadowOf(tts)
+        }
+
+    private fun heldSynthesis(): ShadowTextToSpeech =
+        createdTts().also {
+            it.onInitListener.onInit(TextToSpeech.SUCCESS)
+            advance(0)
+            assertNotNull("synthesis did not reach its output file", it.lastSynthesizeToFile)
+        }
+
+    private fun completeSynthesis(tts: ShadowTextToSpeech, sample: Byte, rate: Int = 24_000) {
+        tts.lastSynthesizeToFile.writeBytes(wav(byteArrayOf(sample, 0, sample, 0), rate))
+        tts.utteranceProgressListener.onDone("probe")
+        advance(0)
+    }
+
+    @Test
+    fun aCancelledTtsFailureCannotFinishTheReplacementTrial() = withFakeEngines { engines ->
+        ProbeRunner.start(app, TrialConfig(ttsPhrase = "cancelled failure"))
+        val old = heldSynthesis()
+        ProbeRunner.cancel()
+        ProbeRunner.start(app, TrialConfig(wakeLock = true, foregroundService = true))
+        advance(10)
+        val activeWakeLock = ShadowPowerManager.getLatestWakeLock()
+        assertTrue(activeWakeLock.isHeld)
+        old.utteranceProgressListener.onError("probe", TextToSpeech.ERROR)
+        advance(0)
+        assertTrue("a retired failure ended the replacement trial", ProbeRunner.running.value)
+        assertEquals(listOf("start"), engines.single().calls)
+        assertTrue("a retired failure released the replacement wake lock", activeWakeLock.isHeld)
+        val application = shadowOf(app as Application)
+        assertNull("a retired failure stopped the replacement service", application.nextStoppedService)
+        ProbeRunner.cancel()
+        assertFalse(activeWakeLock.isHeld)
+        assertEquals(ProbeMicService::class.java.name, application.nextStoppedService.component!!.className)
+    }
+
+    @Test
+    fun aCancelledTtsSuccessCannotBeginOrReplaceTheNextPreparation() = withFakeEngines { engines ->
+        for (oldFinishesLast in listOf(false, true)) {
+            ProbeRunner.start(app, TrialConfig(ttsPhrase = "cancelled success $oldFinishesLast", delayMs = 500))
+            val old = heldSynthesis()
+            ProbeRunner.cancel()
+            ProbeRunner.start(app, TrialConfig(ttsPhrase = "current success $oldFinishesLast", delayMs = 5_000))
+            val current = heldSynthesis()
+            try {
+                if (oldFinishesLast) completeSynthesis(current, 2)
+                val before = ProbeRunner.lines.value
+                completeSynthesis(old, 1, 16_000)
+                assertEquals("a retired success changed the replacement trial", before, ProbeRunner.lines.value)
+                advance(600)
+                assertTrue("a retired preparation started the replacement recognizer", engines.isEmpty())
+                if (!oldFinishesLast) completeSynthesis(current, 2)
+                assertTrue(ProbeRunner.running.value)
+                assertTrue(ProbeRunner.text().contains("24000 Hz, 1 ch"))
+            } finally {
+                ProbeRunner.cancel()
+            }
+        }
+    }
+
+    @Test
+    fun aQueuedTtsCompletionCannotBorrowTheReplacementTrial() = withFakeEngines { engines ->
+        for (success in listOf(false, true)) {
+            ProbeRunner.start(app, TrialConfig(ttsPhrase = "queued $success", delayMs = 500))
+            val old = heldSynthesis()
+            if (success) {
+                old.lastSynthesizeToFile.writeBytes(wav(byteArrayOf(1, 0, 1, 0)))
+                old.utteranceProgressListener.onDone("probe")
+            } else old.utteranceProgressListener.onError("probe", TextToSpeech.ERROR)
+            // Deliver the native result, but leave the runner's callback queued across Cancel.
+            shadowOf(Looper.getMainLooper()).runOneTask()
+            assertTrue(old.isShutdown)
+            ProbeRunner.cancel()
+            ProbeRunner.start(app, TrialConfig(delayMs = 2_000))
+            val before = ProbeRunner.lines.value
+            advance(600)
+            assertEquals("a queued result changed the replacement trial", before, ProbeRunner.lines.value)
+            assertTrue(ProbeRunner.running.value)
+            val starts = engines.size
+            advance(1_400)
+            assertEquals("the replacement's own delayed start still runs", starts + 1, engines.size)
+            ProbeRunner.cancel()
+        }
+    }
+
+    @Test
+    fun overlappingTtsPreparationsKeepTheirOwnOutputBytes() {
+        val results = mutableMapOf<String, TtsClip?>()
+        val firstRequest = TtsClip.synthesize(app, "first") { clip, _ -> results["first"] = clip }
+        val first = heldSynthesis()
+        val secondRequest = TtsClip.synthesize(app, "second") { clip, _ -> results["second"] = clip }
+        val second = heldSynthesis()
+        try {
+            assertNotEquals("concurrent TTS requests share an output file", first.lastSynthesizeToFile, second.lastSynthesizeToFile)
+            first.lastSynthesizeToFile.writeBytes(wav(byteArrayOf(1, 0, 1, 0), 16_000))
+            second.lastSynthesizeToFile.writeBytes(wav(byteArrayOf(2, 0, 2, 0)))
+            second.utteranceProgressListener.onDone("probe")
+            first.utteranceProgressListener.onDone("probe")
+            advance(0)
+            assertEquals(listOf<Byte>(1, 0, 1, 0), results["first"]?.pcm?.toList())
+            assertEquals(16_000, results["first"]?.sampleRate)
+            assertEquals(listOf<Byte>(2, 0, 2, 0), results["second"]?.pcm?.toList())
+            assertEquals(24_000, results["second"]?.sampleRate)
+            assertTrue(first.isShutdown)
+            assertTrue(second.isShutdown)
+            assertFalse(first.lastSynthesizeToFile.exists())
+            assertFalse(second.lastSynthesizeToFile.exists())
+        } finally {
+            firstRequest.cancel()
+            secondRequest.cancel()
+        }
+    }
+
+    @Test
+    fun cancellingOneTtsRequestDoesNotRemoveAnotherRequestsOutput() {
+        val results = mutableListOf<TtsClip?>()
+        val firstRequest = TtsClip.synthesize(app, "cancel this") { clip, _ -> results += clip }
+        val first = heldSynthesis()
+        val secondRequest = TtsClip.synthesize(app, "keep this") { clip, _ -> results += clip }
+        val second = heldSynthesis()
+        try {
+            second.lastSynthesizeToFile.writeBytes(wav(byteArrayOf(2, 0, 2, 0)))
+            firstRequest.cancel()
+            assertTrue(first.isShutdown)
+            assertFalse(first.lastSynthesizeToFile.exists())
+            assertFalse(second.isShutdown)
+            assertTrue(second.lastSynthesizeToFile.exists())
+            completeSynthesis(first, 1) // even a late writer owns only its retired output
+            assertTrue(results.isEmpty())
+            assertFalse(first.lastSynthesizeToFile.exists())
+            assertTrue(second.lastSynthesizeToFile.exists())
+            second.utteranceProgressListener.onDone("probe")
+            advance(0)
+            assertEquals(listOf<Byte>(2, 0, 2, 0), results.single()!!.pcm.toList())
+            assertFalse(second.lastSynthesizeToFile.exists())
+        } finally {
+            firstRequest.cancel()
+            secondRequest.cancel()
+        }
+    }
+
+    @Test
+    fun aCurrentTtsPreparationReturnsItsParsedClip() {
+        val results = mutableListOf<TtsClip?>()
+        TtsClip.synthesize(app, "current control") { clip, _ -> results += clip }
+        val current = heldSynthesis()
+        completeSynthesis(current, 3)
+        current.utteranceProgressListener.onError("probe", TextToSpeech.ERROR)
+        current.utteranceProgressListener.onDone("probe")
+        advance(0)
+        val result = results.single()
+        assertNotNull(result)
+        assertEquals(listOf<Byte>(3, 0, 3, 0), result!!.pcm.toList())
+        assertEquals(24_000, result.sampleRate)
+        assertTrue(current.isShutdown)
+        assertFalse(current.lastSynthesizeToFile.exists())
+    }
+
+    @Test
+    fun stoppingDuringTtsPreparationReleasesItWithoutStartingRecognition() = withFakeEngines { engines ->
+        ProbeRunner.start(app, TrialConfig(ttsPhrase = "stop before ready", wakeLock = true))
+        val current = heldSynthesis()
+        val wakeLock = ShadowPowerManager.getLatestWakeLock()
+        ProbeRunner.stopListening()
+        assertTrue(current.isShutdown)
+        assertFalse(current.lastSynthesizeToFile.exists())
+        completeSynthesis(current, 3)
+        advance(4_000)
+        assertTrue(engines.isEmpty())
+        assertTrue(ProbeRunner.running.value)
+        advance(1_000)
+        assertFalse(ProbeRunner.running.value)
+        assertFalse(wakeLock.isHeld)
+        assertTrue(ProbeRunner.text().contains("no end callback 5 s after stopListening"))
+    }
+
+    @Test
+    fun aCurrentTtsFailureStillFinishesAndCleansUpItsTrial() = withFakeEngines {
+        for (initFailure in listOf(true, false)) {
+            val before = app.cacheDir.listFiles()!!.toSet()
+            ProbeRunner.start(app, TrialConfig(ttsPhrase = "failed $initFailure", wakeLock = true))
+            val current = if (initFailure) createdTts() else heldSynthesis()
+            val wakeLock = ShadowPowerManager.getLatestWakeLock()
+            if (initFailure) current.onInitListener.onInit(TextToSpeech.ERROR)
+            else current.utteranceProgressListener.onDone("probe") // the shadow's text is not a WAV
+            advance(0)
+            assertFalse(ProbeRunner.running.value)
+            assertTrue(ProbeRunner.text().contains("finished: no audio"))
+            assertTrue(current.isShutdown)
+            assertFalse(wakeLock.isHeld)
+            assertEquals("failed preparation left its output behind", before, app.cacheDir.listFiles()!!.toSet())
+        }
+    }
+
+    @Test
+    fun cancellingBeforeTtsInitPreventsLateSynthesis() {
+        val before = app.cacheDir.listFiles()!!.toSet()
+        val results = mutableListOf<TtsClip?>()
+        val request = TtsClip.synthesize(app, "never start this") { clip, _ -> results += clip }
+        val current = createdTts()
+        request.cancel()
+        assertTrue(current.isShutdown)
+        current.onInitListener.onInit(TextToSpeech.SUCCESS)
+        advance(0)
+        assertNull(current.lastSynthesizeToFile)
+        assertTrue(results.isEmpty())
+        assertEquals(before, app.cacheDir.listFiles()!!.toSet())
+    }
+
     @Test
     fun aReportDuringATrialKeepsTheTrialClock() = withFakeEngines {
         ProbeRunner.start(app, TrialConfig()); advance(10)
@@ -248,14 +478,18 @@ class RecognizerProbeTest {
     fun aParsedWavKeepsItsFormat() {
         // 44-byte canonical header, 24 kHz mono 16-bit, four samples.
         val data = byteArrayOf(1, 0, 2, 0, 3, 0, 4, 0)
-        val header = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN).apply {
-            put("RIFF".toByteArray()); putInt(36 + data.size); put("WAVE".toByteArray())
-            put("fmt ".toByteArray()); putInt(16); putShort(1); putShort(1); putInt(24_000); putInt(48_000); putShort(2); putShort(16)
-            put("data".toByteArray()); putInt(data.size)
-        }.array()
-        val clip = TtsClip.parseWav(header + data)
+        val clip = TtsClip.parseWav(wav(data))
         assertEquals(24_000, clip.sampleRate)
         assertEquals(1, clip.channels)
         assertEquals(data.toList(), clip.pcm.toList())
+    }
+
+    private fun wav(data: ByteArray, rate: Int = 24_000): ByteArray {
+        val header = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN).apply {
+            put("RIFF".toByteArray()); putInt(36 + data.size); put("WAVE".toByteArray())
+            put("fmt ".toByteArray()); putInt(16); putShort(1); putShort(1); putInt(rate); putInt(rate * 2); putShort(2); putShort(16)
+            put("data".toByteArray()); putInt(data.size)
+        }.array()
+        return header + data
     }
 }
