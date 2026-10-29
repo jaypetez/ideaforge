@@ -37,12 +37,20 @@ export function backupFilename(now = 0) {
 }
 
 export function buildBackup(sessions, { now = 0 } = {}) {
-  return JSON.stringify({
+  const list = Array.isArray(sessions) ? sessions : [];
+  if (list.length > MAX_BACKUP_SESSIONS) {
+    throw new Error(`The backup contains more than ${MAX_BACKUP_SESSIONS} sessions. No backup was created; your ideas are unchanged.`);
+  }
+  const text = JSON.stringify({
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: now,
-    sessions: Array.isArray(sessions) ? sessions : [],
+    sessions: list,
   }, null, 2) + '\n';
+  if (utf8Bytes(text) > MAX_BACKUP_BYTES) {
+    throw new Error(`The backup is larger than ${Math.round(MAX_BACKUP_BYTES / 1024 / 1024)} MB. No backup was created; your ideas are unchanged.`);
+  }
+  return text;
 }
 
 export function parseBackup(source, {

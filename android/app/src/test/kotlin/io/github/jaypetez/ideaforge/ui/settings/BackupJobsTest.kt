@@ -11,8 +11,12 @@ import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -116,5 +120,33 @@ class BackupJobsTest {
         assertEquals("0 imported · 0 kept as copies · 3 duplicates skipped · 1 invalid rows skipped", state.message)
         assertEquals(3, store.sessions.value.size)
         assertTrue(store.sessions.value.none { stringOf(it["name"]).orEmpty().endsWith("(imported)") })
+    }
+
+    @Test
+    fun cancellingPreparationStandsDownBeforeThePickerAndAllowsTheNextJob() = runBlocking {
+        val jobs = BackupJobs(scope)
+        val preparing = CompletableDeferred<Unit>()
+        val complete = CompletableDeferred<Unit>()
+        var pickerOpened = false
+        val caller = launch {
+            jobs.prepare {
+                preparing.complete(Unit)
+                complete.await()
+                "ready"
+            }?.let { pickerOpened = true }
+        }
+        preparing.await()
+        assertTrue(jobs.state.value.busy)
+
+        caller.cancelAndJoin()
+        complete.complete(Unit)
+
+        assertFalse(pickerOpened)
+        assertFalse(jobs.state.value.busy)
+        assertEquals(null, jobs.state.value.message)
+        jobs.launch { "A later job completed." }.join()
+        assertFalse(jobs.state.value.failed)
+        assertFalse(jobs.state.value.busy)
+        assertEquals("A later job completed.", jobs.state.value.message)
     }
 }

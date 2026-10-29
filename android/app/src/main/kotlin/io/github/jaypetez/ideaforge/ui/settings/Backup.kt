@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -24,6 +25,7 @@ import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as Out
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
 import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import kotlinx.coroutines.launch
 
 object BackupTags {
     const val EXPORT = "backup-export"
@@ -46,8 +48,9 @@ private val IMPORT_TYPES = arrayOf("application/json", "text/*", "application/oc
 @Composable
 fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) vm.export(uri)
+        vm.export(uri)
     }
     val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.import(uri)
@@ -63,7 +66,12 @@ fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Fact
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedButton(
-                onClick = { create.launch(vm.exportFilename()) },
+                onClick = {
+                    scope.launch {
+                        val filename = vm.prepareExport() ?: return@launch
+                        try { create.launch(filename) } catch (e: Exception) { vm.exportPickerFailed(e) }
+                    }
+                },
                 enabled = !state.busy,
                 busy = state.busy,
                 modifier = Modifier.testTag(BackupTags.EXPORT),

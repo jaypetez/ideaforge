@@ -649,6 +649,22 @@ function roundTripBackup(source, { now = 0 } = {}) {
   return buildBackup(parseBackup(source).sessions, { now });
 }
 
+// Expand boundary inputs at replay time rather than checking in multi-megabyte backups.
+function backupBoundary(count, bytes = 0) {
+  const sessions = Array.from({ length: count }, (_, i) =>
+    createSession({ id: `s_limit_${i}`, now: 0 }));
+  if (bytes) {
+    const room = bytes - utf8Length(buildBackup(sessions));
+    sessions[0].draftAnswer = '😀'.repeat(Math.floor(room / 4)) + 'x'.repeat(room % 4);
+  }
+  const text = buildBackup(sessions);
+  const parsed = parseBackup(text);
+  return {
+    bytes: utf8Length(text), count: parsed.sessions.length, skipped: parsed.skipped,
+    unchanged: sessionsEqual(sessions, parsed.sessions),
+  };
+}
+
 async function backupFamily() {
   const { final, snapshots } = await walkthrough();
   const mid = snapshots.find(([l]) => l === 'answered-3')[1];
@@ -667,6 +683,10 @@ async function backupFamily() {
     rec('backupFilename zero', backupFilename, 0),
     rec('buildBackup', buildBackup, [final, mid], { now: tick(5) }),
     rec('buildBackup empty', buildBackup, [], { now: 0 }),
+    rec('buildBackup session limit round trip', backupBoundary, backupModule.MAX_BACKUP_SESSIONS),
+    rec('buildBackup session limit plus one refuses export', backupBoundary, backupModule.MAX_BACKUP_SESSIONS + 1),
+    rec('buildBackup UTF-8 byte limit round trip', backupBoundary, 1, backupModule.MAX_BACKUP_BYTES),
+    rec('buildBackup UTF-8 byte limit plus one refuses export', backupBoundary, 1, backupModule.MAX_BACKUP_BYTES + 1),
     rec('parseBackup round trip', parseBackup, backup),
     rec('parseBackup empty', parseBackup, '   '),
     rec('parseBackup not json', parseBackup, '{nope'),

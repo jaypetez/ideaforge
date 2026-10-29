@@ -16,18 +16,23 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
+import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
+import io.github.jaypetez.ideaforge.core.MAX_BACKUP_BYTES
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.usableRing
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -43,10 +48,11 @@ class SettingsScrollTest {
     val compose = createEmptyComposeRule()
 
     private lateinit var scenario: ActivityScenario<MainActivity>
+    private lateinit var graph: AppGraph
 
     @Before
     fun launch() {
-        installTestGraph(ring = usableRing())
+        graph = installTestGraph(ring = usableRing())
         scenario = ActivityScenario.launch(MainActivity::class.java)
         compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), timeoutMillis = 10_000)
     }
@@ -59,6 +65,18 @@ class SettingsScrollTest {
         compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
         compose.onNodeWithTag(BackupTags.IMPORT).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(BackupTags.EXPORT).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun anOversizeBackupShowsItsErrorWithoutLaunchingTheDocumentPicker() {
+        compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+        runBlocking { graph.sessionStore.save(backupSizedIdea(MAX_BACKUP_BYTES + 1, graph.clock.now())) }
+        compose.onNodeWithTag(BackupTags.EXPORT).performScrollTo().performClick()
+        compose.waitUntil(10_000) { graph.backupJobs.state.value.failed }
+        compose.onNodeWithTag(BackupTags.STATUS).performScrollTo().assertIsDisplayed()
+        assertTrue(graph.backupJobs.state.value.message.orEmpty().contains("No backup was created"))
+        scenario.onActivity { assertNull("SAF must not create an empty file", shadowOf(it).nextStartedActivityForResult) }
+        assertFalse(graph.backupJobs.state.value.busy)
     }
 
     @Test
