@@ -94,6 +94,68 @@ class NativeTranscriptTest {
         assertEquals("I want to make a game like Tetris but slower", t.snapshot().text)
     }
 
+    @Test
+    fun replayTrimmingKeepsUnreplayedWordsInsideHyphenatedText() {
+        val t = NativeTranscript()
+        t.final("We need a well")
+        t.endSession()
+        t.partial("a well-known", " draft")
+        assertEquals("We need a well known draft", t.snapshot().text)
+        assertEquals("We need a well known", t.snapshot().stableText)
+        assertEquals("We need a well", t.snapshot().finals)
+        t.partial("a well-known design")
+        assertEquals("We need a well known design", t.snapshot().text)
+        t.final("a well-known design")
+        assertEquals("We need a well known design", t.snapshot().finals)
+        assertTrue(t.snapshot().settled)
+        t.endSession()
+        t.final("known design")
+        assertEquals("We need a well known design", t.snapshot().text, "a repeated suffix adds no words")
+        t.endSession()
+        t.final("We need a well-known design")
+        assertEquals("We need a well-known design", t.snapshot().text, "whole-result absorption is unchanged")
+    }
+
+    @Test
+    fun replayTrimmingPreservesTheRawUnreplayedSuffix() {
+        val cases = listOf(
+            Triple("We need a well", "a well-Known—Design, Café’s  route!",
+                "We need a well Known—Design, Café’s  route!"),
+            Triple("I said we're ready", "WE’RE-ready/Préparés…  Let's go!",
+                "I said we're ready Préparés…  Let's go!"),
+        )
+        for ((before, after, expected) in cases) {
+            val t = NativeTranscript()
+            t.final(before)
+            t.endSession()
+            t.final(after)
+            assertEquals(expected, t.snapshot().text, after)
+        }
+    }
+
+    @Test
+    fun replayTrimmingUsesOriginalOffsetsWhenComparisonTextChangesLength() {
+        val cases = listOf(
+            Triple("We met at Café", "AT Cafe\u0301-São—Paulo,  demain!",
+                "We met at Café São—Paulo,  demain!"),
+            Triple("The label is No", "IS №-NEW  label.",
+                "The label is No NEW  label."),
+            Triple("The ratio is 1 4", "¼-Known  fraction.",
+                "The ratio is 1 4 Known  fraction."),
+            Triple("We read less than", "less <\u0338 than-Known  text!",
+                "We read less than Known  text!"),
+            Triple("We need a well", "a ｗｅｌｌ-𐐀lpha’s  design!",
+                "We need a well 𐐀lpha’s  design!"),
+        )
+        for ((before, after, expected) in cases) {
+            val t = NativeTranscript()
+            t.final(before)
+            t.endSession()
+            t.final(after)
+            assertEquals(expected, t.snapshot().text, after)
+        }
+    }
+
     // Nothing is dropped for being shorter: "over" alone after "over the years we grew" and a
     // single repeated word across a restart are both speech, not replays.
     @Test

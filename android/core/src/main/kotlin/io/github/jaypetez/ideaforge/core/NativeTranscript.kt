@@ -44,14 +44,18 @@ private const val MIN_REPLAY_WORDS = 2
 private val NOT_WORD = Regex("[^\\p{L}\\p{M}\\p{N}]+")
 private val APOSTROPHES = Regex("['’]")
 private val SPACE_RUN = Regex("\\s+")
+private val GRAPHEME = Regex("\\X")
+private val CHARACTER = Regex(".", RegexOption.DOT_MATCHES_ALL)
+
+private fun comparisonText(text: String): String =
+    APOSTROPHES.replace(jsLower(Normalizer.normalize(text, Normalizer.Form.NFKC)), "")
 
 /**
  * Words for COMPARING results, never for output: the web's wordsOf. On-device capitalises
  * one partial ("We went over") and not the next, so comparison ignores case and punctuation.
  */
 fun transcriptWords(text: String?): List<String> {
-    val folded = jsLower(Normalizer.normalize(text ?: "", Normalizer.Form.NFKC))
-    return jsTrim(NOT_WORD.replace(APOSTROPHES.replace(folded, ""), " "))
+    return jsTrim(NOT_WORD.replace(comparisonText(text ?: ""), " "))
         .split(' ')
         .filter { it.isNotEmpty() }
 }
@@ -202,14 +206,24 @@ private fun place(kept: MutableList<Seg>, seg: Seg) {
 
 /** [text] without its first [n] comparison words, keeping the rest as written. */
 private fun dropLeadingWords(text: String, n: Int): String {
-    val tokens = jsTrim(text).split(SPACE_RUN)
     var seen = 0
-    var i = 0
-    while (i < tokens.size && seen < n) {
-        seen += transcriptWords(tokens[i]).size
-        i++
+    var inWord = false
+    // A whitespace token can contain new words after the replay ("well-known"). Map word
+    // starts to original graphemes: NFKC can expand characters or compose a base and mark.
+    for (source in GRAPHEME.findAll(text)) {
+        for (part in CHARACTER.findAll(comparisonText(source.value))) {
+            if (NOT_WORD.matches(part.value)) {
+                inWord = false
+            } else {
+                if (!inWord) {
+                    if (seen == n) return text.substring(source.range.first)
+                    seen++
+                }
+                inWord = true
+            }
+        }
     }
-    return tokens.drop(i).joinToString(" ")
+    return ""
 }
 
 /**
