@@ -52,9 +52,17 @@ The shared skills are:
   a green `ci` check.
 - `ideaforge-assist` for explicit Lite, Full, Ultra and Off session/default controls;
 - `audit-ideaforge-codebase` for an explicitly requested, read-only map-first audit;
+- `audit-android-app` for an explicitly requested native bug audit;
 - `ideaforge-debt` for a read-only shortcut/upgrade-trigger ledger;
 - `ideaforge-gain` for counted diff/debt facts, not invented savings;
 - `ideaforge-assist-help` for the source-linked process reference.
+
+Invoke [`/audit-android-app`](.claude/skills/audit-android-app/SKILL.md) for a main-only,
+report-only Android scan using source review, existing tests and available device evidence.
+It reuses the shared audit criteria and `android-verify`, reports every confirmed,
+deduplicated root cause without a cap, and discloses missing runtime/physical evidence.
+It does not fix the app, file issues or resume backlog work. The general audit's existing
+20-finding cap is unchanged.
 
 The review agents are thin client adapters around the two shared review skills. They
 deliberately have no shell or edit tool, so supply an attached/pasted diff or readable

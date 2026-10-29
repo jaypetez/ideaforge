@@ -17,6 +17,7 @@ All shared procedures have one definition under `.claude/skills/`:
 |---|---|
 | [`ideaforge-assist`](../.claude/skills/ideaforge-assist/SKILL.md) | Explicit mode/default/reset control |
 | [`audit-ideaforge-codebase`](../.claude/skills/audit-ideaforge-codebase/SKILL.md) | Explicit, read-only map-first audit |
+| [`audit-android-app`](../.claude/skills/audit-android-app/SKILL.md) | Explicit native source/test/device audit; report only |
 | [`ideaforge-debt`](../.claude/skills/ideaforge-debt/SKILL.md) | Shortcut decisions and upgrade triggers |
 | [`ideaforge-gain`](../.claude/skills/ideaforge-gain/SKILL.md) | Reproducible local comparison facts |
 | [`ideaforge-assist-help`](../.claude/skills/ideaforge-assist-help/SKILL.md) | Read-only one-shot help body |
@@ -35,7 +36,7 @@ Implementation owners are separate from the shared procedures:
 | [Copilot extension entry](../.github/extensions/ideaforge-assist/extension.mjs) | Joins a supported foreground session when the native extension host loads it |
 
 There are no copied skills in `.github/skills`, symlinks or client-specific rule copies.
-The two explicitly invoked control/audit skills declare `disable-model-invocation: true`;
+The explicitly invoked control/audit skills declare `disable-model-invocation: true`;
 no shared skill pre-approves tools or chooses a model. Client trust, policy and approvals
 still apply. One-shot review, audit, debt, gain and help do not select or latch a mode.
 Their read-only bodies are separate from
@@ -352,6 +353,16 @@ A symbol appearing in a map does not mean it has been read or is safe to reuse u
 an explicitly requested repository/path scope and map, traces main flows, derives realistic
 load, and reports at most 20 high-confidence concrete findings with coverage and not-read
 boundaries. It never implements findings automatically.
+
+[`/audit-android-app`](../.claude/skills/audit-android-app/SKILL.md) is the native
+specialization: main-only and report-only by default, with source review, existing tests
+and available device evidence. It reuses the same defect criteria and
+[`android-verify`](../.claude/skills/android-verify/SKILL.md), reports all confirmed,
+deduplicated roots without a cap, and leaves the general audit's cap unchanged.
+Source-only reasoning, actual runtime reproductions, known duplicates and failed fixture
+preparation stay separate. Selected execution, artifact provenance and images actually
+read are evidence; dispatch or screenshot counts alone are not. Missing physical/live/API
+checks remain explicit, and the audit never fixes the app or files findings automatically.
 
 It references the [shared defect criteria](../.claude/skills/review-ideaforge-change/SKILL.md#scale-races-test-quality-and-reuse),
 not another copy. The existing diff review remains an exact supplied-change-set procedure;
