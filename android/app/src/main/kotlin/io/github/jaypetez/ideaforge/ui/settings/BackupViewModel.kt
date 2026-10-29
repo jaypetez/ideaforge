@@ -248,8 +248,8 @@ class BackupJobs(private val scope: CoroutineScope) {
  * exported, as the browser does not export rows it cannot read. Backups contain sessions and
  * nothing else: this reads the session store only, never the keyring or preferences.
  *
- * The work and its state live in [jobs] (app-scoped, see [BackupJobs]); this only starts
- * jobs and shows their state.
+ * [jobs] serializes work and retains outcomes. Submitted writes/imports outlive the screen;
+ * preparation belongs to its visible caller, before it may open a document picker.
  */
 class BackupViewModel(
     private val store: SessionStore,

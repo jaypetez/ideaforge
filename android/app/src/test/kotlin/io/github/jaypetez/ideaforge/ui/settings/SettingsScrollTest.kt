@@ -1,5 +1,16 @@
 package io.github.jaypetez.ideaforge.ui.settings
 
+import android.content.Intent
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -16,6 +27,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.MAX_BACKUP_BYTES
@@ -23,8 +39,11 @@ import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.usableRing
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -77,6 +96,75 @@ class SettingsScrollTest {
         assertTrue(graph.backupJobs.state.value.message.orEmpty().contains("No backup was created"))
         scenario.onActivity { assertNull("SAF must not create an empty file", shadowOf(it).nextStartedActivityForResult) }
         assertFalse(graph.backupJobs.state.value.busy)
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h900dp", fontScale = 1f)
+    fun navigationRetiresHeldBackupPreparationBeforeTheOutgoingCompositionIsDisposed() {
+        val io = StandardTestDispatcher()
+        val vm = BackupViewModel(graph.sessionStore, FakeDocuments(), graph.clock, graph.idGen, graph.backupJobs, io)
+        var retained = false
+        var origin: Lifecycle? = null
+        scenario.onActivity { activity ->
+            activity.setContent {
+                val nav = rememberNavController()
+                MaterialTheme {
+                    NavHost(nav, startDestination = "backup", exitTransition = { fadeOut(tween(1000)) }) {
+                        composable("backup") {
+                            val owner = LocalLifecycleOwner.current
+                            DisposableEffect(owner) {
+                                origin = owner.lifecycle
+                                retained = true
+                                onDispose { retained = false }
+                            }
+                            Column {
+                                BackupSection(vm)
+                                Button(onClick = { nav.navigate("other") }, modifier = Modifier.testTag("backup-leave")) {
+                                    Text("Leave backup")
+                                }
+                            }
+                        }
+                        composable("other") {
+                            Button(onClick = { nav.popBackStack() }, modifier = Modifier.testTag("backup-return")) {
+                                Text("Return to backup")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertEquals(Lifecycle.State.RESUMED, origin?.currentState)
+        compose.onNodeWithTag(BackupTags.EXPORT).performClick()
+        assertTrue("serialization is held before the picker", vm.state.value.busy)
+        try {
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithTag("backup-leave").performClick()
+            compose.mainClock.advanceTimeByFrame()
+            assertTrue("the old coroutine scope has not been disposed", retained)
+            assertFalse("navigation has retired the destination", checkNotNull(origin).currentState.isAtLeast(Lifecycle.State.RESUMED))
+
+            io.scheduler.runCurrent()
+            compose.waitUntil(10_000) { !vm.state.value.busy }
+            scenario.onActivity {
+                assertNull("an outgoing destination must not open SAF", shadowOf(it).nextStartedActivityForResult)
+            }
+
+            compose.mainClock.autoAdvance = true
+            compose.waitForIdle()
+            compose.onNodeWithTag("backup-return").performClick()
+            compose.onNodeWithTag(BackupTags.EXPORT).performClick()
+            io.scheduler.runCurrent()
+            compose.waitUntil(10_000) { !vm.state.value.busy }
+            scenario.onActivity {
+                val request = shadowOf(it).nextStartedActivityForResult
+                assertNotNull("a fresh deliberate request still opens the picker", request)
+                assertEquals(Intent.ACTION_CREATE_DOCUMENT, request.intent.action)
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+            vm.export(null)
+        }
     }
 
     @Test

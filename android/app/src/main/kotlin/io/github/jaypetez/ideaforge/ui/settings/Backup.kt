@@ -11,7 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -19,12 +22,16 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.jaypetez.ideaforge.R
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeOutlinedButton as OutlinedButton
 import io.github.jaypetez.ideaforge.ui.components.IdeaForgeStatusText
 import io.github.jaypetez.ideaforge.ui.components.StatusTone
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 object BackupTags {
@@ -49,6 +56,9 @@ private val IMPORT_TYPES = arrayOf("application/json", "text/*", "application/oc
 fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var preparation by remember { mutableStateOf<Job?>(null) }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { preparation?.cancel() }
     val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         vm.export(uri)
     }
@@ -67,9 +77,17 @@ fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Fact
         FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedButton(
                 onClick = {
-                    scope.launch {
-                        val filename = vm.prepareExport() ?: return@launch
-                        try { create.launch(filename) } catch (e: Exception) { vm.exportPickerFailed(e) }
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        preparation = scope.launch {
+                            val filename = vm.prepareExport() ?: return@launch
+                            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                vm.export(null)
+                                return@launch
+                            }
+                            // The picker's own pause must keep the validated snapshot alive.
+                            preparation = null
+                            try { create.launch(filename) } catch (e: Exception) { vm.exportPickerFailed(e) }
+                        }
                     }
                 },
                 enabled = !state.busy,
