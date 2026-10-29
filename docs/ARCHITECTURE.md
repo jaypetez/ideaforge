@@ -415,8 +415,9 @@ the same file the web app reads and writes.
 
 [`NativeTranscript`](../android/core/src/main/kotlin/io/github/jaypetez/ideaforge/core/NativeTranscript.kt)
 is also native-specific: Android's whole partial hypotheses and final callbacks differ from
-the browser's per-index drafts. Restart replay compares normalized words, but slices the
-unreplayed suffix from the original text so new words, spelling and punctuation survive.
+the browser's per-index drafts. Restart replay compares normalized words, but splices at
+original-text boundaries so new words, spelling and leading punctuation survive. A Unicode
+normalization expansion crossing that boundary stays intact rather than being partly repeated.
 `NativeTranscriptTest` and `RecognizerTest` protect this behavior outside the shared JS
 vector families.
 

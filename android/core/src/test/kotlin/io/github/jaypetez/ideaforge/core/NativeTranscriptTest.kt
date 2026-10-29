@@ -134,6 +134,42 @@ class NativeTranscriptTest {
     }
 
     @Test
+    fun replayTrimmingRetainsLeadingPunctuationOnNewText() {
+        val cases = listOf(
+            Triple("The budget is", "budget is -5 dollars", "The budget is -5 dollars"),
+            Triple("The budget is", "budget\u00a0is\u00a0-5 dollars", "The budget is -5 dollars"),
+            Triple("The next words", "next words \"Don't stop!\"", "The next words \"Don't stop!\""),
+            Triple("The total is", "total is ( +5 ) dollars", "The total is ( +5 ) dollars"),
+        )
+        for ((before, after, expected) in cases) {
+            val t = NativeTranscript()
+            t.final(before)
+            t.endSession()
+            t.final(after)
+            assertEquals(expected, t.snapshot().text, after)
+        }
+    }
+
+    @Test
+    fun aReplayBoundaryInsideANormalizedGlyphKeepsTheWholeGlyphOnce() {
+        val cases = listOf(
+            Triple(listOf("The amount is 1"), "is ½ cup", "The amount is ½ cup"),
+            Triple(listOf("The amount is", "1"), "is ½ cup", "The amount is ½ cup"),
+            Triple(listOf("The portions are ¼"), "1 ⅘ trays", "The portions are 1 ⅘ trays"),
+        )
+        for ((before, after, expected) in cases) {
+            val t = NativeTranscript()
+            before.forEach { t.final(it) }
+            t.endSession()
+            t.partial(after)
+            assertEquals(expected, t.snapshot().text, after)
+            assertEquals(before.joinToString(" "), t.snapshot().finals, "a caption cannot edit the retained finals")
+            t.final(after)
+            assertEquals(expected, t.snapshot().finals, after)
+        }
+    }
+
+    @Test
     fun replayTrimmingUsesOriginalOffsetsWhenComparisonTextChangesLength() {
         val cases = listOf(
             Triple("We met at Café", "AT Cafe\u0301-São—Paulo,  demain!",
