@@ -77,7 +77,7 @@ fun BackupSection(vm: BackupViewModel = viewModel(factory = BackupViewModel.Fact
         FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
             OutlinedButton(
                 onClick = {
-                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    if (preparation?.isActive != true && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         preparation = scope.launch {
                             val filename = vm.prepareExport() ?: return@launch
                             if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {

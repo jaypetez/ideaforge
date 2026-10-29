@@ -26,6 +26,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ActivityScenario
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -165,6 +166,37 @@ class SettingsScrollTest {
             compose.mainClock.autoAdvance = true
             vm.export(null)
         }
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h900dp", fontScale = 1f)
+    fun duplicateActivationCannotHidePreparationFromPauseAndResume() {
+        val io = StandardTestDispatcher()
+        val vm = BackupViewModel(graph.sessionStore, FakeDocuments(), graph.clock, graph.idGen, graph.backupJobs, io)
+        scenario.onActivity { activity ->
+            activity.setContent { MaterialTheme { BackupSection(vm) } }
+        }
+        compose.onNodeWithTag(BackupTags.EXPORT).performSemanticsAction(SemanticsActions.OnClick) { click ->
+            click()
+            click()
+        }
+        assertTrue(vm.state.value.busy)
+
+        scenario.moveToState(Lifecycle.State.STARTED)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        io.scheduler.runCurrent()
+        compose.waitUntil(10_000) { !vm.state.value.busy }
+        scenario.onActivity {
+            assertNull("Pause must retire the original request even after duplicate activation", shadowOf(it).nextStartedActivityForResult)
+        }
+
+        compose.onNodeWithTag(BackupTags.EXPORT).performClick()
+        io.scheduler.runCurrent()
+        compose.waitUntil(10_000) { !vm.state.value.busy }
+        scenario.onActivity {
+            assertEquals(Intent.ACTION_CREATE_DOCUMENT, shadowOf(it).nextStartedActivityForResult?.intent?.action)
+        }
+        vm.export(null)
     }
 
     @Test
