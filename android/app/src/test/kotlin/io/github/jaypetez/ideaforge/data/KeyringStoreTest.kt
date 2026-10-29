@@ -5,8 +5,13 @@ import io.github.jaypetez.ideaforge.core.migrateCredentials
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.core.withStt
 import io.github.jaypetez.ideaforge.core.withTts
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -88,6 +93,83 @@ class KeyringStoreTest {
         assertEquals(KeyringState.Status.STORED, loaded.status)
         assertEquals(ring, loaded.ring)
         assertEquals(apiKey, loaded.ring["byKind"]!!.jsonObject["anthropic"]!!.jsonObject["apiKey"]!!.let { (it as JsonPrimitive).content })
+    }
+
+    @Test
+    fun aBranchUpdateLoadsTheDurableRingAndAFailedWriteDoesNotPoisonTheNextUpdate() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        val before = file.readBytes()
+        var fail = true
+        val s = KeyringStore(file, key, io = Dispatchers.Unconfined, writer = { target, bytes ->
+            if (fail) throw java.io.IOException("controlled credential write failure")
+            writeAtomically(target, bytes)
+        })
+        val generation = s.generation.value
+        val failure = runCatching { s.saveIf(generation) { withStt(it, obj("kind" to "openai", "apiKey" to "unsaved-stt")) } }.exceptionOrNull()
+        assertTrue(failure is java.io.IOException)
+        assertEquals(ring, s.state.value.ring)
+        assertArrayEquals(before, file.readBytes())
+
+        fail = false
+        val expected = withCreds(ring, "groq", obj("apiKey" to "synthetic-new-provider"))
+        assertEquals(expected, s.saveIf(generation) { withCreds(it, "groq", obj("apiKey" to "synthetic-new-provider")) }?.ring)
+        assertEquals(expected, store(key).load().ring)
+    }
+
+    @Test
+    fun aBranchUpdateRefusesUnreadableDataUnlessThisOperationConfirmsReplacement() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        val before = file.readBytes()
+        val replacementKey = SoftwareKey(SoftwareKey.fresh())
+        val s = store(replacementKey)
+        var transformed = false
+        val refused = s.saveIf(s.generation.value) { transformed = true; withStt(it, null) }
+        assertEquals(KeyringState.Status.UNREADABLE, refused?.status)
+        assertFalse(transformed)
+        assertArrayEquals(before, file.readBytes())
+        assertEquals(ring, store(key).load().ring)
+
+        val expected = withCreds(emptyKeyring(), "groq", obj("apiKey" to "synthetic-replacement"))
+        val saved = s.saveIf(s.generation.value, replaceUnreadable = true) {
+            withCreds(it, "groq", obj("apiKey" to "synthetic-replacement"))
+        }
+        assertEquals(expected, saved?.ring)
+        assertEquals(expected, store(replacementKey).load().ring)
+    }
+
+    @Test
+    fun forgetRetiringAReadPreventsItsBranchMutation() = runBlocking {
+        val key = SoftwareKey()
+        store(key).save(ring)
+        val before = file.readBytes()
+        lateinit var s: KeyringStore
+        s = KeyringStore(file, key, io = Dispatchers.Unconfined, reader = {
+            it.readBytes().also { s.revoke() }
+        })
+        var transformed = false
+        assertNull(s.saveIf(s.generation.value) { transformed = true; withStt(it, null) })
+        assertFalse(transformed)
+        assertArrayEquals(before, file.readBytes())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun aCancelledQueuedBranchUpdateNeverRuns() = runTest {
+        val key = SoftwareKey()
+        val s = KeyringStore(file, key, io = StandardTestDispatcher(testScheduler))
+        s.save(ring)
+        val loading = launch(start = CoroutineStart.UNDISPATCHED) { s.load() }
+        var transformed = false
+        val queued = launch(start = CoroutineStart.UNDISPATCHED) {
+            s.saveIf(s.generation.value) { transformed = true; withStt(it, null) }
+        }
+        queued.cancel()
+        loading.join()
+        queued.join()
+        assertFalse(transformed)
+        assertEquals(ring, store(key).load().ring)
     }
 
     @Test

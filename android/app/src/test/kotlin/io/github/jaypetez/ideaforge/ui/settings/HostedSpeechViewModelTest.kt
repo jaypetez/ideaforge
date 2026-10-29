@@ -2,14 +2,20 @@ package io.github.jaypetez.ideaforge.ui.settings
 
 import io.github.jaypetez.ideaforge.FakeCheck
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import io.github.jaypetez.ideaforge.core.credsFor
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.core.withStt
+import io.github.jaypetez.ideaforge.data.InferenceConsent
+import io.github.jaypetez.ideaforge.data.KeyringState
 import io.github.jaypetez.ideaforge.data.KeyringStore
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SoftwareKey
+import io.github.jaypetez.ideaforge.data.writeAtomically
+import io.github.jaypetez.ideaforge.ui.onboarding.OnboardingViewModel
 import io.github.jaypetez.ideaforge.voice.SpeakFailure
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.SpeakStatus
@@ -42,6 +48,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * The hosted-speech gate in Settings, against a real KeyringStore and prefs in memory. The
@@ -71,7 +79,12 @@ class HostedSpeechViewModelTest {
     private var hold: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     private val revokes = mutableListOf<String>()
     private val prefs = PrefsStore(MemoryDataStore())
-    private val keyring by lazy { KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, SoftwareKey()) }
+    private val key = SoftwareKey()
+    @Volatile private var writer: (File, ByteArray) -> Unit = ::writeAtomically
+    private val keyring by lazy {
+        KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, key,
+            writer = { file, bytes -> writer(file, bytes) })
+    }
     private val store = ViewModelStore()
     private val vm by lazy {
         runBlocking {
@@ -103,6 +116,128 @@ class HostedSpeechViewModelTest {
         consentAll()
         join(vm.checkAndPreview())
         settle { it.enabled }
+    }
+
+    private fun independentSaves(): SettingsViewModel {
+        vm.state
+        runBlocking {
+            keyring.save(withCreds(keyring.state.value.ring, "anthropic",
+                JsonObject(mapOf("apiKey" to JsonPrimitive("synthetic-other-provider")))))
+        }
+        val inference = InferenceConsent(prefs, { keyring.state.value.ring }, vm.viewModelScope)
+        val settings = SettingsViewModel(prefs, keyring, FakeCheck(), inference).also { store.put("settings", it) }
+        settings.pickProvider("openai")
+        settings.setApiKey("synthetic-new-inference")
+        settings.setAgreement(true)
+        vm.setSttKind("groq")
+        vm.setSttKey("synthetic-transcription")
+        join(vm.chooseHosted(true))
+        vm.setKey(SPEECH)
+        consentAll()
+        return settings
+    }
+
+    private fun overlapping(vararg saves: () -> Job?, whileHeld: () -> Job? = { null }) {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val jobs = mutableListOf<Job?>()
+        var first = true
+        writer = { file, bytes ->
+            if (first) {
+                first = false
+                entered.countDown()
+                check(release.await(10, TimeUnit.SECONDS)) { "held credential write was not released" }
+            }
+            writeAtomically(file, bytes)
+        }
+        try {
+            jobs += saves.first().invoke()
+            assertTrue("the first real writer is held before durability", entered.await(10, TimeUnit.SECONDS))
+            saves.drop(1).forEach { jobs += it() }
+            jobs += whileHeld()
+        } finally {
+            release.countDown()
+            jobs.forEach(::join)
+            writer = ::writeAtomically
+        }
+    }
+
+    private fun assertIndependentSaves() = runBlocking {
+        val loaded = KeyringStore(keyring.file, key).load()
+        assertEquals(KeyringState.Status.STORED, loaded.status)
+        assertEquals("synthetic-new-inference", stringOf(credsFor(loaded.ring, "openai")["apiKey"]))
+        assertEquals("synthetic-other-provider", stringOf(credsFor(loaded.ring, "anthropic")["apiKey"]))
+        assertEquals("openai", stringOf(loaded.ring["active"]))
+        assertEquals("synthetic-transcription", stringOf(loaded.ring["stt"]["apiKey"]))
+        assertEquals(SPEECH, stringOf(loaded.ring["tts"]["apiKey"]))
+        assertEquals(JsonPrimitive(true), loaded.ring["tts"]["verified"])
+        assertEquals("memory must describe the durable merged ring", loaded.ring, ring())
+    }
+
+    @Test
+    fun overlappingIndependentSavesMustKeepTheNewConnection() {
+        val settings = independentSaves()
+        overlapping(settings::save, vm::saveTranscription, vm::checkAndPreview)
+        assertIndependentSaves()
+    }
+
+    @Test
+    fun reorderedSpeechTranscriptionAndConnectionSavesKeepAllBranches() {
+        val settings = independentSaves()
+        overlapping(vm::checkAndPreview, vm::saveTranscription, settings::save)
+        assertIndependentSaves()
+    }
+
+    @Test
+    fun onboardingKeepsQueuedSpeechWritesAndUneditedProviderModels() {
+        independentSaves()
+        runBlocking {
+            keyring.save(withCreds(keyring.state.value.ring, "openai",
+                JsonObject(mapOf("apiKey" to JsonPrimitive(INFERENCE), "wrapModel" to JsonPrimitive("saved-wrap-model")))))
+        }
+        val inference = InferenceConsent(prefs, { keyring.state.value.ring }, vm.viewModelScope)
+        val onboarding = OnboardingViewModel(keyring, FakeCheck(), inference).also { store.put("onboarding", it) }
+        onboarding.pick("openai")
+        onboarding.setApiKey("synthetic-new-inference")
+        onboarding.setAgreement(true)
+        overlapping(vm::checkAndPreview, vm::saveTranscription, { onboarding.checkKey(); null })
+        runBlocking { withTimeout(10_000) { onboarding.state.first { it.done || it.failure != null } } }
+        assertTrue(onboarding.state.value.done)
+        assertIndependentSaves()
+        assertEquals("saved-wrap-model", stringOf(credsFor(ring(), "openai")["wrapModel"]))
+    }
+
+    @Test
+    fun sequentialIndependentSavesKeepBothBranchesControl() {
+        val settings = independentSaves()
+        join(settings.save())
+        join(vm.saveTranscription())
+        join(vm.checkAndPreview())
+        assertIndependentSaves()
+    }
+
+    @Test
+    fun forgetWhileIndependentSavesAreQueuedLeavesNoCredentials() {
+        val settings = independentSaves()
+        overlapping(settings::save, vm::saveTranscription, vm::checkAndPreview, whileHeld = settings::forget)
+        assertFalse(keyring.file.exists())
+        assertEquals(KeyringState.Status.NONE, keyring.state.value.status)
+        assertTrue(key.keys.all { it == null })
+        assertFalse(ready())
+    }
+
+    @Test
+    fun newerTranscriptionEditsSurviveAPendingSave() {
+        independentSaves()
+        overlapping(vm::saveTranscription, whileHeld = {
+            vm.setSttKind("openai")
+            vm.setSttKey("synthetic-newer-transcription")
+            null
+        })
+        assertEquals("synthetic-transcription", stringOf(ring()["stt"]["apiKey"]))
+        val edited = settle { !it.checking }
+        assertEquals("synthetic-newer-transcription", edited.sttKeyDraft)
+        assertEquals("openai", edited.sttKind)
     }
 
     // Acceptance: no hosted speech without consent and a passing check.
