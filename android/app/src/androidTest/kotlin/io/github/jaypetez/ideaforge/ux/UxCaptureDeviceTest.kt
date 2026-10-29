@@ -568,26 +568,17 @@ class UxCaptureDeviceTest {
             compose.onNodeWithTag("voice-levels").assertDoesNotExist()
             if (state.id in setOf("voice-listening", "voice-notifications-off"))
                 compose.onNodeWithTag("voice-no-level").assertExists()
-        } else if (state.id in setOf("busy-turn", "save-failure")) {
+        } else if (state.id == "busy-turn") {
             compose.onNodeWithTag("question").assertDoesNotExist()
-            if (state.id == "save-failure") {
-                revealControl("history-toggle")
-                compose.onNodeWithTag("history-toggle").performClick()
-            }
             val thread = hasAnyAncestor(hasTestTag("thread"))
             compose.onNode(hasText(SEED_QUESTION) and thread).assertExists()
             compose.onNode(hasText(fixtures.text("answer")) and thread).assertExists()
             role("send", Role.Button)
             compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
             compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
-            if (state.id == "busy-turn") {
-                compose.onNodeWithTag("interview-busy").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
-                compose.onNodeWithTag("busy-line").assert(
-                    SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
-            } else {
-                compose.onNodeWithTag("notice-message").assertIsDisplayed()
-                compose.onNodeWithTag("notice-dismiss").assertExists()
-            }
+            compose.onNodeWithTag("interview-busy").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            compose.onNodeWithTag("busy-line").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         } else if (state.surface == "interview") {
             compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
                 .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
@@ -600,6 +591,14 @@ class UxCaptureDeviceTest {
             }
             if (state.id == "bank") compose.onNodeWithTag("degraded").assert(
                 SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            if (state.id == "save-failure") {
+                assertEquals(SEED_QUESTION, nodeText("question"))
+                compose.onNodeWithTag("answer").assertIsEnabled()
+                compose.onNodeWithTag("send").assertIsEnabled()
+                compose.onNodeWithTag("history-toggle").assertDoesNotExist()
+                compose.onNodeWithTag("notice-message").assertIsDisplayed()
+                compose.onNodeWithTag("notice-dismiss").assertExists()
+            }
         } else if (state.surface == "library") {
             compose.onNodeWithTag(LibraryTags.HEADING).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
             if (exists(LibraryTags.FILTERS)) compose.onNodeWithTag(LibraryTags.FILTERS)
@@ -2692,11 +2691,15 @@ class UxCaptureDeviceTest {
                     await("busy-line")
                 } else {
                     compose.waitUntil(DEVICE_TIMEOUT) {
-                        !exists("question") && !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
+                        exists("question") && !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
                             R.string.notice_interview_failed, "unused",
                         ).substringBefore("unused"), substring = true)).fetchSemanticsNodes().isNotEmpty()
                     }
                     assertTrue("save failure did not secretly persist an idea", fixtureGraph!!.sessionStore.sessions.value.isEmpty())
+                    compose.onNodeWithTag("answer").assertIsEnabled()
+                    assertEquals("the rejected submission remains editable", fixtures.text("answer"),
+                        compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+                    compose.onNodeWithTag("send").assertIsEnabled()
                 }
                 return interviewControls()
             }
