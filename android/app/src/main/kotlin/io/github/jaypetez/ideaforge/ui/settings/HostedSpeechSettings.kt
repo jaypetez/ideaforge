@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.jaypetez.ideaforge.IdeaForgeApp
 import io.github.jaypetez.ideaforge.R
+import io.github.jaypetez.ideaforge.core.Keyring
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.maskKey
@@ -186,7 +187,7 @@ class HostedSpeechViewModel(
 
     private fun ring(): JsonElement = keyring.state.value.ring
     private fun tts(): JsonElement? = ring()["tts"]
-    private fun savedTtsKey(): String = stringOf(tts()["apiKey"]).orEmpty()
+    private fun savedTtsKey(ring: JsonElement = ring()): String = stringOf(ring["tts"]["apiKey"]).orEmpty()
 
     private fun ttsRecord(kind: String, apiKey: String, voice: String, verified: Boolean) = JsonObject(
         linkedMapOf(
@@ -196,16 +197,17 @@ class HostedSpeechViewModel(
     )
 
     /** Keyring writes refuse an unreadable ring: saving would replace every other record. */
-    private suspend fun saveRing(next: JsonElement, generation: Long = keyring.generation.value,
-        report: (String) -> Unit = { note(it, failed = true) }): Boolean {
-        if (keyring.state.value.status == KeyringState.Status.UNREADABLE) {
-            report("The saved keys could not be read, so nothing was changed. Fix the connection first.")
-            return false
-        }
+    private suspend fun saveRing(generation: Long,
+        report: (String) -> Unit = { note(it, failed = true) }, update: (Keyring) -> Keyring): Boolean {
         // Refused when a Forget began after [generation] was read: writing now would put a
         // deleted key back on disk.
-        if (!keyring.saveIf(generation, next)) {
+        val saved = keyring.saveIf(generation, update = update)
+        if (saved == null) {
             report("The keys were deleted meanwhile, so nothing was saved.")
+            return false
+        }
+        if (saved.status == KeyringState.Status.UNREADABLE) {
+            report("The saved keys could not be read, so nothing was changed. Fix the connection first.")
             return false
         }
         return true
@@ -218,15 +220,20 @@ class HostedSpeechViewModel(
         local.update { it.copy(sttNotice = text, sttNoticeFailed = failed) }
 
     /** Drop the check's vouching: `verified` false for the saved record, kind as given. */
-    private suspend fun invalidate(kind: String, voice: String = now().voice): Boolean {
+    private suspend fun invalidate(generation: Long, kind: String, voice: String = now().voice): Boolean {
         epoch++
         check?.cancel()
-        return saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), voice, verified = false)))
+        return saveRing(generation) { latest ->
+            withTts(latest, ttsRecord(kind, savedTtsKey(latest), voice, verified = false))
+        }
     }
 
-    fun chooseHosted(on: Boolean): Job = viewModelScope.launch {
-        local.update { it.copy(hosted = on, notice = null, noticeFailed = false) }
-        if (!on) revoke(kind = "browser", "Replies use the device voice.")
+    fun chooseHosted(on: Boolean): Job {
+        val generation = keyring.generation.value
+        return viewModelScope.launch {
+            local.update { it.copy(hosted = on, notice = null, noticeFailed = false) }
+            if (!on) revoke(kind = "browser", "Replies use the device voice.", generation)
+        }
     }
 
     /** Any new key invalidates the check, at once: it vouched for the old one. */
@@ -234,16 +241,18 @@ class HostedSpeechViewModel(
         local.update { it.copy(keyDraft = v) }
         val typed = v.trim()
         if (typed.isEmpty() || typed == savedTtsKey() || tts()["verified"] != JsonPrimitive(true)) return null
+        val generation = keyring.generation.value
         return viewModelScope.launch {
-            if (invalidate("openai")) note("The key changed. Check and preview again to enable OpenAI speech.")
+            if (invalidate(generation, "openai")) note("The key changed. Check and preview again to enable OpenAI speech.")
         }
     }
 
     fun setVoice(v: String): Job? {
         val voice = if (v == "cedar") "cedar" else "marin"
         if (voice == now().voice) return null
+        val generation = keyring.generation.value
         return viewModelScope.launch {
-            if (invalidate(if (now().hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice))
+            if (invalidate(generation, if (now().hosted) "openai" else stringOf(tts()["kind"]) ?: "browser", voice))
                 note("The voice changed. Check and preview again to enable OpenAI speech.")
         }
     }
@@ -255,17 +264,20 @@ class HostedSpeechViewModel(
             l.copy(consents = Triple(synthetic ?: s.consentSynthetic, text ?: s.consentText, metered ?: s.consentMetered))
         }
         val withdrawn = synthetic == false || text == false || metered == false
-        return if (withdrawn) viewModelScope.launch { revoke("openai", "Hosted speech is disabled. A new check and preview is needed to enable it.") } else null
+        val generation = keyring.generation.value
+        return if (withdrawn) viewModelScope.launch { revoke("openai", "Hosted speech is disabled. A new check and preview is needed to enable it.", generation) } else null
     }
 
     /** revokeHostedSpeech: permission first, then the record, so a half-done revoke is still off. */
-    private suspend fun revoke(kind: String, message: String) {
+    private suspend fun revoke(kind: String, message: String, generation: Long) {
         val wasEnabled = hostedSpeechReady(ring(), prefsStore.current())
         epoch++
         check?.cancel()
         val allowedSaved = prefsStore.update { it.copy(hostedSpeechAllowed = false) }
         if (wasEnabled) runCatching { onRevoke("Hosted speech is disabled. Tap Resume to continue with the device voice.") }
-        if (!saveRing(withTts(ring(), ttsRecord(kind, savedTtsKey(), now().voice, verified = false)))) return
+        if (!saveRing(generation) { latest ->
+                withTts(latest, ttsRecord(kind, savedTtsKey(latest), stringOf(latest["tts"]["voice"]).orEmpty(), verified = false))
+            }) return
         note(if (allowedSaved) message else "$message Its permission preference could not be updated.", failed = !allowedSaved)
     }
 
@@ -302,10 +314,12 @@ class HostedSpeechViewModel(
                     )
                     return@launch
                 }
-                if (!saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = true)), generation)) return@launch
+                if (!saveRing(generation) { latest ->
+                        withTts(latest, ttsRecord("openai", key, voice, verified = true))
+                    }) return@launch
                 if (my != epoch || keyring.generation.value != generation) return@launch
                 if (!prefsStore.update { it.copy(hostedSpeechAllowed = true) }) {
-                    saveRing(withTts(ring(), ttsRecord("openai", key, voice, verified = false)))
+                    saveRing(generation) { latest -> withTts(latest, ttsRecord("openai", key, voice, verified = false)) }
                     note("The preview played, but permission could not be saved. The device voice remains active.", failed = true)
                     return@launch
                 }
@@ -340,25 +354,30 @@ class HostedSpeechViewModel(
     /** withStt: its own record and key. A changed vendor never inherits the old vendor's key. */
     fun saveTranscription(): Job {
         val generation = keyring.generation.value
-        return viewModelScope.launch { saveTranscription(generation) }
-    }
-
-    private suspend fun saveTranscription(generation: Long) {
-        val s = now()
+        val submitted = local.value
+        val s = now(submitted)
         val stt = ring()["stt"]
         val sameKind = s.sttKind != null && s.sttKind == stringOf(stt["kind"])
         val key = s.sttKeyDraft.trim().ifEmpty { if (sameKind) stringOf(stt["apiKey"]).orEmpty() else "" }
-        if (s.sttKind != null && key.isEmpty()) {
-            sttNote("Transcription needs its own key.", failed = true)
-            return
+        return viewModelScope.launch {
+            if (s.sttKind != null && key.isEmpty()) {
+                sttNote("Transcription needs its own key.", failed = true)
+                return@launch
+            }
+            val rec = JsonObject(
+                linkedMapOf("kind" to (s.sttKind?.let(::JsonPrimitive) ?: JsonNull), "apiKey" to JsonPrimitive(if (s.sttKind == null) "" else key)),
+            )
+            if (!saveRing(generation, report = { sttNote(it, failed = true) }) { latest -> withStt(latest, rec) }) return@launch
+            if (keyring.generation.value != generation) return@launch
+            if (s.sttKind == null) prefsStore.update { it.copy(hostedTranscriptionAllowed = false) }
+            if (keyring.generation.value != generation) return@launch
+            local.update {
+                if (it.sttKind != submitted.sttKind || it.sttKindSet != submitted.sttKindSet || it.sttKeyDraft != submitted.sttKeyDraft) it
+                else it.copy(sttKeyDraft = "", sttKindSet = false, sttNoticeFailed = false,
+                    sttNotice = if (s.sttKind == null) "Transcription is off."
+                    else "Transcription saved. It is used only when the speech recogniser is missing or cannot recognise your language.")
+            }
         }
-        val rec = JsonObject(
-            linkedMapOf("kind" to (s.sttKind?.let(::JsonPrimitive) ?: JsonNull), "apiKey" to JsonPrimitive(if (s.sttKind == null) "" else key)),
-        )
-        if (!saveRing(withStt(ring(), rec), generation, report = { sttNote(it, failed = true) })) return
-        if (s.sttKind == null) prefsStore.update { it.copy(hostedTranscriptionAllowed = false) }
-        local.update { it.copy(sttKeyDraft = "", sttKindSet = false) }
-        sttNote(if (s.sttKind == null) "Transcription is off." else "Transcription saved. It is used only when the speech recogniser is missing or cannot recognise your language.")
     }
 
     companion object {

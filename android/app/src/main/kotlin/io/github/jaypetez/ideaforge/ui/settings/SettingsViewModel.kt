@@ -335,7 +335,8 @@ class SettingsViewModel(
             local.update { it.copy(failure = CheckFailure("Choose a model first. Check the connection to list what the server has.", "")) }
             return null
         }
-        return launchWork { persist(e) }
+        val credentialGeneration = keyring.generation.value
+        return launchWork { persist(e, credentialGeneration) }
     }
 
     /**
@@ -344,7 +345,7 @@ class SettingsViewModel(
      * check then failed left it armed, and the next Save, for any provider, replaced the
      * unreadable keyring without asking.
      */
-    private suspend fun persist(e: ConnectionEditor, replace: Boolean = false) {
+    private suspend fun persist(e: ConnectionEditor, credentialGeneration: Long, replace: Boolean = false) {
         val generation = generation
         val destination = inferenceDestination(configOf(e))
         if (e.agreement != true && (e.agreement == false || !inference.allowed(destination, prefsStore.inferenceCurrent()))) {
@@ -358,26 +359,19 @@ class SettingsViewModel(
         }
         currentCoroutineContext().ensureActive()
         if (generation != this.generation) throw CancellationException("Connection changed")
-        // An unreadable keyring is kept on disk on purpose (a Keystore that failed once may
-        // answer now): read it again, and if it is still unreadable, saving would replace
-        // every other provider's record, so that waits for the user's say-so.
-        if (keyring.state.value.status == KeyringState.Status.UNREADABLE) keyring.load()
-        val current = keyring.state.value
-        if (current.status == KeyringState.Status.UNREADABLE && !replace) {
-            local.update { it.copy(unreadable = current.problem.orEmpty()) }
-            return
-        }
-        val saved = credsFor(current.ring, e.choice.id)
-        val rec = LinkedHashMap<String, JsonElement>().apply {
-            put("apiKey", JsonPrimitive(if (e.choice.needsKey) key else text(saved["apiKey"])))
-            put("baseUrl", JsonPrimitive(if (e.choice.local) e.baseUrl.trim() else ""))
-            put("model", JsonPrimitive(if (e.choice.picksModel) e.model.trim() else ""))
-            put("wrapModel", JsonPrimitive(if (e.choice.picksModel) e.wrapModel.trim() else ""))
-        }
-        try {
+        val saved = try {
             currentCoroutineContext().ensureActive()
             if (generation != this.generation) throw CancellationException("Connection changed")
-            keyring.save(withCreds(current.ring, e.choice.id, JsonObject(rec)))
+            keyring.saveIf(credentialGeneration, replaceUnreadable = replace) { latest ->
+                val previous = credsFor(latest, e.choice.id)
+                val rec = LinkedHashMap<String, JsonElement>().apply {
+                    put("apiKey", JsonPrimitive(if (e.choice.needsKey) key else text(previous["apiKey"])))
+                    put("baseUrl", JsonPrimitive(if (e.choice.local) e.baseUrl.trim() else ""))
+                    put("model", JsonPrimitive(if (e.choice.picksModel) e.model.trim() else ""))
+                    put("wrapModel", JsonPrimitive(if (e.choice.picksModel) e.wrapModel.trim() else ""))
+                }
+                withCreds(latest, e.choice.id, JsonObject(rec))
+            }
         } catch (ce: CancellationException) {
             throw ce
         } catch (ex: Exception) {
@@ -385,7 +379,12 @@ class SettingsViewModel(
             return
         }
         currentCoroutineContext().ensureActive()
-        inference.accept(destination) { generation == this.generation }
+        if (saved == null || keyring.generation.value != credentialGeneration) throw CancellationException("Keys were deleted meanwhile")
+        if (saved.status == KeyringState.Status.UNREADABLE) {
+            local.update { it.copy(unreadable = saved.problem.orEmpty()) }
+            return
+        }
+        inference.accept(destination) { generation == this.generation && keyring.generation.value == credentialGeneration }
         // Back to the saved record: the typed key is now the masked placeholder.
         local.update { it.copy(editor = null, unreadable = null, notice = "Saved. ${e.choice.label} answers the next interview.") }
     }
@@ -394,7 +393,8 @@ class SettingsViewModel(
         if (forgetting) return null
         val e = editor() ?: return null
         local.update { it.copy(unreadable = null) }
-        return launchWork { persist(e, replace = true) }
+        val credentialGeneration = keyring.generation.value
+        return launchWork { persist(e, credentialGeneration, replace = true) }
     }
 
     fun dismissUnreadable() = local.update { it.copy(unreadable = null) }

@@ -173,11 +173,12 @@ class OnboardingViewModel(
             _state.update { it.copy(failure = CheckFailure("Paste your ${choice.label} key first.", "")) }
             return
         }
+        val credentialGeneration = keyring.generation.value
         launchCheck {
             checker.check(choice, ProviderConfig(kind = choice.id, apiKey = key))
             currentCoroutineContext().ensureActive()
             _state.update { it.copy(hasSuccessfulCheck = true) }
-            save(choice) { put("apiKey", JsonPrimitive(key)) }
+            save(choice, credentialGeneration) { put("apiKey", JsonPrimitive(key)) }
         }
     }
 
@@ -216,9 +217,10 @@ class OnboardingViewModel(
         if (!s.canFinishLocal) return
         val base = s.baseUrl.trim()
         val model = s.model.trim()
+        val credentialGeneration = keyring.generation.value
         launchCheck {
             buildLocal(ProviderConfig(kind = choice.id, baseUrl = base, model = model))
-            save(choice) {
+            save(choice, credentialGeneration) {
                 put("baseUrl", JsonPrimitive(base))
                 put("model", JsonPrimitive(model))
             }
@@ -233,26 +235,15 @@ class OnboardingViewModel(
         launchCheck { pending() }
     }
 
-    private suspend fun save(choice: ProviderChoice, edit: MutableMap<String, JsonElement>.() -> Unit) {
+    private suspend fun save(choice: ProviderChoice, credentialGeneration: Long, edit: MutableMap<String, JsonElement>.() -> Unit) {
         currentCoroutineContext().ensureActive()
-        // An unreadable keyring is kept on disk on purpose: a Keystore that failed once may
-        // answer now. Read it again first, and if it is still unreadable, saving would build
-        // on the empty ring and overwrite every other provider's record and the speech keys,
-        // so that happens only after the user has said so.
-        if (keyring.state.value.status == KeyringState.Status.UNREADABLE) keyring.load()
-        val current = keyring.state.value
-        if (current.status == KeyringState.Status.UNREADABLE && !replaceConfirmed) {
-            pendingSave = { save(choice, edit) }
-            _state.update { it.copy(unreadable = current.problem.orEmpty()) }
-            return
-        }
-        pendingSave = null
-        val ring = current.ring
-        // Keep whatever else this provider's record held (a wrap-up model chosen in Settings).
-        val rec = LinkedHashMap<String, JsonElement>(credsFor(ring, choice.id)).apply(edit)
-        try {
+        val saved = try {
             currentCoroutineContext().ensureActive()
-            keyring.save(withCreds(ring, choice.id, JsonObject(rec)))
+            keyring.saveIf(credentialGeneration, replaceUnreadable = replaceConfirmed) { latest ->
+                // Keep unedited fields, including a wrap-up model chosen in Settings.
+                val rec = LinkedHashMap<String, JsonElement>(credsFor(latest, choice.id)).apply(edit)
+                withCreds(latest, choice.id, JsonObject(rec))
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -261,10 +252,18 @@ class OnboardingViewModel(
             throw SaveFailed(e)
         }
         currentCoroutineContext().ensureActive()
+        if (saved == null || keyring.generation.value != credentialGeneration) throw CancellationException("Keys were deleted meanwhile")
+        if (saved.status == KeyringState.Status.UNREADABLE) {
+            pendingSave = { save(choice, credentialGeneration, edit) }
+            _state.update { it.copy(unreadable = saved.problem.orEmpty()) }
+            return
+        }
+        pendingSave = null
         _state.update { it.copy(hasSavedSettings = true) }
         val job = currentCoroutineContext()[Job]
-        inference.accept(inferenceDestination(inferenceConfig(keyring.state.value.ring))) {
-            job?.isActive != false && _state.value.agreed && _state.value.choice?.id == choice.id
+        inference.accept(inferenceDestination(inferenceConfig(saved.ring))) {
+            job?.isActive != false && keyring.generation.value == credentialGeneration &&
+                _state.value.agreed && _state.value.choice?.id == choice.id
         }
         _state.update { it.copy(done = true) }
     }
