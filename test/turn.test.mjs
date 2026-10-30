@@ -161,15 +161,25 @@ test('a chip answer caps the dimension IT served, not the dimension being asked 
   let s = opened();
   s = askQuestion(s, { question: 'What has to be in it?', dimension: 'substance' });
   s = submitAnswer(s, { text: 'honestly, just for me', source: 'chip' });
-  s = applyCoverage(s, { substance: { level: 'partial', gap: 'g' } });
+  for (const id of DIMENSION_IDS) s = applyCoverage(s, { [id]: { level: 'partial', gap: 'g' } });
+  const target = selectNextDimension(s);
+  assert.notEqual(target, 'substance');
 
+  // Both claims use an eligible earlier answer, so quote rejection cannot hide a cap
+  // applied to the wrong dimension (or a missing provenance cap).
   const provider = fakeProvider([turnResult({
-    coverage: { substance: { level: 'covered', evidence: 'honestly, just for me' } },
+    dimension: target,
+    coverage: {
+      substance: { level: 'covered', evidence: s.opening },
+      [target]: { level: 'covered', evidence: s.opening },
+    },
   })]);
   const out = await runTurn(s, { provider, now: 10 });
 
   assert.equal(out.session.coverage.substance.level, 'partial',
     "Claude's own words must not carry a dimension to covered");
+  assert.equal(out.session.coverage[target].level, 'covered', 'the next target is not the capped dimension');
+  assert.equal(out.degraded, false);
 });
 
 test('a dodged answer caps the dimension it dodged', async () => {
@@ -228,6 +238,46 @@ test('any genuine rise resets the streak', async () => {
   })]);
   const out = await runTurn({ ...opened(), zeroGainStreak: 1 }, { provider, now: 10 });
   assert.equal(out.session.zeroGainStreak, 0);
+});
+
+test('invented quotes count as zero gain until a real user quote earns covered credit', async () => {
+  let s = applyCoverage(opened('The workshop should track bicycle repair jobs for volunteers.'), {
+    outcome: { level: 'partial', gap: 'which repairs' },
+  });
+  s = askQuestion(s, { question: 'Who will use the workshop tracker first?', dimension: 'audience' });
+  s = submitAnswer(s, { text: 'The volunteers on Saturday morning will use it.' });
+  const questions = [
+    'Walk me through the last time you did this by hand.',
+    'Which part of that would you refuse to automate?',
+    'What did the worst version of this look like?',
+  ];
+  const provider = fakeProvider(questions.map((question, i) => turnResult({
+    question,
+    coverage: { outcome: { level: 'covered', evidence: i < 2
+      ? 'Invented quotation that the user never said' : '  bicycle repair jobs  ' } },
+  })));
+  for (const streak of [1, 2]) {
+    const out = await runTurn(s, { provider, now: 10 + streak });
+    assert.equal(out.calls, 1);
+    assert.equal(out.degraded, false);
+    assert.equal(out.turn.questionSource, 'model');
+    assert.equal(out.session.coverage.outcome.level, 'partial');
+    assert.equal(out.session.zeroGainStreak, streak);
+    assert.equal(out.wrap, streak === 2 ? 'exhausted' : null);
+    s = submitAnswer(out.session, { text: 'Repair history should remain available for every bicycle.' });
+  }
+  const bank = await runTurn(s, { provider: null });
+  assert.equal(bank.turn.questionSource, 'bank');
+  assert.equal(bank.session.zeroGainStreak, 2, 'a bank turn cannot erase real exhaustion');
+  s = submitAnswer(bank.session, { text: 'The repair log records each bicycle repair job.' });
+  const recovered = await runTurn(s, { provider });
+  assert.equal(recovered.calls, 1);
+  assert.equal(recovered.degraded, false);
+  assert.equal(recovered.turn.questionSource, 'model');
+  assert.equal(recovered.session.coverage.outcome.level, 'covered');
+  assert.equal(recovered.session.coverage.outcome.evidence, 'bicycle repair jobs');
+  assert.equal(recovered.session.zeroGainStreak, 0);
+  assert.equal(recovered.wrap, null);
 });
 
 test('a bank turn leaves the streak untouched in both directions', async () => {

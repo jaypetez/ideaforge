@@ -163,7 +163,7 @@ function oddSessions() {
   for (let i = 0; i < 12; i++) {
     w = askQuestion(w, { question: `Question ${i}: what about the sky near the ${['horizon', 'zenith', 'pole'][i % 3]} in month ${i}?`, dimension: ['substance', 'bar', 'constraints', 'audience', 'voice', 'references', 'outcome'][i % 7], now: tick(10 + i) });
     w = submitAnswer(w, { text: `Answer ${i} — the southern sky in month ${i} shows the Magellanic Clouds clearly from rural areas, which is what my readers actually want to find on a clear night ${'and more detail '.repeat(i % 4)}`.trim(), now: tick(30 + i) });
-    w = applyCoverage(w, { [['substance', 'bar', 'constraints', 'audience', 'voice', 'references', 'outcome'][i % 7]]: { level: 'covered', evidence: `quote ${i}`, gap: null } }, { now: tick(40 + i) });
+    w = applyCoverage(w, { [['substance', 'bar', 'constraints', 'audience', 'voice', 'references', 'outcome'][i % 7]]: { level: 'covered', evidence: `the southern sky in month ${i}`, gap: null } }, { now: tick(40 + i) });
   }
   w = addFacts(w, [{ dimension: 'audience', fact: 'Readers live south of the equator.' }, { dimension: 'substance', fact: 'Dark-sky maps are the core.' }], tick(60));
   out.push(['wide', w]);
@@ -179,8 +179,15 @@ async function sessionFamily() {
   const { snapshots, final } = await walkthrough();
   const mid = snapshots.find(([n]) => n === 'answered-3')[1];
   const fresh = createSession({ id: 's_cov', now: tick(0) });
-  const partialAll = applyCoverage(fresh, Object.fromEntries(DIMS.map((d) => [d, { level: 'partial', gap: `gap ${d}` }])), { now: 1 });
-  const hostileCoverage = JSON.parse(JSON.stringify(fresh));
+  const quote = 'three seconds, one thumb';
+  let answered = seedTurn(fresh, { now: 1 });
+  answered = submitAnswer(answered, { text: `It must work in ${quote}.`, now: 2 });
+  answered = askQuestion(answered, { question: 'Who will use it first?', dimension: 'audience', now: 3 });
+  answered = submitAnswer(answered, { text: 'The volunteers on Saturday morning will use it.', now: 4 });
+  // One all-dimension claim would leave five dimensions thin and mask the covered guards.
+  const partialAll = DIMS.reduce((s, d) =>
+    applyCoverage(s, { [d]: { level: 'partial', gap: `gap ${d}` } }, { now: 5 }), answered);
+  const hostileCoverage = JSON.parse(JSON.stringify(answered));
   for (const d of DIMS) hostileCoverage.coverage[d] = { ...hostileCoverage.coverage[d], level: d === 'outcome' ? null : 'COVERED' };
   hostileCoverage.coverage.bar.status = 'banana';
   hostileCoverage.coverage.substance.turnsSpent = '10';
@@ -188,15 +195,16 @@ async function sessionFamily() {
   const cases = [
     rec('createSession', createSession, { id: 's_new', now: tick(0), device: 'phone' }),
     rec('createSession without id throws', createSession, {}),
-    rec('ratchet: one level per turn', applyCoverage, fresh, { outcome: { level: 'covered', evidence: 'they said it', gap: null } }, { now: 2 }),
+    rec('ratchet: one level per turn', applyCoverage, answered, { outcome: { level: 'covered', evidence: quote, gap: null } }, { now: 6 }),
     rec('ratchet: never falls', applyCoverage, partialAll, { outcome: { level: 'thin', gap: 'worse' } }, { now: 2 }),
-    rec('ratchet: at most two dimensions rise', applyCoverage, fresh, Object.fromEntries(DIMS.map((d) => [d, { level: 'partial' }])), { now: 2 }),
+    rec('ratchet: at most two dimensions rise', applyCoverage, partialAll, Object.fromEntries(DIMS.map((d) => [d, { level: 'covered', evidence: quote }])), { now: 6 }),
     rec('covered without evidence is partial', applyCoverage, partialAll, { bar: { level: 'covered', gap: null } }, { now: 2 }),
     rec('covered with blank evidence is partial', applyCoverage, partialAll, { bar: { level: 'covered', evidence: '   ' } }, { now: 2 }),
-    rec('covered with evidence', applyCoverage, partialAll, { bar: { level: 'covered', evidence: 'three seconds, one thumb', gap: 'ignored' } }, { now: 2 }),
-    rec('low-confidence dimension capped at partial', applyCoverage, partialAll, { bar: { level: 'covered', evidence: 'q' } }, { lowConfidenceDimension: 'bar', now: 2 }),
-    rec('capped dimension stays partial', applyCoverage, partialAll, { audience: { level: 'covered', evidence: 'q' } }, { cappedDimensions: ['audience'], now: 2 }),
-    rec('waived dimension ignores claims', applyCoverage, waiveDimension(partialAll, 'voice', 'n/a', 1), { voice: { level: 'covered', evidence: 'q' } }, { now: 2 }),
+    rec('covered with evidence', applyCoverage, partialAll, { bar: { level: 'covered', evidence: quote, gap: 'ignored' } }, { now: 6 }),
+    rec('covered with fabricated evidence is partial', applyCoverage, partialAll, { bar: { level: 'covered', evidence: 'Invented quotation that the user never said' } }, { now: 6 }),
+    rec('low-confidence dimension capped at partial', applyCoverage, partialAll, { bar: { level: 'covered', evidence: quote } }, { lowConfidenceDimension: 'bar', now: 6 }),
+    rec('capped dimension stays partial', applyCoverage, partialAll, { audience: { level: 'covered', evidence: quote } }, { cappedDimensions: ['audience'], now: 6 }),
+    rec('waived dimension ignores claims', applyCoverage, waiveDimension(partialAll, 'voice', 'n/a', 6), { voice: { level: 'covered', evidence: quote } }, { now: 7 }),
     rec('garbage claims ignored', applyCoverage, fresh, { outcome: { level: 'excellent' }, nope: { level: 'covered' }, bar: null }, { now: 2 }),
     rec('null claims', applyCoverage, fresh, null, { now: 2 }),
     rec('gap kept when new gap blank', applyCoverage, partialAll, { outcome: { level: 'partial', gap: '' } }, { now: 2 }),
@@ -225,9 +233,54 @@ async function sessionFamily() {
     rec('migrate schema 1 with junk', migrate, { schema: 1, id: 's_old', createdAt: 5, turns: [{ question: 'q', chips: ['a', 3, null] }, 'bad', null], facts: [{ fact: 'f' }, 2], moveHistory: ['concretize', 9], tags: ['A', 'a'], archivedAt: -1, name: '  n  ' }),
     rec('migrate current', migrate, mid),
     rec('migrate resets unknown levels and statuses', migrate, hostileCoverage),
-    rec('ratchet holds after migrating hostile coverage', applyCoverage, migrate(hostileCoverage), Object.fromEntries(DIMS.map((d) => [d, { level: 'covered', evidence: 'quote' }])), { now: 3 }),
+    rec('ratchet holds after migrating hostile coverage', applyCoverage, migrate(hostileCoverage), Object.fromEntries(DIMS.map((d) => [d, { level: 'covered', evidence: quote }])), { now: 6 }),
     rec('migrate missing id', migrate, { schema: 2 }),
   ];
+  const generated = addFacts(setDraftText(askQuestion(partialAll, {
+    question: 'What would model-only evidence mean here?', dimension: 'outcome',
+    bridge: 'model-only evidence', chips: ['model-only evidence'], now: 6,
+  }), 'model-only evidence', 7), [{ dimension: 'outcome', fact: 'model-only evidence' }], 8);
+  cases.push(rec('model-only text cannot supply covered evidence', applyCoverage, generated,
+    { outcome: { level: 'covered', evidence: 'model-only evidence' } }, { now: 9 }));
+  cases.push(rec('imported skipped and non-string answers are not evidence', applyCoverage, migrate({
+    ...partialAll, opening: '42',
+    turns: [...partialAll.turns, { answer: '42', skipped: true }, { answer: 42, answerSource: 'typed' }],
+  }), { outcome: { level: 'covered', evidence: '42' } }, { now: 6 }));
+  cases.push(rec('quotes cannot span separate answers', applyCoverage, partialAll,
+    { outcome: { level: 'covered', evidence: 'one thumb.\nThe volunteers' } }, { now: 6 }));
+  const covered = applyCoverage(partialAll, { outcome: { level: 'covered', evidence: quote } }, { now: 6 });
+  cases.push(rec('covered credit retains real evidence after a fabricated claim', applyCoverage, covered,
+    { outcome: { level: 'covered', evidence: 'An invented replacement quote' } }, { now: 7 }));
+
+  const sourceQuote = 'one thumb and no network';
+  for (const [name, source, text, evidence] of [
+    ['chip evidence cannot be reused by a later turn', 'chip', sourceQuote, sourceQuote],
+    ['unedited draft evidence cannot be reused by a later turn', 'draft', sourceQuote, sourceQuote],
+    ['covered evidence from earlier edited draft', 'draft', `${sourceQuote}, with a printed backup.`, 'a printed backup'],
+    ['covered evidence from earlier voice answer', 'voice', sourceQuote, sourceQuote],
+  ]) {
+    let s = askQuestion(partialAll, { question: 'What are the limits?', dimension: 'constraints',
+      chips: [sourceQuote], now: 6 });
+    s = setDraftText(s, sourceQuote, 7);
+    s = submitAnswer(s, { text, source, now: 8 });
+    s = askQuestion(s, { question: 'Who else uses it?', dimension: 'audience', now: 9 });
+    s = submitAnswer(s, { text: 'The volunteers at the workshop.', now: 10 });
+    cases.push(rec(name, applyCoverage, s, { outcome: { level: 'covered', evidence } }, { now: 11 }));
+  }
+  const unicodeQuote = 'Café 🍵 — “工房”\nDeux vélos,\tSamedi. Cafe\u0301';
+  const unicode = submitAnswer(askQuestion(partialAll, {
+    question: 'What is printed?', dimension: 'voice', now: 6,
+  }), { text: unicodeQuote, source: 'voice', now: 7 });
+  for (const [name, evidence] of [
+    ['Unicode user quote is accepted verbatim', unicodeQuote],
+    ['changed case is not verbatim evidence', 'café 🍵'],
+    ['normalized Unicode is not verbatim evidence', 'Cafe\u0301 🍵'],
+    ['changed punctuation is not verbatim evidence', 'Café 🍵 - "工房"'],
+    ['collapsed line breaks are not verbatim evidence', '“工房” Deux vélos, Samedi.'],
+    ['changed line endings are not verbatim evidence', unicodeQuote.replaceAll('\n', '\r\n')],
+  ]) {
+    cases.push(rec(name, applyCoverage, unicode, { outcome: { level: 'covered', evidence } }, { now: 8 }));
+  }
   const reportQuestion = askQuestion(fresh, { question: 'Neutral generated marker?', dimension: 'outcome',
     bridge: 'Neutral bridge.', chips: ['Neutral suggestion A', 'Neutral suggestion B'], now: 1 });
   const output = reportableOutput(reportQuestion, { kind: 'question', turnId: 't1' });
@@ -387,6 +440,7 @@ async function runTurnFamily() {
       name, fn: fn.name, args: plain([session, deps]), script: plain(script),
       expect: { value: plain({ ...out, error: errorOf(out.error) }), requests: plain(provider ? provider.requests : []) },
     });
+    return out;
   };
   const good = (n) => ({ json: TURNS[n] });
   await run('walkthrough turn 2', at('answered-1'), [good(2)], { now: tick(100) });
@@ -401,23 +455,20 @@ async function runTurnFamily() {
   await run('repeat then fixed', at('answered-2'), [{ json: { ...TURNS[3], question: TURNS[2].question } }, good(3)], { now: tick(100) });
   // The answer just read was a chip: the cap belongs to THAT answer's dimension.
   // Both the chip answer's dimension and the next target start at partial, and both are
-  // claimed covered with evidence. The correct port caps only the answered dimension (it
+  // claimed covered with eligible earlier evidence. The correct port caps only the answered dimension (it
   // stays partial) and lets the target reach covered. Capping the target instead, or not
   // capping at all, changes the output, which is what makes this case worth having.
   const chipped = (() => {
     let s = at('asked-4');
     s = submitAnswer(s, { text: s.turns[s.turns.length - 1].chips[0] || 'a chip', source: 'chip', now: tick(50) });
     const answered = s.turns[s.turns.length - 1].dimension;
-    const coverage = { ...s.coverage, [answered]: { ...s.coverage[answered], level: 'partial' } };
-    let target = selectNextDimension({ ...s, coverage });
-    if (target === answered) target = DIMS.find((d) => d !== answered && coverage[d].status === 'probing');
-    coverage[target] = { ...coverage[target], level: 'partial' };
-    return { session: { ...s, coverage }, answered, target };
+    for (const d of DIMS) s = applyCoverage(s, { [d]: { level: 'partial' } }, { now: tick(51) });
+    return { session: s, answered, target: selectNextDimension(s) };
   })();
   if (chipped.answered === chipped.target) throw new Error('chip-cap fixture needs two distinct dimensions');
-  await run('chip answer caps the previous dimension, not the target', chipped.session, [{ json: { ...TURNS[5], coverage: {
-    [chipped.answered]: { level: 'covered', evidence: 'they picked a chip' },
-    [chipped.target]: { level: 'covered', evidence: 'a verbatim quote' },
+  await run('chip answer caps the previous dimension, not the target', chipped.session, [{ json: { ...TURNS[5], dimension: chipped.target, coverage: {
+    [chipped.answered]: { level: 'covered', evidence: 'if it made me type while someone was still talking to me' },
+    [chipped.target]: { level: 'covered', evidence: 'helps me remember the names' },
   } } }], { now: tick(100) });
   // Zero gain after the ratchet: the model claims covered but nothing can rise.
   // Claims "covered" with no evidence on two partial dimensions: the ratchet clamps both
@@ -429,6 +480,15 @@ async function runTurnFamily() {
   const claimed = { ...TURNS[5], coverage: Object.fromEntries(partials.map((d) => [d, { level: 'covered', gap: null }])) };
   await run('zero gain increments the streak', { ...at('answered-4'), zeroGainStreak: 1 }, [{ json: claimed }], { now: tick(100) });
   await run('gain resets the streak', { ...at('answered-4'), zeroGainStreak: 1 }, [good(5)], { now: tick(100) });
+  const invented = { outcome: { level: 'covered', evidence: 'Invented quotation that the user never said' } };
+  const first = await run('fabricated quote is zero gain', a4,
+    [{ json: { ...TURNS[5], coverage: invented } }], { now: tick(101) });
+  const secondInput = submitAnswer(first.session, { text: ANSWERS[4], now: tick(102) });
+  const second = await run('fabricated quotes offer exhaustion after two scored turns', secondInput,
+    [{ json: { ...TURNS[6], coverage: invented } }], { now: tick(103) });
+  await run('real user quote resets exhaustion', submitAnswer(second.session, { text: ANSWERS[5], now: tick(104) }),
+    [{ json: { ...TURNS[7], coverage: { outcome: { level: 'covered', evidence: 'the API panel on Tuesday' } } } }],
+    { now: tick(105) });
   const ceiling = (() => {
     let s = createSession({ id: 's_ceiling', now: tick(0) });
     for (let i = 0; i < 25; i++) {

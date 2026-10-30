@@ -4024,7 +4024,7 @@
         "device": "phone"
       }
     },
-    "s_wide@39#d99edb78c9": {
+    "s_wide@39#b1fd3216e1": {
       "schema": 2,
       "id": "s_wide",
       "rev": 39,
@@ -4273,7 +4273,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 7",
+          "evidence": "the southern sky in month 7",
           "turnsSpent": 2,
           "lastTurn": 9,
           "waivedReason": null
@@ -4282,7 +4282,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 8",
+          "evidence": "the southern sky in month 8",
           "turnsSpent": 2,
           "lastTurn": 10,
           "waivedReason": null
@@ -4291,7 +4291,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 9",
+          "evidence": "the southern sky in month 9",
           "turnsSpent": 2,
           "lastTurn": 11,
           "waivedReason": null
@@ -4300,7 +4300,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 10",
+          "evidence": "the southern sky in month 10",
           "turnsSpent": 2,
           "lastTurn": 12,
           "waivedReason": null
@@ -4309,7 +4309,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 11",
+          "evidence": "the southern sky in month 11",
           "turnsSpent": 2,
           "lastTurn": 13,
           "waivedReason": null
@@ -5168,7 +5168,7 @@
       "fn": "coveragePercent",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {
@@ -5180,7 +5180,7 @@
       "fn": "exportFilename",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {
@@ -5192,7 +5192,7 @@
       "fn": "buildExport",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {
@@ -5204,7 +5204,7 @@
       "fn": "libraryCard",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {
@@ -5225,7 +5225,7 @@
       "fn": "sessionLibraryStatus",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {
@@ -5237,7 +5237,7 @@
       "fn": "sessionSearchText",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         }
       ],
       "expect": {

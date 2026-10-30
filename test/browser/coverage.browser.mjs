@@ -97,7 +97,7 @@ function scriptedModel() {
         text: JSON.stringify({
           question, move: 'concretize', chips: [], facts: [],
           coverage: Object.fromEntries(DIMENSION_IDS.map((id) =>
-            [id, { level: 'covered', gap: null, evidence: 'one laminated page' }])),
+            [id, { level: 'covered', gap: null, evidence: 'kitchen opening checklist' }])),
         }),
         modelTierApplied: 'scripted-coverage',
       };
