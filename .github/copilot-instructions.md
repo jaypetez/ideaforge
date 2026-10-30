@@ -68,7 +68,9 @@ traffic.
 
 Use the shared [project skills](../.claude/skills/) for provider, voice, local-model,
 Android build and emulator verification, documentation, README artifacts, implementation review, documentation review, release,
-and backlog workflows. The
+and backlog workflows. Run the
+[pre-PR review skill](../.claude/skills/review-ideaforge-before-pr/SKILL.md) before
+creating any pull request; the `preToolUse` hook refuses `gh pr create` until it passes. The
 [release skill](../.claude/skills/release/SKILL.md) is explicitly invoked to prepare,
 publish, or verify a release; do not select publication automatically or act in place
 of a designated maintainer. The
@@ -89,8 +91,9 @@ The project-native CLI adapters apply Full by default, with explicit `ideaforge-
 mode/default/reset controls and read-only audit, debt, gain and help skills. The
 [process reference](../docs/ASSISTANT-PROCESS.md) describes the Copilot command hooks and
 foreground host-SDK supplement,
-client limits and optional badge. No helper changes tool permissions, makes model calls,
-or adds an app dependency; Off leaves every repository invariant in force.
+client limits and optional badge. No helper grants a tool permission, makes model calls,
+or adds an app dependency; the pre-PR review gate only ever refuses. Off leaves every
+repository invariant in force.
 
 See [coding assistant setup](../CONTRIBUTING.md#coding-assistants) for discovery
 commands and troubleshooting. Copilot support here is for developing the repository,

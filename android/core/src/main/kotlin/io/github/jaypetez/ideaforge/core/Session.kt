@@ -354,8 +354,12 @@ fun applyCoverage(
 
         // Provenance and dodge caps: never better than `partial`.
         if ((jsEq(lowConfidenceDimension, id) || id in capped) && level == "covered") level = "partial"
-        // Evidence requirement: `covered` without a user quote is not covered.
-        if (level == "covered" && !nonEmpty(claim["evidence"])) level = "partial"
+        // Only an eligible submitted answer can supply the quote, not model-written context.
+        val evidence = stringOf(claim["evidence"])
+        val userQuote = evidence != null && jsTrim(evidence).isNotEmpty() && turnsOf(session).any {
+            !truthy(it["skipped"]) && !isLowConfidence(it) && stringOf(it["answer"])?.contains(evidence) == true
+        }
+        if (level == "covered" && !userQuote) level = "partial"
 
         // Ratchet: never decrease, never rise more than one level.
         val curRank = LEVEL_RANK.getValue(stringOf(cur["level"])!!)
@@ -368,7 +372,7 @@ fun applyCoverage(
         next[id] = cur.spread(
             "level" to str(level),
             "gap" to if (level == "covered") JsonNull else if (nonEmpty(claim["gap"])) claim["gap"] else cur["gap"],
-            "evidence" to if (level == "covered") claim["evidence"] else cur["evidence"],
+            "evidence" to if (level == "covered" && userQuote) claim["evidence"] else cur["evidence"],
         )
     }
 

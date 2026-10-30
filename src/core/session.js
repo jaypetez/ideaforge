@@ -294,8 +294,11 @@ export function applyCoverage(session, claimed, { lowConfidenceDimension = null,
     if ((lowConfidenceDimension === id || cappedDimensions.includes(id)) && level === 'covered') {
       level = 'partial';
     }
-    // Evidence requirement: `covered` without a user quote is not covered.
-    if (level === 'covered' && !nonEmpty(claim.evidence)) level = 'partial';
+    // Only an eligible submitted answer can supply the quote, not model-written context.
+    const userQuote = nonEmpty(claim.evidence) && session.turns.some((t) =>
+      !t.skipped && !isLowConfidence(t) && typeof t.answer === 'string'
+      && t.answer.includes(claim.evidence));
+    if (level === 'covered' && !userQuote) level = 'partial';
 
     // Ratchet: never decrease, never rise more than one level.
     if (LEVEL_RANK[level] < LEVEL_RANK[cur.level]) level = cur.level;
@@ -308,7 +311,7 @@ export function applyCoverage(session, claimed, { lowConfidenceDimension = null,
       ...cur,
       level,
       gap: level === 'covered' ? null : (nonEmpty(claim.gap) ? claim.gap : cur.gap),
-      evidence: level === 'covered' ? claim.evidence : cur.evidence,
+      evidence: level === 'covered' && userQuote ? claim.evidence : cur.evidence,
     };
   }
 

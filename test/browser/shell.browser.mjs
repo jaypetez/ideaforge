@@ -48,7 +48,12 @@ function doneSession(id, now) {
 
 export default async function run(check) {
   const now = Date.now();
-  const sessions = [activeSession('s_shell_active', now, LONG_TITLE), doneSession('s_shell_done', now + 10)];
+  const sessions = [
+    activeSession('s_shell_active', now, LONG_TITLE),
+    doneSession('s_shell_done', now + 10),
+    ...Array.from({ length: 10 }, (_, i) =>
+      activeSession(`s_shell_saved_${i}`, now - i - 1, `Saved idea ${i + 1}`)),
+  ];
   for (const session of sessions) await saveSession(session);
 
   const frames = [];

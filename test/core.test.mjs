@@ -6,7 +6,7 @@ import {
   createSession, askQuestion, answerQuestion, applyCoverage, addFacts,
   waiveDimension, deferDimension, migrate, openTurn, isLowConfidence, setDraftText,
   setWrapOffered, copySession, resumeDimension, normalizeSessionName, archiveSession, reopen,
-  setSynthesis, answeredTurns,
+  setSynthesis, answeredTurns, setDraftAnswer,
 } from '../src/core/session.js';
 import {
   classifyAnswer, selectNextDimension, legalMoves, buildTurnPrompt, promptHash,
@@ -87,6 +87,108 @@ test('ratchet: `covered` without a verbatim user quote is not covered', () => {
   assert.equal(s.coverage.outcome.level, 'partial', 'no evidence => no covered');
 });
 
+test('ratchet: fabricated evidence in no user answer cannot earn covered credit', () => {
+  let s = withOpening('The workshop should track bicycle repair jobs for volunteers.');
+  s = applyCoverage(s, { outcome: { level: 'partial', gap: 'which repairs' } });
+  s = askQuestion(s, { question: 'Who will use the workshop tracker first?', dimension: 'audience' });
+  s = answerQuestion(s, { text: 'The volunteers on Saturday morning will use it.' });
+  assert.equal(answeredTurns(s).length, 2);
+  const before = JSON.stringify(s);
+
+  const fabricated = applyCoverage(s, { outcome: {
+    level: 'covered', evidence: 'Invented quotation that the user never said',
+  } });
+  assert.deepEqual(fabricated.coverage.outcome, s.coverage.outcome);
+  for (const evidence of ['bicycle repair jobs', 'Saturday morning']) {
+    const actual = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+    assert.equal(actual.coverage.outcome.level, 'covered', 'either actual answer can supply a quote');
+    assert.equal(actual.coverage.outcome.evidence, evidence);
+    assert.equal(actual.coverage.outcome.gap, null);
+  }
+  assert.equal(JSON.stringify(s), before, 'checking evidence must not mutate the answers');
+});
+
+test('ratchet: questions, suggestions, model facts and unfinished drafts are not user evidence', () => {
+  let s = applyCoverage(withOpening(), { outcome: { level: 'partial' } });
+  s = askQuestion(s, {
+    question: 'What is question-only text?', dimension: 'substance',
+    bridge: 'bridge-only text', chips: ['chip-only text'],
+  });
+  s = setDraftText(s, 'draft-only text');
+  s = setDraftAnswer(s, 'unsubmitted answer');
+  s = addFacts(s, [{ dimension: 'outcome', fact: 'fact-only text' }]);
+  s = setSynthesis(s, { text: 'synthesis-only text' });
+  for (const evidence of ['question-only text', 'bridge-only text', 'chip-only text',
+    'draft-only text', 'unsubmitted answer', 'fact-only text', 'synthesis-only text']) {
+    const out = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+    assert.equal(out.coverage.outcome.level, 'partial', evidence);
+    assert.equal(out.coverage.outcome.evidence, null, evidence);
+  }
+});
+
+test('ratchet: imported opening metadata, skipped text and non-string answers are not user quotes', () => {
+  const s = applyCoverage(migrate({
+    ...createSession(seed()), opening: 'opening-only text',
+    turns: [{ answer: 'skipped-only text', skipped: true }, { answer: 42, answerSource: 'typed' }],
+  }), { outcome: { level: 'partial' } });
+  for (const evidence of ['opening-only text', 'skipped-only text', '42']) {
+    const out = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+    assert.equal(out.coverage.outcome.level, 'partial', evidence);
+  }
+});
+
+test('ratchet: only eligible answer provenance can supply a quote on a later turn', () => {
+  const quote = 'Three seconds, one thumb';
+  for (const [source, text, evidence, expected] of [
+    ['typed', quote, quote, 'covered'],
+    ['voice', quote, quote, 'covered'],
+    ['chip', quote, quote, 'partial'],
+    ['draft', quote, quote, 'partial'],
+    ['draft', `${quote}, revised by me.`, 'revised by me', 'covered'],
+  ]) {
+    let s = applyCoverage(withOpening(), { outcome: { level: 'partial' } });
+    s = askQuestion(s, { question: 'What are the limits?', dimension: 'constraints', chips: [quote] });
+    s = setDraftText(s, quote);
+    s = answerQuestion(s, { text, source });
+    s = askQuestion(s, { question: 'Who uses it?', dimension: 'audience' });
+    s = answerQuestion(s, { text: 'The volunteers at the workshop.' });
+    const out = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+    assert.equal(out.coverage.outcome.level, expected, `${source}: ${text}`);
+  }
+});
+
+test('ratchet: quote membership is verbatim, including Unicode, punctuation and line breaks', () => {
+  let s = applyCoverage(withOpening('Café 🍵 — “工房”\nDeux vélos,\tSamedi. Cafe\u0301'), {
+    outcome: { level: 'partial' },
+  });
+  s = askQuestion(s, { question: 'Anything else?', dimension: 'audience' });
+  s = answerQuestion(s, { text: 'À bientôt.' });
+  for (const [evidence, expected] of [
+    ['Café 🍵 — “工房”', 'covered'],
+    ['“工房”\nDeux vélos,\tSamedi.', 'covered'],
+    ['Cafe\u0301', 'covered'],
+    ['🍵', 'covered'],
+    ['café 🍵', 'partial'],
+    ['Cafe\u0301 🍵', 'partial'],
+    ['Café 🍵 - "工房"', 'partial'],
+    ['“工房” Deux vélos, Samedi.', 'partial'],
+    ['Cafe\u0301\nÀ bientôt.', 'partial'],
+  ]) {
+    const out = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+    assert.equal(out.coverage.outcome.level, expected, evidence);
+  }
+});
+
+test('ratchet: rejecting a quote preserves existing covered credit and its real evidence', () => {
+  const evidence = 'a tool that interviews you';
+  let s = applyCoverage(withOpening(), { outcome: { level: 'partial' } });
+  s = applyCoverage(s, { outcome: { level: 'covered', evidence } });
+  for (const invalid of ['An invented replacement quote', null, 123]) {
+    const out = applyCoverage(s, { outcome: { level: 'covered', evidence: invalid } });
+    assert.deepEqual(out.coverage.outcome, s.coverage.outcome);
+  }
+});
+
 test('ratchet: at most two dimensions may rise in one turn', () => {
   let s = withOpening();
   const claim = {};
@@ -99,7 +201,7 @@ test('ratchet: at most two dimensions may rise in one turn', () => {
 test('ratchet: chip/draft provenance caps a dimension at partial', () => {
   let s = withOpening();
   s = applyCoverage(s, { outcome: { level: 'partial', gap: 'g' } });
-  s = applyCoverage(s, { outcome: { level: 'covered', evidence: 'their words' } },
+  s = applyCoverage(s, { outcome: { level: 'covered', evidence: 'a tool that interviews you' } },
     { lowConfidenceDimension: 'outcome' });
   assert.equal(s.coverage.outcome.level, 'partial', "Claude's own words must not count as coverage");
 });
@@ -108,7 +210,7 @@ test('waived and deferred dimensions stop being scored and stop being asked', ()
   let s = withOpening();
   s = waiveDimension(s, 'voice', 'I do not care about tone');
   s = deferDimension(s, 'references');
-  s = applyCoverage(s, { voice: { level: 'covered', evidence: 'x' } });
+  s = applyCoverage(s, { voice: { level: 'covered', evidence: 'a tool that interviews you' } });
   assert.equal(s.coverage.voice.level, 'thin', 'a waived dimension must not be re-scored');
   for (let i = 0; i < 40; i++) {
     const next = selectNextDimension(s);
@@ -462,13 +564,13 @@ test('migrate round-trips a stored session and rejects future schemas', () => {
 // is against `undefined` and false, so one claim took every dimension to `covered` at once
 // and none of them counted as a rise. Found while porting the core to Kotlin.
 test('migrate resets an unknown coverage level or status, so the ratchet still holds', () => {
-  const stored = JSON.parse(JSON.stringify(createSession({ id: 's_bad', now: 1 })));
+  const stored = JSON.parse(JSON.stringify(withOpening('A specific user quote')));
   for (const id of DIMENSION_IDS) stored.coverage[id].level = 'COVERED';
   stored.coverage.bar.status = 'banana';
   const s = migrate(stored);
   assert.ok(DIMENSION_IDS.every((id) => s.coverage[id].level === 'thin'));
   assert.equal(s.coverage.bar.status, 'probing');
-  const claim = Object.fromEntries(DIMENSION_IDS.map((id) => [id, { level: 'covered', evidence: 'quote' }]));
+  const claim = Object.fromEntries(DIMENSION_IDS.map((id) => [id, { level: 'covered', evidence: 'specific user quote' }]));
   const after = applyCoverage(s, claim);
   assert.equal(DIMENSION_IDS.filter((id) => after.coverage[id].level !== 'thin').length, 2,
     'at most two dimensions may rise, and only by one level');

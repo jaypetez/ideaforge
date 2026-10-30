@@ -32,6 +32,9 @@ the owners instead of copying the complete ladder or inventing client capabiliti
   `node tools\assistant.mjs map`, tracked-only orientation rather than an LSP.
 - [Exact-diff review](../review-ideaforge-change/SKILL.md):
   an exact supplied change set, using the existing restricted client adapters.
+- [Pre-PR review](../review-ideaforge-before-pr/SKILL.md):
+  at least two blind reviewers and a challenger before every PR, recorded per HEAD and enforced
+  by a pre-tool hook on `gh pr create`.
 - [Codebase audit](../audit-ideaforge-codebase/SKILL.md):
   an explicitly requested, map-first scope, not automatic remediation.
 - [Debt](../ideaforge-debt/SKILL.md):

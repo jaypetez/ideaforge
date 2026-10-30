@@ -25,12 +25,12 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -199,30 +199,42 @@ class BackupJobs(private val scope: CoroutineScope) {
     private val _state = MutableStateFlow(BackupState())
     val state: StateFlow<BackupState> = _state.asStateFlow()
 
-    /** Queues [action]; its return value is the message shown when it succeeds. */
-    fun launch(action: suspend () -> String): Job {
+    private fun begin() {
         synchronized(lock) {
             pending++
-            _state.update { it.copy(busy = true) }
+            _state.value = BackupState(busy = true)
         }
-        return scope.launch {
-            var outcome: BackupState? = null
-            try {
-                outcome = mutex.withLock {
-                    try {
-                        BackupState(message = action())
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        BackupState(message = e.message ?: "The backup could not be read.", failed = true)
-                    }
+    }
+
+    /** Queues [action]; its return value is the message shown when it succeeds. */
+    fun launch(action: suspend () -> String): Job {
+        begin()
+        return scope.launch(start = CoroutineStart.UNDISPATCHED) { run(action) { it } }
+    }
+
+    /** Preparation is cancelled with its caller; an abandoned screen must not open a picker. */
+    suspend fun <T> prepare(action: suspend () -> T): T? {
+        begin()
+        return run(action) { null }
+    }
+
+    private suspend fun <T> run(action: suspend () -> T, message: (T) -> String?): T? {
+        var outcome: BackupState? = null
+        try {
+            return mutex.withLock {
+                try {
+                    action().also { outcome = BackupState(message = message(it)) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    outcome = BackupState(message = e.message ?: "The backup could not be read.", failed = true)
+                    null
                 }
-            } finally {
-                synchronized(lock) {
-                    pending--
-                    val result = outcome
-                    _state.value = (result ?: _state.value).copy(busy = pending > 0)
-                }
+            }
+        } finally {
+            synchronized(lock) {
+                pending--
+                _state.value = (outcome ?: _state.value).copy(busy = pending > 0)
             }
         }
     }
@@ -236,8 +248,8 @@ class BackupJobs(private val scope: CoroutineScope) {
  * exported, as the browser does not export rows it cannot read. Backups contain sessions and
  * nothing else: this reads the session store only, never the keyring or preferences.
  *
- * The work and its state live in [jobs] (app-scoped, see [BackupJobs]); this only starts
- * jobs and shows their state.
+ * [jobs] serializes work and retains outcomes. Submitted writes/imports outlive the screen;
+ * preparation belongs to its visible caller, before it may open a document picker.
  */
 class BackupViewModel(
     private val store: SessionStore,
@@ -248,18 +260,48 @@ class BackupViewModel(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     val state: StateFlow<BackupState> = jobs.state
+    private class PreparedBackup(val filename: String, val count: Int, val bytes: ByteArray)
+    private var prepared: PreparedBackup? = null
+    private var preparing = false
 
-    /** What the create-document picker suggests: the web's `ideaforge-backup-YYYY-MM-DD.json`. */
-    fun exportFilename(): String = backupFilename(clock.now())
-
-    fun export(uri: Uri) {
-        jobs.launch {
-            store.load()
-            val sessions = store.sessions.value
-            val bytes = buildBackup(JsonArray(sessions), num(clock.now())).encodeToByteArray()
-            withContext(io) { documents.openOutput(uri).use { it.write(bytes) } }
-            backedUpMessage(sessions.size)
+    /** Validate the entire snapshot before SAF can create a file; keep these exact bytes for its result. */
+    suspend fun prepareExport(): String? {
+        if (preparing || prepared != null) return null
+        preparing = true
+        try {
+            prepared = jobs.prepare {
+                store.load()
+                val sessions = store.sessions.value
+                val now = clock.now()
+                withContext(io) {
+                    PreparedBackup(
+                        backupFilename(now), sessions.size,
+                        buildBackup(JsonArray(sessions), num(now)).encodeToByteArray(),
+                    )
+                }
+            }
+            return prepared?.filename
+        } finally {
+            preparing = false
         }
+    }
+
+    fun export(uri: Uri?) {
+        val snapshot = prepared
+        prepared = null
+        if (uri == null) return
+        jobs.launch {
+            checkNotNull(snapshot) {
+                "The prepared backup is no longer available. Start Backup ideas again; the selected file was not written."
+            }
+            withContext(io) { documents.openOutput(uri).use { it.write(snapshot.bytes) } }
+            backedUpMessage(snapshot.count)
+        }
+    }
+
+    fun exportPickerFailed(error: Exception) {
+        prepared = null
+        jobs.launch { throw error }
     }
 
     fun import(uri: Uri) {

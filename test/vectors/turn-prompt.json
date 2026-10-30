@@ -4133,7 +4133,7 @@
         "device": "phone"
       }
     },
-    "s_wide@39#d99edb78c9": {
+    "s_wide@39#b1fd3216e1": {
       "schema": 2,
       "id": "s_wide",
       "rev": 39,
@@ -4382,7 +4382,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 7",
+          "evidence": "the southern sky in month 7",
           "turnsSpent": 2,
           "lastTurn": 9,
           "waivedReason": null
@@ -4391,7 +4391,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 8",
+          "evidence": "the southern sky in month 8",
           "turnsSpent": 2,
           "lastTurn": 10,
           "waivedReason": null
@@ -4400,7 +4400,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 9",
+          "evidence": "the southern sky in month 9",
           "turnsSpent": 2,
           "lastTurn": 11,
           "waivedReason": null
@@ -4409,7 +4409,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 10",
+          "evidence": "the southern sky in month 10",
           "turnsSpent": 2,
           "lastTurn": 12,
           "waivedReason": null
@@ -4418,7 +4418,7 @@
           "level": "covered",
           "status": "probing",
           "gap": null,
-          "evidence": "quote 11",
+          "evidence": "the southern sky in month 11",
           "turnsSpent": 2,
           "lastTurn": 13,
           "waivedReason": null
@@ -8804,7 +8804,7 @@
       "fn": "buildTurnPromptParts",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8829,7 +8829,7 @@
       "fn": "turnPromptHash",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8851,7 +8851,7 @@
       "fn": "buildTurnPromptParts",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8877,7 +8877,7 @@
       "fn": "turnPromptHash",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8900,7 +8900,7 @@
       "fn": "buildTurnPromptParts",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8926,7 +8926,7 @@
       "fn": "turnPromptHash",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         {
           "target": "outcome",
@@ -8949,7 +8949,7 @@
       "fn": "buildTranscriptBlock",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         400
       ],
@@ -8966,7 +8966,7 @@
       "fn": "buildTranscriptBlock",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         2000
       ],
@@ -8983,7 +8983,7 @@
       "fn": "buildTranscriptBlock",
       "args": [
         {
-          "$ref": "s_wide@39#d99edb78c9"
+          "$ref": "s_wide@39#b1fd3216e1"
         },
         49152
       ],

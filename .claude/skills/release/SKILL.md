@@ -125,8 +125,9 @@ The current complete script includes the unit/purity suite, module graph, and re
 browser checks on the assembled site. A missing browser or a skipped check is not success.
 Keep the no-dependency/no-build architecture; do not weaken a gate to make a release green.
 
-Review the final diff, commit only the intended changes, and open a new PR against
-upstream `main`, using an authorised fork when necessary. Record what actually ran.
+Review the final diff, commit only the intended changes, run
+[`review-ideaforge-before-pr`](../review-ideaforge-before-pr/SKILL.md) on that commit, and
+open a new PR against upstream `main`, using an authorised fork when necessary. Record what actually ran.
 Ask for the appropriate release-note label if the author cannot apply it.
 
 The handoff must state the version/tag, PR, intended publisher, and the remaining merge,

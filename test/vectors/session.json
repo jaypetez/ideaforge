@@ -3,102 +3,6 @@
   "family": "session",
   "source": "src/core/session.js",
   "fixtures": {
-    "s_cov@0#4e96259310": {
-      "schema": 2,
-      "id": "s_cov",
-      "rev": 0,
-      "createdAt": 1760000000000,
-      "updatedAt": 1760000000000,
-      "status": "interviewing",
-      "name": "",
-      "title": "",
-      "tags": [],
-      "archivedAt": 0,
-      "opening": "",
-      "turns": [],
-      "coverage": {
-        "outcome": {
-          "level": null,
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "substance": {
-          "level": "COVERED",
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": "10",
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "bar": {
-          "level": "COVERED",
-          "status": "banana",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "constraints": {
-          "level": "COVERED",
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "audience": {
-          "level": "COVERED",
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": null,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "voice": {
-          "level": "COVERED",
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "references": {
-          "level": "COVERED",
-          "status": "probing",
-          "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        }
-      },
-      "facts": [],
-      "moveHistory": [],
-      "openQuestions": [],
-      "synthesis": {
-        "text": "",
-        "tier": "",
-        "at": 0,
-        "stale": false,
-        "assumptions": []
-      },
-      "draftAnswer": "",
-      "pending": null,
-      "zeroGainStreak": 0,
-      "wrapOffered": false,
-      "meta": {
-        "device": "desktop"
-      }
-    },
     "s_cov@0#af2ea44a31": {
       "schema": 2,
       "id": "s_cov",
@@ -171,102 +75,6 @@
           "level": "thin",
           "status": "probing",
           "gap": null,
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        }
-      },
-      "facts": [],
-      "moveHistory": [],
-      "openQuestions": [],
-      "synthesis": {
-        "text": "",
-        "tier": "",
-        "at": 0,
-        "stale": false,
-        "assumptions": []
-      },
-      "draftAnswer": "",
-      "pending": null,
-      "zeroGainStreak": 0,
-      "wrapOffered": false,
-      "meta": {
-        "device": "desktop"
-      }
-    },
-    "s_cov@1#10cf021150": {
-      "schema": 2,
-      "id": "s_cov",
-      "rev": 1,
-      "createdAt": 1760000000000,
-      "updatedAt": 1,
-      "status": "interviewing",
-      "name": "",
-      "title": "",
-      "tags": [],
-      "archivedAt": 0,
-      "opening": "",
-      "turns": [],
-      "coverage": {
-        "outcome": {
-          "level": "partial",
-          "status": "probing",
-          "gap": "gap outcome",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "substance": {
-          "level": "partial",
-          "status": "probing",
-          "gap": "gap substance",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "bar": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap bar",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "constraints": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap constraints",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "audience": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap audience",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "voice": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap voice",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "references": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap references",
           "evidence": null,
           "turnsSpent": 0,
           "lastTurn": 0,
@@ -618,6 +426,1511 @@
         "device": "desktop"
       }
     },
+    "s_cov@11#137987a760": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 11,
+      "createdAt": 1760000000000,
+      "updatedAt": 5,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@11#36c734d00e": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 11,
+      "createdAt": 1760000000000,
+      "updatedAt": 5,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "42",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "answer": "42",
+          "skipped": true,
+          "chips": []
+        },
+        {
+          "answer": 42,
+          "answerSource": "typed",
+          "chips": []
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@12#cefb8556ee": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 12,
+      "createdAt": 1760000000000,
+      "updatedAt": 6,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "covered",
+          "status": "probing",
+          "gap": null,
+          "evidence": "three seconds, one thumb",
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@12#ed6ce6438f": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 12,
+      "createdAt": 1760000000000,
+      "updatedAt": 6,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "waived",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": "n/a"
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@13#e95d94b405": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 13,
+      "createdAt": 1760000000000,
+      "updatedAt": 7,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "voice",
+          "question": "What is printed?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+          "answerSource": "voice",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 7,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@14#e9b34e3109": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 14,
+      "createdAt": 1760000000000,
+      "updatedAt": 8,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "outcome",
+          "question": "What would model-only evidence mean here?",
+          "bridge": "model-only evidence",
+          "move": null,
+          "chips": [
+            "model-only evidence"
+          ],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": "model-only evidence",
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 0,
+          "classification": null
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [
+        {
+          "dimension": "outcome",
+          "fact": "model-only evidence"
+        }
+      ],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "model-only evidence",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@16#28fa793538": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 10,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "constraints",
+          "question": "What are the limits?",
+          "bridge": null,
+          "move": null,
+          "chips": [
+            "one thumb and no network"
+          ],
+          "questionSource": "model",
+          "answer": "one thumb and no network",
+          "answerSource": "chip",
+          "draftText": "one thumb and no network",
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 8,
+          "classification": "terse"
+        },
+        {
+          "id": "t4",
+          "n": 4,
+          "dimension": "audience",
+          "question": "Who else uses it?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers at the workshop.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 9,
+          "answeredAt": 10,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 4,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@16#3a138e170b": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 10,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "constraints",
+          "question": "What are the limits?",
+          "bridge": null,
+          "move": null,
+          "chips": [
+            "one thumb and no network"
+          ],
+          "questionSource": "model",
+          "answer": "one thumb and no network",
+          "answerSource": "voice",
+          "draftText": "one thumb and no network",
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 8,
+          "classification": "terse"
+        },
+        {
+          "id": "t4",
+          "n": 4,
+          "dimension": "audience",
+          "question": "Who else uses it?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers at the workshop.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 9,
+          "answeredAt": 10,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 4,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@16#69448a28f4": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 10,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "constraints",
+          "question": "What are the limits?",
+          "bridge": null,
+          "move": null,
+          "chips": [
+            "one thumb and no network"
+          ],
+          "questionSource": "model",
+          "answer": "one thumb and no network",
+          "answerSource": "draft-unedited",
+          "draftText": "one thumb and no network",
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 8,
+          "classification": "terse"
+        },
+        {
+          "id": "t4",
+          "n": 4,
+          "dimension": "audience",
+          "question": "Who else uses it?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers at the workshop.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 9,
+          "answeredAt": 10,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 4,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@16#f65e70c12e": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 16,
+      "createdAt": 1760000000000,
+      "updatedAt": 10,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        },
+        {
+          "id": "t3",
+          "n": 3,
+          "dimension": "constraints",
+          "question": "What are the limits?",
+          "bridge": null,
+          "move": null,
+          "chips": [
+            "one thumb and no network"
+          ],
+          "questionSource": "model",
+          "answer": "one thumb and no network, with a printed backup.",
+          "answerSource": "draft-edited",
+          "draftText": "one thumb and no network",
+          "skipped": false,
+          "askedAt": 6,
+          "answeredAt": 8,
+          "classification": "substantive"
+        },
+        {
+          "id": "t4",
+          "n": 4,
+          "dimension": "audience",
+          "question": "Who else uses it?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers at the workshop.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 9,
+          "answeredAt": 10,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap outcome",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap substance",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap bar",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap constraints",
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 3,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap audience",
+          "evidence": null,
+          "turnsSpent": 2,
+          "lastTurn": 4,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap voice",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "partial",
+          "status": "probing",
+          "gap": "gap references",
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
     "s_cov@2#4cf8f29be0": {
       "schema": 2,
       "id": "s_cov",
@@ -858,102 +2171,6 @@
         "assumptions": []
       },
       "draftAnswer": "draft words",
-      "pending": null,
-      "zeroGainStreak": 0,
-      "wrapOffered": false,
-      "meta": {
-        "device": "desktop"
-      }
-    },
-    "s_cov@2#a16444fafb": {
-      "schema": 2,
-      "id": "s_cov",
-      "rev": 2,
-      "createdAt": 1760000000000,
-      "updatedAt": 1,
-      "status": "interviewing",
-      "name": "",
-      "title": "",
-      "tags": [],
-      "archivedAt": 0,
-      "opening": "",
-      "turns": [],
-      "coverage": {
-        "outcome": {
-          "level": "partial",
-          "status": "probing",
-          "gap": "gap outcome",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "substance": {
-          "level": "partial",
-          "status": "probing",
-          "gap": "gap substance",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "bar": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap bar",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "constraints": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap constraints",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "audience": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap audience",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        },
-        "voice": {
-          "level": "thin",
-          "status": "waived",
-          "gap": "gap voice",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": "n/a"
-        },
-        "references": {
-          "level": "thin",
-          "status": "probing",
-          "gap": "gap references",
-          "evidence": null,
-          "turnsSpent": 0,
-          "lastTurn": 0,
-          "waivedReason": null
-        }
-      },
-      "facts": [],
-      "moveHistory": [],
-      "openQuestions": [],
-      "synthesis": {
-        "text": "",
-        "tier": "",
-        "at": 0,
-        "stale": false,
-        "assumptions": []
-      },
-      "draftAnswer": "",
       "pending": null,
       "zeroGainStreak": 0,
       "wrapOffered": false,
@@ -1608,6 +2825,399 @@
           }
         }
       ]
+    },
+    "s_cov@4#84cf9ac55d": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 4,
+      "createdAt": 1760000000000,
+      "updatedAt": 4,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@4#ca801d7fa8": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 4,
+      "createdAt": 1760000000000,
+      "updatedAt": 4,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": null,
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": "10",
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "COVERED",
+          "status": "banana",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": null,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "COVERED",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
+    },
+    "s_cov@4#f97327c968": {
+      "schema": 2,
+      "id": "s_cov",
+      "rev": 4,
+      "createdAt": 1760000000000,
+      "updatedAt": 4,
+      "status": "interviewing",
+      "name": "",
+      "title": "",
+      "tags": [],
+      "archivedAt": 0,
+      "opening": "It must work in three seconds, one thumb.",
+      "turns": [
+        {
+          "id": "t1",
+          "n": 1,
+          "dimension": "outcome",
+          "question": "In a sentence or two — what’s the idea?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "seed",
+          "answer": "It must work in three seconds, one thumb.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1,
+          "answeredAt": 2,
+          "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "audience",
+          "question": "Who will use it first?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "The volunteers on Saturday morning will use it.",
+          "answerSource": "typed",
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 3,
+          "answeredAt": 4,
+          "classification": "substantive"
+        }
+      ],
+      "coverage": {
+        "outcome": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 1,
+          "waivedReason": null
+        },
+        "substance": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "bar": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "constraints": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "audience": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 1,
+          "lastTurn": 2,
+          "waivedReason": null
+        },
+        "voice": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        },
+        "references": {
+          "level": "thin",
+          "status": "probing",
+          "gap": null,
+          "evidence": null,
+          "turnsSpent": 0,
+          "lastTurn": 0,
+          "waivedReason": null
+        }
+      },
+      "facts": [],
+      "moveHistory": [],
+      "openQuestions": [],
+      "synthesis": {
+        "text": "",
+        "tier": "",
+        "at": 0,
+        "stale": false,
+        "assumptions": []
+      },
+      "draftAnswer": "",
+      "pending": null,
+      "zeroGainStreak": 0,
+      "wrapOffered": false,
+      "meta": {
+        "device": "desktop"
+      }
     },
     "s_walkthrough@16#0875ee064d": {
       "schema": 2,
@@ -3077,41 +4687,76 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@0#af2ea44a31"
+          "$ref": "s_cov@4#f97327c968"
         },
         {
           "outcome": {
             "level": "covered",
-            "evidence": "they said it",
+            "evidence": "three seconds, one thumb",
             "gap": null
           }
         },
         {
-          "now": 2
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 1,
+          "rev": 5,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": null,
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3146,8 +4791,8 @@
               "status": "probing",
               "gap": null,
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
@@ -3194,7 +4839,7 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "outcome": {
@@ -3210,7 +4855,7 @@
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
           "updatedAt": 2,
           "status": "interviewing",
@@ -3218,16 +4863,51 @@
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "worse",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3240,7 +4920,7 @@
               "waivedReason": null
             },
             "bar": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap bar",
               "evidence": null,
@@ -3249,7 +4929,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3258,16 +4938,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3276,7 +4956,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -3310,109 +4990,151 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@0#af2ea44a31"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "outcome": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "substance": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "bar": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "constraints": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "audience": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "voice": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           },
           "references": {
-            "level": "partial"
+            "level": "covered",
+            "evidence": "three seconds, one thumb"
           }
         },
         {
-          "now": 2
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 1,
+          "rev": 12,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
-              "level": "partial",
+              "level": "covered",
               "status": "probing",
               "gap": null,
-              "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "evidence": "three seconds, one thumb",
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
-              "level": "partial",
+              "level": "covered",
               "status": "probing",
               "gap": null,
-              "evidence": null,
+              "evidence": "three seconds, one thumb",
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
             },
             "bar": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": null,
-              "evidence": null,
+              "evidence": "three seconds, one thumb",
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": null,
-              "evidence": null,
+              "evidence": "three seconds, one thumb",
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": null,
-              "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "evidence": "three seconds, one thumb",
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": null,
-              "evidence": null,
+              "evidence": "three seconds, one thumb",
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": null,
-              "evidence": null,
+              "evidence": "three seconds, one thumb",
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
@@ -3443,7 +5165,7 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "bar": {
@@ -3459,7 +5181,7 @@
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
           "updatedAt": 2,
           "status": "interviewing",
@@ -3467,16 +5189,51 @@
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3498,7 +5255,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3507,16 +5264,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3525,7 +5282,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -3559,7 +5316,7 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "bar": {
@@ -3575,7 +5332,7 @@
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
           "updatedAt": 2,
           "status": "interviewing",
@@ -3583,16 +5340,51 @@
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3614,7 +5406,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3623,16 +5415,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3641,7 +5433,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -3675,7 +5467,7 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "bar": {
@@ -3685,31 +5477,217 @@
           }
         },
         {
-          "now": 2
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
               "turnsSpent": 0,
               "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "covered",
+              "status": "probing",
+              "gap": null,
+              "evidence": "three seconds, one thumb",
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered with fabricated evidence is partial",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@11#137987a760"
+        },
+        {
+          "bar": {
+            "level": "covered",
+            "evidence": "Invented quotation that the user never said"
+          }
+        },
+        {
+          "now": 6
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 12,
+          "createdAt": 1760000000000,
+          "updatedAt": 6,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3724,14 +5702,14 @@
             "bar": {
               "level": "partial",
               "status": "probing",
-              "gap": "ignored",
+              "gap": "gap bar",
               "evidence": null,
               "turnsSpent": 0,
               "lastTurn": 0,
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3740,16 +5718,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3758,7 +5736,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -3792,41 +5770,76 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "bar": {
             "level": "covered",
-            "evidence": "q"
+            "evidence": "three seconds, one thumb"
           }
         },
         {
           "lowConfidenceDimension": "bar",
-          "now": 2
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3848,7 +5861,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3857,16 +5870,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3875,7 +5888,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -3909,43 +5922,78 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "audience": {
             "level": "covered",
-            "evidence": "q"
+            "evidence": "three seconds, one thumb"
           }
         },
         {
           "cappedDimensions": [
             "audience"
           ],
-          "now": 2
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -3958,7 +6006,7 @@
               "waivedReason": null
             },
             "bar": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap bar",
               "evidence": null,
@@ -3967,7 +6015,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -3980,12 +6028,12 @@
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -3994,7 +6042,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -4028,40 +6076,75 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@2#a16444fafb"
+          "$ref": "s_cov@12#ed6ce6438f"
         },
         {
           "voice": {
             "level": "covered",
-            "evidence": "q"
+            "evidence": "three seconds, one thumb"
           }
         },
         {
-          "now": 2
+          "now": 7
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 3,
+          "rev": 13,
           "createdAt": 1760000000000,
-          "updatedAt": 2,
+          "updatedAt": 7,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -4074,7 +6157,7 @@
               "waivedReason": null
             },
             "bar": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap bar",
               "evidence": null,
@@ -4083,7 +6166,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -4092,16 +6175,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "waived",
               "gap": "gap voice",
               "evidence": null,
@@ -4110,7 +6193,7 @@
               "waivedReason": "n/a"
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -4374,7 +6457,7 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@1#10cf021150"
+          "$ref": "s_cov@11#137987a760"
         },
         {
           "outcome": {
@@ -4390,7 +6473,7 @@
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 2,
+          "rev": 12,
           "createdAt": 1760000000000,
           "updatedAt": 2,
           "status": "interviewing",
@@ -4398,16 +6481,51 @@
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": "gap outcome",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -4420,7 +6538,7 @@
               "waivedReason": null
             },
             "bar": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap bar",
               "evidence": null,
@@ -4429,7 +6547,7 @@
               "waivedReason": null
             },
             "constraints": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap constraints",
               "evidence": null,
@@ -4438,16 +6556,16 @@
               "waivedReason": null
             },
             "audience": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap audience",
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap voice",
               "evidence": null,
@@ -4456,7 +6574,7 @@
               "waivedReason": null
             },
             "references": {
-              "level": "thin",
+              "level": "partial",
               "status": "probing",
               "gap": "gap references",
               "evidence": null,
@@ -6619,31 +8737,66 @@
       "fn": "migrate",
       "args": [
         {
-          "$ref": "s_cov@0#4e96259310"
+          "$ref": "s_cov@4#ca801d7fa8"
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 0,
+          "rev": 4,
           "createdAt": 1760000000000,
-          "updatedAt": 1760000000000,
+          "updatedAt": 4,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "thin",
               "status": "probing",
               "gap": null,
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -6679,7 +8832,7 @@
               "gap": null,
               "evidence": null,
               "turnsSpent": 0,
-              "lastTurn": 0,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
@@ -6726,64 +8879,99 @@
       "fn": "applyCoverage",
       "args": [
         {
-          "$ref": "s_cov@0#af2ea44a31"
+          "$ref": "s_cov@4#84cf9ac55d"
         },
         {
           "outcome": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "substance": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "bar": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "constraints": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "audience": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "voice": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           },
           "references": {
             "level": "covered",
-            "evidence": "quote"
+            "evidence": "three seconds, one thumb"
           }
         },
         {
-          "now": 3
+          "now": 6
         }
       ],
       "expect": {
         "value": {
           "schema": 2,
           "id": "s_cov",
-          "rev": 1,
+          "rev": 5,
           "createdAt": 1760000000000,
-          "updatedAt": 3,
+          "updatedAt": 6,
           "status": "interviewing",
           "name": "",
           "title": "",
           "tags": [],
           "archivedAt": 0,
-          "opening": "",
-          "turns": [],
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
           "coverage": {
             "outcome": {
               "level": "partial",
               "status": "probing",
               "gap": null,
               "evidence": null,
-              "turnsSpent": 0,
-              "lastTurn": 0,
+              "turnsSpent": 1,
+              "lastTurn": 1,
               "waivedReason": null
             },
             "substance": {
@@ -6819,7 +9007,7 @@
               "gap": null,
               "evidence": null,
               "turnsSpent": 0,
-              "lastTurn": 0,
+              "lastTurn": 2,
               "waivedReason": null
             },
             "voice": {
@@ -6942,6 +9130,2400 @@
               "level": "thin",
               "status": "probing",
               "gap": null,
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "model-only text cannot supply covered evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@14#e9b34e3109"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "model-only evidence"
+          }
+        },
+        {
+          "now": 9
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 15,
+          "createdAt": 1760000000000,
+          "updatedAt": 9,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "outcome",
+              "question": "What would model-only evidence mean here?",
+              "bridge": "model-only evidence",
+              "move": null,
+              "chips": [
+                "model-only evidence"
+              ],
+              "questionSource": "model",
+              "answer": "",
+              "answerSource": null,
+              "draftText": "model-only evidence",
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 0,
+              "classification": null
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 2,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [
+            {
+              "dimension": "outcome",
+              "fact": "model-only evidence"
+            }
+          ],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "model-only evidence",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "imported skipped and non-string answers are not evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@11#36c734d00e"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "42"
+          }
+        },
+        {
+          "now": 6
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 12,
+          "createdAt": 1760000000000,
+          "updatedAt": 6,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "42",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "answer": "42",
+              "skipped": true,
+              "chips": []
+            },
+            {
+              "answer": 42,
+              "answerSource": "typed",
+              "chips": []
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "quotes cannot span separate answers",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@11#137987a760"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "one thumb.\nThe volunteers"
+          }
+        },
+        {
+          "now": 6
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 12,
+          "createdAt": 1760000000000,
+          "updatedAt": 6,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered credit retains real evidence after a fabricated claim",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@12#cefb8556ee"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "An invented replacement quote"
+          }
+        },
+        {
+          "now": 7
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 13,
+          "createdAt": 1760000000000,
+          "updatedAt": 7,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "covered",
+              "status": "probing",
+              "gap": null,
+              "evidence": "three seconds, one thumb",
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "chip evidence cannot be reused by a later turn",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@16#28fa793538"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "one thumb and no network"
+          }
+        },
+        {
+          "now": 11
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 11,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "constraints",
+              "question": "What are the limits?",
+              "bridge": null,
+              "move": null,
+              "chips": [
+                "one thumb and no network"
+              ],
+              "questionSource": "model",
+              "answer": "one thumb and no network",
+              "answerSource": "chip",
+              "draftText": "one thumb and no network",
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 8,
+              "classification": "terse"
+            },
+            {
+              "id": "t4",
+              "n": 4,
+              "dimension": "audience",
+              "question": "Who else uses it?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers at the workshop.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 9,
+              "answeredAt": 10,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 2,
+              "lastTurn": 4,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "unedited draft evidence cannot be reused by a later turn",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@16#69448a28f4"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "one thumb and no network"
+          }
+        },
+        {
+          "now": 11
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 11,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "constraints",
+              "question": "What are the limits?",
+              "bridge": null,
+              "move": null,
+              "chips": [
+                "one thumb and no network"
+              ],
+              "questionSource": "model",
+              "answer": "one thumb and no network",
+              "answerSource": "draft-unedited",
+              "draftText": "one thumb and no network",
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 8,
+              "classification": "terse"
+            },
+            {
+              "id": "t4",
+              "n": 4,
+              "dimension": "audience",
+              "question": "Who else uses it?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers at the workshop.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 9,
+              "answeredAt": 10,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 2,
+              "lastTurn": 4,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered evidence from earlier edited draft",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@16#f65e70c12e"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "a printed backup"
+          }
+        },
+        {
+          "now": 11
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 11,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "constraints",
+              "question": "What are the limits?",
+              "bridge": null,
+              "move": null,
+              "chips": [
+                "one thumb and no network"
+              ],
+              "questionSource": "model",
+              "answer": "one thumb and no network, with a printed backup.",
+              "answerSource": "draft-edited",
+              "draftText": "one thumb and no network",
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 8,
+              "classification": "substantive"
+            },
+            {
+              "id": "t4",
+              "n": 4,
+              "dimension": "audience",
+              "question": "Who else uses it?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers at the workshop.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 9,
+              "answeredAt": 10,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "covered",
+              "status": "probing",
+              "gap": null,
+              "evidence": "a printed backup",
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 2,
+              "lastTurn": 4,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "covered evidence from earlier voice answer",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@16#3a138e170b"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "one thumb and no network"
+          }
+        },
+        {
+          "now": 11
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 17,
+          "createdAt": 1760000000000,
+          "updatedAt": 11,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "constraints",
+              "question": "What are the limits?",
+              "bridge": null,
+              "move": null,
+              "chips": [
+                "one thumb and no network"
+              ],
+              "questionSource": "model",
+              "answer": "one thumb and no network",
+              "answerSource": "voice",
+              "draftText": "one thumb and no network",
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 8,
+              "classification": "terse"
+            },
+            {
+              "id": "t4",
+              "n": 4,
+              "dimension": "audience",
+              "question": "Who else uses it?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers at the workshop.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 9,
+              "answeredAt": 10,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "covered",
+              "status": "probing",
+              "gap": null,
+              "evidence": "one thumb and no network",
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 2,
+              "lastTurn": 4,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "Unicode user quote is accepted verbatim",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café"
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "covered",
+              "status": "probing",
+              "gap": null,
+              "evidence": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "changed case is not verbatim evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "café 🍵"
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "normalized Unicode is not verbatim evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "Café 🍵"
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "changed punctuation is not verbatim evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "Café 🍵 - \"工房\""
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "collapsed line breaks are not verbatim evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "“工房” Deux vélos, Samedi."
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            }
+          },
+          "facts": [],
+          "moveHistory": [],
+          "openQuestions": [],
+          "synthesis": {
+            "text": "",
+            "tier": "",
+            "at": 0,
+            "stale": false,
+            "assumptions": []
+          },
+          "draftAnswer": "",
+          "pending": null,
+          "zeroGainStreak": 0,
+          "wrapOffered": false,
+          "meta": {
+            "device": "desktop"
+          }
+        }
+      }
+    },
+    {
+      "name": "changed line endings are not verbatim evidence",
+      "fn": "applyCoverage",
+      "args": [
+        {
+          "$ref": "s_cov@13#e95d94b405"
+        },
+        {
+          "outcome": {
+            "level": "covered",
+            "evidence": "Café 🍵 — “工房”\r\nDeux vélos,\tSamedi. Café"
+          }
+        },
+        {
+          "now": 8
+        }
+      ],
+      "expect": {
+        "value": {
+          "schema": 2,
+          "id": "s_cov",
+          "rev": 14,
+          "createdAt": 1760000000000,
+          "updatedAt": 8,
+          "status": "interviewing",
+          "name": "",
+          "title": "",
+          "tags": [],
+          "archivedAt": 0,
+          "opening": "It must work in three seconds, one thumb.",
+          "turns": [
+            {
+              "id": "t1",
+              "n": 1,
+              "dimension": "outcome",
+              "question": "In a sentence or two — what’s the idea?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "seed",
+              "answer": "It must work in three seconds, one thumb.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 1,
+              "answeredAt": 2,
+              "classification": "substantive"
+            },
+            {
+              "id": "t2",
+              "n": 2,
+              "dimension": "audience",
+              "question": "Who will use it first?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "The volunteers on Saturday morning will use it.",
+              "answerSource": "typed",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 3,
+              "answeredAt": 4,
+              "classification": "substantive"
+            },
+            {
+              "id": "t3",
+              "n": 3,
+              "dimension": "voice",
+              "question": "What is printed?",
+              "bridge": null,
+              "move": null,
+              "chips": [],
+              "questionSource": "model",
+              "answer": "Café 🍵 — “工房”\nDeux vélos,\tSamedi. Café",
+              "answerSource": "voice",
+              "draftText": null,
+              "skipped": false,
+              "askedAt": 6,
+              "answeredAt": 7,
+              "classification": "substantive"
+            }
+          ],
+          "coverage": {
+            "outcome": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap outcome",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 1,
+              "waivedReason": null
+            },
+            "substance": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap substance",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "bar": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap bar",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "constraints": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap constraints",
+              "evidence": null,
+              "turnsSpent": 0,
+              "lastTurn": 0,
+              "waivedReason": null
+            },
+            "audience": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap audience",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 2,
+              "waivedReason": null
+            },
+            "voice": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap voice",
+              "evidence": null,
+              "turnsSpent": 1,
+              "lastTurn": 3,
+              "waivedReason": null
+            },
+            "references": {
+              "level": "partial",
+              "status": "probing",
+              "gap": "gap references",
               "evidence": null,
               "turnsSpent": 0,
               "lastTurn": 0,

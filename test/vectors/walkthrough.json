@@ -1719,7 +1719,7 @@
           "session": {
             "schema": 2,
             "id": "s_walkthrough",
-            "rev": 63,
+            "rev": 62,
             "createdAt": 1760000123000,
             "updatedAt": 1760000123000,
             "status": "done",
@@ -1906,7 +1906,7 @@
                 "dimension": "audience",
                 "question": "What would annoy your two teammates enough to stop?",
                 "bridge": "A card that cannot hold your voice.",
-                "move": "boundary",
+                "move": "premortem",
                 "chips": [
                   "being asked to fill in fields",
                   "anything with a sync button",
@@ -1943,10 +1943,10 @@
                 "waivedReason": null
               },
               "bar": {
-                "level": "covered",
+                "level": "partial",
                 "status": "probing",
-                "gap": null,
-                "evidence": "if it made me type while someone was still talking to me",
+                "gap": "one way to fail it, but no sense of a good save",
+                "evidence": null,
                 "turnsSpent": 1,
                 "lastTurn": 3,
                 "waivedReason": null
@@ -2034,7 +2034,7 @@
               "sample_output",
               "analogue",
               "define_term",
-              "boundary"
+              "premortem"
             ],
             "openQuestions": [
               {
@@ -2061,14 +2061,14 @@
             "draftAnswer": "",
             "pending": null,
             "zeroGainStreak": 0,
-            "wrapOffered": true,
+            "wrapOffered": false,
             "meta": {
               "device": "android"
             }
           },
-          "export": "# Conference name recall app\n\n_2025-10-09 · 8 questions · coverage 86% · synthesised by Claude_\n\n## Refined prompt\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\n### Assumptions made during synthesis\n\n- Assumed the three-second limit applies to capture, not to looking a name back up.\n- Assumed captured audio stays on the device, since it has to work with no signal.\n\n## Open questions\n\n- **Who it’s for** — Do your two teammates see your notes, or only their own?\n  _Why it matters: Shared notes turn a personal tool into something with a permission model._\n- **Tone & form** — What earns a place on the card besides the one personal hook?\n  _Why it matters: Without a rule the card fills up and stops being readable in three seconds._\n\n## Coverage\n\n| Dimension | Coverage | Gap |\n|---|---|---|\n| What we’re making | ● covered | — |\n| What’s actually in it | ● covered | — |\n| What good looks like | ● covered | — |\n| Hard limits | ● covered | — |\n| Who it’s for | ◐ partial | nothing yet on what they already know |\n| Tone & form | ◐ partial | one sample line, but no rule for what earns a place |\n| Like / not like | ● covered | — |\n\n## Transcript\n\n**The idea, as first stated:** An app that helps me remember the names of people I meet at conferences.\n\n### 1 · What we’re making\n\n**Q:** In a sentence or two — what’s the idea?\n\n**A:** An app that helps me remember the names of people I meet at conferences.\n\n### 2 · What’s actually in it  `concretize`\n\n**Q:** At the last conference, how many names did you actually lose?\n\n**A:** Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.\n\n### 3 · What good looks like  `anti_goal`\n\n**Q:** What would make you delete this in the first week?\n\n**A:** _(skipped)_\n\n### 4 · Hard limits  `boundary`\n\n**Q:** What are the hard limits on time and signal here?\n\n**A:** Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.\n\n### 5 · Who it’s for  `who_else`\n\n**Q:** Who else would use this, if anyone?\n\n**A:** Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.\n\n### 6 · Tone & form  `sample_output`\n\n**Q:** Write the line you would want on screen when she walks up.\n\n**A:** On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.\n\n### 7 · Like / not like  `analogue`\n\n**Q:** What existing thing is this closest to?\n\n**A:** The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.\n\n### 8 · Like / not like  `define_term`\n\n**Q:** Where does the business-card comparison stop being true?\n\n**A:** A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.\n\n---\n\n_Forged with IdeaForge._\n",
+          "export": "# Conference name recall app\n\n_2025-10-09 · 8 questions · coverage 79% · synthesised by Claude_\n\n## Refined prompt\n\n## Task\n\nWrite a product brief for a phone app that helps me recall the names of people I meet at conferences. It is a personal tool for me and two teammates on the same circuit, not a product to sell.\n\n## What it needs to cover\n\nThe failure it exists to fix: \"probably thirty names over three days\", concentrated in the evening receptions — by the next morning they are gone. Capture has to happen in the moment, with the phone barely out of a pocket.\n\n## What good looks like\n\nA good recall surfaces the human hook rather than the job title: \"Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet.\" The last clause is the point — it is what the user would actually say to her. It fails on sight \"if it made me type while someone was still talking to me\".\n\n## Constraints\n\n\"Three seconds, one thumb, and it has to work with no signal.\" The conference wifi is gone by the afternoon, so working offline is a requirement rather than a nice-to-have. Nothing that puts a screen between the user and the person in front of them.\n\n## Context\n\nThe readers are the author and two teammates working the same circuit. They already know the industry, so nothing needs to explain what a company does.\n\n## Voice and form\n\nOne line, card-shaped, in the register of \"Sarah, Vertex. Kid plays clarinet.\" Personal hook first, credentials second or not at all.\n\n## Reference points\n\nLike the back of a business card, and deliberately not like LinkedIn: \"LinkedIn gives me a job title when I need the person I spoke to.\" Unlike a card, it has to hold the user’s own voice and know when and where they met.\n\n### Assumptions made during synthesis\n\n- Assumed the three-second limit applies to capture, not to looking a name back up.\n- Assumed captured audio stays on the device, since it has to work with no signal.\n\n## Open questions\n\n- **Who it’s for** — Do your two teammates see your notes, or only their own?\n  _Why it matters: Shared notes turn a personal tool into something with a permission model._\n- **Tone & form** — What earns a place on the card besides the one personal hook?\n  _Why it matters: Without a rule the card fills up and stops being readable in three seconds._\n\n## Coverage\n\n| Dimension | Coverage | Gap |\n|---|---|---|\n| What we’re making | ● covered | — |\n| What’s actually in it | ● covered | — |\n| What good looks like | ◐ partial | one way to fail it, but no sense of a good save |\n| Hard limits | ● covered | — |\n| Who it’s for | ◐ partial | nothing yet on what they already know |\n| Tone & form | ◐ partial | one sample line, but no rule for what earns a place |\n| Like / not like | ● covered | — |\n\n## Transcript\n\n**The idea, as first stated:** An app that helps me remember the names of people I meet at conferences.\n\n### 1 · What we’re making\n\n**Q:** In a sentence or two — what’s the idea?\n\n**A:** An app that helps me remember the names of people I meet at conferences.\n\n### 2 · What’s actually in it  `concretize`\n\n**Q:** At the last conference, how many names did you actually lose?\n\n**A:** Probably thirty names over three days. The ones I lose are from the evening receptions, and by the next morning they are completely gone.\n\n### 3 · What good looks like  `anti_goal`\n\n**Q:** What would make you delete this in the first week?\n\n**A:** _(skipped)_\n\n### 4 · Hard limits  `boundary`\n\n**Q:** What are the hard limits on time and signal here?\n\n**A:** Three seconds, one thumb, and it has to work with no signal. Those are hard limits — the conference wifi is gone by the afternoon.\n\n### 5 · Who it’s for  `who_else`\n\n**Q:** Who else would use this, if anyone?\n\n**A:** Honestly, just for me. Maybe the two others on my team who work the same circuit, but nobody else would use it.\n\n### 6 · Tone & form  `sample_output`\n\n**Q:** Write the line you would want on screen when she walks up.\n\n**A:** On screen I want one line: Sarah Chen, Vertex, the API panel on Tuesday, her kid plays clarinet. That last bit is what I would actually say to her.\n\n### 7 · Like / not like  `analogue`\n\n**Q:** What existing thing is this closest to?\n\n**A:** The closest existing thing is the back of a business card, not LinkedIn. LinkedIn gives me a job title when I need the person I spoke to.\n\n### 8 · Like / not like  `define_term`\n\n**Q:** Where does the business-card comparison stop being true?\n\n**A:** A card cannot record my voice, and it does not know when I met you. That comparison stops being true the moment I want to hear myself.\n\n---\n\n_Forged with IdeaForge._\n",
           "asked": 9,
-          "stoppedBy": "offer: coverage",
+          "stoppedBy": "answers",
           "requests": [
             {
               "modelTier": "default",
@@ -2100,11 +2100,11 @@
             },
             {
               "modelTier": "default",
-              "promptHash": "hdb3wi"
+              "promptHash": "1wimja5"
             },
             {
               "modelTier": "complex",
-              "promptHash": "1cyewxb"
+              "promptHash": "maewbr"
             }
           ]
         }

@@ -28,6 +28,7 @@ const EXPECTED_SKILLS = new Set([
   'release',
   'review-ideaforge-documentation',
   'review-ideaforge-change',
+  'review-ideaforge-before-pr',
   'update-documentation',
   'update-readme',
   'validate-local-model',
@@ -798,8 +799,10 @@ test('personal assistant settings stay out of the repository', () => {
 test('native assist adapters are project-local consumers, not permissions or duplicated rules', () => {
   const claude = JSON.parse(read('.claude', 'settings.json'));
   assert.deepEqual(Object.keys(claude), ['hooks']);
-  assert.deepEqual(Object.keys(claude.hooks), ['SessionStart', 'UserPromptSubmit', 'SubagentStart']);
+  assert.deepEqual(Object.keys(claude.hooks), ['SessionStart', 'UserPromptSubmit', 'SubagentStart', 'PreToolUse']);
   assert.match(claude.hooks.SessionStart[0].matcher, /fork/);
+  // The PR gate sees only the two shell tools, whose names Claude Code documents.
+  assert.equal(claude.hooks.PreToolUse[0].matcher, 'Bash|PowerShell');
   for (const entries of Object.values(claude.hooks)) {
     assert.equal(entries.length, 1);
     assert.equal(entries[0].hooks.length, 1);
@@ -819,7 +822,14 @@ test('native assist adapters are project-local consumers, not permissions or dup
   assert.match(adapter, /session\.compaction_complete/);
   const copilot = JSON.parse(read('.github', 'hooks', 'ideaforge-assist.json'));
   assert.equal(copilot.version, 1);
-  assert.deepEqual(Object.keys(copilot.hooks), ['sessionStart', 'userPromptSubmitted', 'subagentStart']);
+  assert.deepEqual(Object.keys(copilot.hooks), ['sessionStart', 'userPromptSubmitted', 'subagentStart', 'preToolUse']);
+  // A failed Copilot preToolUse command denies the tool, so the gate's must not exit non-zero.
+  assert.doesNotMatch(copilot.hooks.preToolUse[0].args[1], /exitCode/);
+  assert.match(copilot.hooks.preToolUse[0].args[1], /catch\(e=>\{[^}]*process\.stdout\.write\('\{\}/);
+  // The gate may refuse, never approve: an approval would bypass the client's permission flow.
+  for (const file of ['tools/assistant-hook.mjs', 'tools/assistant-review.mjs']) {
+    assert.doesNotMatch(read(file), /permissionDecision: '(?:allow|ask)'|modifiedArgs|updatedInput/);
+  }
   for (const actions of Object.values(copilot.hooks)) {
     assert.equal(actions.length, 1);
     assert.deepEqual(Object.keys(actions[0]), ['type', 'exec', 'args']);

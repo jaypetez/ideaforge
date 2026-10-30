@@ -393,6 +393,9 @@ export async function runAppAudioPolicy(cdp, { origin, bootstrap, check, untrust
   check('a finished idea is a card in the library', doneReady);
   if (doneReady) {
     await click(doneCard);
+    if (await cdp.evaluate(`document.querySelector(${JSON.stringify(doneCard)}).textContent === 'Details'`)) {
+      await click('#library-detail .idea-actions > button:first-child');
+    }
     let onDone = false;
     for (const end = Date.now() + 5000; Date.now() < end && !onDone;) {
       onDone = await cdp.evaluate(`document.getElementById('b-done-more').getClientRects().length > 0`);

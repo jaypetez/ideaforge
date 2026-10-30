@@ -4,8 +4,9 @@ import {
 import { get, put, SECRETS } from '../../src/store/db.js';
 import { PREFS_KEY } from '../../src/store/prefs.js';
 import { createSession } from '../../src/core/session.js';
+import { MAX_BACKUP_BYTES, MAX_BACKUP_SESSIONS, parseBackup, sessionsEqual } from '../../src/core/backup.js';
 import { seedTurn } from '../../src/runtime/turn.js';
-import { deleteSession, saveSession } from '../../src/store/sessions.js';
+import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 
 const KEY = 'sk-settings-scripted-key-never-sent-194';
 const sleep = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -109,6 +110,7 @@ export default async function run(check, { subpath }) {
   for (const path of ['/', subpath]) {
     await hierarchy(check, path);
     await errorsAndPreferences(check, path);
+    await backupBounds(check, path);
     await cancellation(check, path);
     await delayedForget(check, path);
     await failedForget(check, path);
@@ -116,6 +118,71 @@ export default async function run(check, { subpath }) {
     await typedTranscriptionKey(check, path);
   }
   await unreadableRetained(check);
+}
+
+async function backupBounds(check, path) {
+  await visit(path, async ({ win, $, shown }) => {
+    const before = await listSessions();
+    const prefix = `backup-limit-${crypto.randomUUID()}`;
+    const extra = Array.from({ length: MAX_BACKUP_SESSIONS + 1 }, (_, i) =>
+      createSession({ id: `${prefix}-${i}`, now: 0 }));
+    const large = {
+      ...createSession({ id: `${prefix}-utf8`, now: 0 }),
+      draftAnswer: '€'.repeat(Math.ceil(MAX_BACKUP_BYTES / 3)),
+    };
+    const blobs = [];
+    let downloads = 0;
+    const createUrl = win.URL.createObjectURL;
+    const click = win.HTMLAnchorElement.prototype.click;
+    win.URL.createObjectURL = (blob) => {
+      blobs.push(blob);
+      return createUrl.call(win.URL, blob);
+    };
+    win.HTMLAnchorElement.prototype.click = function () {
+      if (this.download) downloads++;
+      else click.call(this);
+    };
+    const exportValid = async () => {
+      $('b-backup').click();
+      await until(() => $('data-status').dataset.status === 'success', 'valid backup download');
+    };
+    const refused = async (reason) => {
+      const previous = downloads;
+      $('b-backup').click();
+      await until(() => $('data-status').dataset.status === 'error', 'oversized backup error');
+      check(`${path} ${reason} refuses backup before creating a download`,
+        downloads === previous && blobs.length === previous);
+      check(`${path} ${reason} leaves an explicit local error, not the previous success`,
+        shown($('data-status')) && /No backup was created/.test($('data-status').textContent)
+          && $('note').hidden && !$('err').hidden);
+    };
+    try {
+      await exportValid();
+      await Promise.all(extra.map(saveSession));
+      await refused('too many ideas');
+      const unchanged = new Map((await listSessions()).map((s) => [s.id, s]));
+      check(`${path} a refused backup preserves every idea, including the ones beyond the count limit`,
+        unchanged.size === before.length + extra.length
+          && [...before, ...extra].every((s) => sessionsEqual(s, unchanged.get(s.id))));
+      await Promise.all(extra.map((s) => deleteSession(s.id)));
+
+      await exportValid();
+      await saveSession(large);
+      await refused('too many UTF-8 bytes');
+      check(`${path} byte-limit refusal does not truncate the saved draft`,
+        (await loadSession(large.id)).draftAnswer === large.draftAnswer);
+      await deleteSession(large.id);
+
+      await exportValid();
+      const parsed = parseBackup(await blobs.at(-1).text());
+      check(`${path} a later valid backup recovers and round-trips the unchanged library`,
+        downloads === 3 && parsed.skipped === 0 && sessionsEqual(parsed.sessions, before));
+    } finally {
+      win.URL.createObjectURL = createUrl;
+      win.HTMLAnchorElement.prototype.click = click;
+      await Promise.all([...extra, large].map((s) => deleteSession(s.id)));
+    }
+  });
 }
 
 async function typedTranscriptionKey(check, path) {

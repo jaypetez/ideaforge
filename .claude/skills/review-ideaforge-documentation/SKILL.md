@@ -89,3 +89,9 @@ For each finding, give:
 
 Do not report style preferences, speculative future drift, or praise. If there are no
 high-confidence defects, say so plainly and state the exact diff reviewed.
+
+## 6. Challenging supplied findings
+
+When the caller supplies candidate documentation findings, follow §6 of
+[`review-ideaforge-change`](../review-ideaforge-change/SKILL.md), testing each claim
+against its owning source from the source map rather than the code path alone.

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DIMENSIONS } from '../src/core/dimensions.js';
 import { HARD_TURN_CEILING, SOFT_TURN_CEILING } from '../src/core/engine.js';
+import { MAX_BACKUP_BYTES, MAX_BACKUP_SESSIONS } from '../src/core/backup.js';
 import { PROVIDER_CHOICES } from '../src/providers/index.js';
 import { TTS_PRESETS } from '../src/providers/tts.js';
 import { STT_PRESETS } from '../src/voice/transcribe.js';
@@ -35,6 +36,12 @@ const GUIDE_PAGES = [
 ];
 const GUIDE_HREFS = GUIDE_PAGES.map((page) => page === 'index.html' ? './' : `./${page}`);
 const guide = (page) => readFileSync(join(GUIDE_DIR, page), 'utf8');
+
+test('the backup guide states the shared restore bounds used to refuse oversized exports', () => {
+  const page = guide('ideas-library.html');
+  assert.ok(page.includes(`<strong>${MAX_BACKUP_SESSIONS} ideas</strong>`));
+  assert.ok(page.includes(`<strong>${MAX_BACKUP_BYTES / 1024 / 1024} MiB (${MAX_BACKUP_BYTES.toLocaleString('en-US')} UTF-8 bytes)</strong>`));
+});
 
 /** Every local target the README points at: markdown links, img src, and picture srcset. */
 function localTargets(md) {

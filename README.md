@@ -182,15 +182,18 @@ not throw it away.
     <source media="(prefers-color-scheme: dark)"
             srcset="docs/screenshots/07-ideas-library.dark.png">
     <img src="docs/screenshots/07-ideas-library.light.png" width="760"
-         alt="The Ideas library with conversation search, status and tag filters, and a
-              completed idea card with one View result button, a More actions menu for
-              share, download, archive and delete, and Rename or tag.">
+         alt="The compact Ideas library with search, a collapsed filter summary and one
+              completed row with View result and a separate More actions button.">
   </picture>
 </p>
 
 **Ideas** is the whole local library, not only a recent list, and once the device holds an
 idea it is where IdeaForge opens. Search reaches names, tags, questions, answers and the
 refined prompt. An idea can be renamed, tagged, archived, restored or permanently deleted.
+Search stays visible; **Filters** unfolds Status and Tag, and **Clear filters** resets
+both and the search. Rows show status, coverage, update date and two tags, with a remaining
+count for more. **More actions → Rename or tag** opens one editor, not an edit form on
+every row. Delete waits for a confirmation with Cancel initially focused.
 
 Ideas, New idea and Settings sit in a labelled rail beside the work from 600px wide: compact
 until 1200px, then wider with labels beside their icons. Below 600px they sit along the
@@ -198,10 +201,13 @@ bottom on Start, Settings and Ideas. Interview and Result use a compact back arr
 idea's title and Settings instead; the voice stage hides unrelated navigation. Long titles
 may shorten on screen, but their complete text stays available to assistive technology.
 
-In a window 1024px or wider the library is a list beside a detail pane. Click a card, or
-its **Details** button, and the pane shows that idea's status and counts, its main action
-and the same More actions menu, above a rendered preview of its markdown. **Settings** gets
-the width too: an index of its five groups sits beside them.
+In a window 1024px or wider the library is a list beside a detail pane. Click a row, or
+its **Details** button, to select it; **Continue** or **View result** lives in the pane.
+Narrower rows open the interview or result directly. An idea with no write-up previews its
+latest question, answer and unfinished draft under **No write-up yet**, not a failure
+warning. Completed write-ups use the safe markdown renderer; an actual failed write-up
+stays clearly marked. **Settings** gets the width too: an index of its five groups sits
+beside them.
 
 <p align="center">
   <picture>
@@ -209,10 +215,8 @@ the width too: an index of its five groups sits beside them.
             srcset="docs/screenshots/11-library-wide.dark.png">
     <img src="docs/screenshots/11-library-wide.light.png" width="760"
          alt="The Ideas library in a wide window: a labelled navigation rail, search,
-              filters and a selected idea card, beside a detail pane with the idea's title,
-              status,
-              View result, a More actions button and a rendered preview of its refined
-              prompt.">
+              a compact filter summary and a selected row with Details, beside the idea's
+              title, status, View result, More actions and rendered refined prompt.">
   </picture>
 </p>
 
@@ -654,7 +658,9 @@ silently when broken, which is most of them. Security policy and the honest thre
 
 Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
 local-model, Android, README, review, and explicit release work, plus client-specific read-only
-review agents. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
+review agents. Before any pull request an assistant opens, at least two of those agents review
+the exact diff blind and a fresh one challenges each finding; a pre-tool hook refuses `gh pr create`
+until that review passes for the commit. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
 discovery and use. The CLI clients also consume one
 [lean process contract](AGENTS.md#lean-coding): complete scope before smaller code, with
 explicit mode controls, read-only audits, a shortcut ledger and counted evidence rather

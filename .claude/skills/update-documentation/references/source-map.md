@@ -292,7 +292,7 @@ source wins over prose, and a generated artifact wins over a description of that
   [`settings.browser.mjs`](../../../../test/browser/settings.browser.mjs), the real-input
   policy probe and voice-stage tests own cancellation/focus, storage failures, delayed
   writes and hosted verification. Re-check README/guide section names, data-action labels,
-  backup/import semantics, canonical screenshots and Library's still-synchronous Delete.
+  backup/import semantics, canonical screenshots and Library's awaited Delete dialog.
   [`sw.js`](../../../../sw.js) and [`test/sw.test.mjs`](../../../../test/sw.test.mjs)
   own response cloning before consumption, refresh-event lifetime, reported cache-write
   failures and offline shell/module fallbacks. Keep guide/provider bypasses intact.
@@ -542,12 +542,23 @@ source wins over prose, and a generated artifact wins over a description of that
   clearance in the page bottom and focus scrollport; the real-input keyboard probe checks
   rejected-key recovery at enlarged text, narrow widths and landscape. Re-check
   troubleshooting, interviews and the library guide's import steps.
-- **Library cards and the result screen.** Sources:
-  [`src/ui/library.js`](../../../../src/ui/library.js) (`renderActions`, `renderCard`, the
-  detail pane), [`src/ui/menu.js`](../../../../src/ui/menu.js) and `layoutDoneActions` in
-  [`src/ui/app.js`](../../../../src/ui/app.js). One main button per card and on Done, with
-  the rest in a More actions menu. Re-check the library guide, getting started, interviews
-  and the README's 06/07/11 alt text.
+- **Compact Ideas, previews and the result screen.** Sources:
+  [`src/ui/library.js`](../../../../src/ui/library.js) (`renderCard`, `renderActions`,
+  `editIdea`, `syncSelection`, `renderDetail`) and
+  [`index.html`](../../../../index.html) own search, the Status/Tag disclosure and
+  explicit Clear filters/Retry controls. Rows show two tags and an accessible remainder;
+  the editor/detail reveals every tag. Compact Continue/View result becomes Details at
+  1024px, with the selected pane's main action beside a state-aware preview. No synthesis
+  on an unfinished idea means No write-up yet plus question/answer/draft, never an invented
+  failure. Completed previews reuse `renderMarkdown`/`exportFor` in
+  [`app.js`](../../../../src/ui/app.js); preview copy never changes export bytes.
+  [`dialog.js`](../../../../src/ui/dialog.js) owns awaited Delete/Cancel/Escape;
+  app-owned mutations and deleted-work guards retain identity. `library`, `desktop`,
+  `loading` and `toasts` browser probes and the trusted keyboard policy probe own geometry,
+  tags/editing, async work, selection and focus. `app.css` owns compact row/error clearance.
+  [`menu.js`](../../../../src/ui/menu.js) preserves synchronous Share from overflow, and
+  `layoutDoneActions` still owns the unchanged Result hierarchy. Re-check the library
+  guide, getting started, DESIGN, the README and 06/07/11 alt text.
 - **Voice stage, entry and lifecycle.** Sources:
   [`index.html`](../../../../index.html),
   [`src/ui/app.js`](../../../../src/ui/app.js) (`startInterview`, `pauseVoice`, `resumeVoice`,
@@ -601,7 +612,7 @@ source wins over prose, and a generated artifact wins over a description of that
   | `04-coverage` | the same turn with the Coverage list open | README, interviews |
   | `05-ready-to-wrap` | the inline wrap-up card | README, interviews |
   | `06-refined-prompt` | Done: rendered result, Share .md and More actions | README, interviews |
-  | `07-ideas-library` | the library at a narrow width, one card | README, Ideas library |
+  | `07-ideas-library` | compact library, collapsed filter summary and one completed row | README, Ideas library |
   | `08-voice-listening` | the voice stage listening, phone width | README, mobile and voice |
   | `09-voice-paused` | the voice stage paused, phone width | README, mobile and voice |
   | `10-settings` | Settings, all five groups | README, getting started |
@@ -695,6 +706,16 @@ source wins over prose, and a generated artifact wins over a description of that
   The host supplies Copilot's SDK; this is not an app dependency. Local mode state never
   belongs in the published tree. Native loading/protocol proof and empirical coding
   benefit remain separate claims.
+- **Pre-PR review gate.** Sources:
+  [`review-ideaforge-before-pr`](../../review-ideaforge-before-pr/SKILL.md),
+  [`tools/assistant-review.mjs`](../../../../tools/assistant-review.mjs)
+  (`prGateDecision`, `prepareReview`, `recordReview`), the `PreToolUse`/`preToolUse`
+  entries in both hook configurations, and
+  [`test/assistant-review.test.mjs`](../../../../test/assistant-review.test.mjs).
+  Re-check `AGENTS.md` (`Landing a change`), `CONTRIBUTING.md`, the Copilot instructions,
+  the README assistant paragraph, the development guide, `docs/ASSISTANT-PROCESS.md`,
+  `work-issues` and `release`. The gate refuses only; never describe it as approving a
+  command or as a security boundary.
 
 ## Change triggers
 

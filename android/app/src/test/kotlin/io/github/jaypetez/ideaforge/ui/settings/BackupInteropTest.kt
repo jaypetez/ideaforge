@@ -93,11 +93,11 @@ class BackupInteropTest {
         val clock = Clock { t0 + 3_600_000L }
         val vm = BackupViewModel(store, docs, clock, IdGen(clock), BackupJobs(CoroutineScope(SupervisorJob() + Dispatchers.Default)))
 
+        assertEquals("ideaforge-backup-2025-10-10.json", runBlocking { vm.prepareExport() })
         vm.export(uri)
         val state = vm.settled()
         assertFalse(state.message, state.failed)
         assertEquals("Backed up 3 ideas.", state.message)
-        assertEquals("ideaforge-backup-2025-10-10.json", vm.exportFilename())
 
         val actual = docs.outputs.getValue(uri).toByteArray().decodeToString()
         val fixture = File(fixturesDir, "backup-from-android.json")

@@ -1631,6 +1631,58 @@
       }
     },
     {
+      "name": "buildBackup session limit round trip",
+      "fn": "backupBoundary",
+      "args": [
+        500
+      ],
+      "expect": {
+        "value": {
+          "bytes": 1115980,
+          "count": 500,
+          "skipped": 0,
+          "unchanged": true
+        }
+      }
+    },
+    {
+      "name": "buildBackup session limit plus one refuses export",
+      "fn": "backupBoundary",
+      "args": [
+        501
+      ],
+      "expect": {
+        "throws": "The backup contains more than 500 sessions. No backup was created; your ideas are unchanged."
+      }
+    },
+    {
+      "name": "buildBackup UTF-8 byte limit round trip",
+      "fn": "backupBoundary",
+      "args": [
+        1,
+        10485760
+      ],
+      "expect": {
+        "value": {
+          "bytes": 10485760,
+          "count": 1,
+          "skipped": 0,
+          "unchanged": true
+        }
+      }
+    },
+    {
+      "name": "buildBackup UTF-8 byte limit plus one refuses export",
+      "fn": "backupBoundary",
+      "args": [
+        1,
+        10485761
+      ],
+      "expect": {
+        "throws": "The backup is larger than 10 MB. No backup was created; your ideas are unchanged."
+      }
+    },
+    {
       "name": "parseBackup round trip",
       "fn": "parseBackup",
       "args": [

@@ -47,12 +47,18 @@ test('the load-bearing invariants are covered by named vectors', () => {
     .cases.map((c) => c.name);
   const must = {
     session: ['ratchet: one level per turn', 'ratchet: never falls', 'ratchet: at most two dimensions rise',
-      'covered without evidence is partial', 'migrate future schema'],
+      'covered without evidence is partial', 'migrate future schema',
+      'covered with fabricated evidence is partial', 'model-only text cannot supply covered evidence',
+      'chip evidence cannot be reused by a later turn', 'unedited draft evidence cannot be reused by a later turn',
+      'Unicode user quote is accepted verbatim', 'covered credit retains real evidence after a fabricated claim'],
     'run-turn': ['chip answer caps the previous dimension, not the target', 'zero gain increments the streak',
-      'provider error: bank fallback keeps zeroGainStreak', 'compound twice: unfixable'],
+      'provider error: bank fallback keeps zeroGainStreak', 'compound twice: unfixable',
+      'fabricated quotes offer exhaustion after two scored turns', 'real user quote resets exhaustion'],
     speech: ['parseSpeech "I\'d skip this one if I could"', 'parseSpeech "we went over budget"'],
     'drive-loop': ['skip phrase inside an answer is an answer', 'chips are spoken separately'],
-    backup: ['sessionsEqual key order ignored', 'parseBackup future version'],
+    backup: ['sessionsEqual key order ignored', 'parseBackup future version',
+      'buildBackup session limit round trip', 'buildBackup session limit plus one refuses export',
+      'buildBackup UTF-8 byte limit round trip', 'buildBackup UTF-8 byte limit plus one refuses export'],
     providers: ['request anthropic cache marker at the threshold'],
   };
   for (const [family, required] of Object.entries(must)) {
