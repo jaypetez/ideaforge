@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -113,6 +114,7 @@ object ProbeRunner {
     private var wakeLock: PowerManager.WakeLock? = null
     private var screenReceiver: BroadcastReceiver? = null
     private var clip: Pair<String, TtsClip>? = null
+    private var preparation: CancellationSignal? = null
 
     // onRmsChanged arrives ~every 10-50 ms; it is summarised per window, not logged per call.
     private var rmsCount = 0
@@ -226,6 +228,7 @@ object ProbeRunner {
         if (_running.value) { log("start ignored: a trial is already running"); return }
         t0 = SystemClock.elapsedRealtimeNanos()
         trial++
+        val t = trial
         session = 0; endedSession = 0; restartsDone = 0; stopRequested = false
         config = cfg
         _running.value = true
@@ -241,8 +244,7 @@ object ProbeRunner {
         if (cfg.foregroundService) ProbeMicService.start(ctx)
         val begin = {
             if (cfg.delayMs > 0) log("waiting ${cfg.delayMs} ms before the first startListening (turn the screen off now if testing that)", 0)
-            val t = trial
-            main.postDelayed({ if (trial == t && _running.value && session == 0) startSession() }, cfg.delayMs)
+            main.postDelayed({ if (trial == t && _running.value && !stopRequested && session == 0) startSession() }, cfg.delayMs)
         }
         val phrase = cfg.ttsPhrase
         when {
@@ -251,8 +253,11 @@ object ProbeRunner {
             clip?.first == phrase -> begin()
             else -> {
                 log("synthesising \"$phrase\" with the device TTS", 0)
-                TtsClip.synthesize(ctx, phrase) { c, why ->
+                preparation = TtsClip.synthesize(ctx, phrase) { c, why ->
                     main.post {
+                        // Completion can already be queued when Cancel retires its trial.
+                        if (trial != t || !_running.value || stopRequested) return@post
+                        preparation = null
                         log("tts: $why" + (c?.let { " (${it.sampleRate} Hz, ${it.channels} ch, ${it.pcm.size / (it.sampleRate * it.channels * 2 / 1000)} ms)" } ?: ""), 0)
                         if (c == null) finish("no audio") else { clip = phrase to c; begin() }
                     }
@@ -265,6 +270,7 @@ object ProbeRunner {
     fun stopListening() {
         if (!_running.value) return
         stopRequested = true
+        preparation?.cancel(); preparation = null
         log("user: stopListening()")
         recognizer?.stopListening()
         // A recognizer that never answers stopListening must not leave the trial running.
@@ -364,6 +370,7 @@ object ProbeRunner {
 
     private fun finish(why: String) {
         val ctx = app
+        preparation?.cancel(); preparation = null
         flushRms()
         recognizer?.let { it.destroy(); log("recognizer destroyed") }
         recognizer = null
