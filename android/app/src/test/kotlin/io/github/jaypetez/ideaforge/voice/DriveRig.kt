@@ -122,7 +122,9 @@ class DriveRig(dir: File, val model: ScriptedModel = ScriptedModel(), agreed: Bo
     val state get() = controller.state.value
     private val viewModels = ViewModelStore()
     val library: LibraryViewModel by lazy {
-        LibraryViewModel(store, IdGen(clock), clock, worker, writes, reportDrive = { controller })
+        LibraryViewModel(store, IdGen(clock), clock, worker, writes,
+            sink = io.github.jaypetez.ideaforge.ui.result.DocumentSink { error("a drive rig never writes a document") },
+            reportDrive = { controller })
             .also { viewModels.put("library", it) }
     }
 

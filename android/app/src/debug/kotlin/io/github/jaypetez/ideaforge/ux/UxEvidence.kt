@@ -218,6 +218,60 @@ object UxEvidence {
         error("requested $theme root/status-bar paint did not stabilize within the capture budget (last $last)")
     }
 
+    /**
+     * A bottom-sheet system window (the share chooser) publishes its accessibility tree, and
+     * passes [requireRendered] on the whole screen, while the display still shows only its
+     * scrim over the dimmed source app: five accepted chooser frames were exactly that. The
+     * sheet is painted only when its drag handle stands apart from the header around it and
+     * that header stands apart from the scrim directly above it. Theme-independent: it reads
+     * no expected colour, only contrast at the coordinates the window itself reports.
+     */
+    fun sheetPainted(bitmap: Bitmap, header: UxBounds, handle: UxBounds): Boolean {
+        val screen = UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+        if (!screen.contains(header) || !header.contains(handle) || header.top < header.height) return false
+        val background = dominant(bitmap, header, exclude = handle) ?: return false
+        val ink = dominant(bitmap, handle) ?: return false
+        val scrim = dominant(bitmap, UxBounds(header.left, header.top - header.height, header.right, header.top)) ?: return false
+        return distinct(ink, background) && distinct(background, scrim)
+    }
+
+    /** A coarse, compression-tolerant fingerprint of the whole screen. */
+    fun frameSample(bitmap: Bitmap, grid: Int = 48): IntArray = IntArray(grid * grid) { index ->
+        val x = ((index % grid) * 2 + 1) * bitmap.width / (grid * 2)
+        val y = ((index / grid) * 2 + 1) * bitmap.height / (grid * 2)
+        bitmap.getPixel(x, y) and 0x00F0F0F0
+    }
+
+    /**
+     * A full-screen system picker's tree also precedes its paint: accepted Save picker frames
+     * were the app's own unchanged screen, or the app mid-transition. Pixel identity cannot
+     * separate a light picker from a light app (they share most background samples), so a
+     * picker frame must have changed from the app frame captured just before the launch and
+     * then be [settled]: identical to the next sample, which an animating transition is not.
+     */
+    fun windowChanged(before: IntArray, after: IntArray, minimumFraction: Double = 0.05): Boolean {
+        require(before.size == after.size && before.isNotEmpty())
+        return before.indices.count { before[it] != after[it] } >= before.size * minimumFraction
+    }
+
+    fun settled(previous: IntArray?, current: IntArray): Boolean = previous != null && previous.contentEquals(current)
+
+    private fun distinct(a: Int, b: Int) = listOf(16, 8, 0).any { shift ->
+        kotlin.math.abs(((a shr shift) and 255) - ((b shr shift) and 255)) > 24
+    }
+
+    private fun dominant(bitmap: Bitmap, box: UxBounds, exclude: UxBounds? = null): Int? {
+        val colours = HashMap<Int, Int>()
+        for (y in max(0, box.top.toInt()) until min(bitmap.height, box.bottom.toInt())) {
+            for (x in max(0, box.left.toInt()) until min(bitmap.width, box.right.toInt())) {
+                if (exclude != null && x >= exclude.left && x < exclude.right && y >= exclude.top && y < exclude.bottom) continue
+                val colour = bitmap.getPixel(x, y) and 0x00F8F8F8
+                colours[colour] = (colours[colour] ?: 0) + 1
+            }
+        }
+        return colours.maxByOrNull { it.value }?.key
+    }
+
     fun requireComplete(expected: Set<String>, captured: Set<String>, failures: List<String>) {
         check(expected == captured) { "missing requested UX evidence: ${unrecorded(expected, captured)}; unexpected: ${captured - expected}" }
         check(failures.isEmpty()) { "invalid requested UX evidence:\n${failures.joinToString("\n")}" }

@@ -31,6 +31,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
@@ -52,6 +53,7 @@ import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.buildBackup
 import io.github.jaypetez.ideaforge.core.renameSession
+import io.github.jaypetez.ideaforge.core.MAX_SESSION_NAME
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.num
@@ -75,6 +77,8 @@ import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
 import io.github.jaypetez.ideaforge.ui.result.exportFor
+import io.github.jaypetez.ideaforge.ui.result.DocumentSink
+import io.github.jaypetez.ideaforge.ui.result.ContentResolverSink
 import io.github.jaypetez.ideaforge.ui.settings.SettingsTags
 import io.github.jaypetez.ideaforge.ui.settings.HostedSpeechTags
 import io.github.jaypetez.ideaforge.ui.settings.BackupTags
@@ -132,7 +136,7 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe").any {
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe", "uxIdeasProbe").any {
         InstrumentationRegistry.getArguments().getString(it) == "true"
     }) {
         // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
@@ -153,6 +157,8 @@ class UxCaptureDeviceTest {
     private var libraryReadEntered: CountDownLatch? = null
     private var heldVoiceInit: CompletableDeferred<Boolean>? = null
     private val walkthroughFrames = listOf("seed", "chip", "result")
+    private val libraryExportFrames = listOf("ideas-export-menu", "ideas-export-long", "ideas-export-cancelled",
+        "ideas-export-error", "ideas-export-saved")
 
     @Test
     fun failedShareVerificationAndChooserLaunchStillCleanOnlyOwnedFiles() {
@@ -397,14 +403,16 @@ class UxCaptureDeviceTest {
         val ids = runBlocking { graph.sessionStore.knownIds() }
         UxSystemActions(instrumentation, target, File(output, "${config.id}/native-system")).use { system ->
             system.requireCommandTransport()
-            click(ResultTags.SAVE)
+            revealControl(ResultTags.SAVE)
+            system.launch { compose.onNodeWithTag(ResultTags.SAVE).assertIsDisplayed().performClick() }
             system.awaitExternalWindow()
             system.snapshot("save-cancel")
             system.back()
             await(ResultTags.OUTPUT)
             assertEquals(done, graph.sessionStore.get(id))
             capture("save-cancel", resultControls())
-            system.share { click(ResultTags.SHARE) }
+            revealControl(ResultTags.SHARE)
+            system.share { system.launch { compose.onNodeWithTag(ResultTags.SHARE).assertIsDisplayed().performClick() } }
             system.awaitExternalWindow()
             system.requireShared(export)
             system.snapshot("share-cancel")
@@ -2068,6 +2076,178 @@ class UxCaptureDeviceTest {
         captureUxEvidence(request, nativeIdeas = true)
     }
 
+    private fun captureLibraryExports(config: UxConfiguration, recorder: UxCaptureRecorder, systemOutput: File) {
+        check(fixtureGraph == null && scenario == null && heldLibraryRead == null) {
+            "export evidence must start after the preceding fixture's complete cleanup"
+        }
+        check(libraryExportFrames.none { "${config.id}/$it" in recorder.recordedKeys }) {
+            "export evidence must run exactly once per configuration"
+        }
+        val base = fixtures.state("library-long")
+        val id = "ux-long-active"
+        val calls = AtomicInteger()
+        val rejecting = ProviderSource {
+            calls.incrementAndGet()
+            object : Provider {
+                override suspend fun sampleJson(parts: PromptParts, modelTier: String, cache: Boolean): SampleResult =
+                    throw ProviderException("network", "Controlled unavailable library-export provider.")
+            }
+        }
+        if (config.theme == "light" && config.fontScale == 1f) {
+            prepare(base, config)
+            checkNotNull(fixtureGraph).providerSource = rejecting
+            launchMain(scripted = false)
+            selectSession(id)
+            awaitEditableQuestion()
+            revealControl("answer")
+            compose.onNodeWithTag("answer").performSemanticsAction(SemanticsActions.SetText) {
+                check(it(androidx.compose.ui.text.AnnotatedString("A deliberate control answer reaches the installed rejecting provider.")))
+            }
+            revealControl("send")
+            compose.onNodeWithTag("send").performClick()
+            compose.waitUntil(DEVICE_TIMEOUT) { calls.get() > 0 && !exists("interview-busy") }
+            assertEquals("the actual non-scripted app reached its installed negative control", "bank",
+                stringOf(io.github.jaypetez.ideaforge.core.openTurn(fixtureGraph!!.sessionStore.get(id)!!)?.get("questionSource")))
+            closeFixture()
+        }
+        calls.set(0)
+        val rejectWrite = AtomicBoolean(false)
+        val realSink = ContentResolverSink(target.contentResolver)
+        prepare(base, config, inferenceAgreed = false, documentSink = DocumentSink { uri ->
+            if (rejectWrite.get()) throw IOException("Neutral controlled document write refusal.")
+            realSink.openOutput(uri)
+        })
+        val graph = checkNotNull(fixtureGraph)
+        graph.providerSource = rejecting
+        val original = checkNotNull(graph.sessionStore.get(id))
+        val question = checkNotNull(io.github.jaypetez.ideaforge.core.openTurn(original))
+        val reported = io.github.jaypetez.ideaforge.core.addContentReport(original, str("r_library_export"),
+            io.github.jaypetez.ideaforge.core.reportableOutput(original, "question", stringOf(question["id"]))!!,
+            str("other"), str("Neutral private local report; included only in the canonical file."), num(fixtures.now))
+        runBlocking { graph.sessionStore.save(reported) }
+        val unchanged = graph.sessionStore.sessions.value.toList()
+        val export = exportFor(reported)
+        launchMain(scripted = false)
+        await(LibraryTags.SEARCH)
+        runBlocking { graph.keyringStore.forget() }
+        assertTrue("local export has no inference grant", graph.inferenceConsent.state.value.permit == null)
+        assertTrue("local export has no usable provider key", !io.github.jaypetez.ideaforge.ui.onboarding.hasUsableProvider(
+            graph.keyringStore.state.value.ring))
+        val list = hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))
+        compose.onNode(list).performScrollToNode(hasTestTag(LibraryTags.more(id)))
+        compose.onNodeWithTag(LibraryTags.more(id)).assertIsDisplayed().performClick()
+        fun capture(frame: String, controls: List<UxControl>, menu: Boolean = false) = recorder.capture(
+            base.copy(id = frame), config, checkNotNull(activity), controls, nativeSurface = "library",
+            nativeMapping = "Real MainActivity Ideas; no inference grant/key, installed rejecting provider (non-scripted launch). " +
+                "Canonical snapshot with draft and local report; real native share/SAF, controlled sink refusal only for the named error.",
+            rootSurfaceRole = if (menu) "surfaceContainer" else "background",
+        )
+        capture("ideas-export-menu", listOf(tag(LibraryTags.share(id)), tag(LibraryTags.save(id)),
+            tag(LibraryTags.details(id)), textControl("rename", R.string.idea_edit),
+            textControl("archive", R.string.idea_archive), textControl("delete", R.string.idea_delete)), menu = true)
+        UxSystemActions(instrumentation, target, systemOutput).use { system ->
+            system.requireCommandTransport()
+            compose.onNodeWithTag(LibraryTags.share(id)).performScrollTo()
+            system.share { system.launch { compose.onNodeWithTag(LibraryTags.share(id)).assertIsDisplayed().performClick() } }
+            system.awaitExternalWindow()
+            system.requireShared(export)
+            system.snapshot("ideas-share-cancel")
+            system.back()
+            await(LibraryTags.SEARCH)
+            assertEquals(unchanged, graph.sessionStore.sessions.value)
+            compose.onNodeWithTag("answer").assertDoesNotExist()
+            compose.onNodeWithTag(ResultTags.SCREEN).assertDoesNotExist()
+            selectSession(id, open = false)
+            val controls = listOf(textControl("continue", R.string.idea_continue),
+                tag(LibraryTags.share(id)), tag(LibraryTags.save(id)), tag(LibraryTags.detailMore(id)))
+            capture("ideas-export-long", controls)
+            fun save() {
+                revealControl(LibraryTags.save(id))
+                compose.onNodeWithTag(LibraryTags.save(id)).assertIsDisplayed().performClick()
+            }
+            fun notice(frame: String, text: Int) {
+                val expected = target.getString(text, sessionDisplayTitle(reported))
+                compose.waitUntilAtLeastOneExists(hasText(expected), DEVICE_TIMEOUT)
+                capture(frame, listOf(UxControl("named-export-result", hasText(expected), actionRequired = false),
+                    tag(LibraryTags.EXPORT_DISMISS)) + controls)
+            }
+            revealControl(LibraryTags.save(id))
+            system.launch { compose.onNodeWithTag(LibraryTags.save(id)).assertIsDisplayed().performClick() }
+            system.awaitExternalWindow()
+            system.snapshot("ideas-save-cancel")
+            system.back()
+            notice("ideas-export-cancelled", R.string.idea_export_cancelled)
+            rejectWrite.set(true)
+            save()
+            val refused = system.createDocument("ideas-failed.md")
+            notice("ideas-export-error", R.string.idea_export_save_failed)
+            assertEquals("a refused sink writes no fake success bytes", "", system.readDocument(refused))
+            rejectWrite.set(false)
+            save()
+            val saved = system.createDocument("ideas.md")
+            compose.waitUntil(DEVICE_TIMEOUT) { system.readDocument(saved) == export }
+            notice("ideas-export-saved", R.string.idea_export_saved)
+            assertEquals("the saved document is the complete canonical file", export, system.readDocument(saved))
+            assertEquals("sharing/saving never built a provider", 0, calls.get())
+            assertEquals("exports, cancellation and write failure never change a session", unchanged, graph.sessionStore.sessions.value)
+            compose.onNodeWithTag("answer").assertDoesNotExist()
+            compose.onNodeWithTag(ResultTags.SCREEN).assertDoesNotExist()
+        }
+    }
+
+    /**
+     * A cancelled Save for a maximum-length name in the two window shapes that once pushed
+     * Dismiss out of the window and collapsed the pane: 640x400dp (ASCII) and 320x720dp (a
+     * full-width CJK name). Dismiss and the row's More must be reachable native targets, the
+     * pane must keep height, and the complete named text must be present and scrollable.
+     */
+    private fun captureExportFeedback(config: UxConfiguration, recorder: UxCaptureRecorder, systemOutput: File) {
+        check(fixtureGraph == null && scenario == null && heldLibraryRead == null) {
+            "export feedback evidence must start after the preceding fixture's complete cleanup"
+        }
+        val base = fixtures.state("library-long")
+        val id = "ux-long-active"
+        val name = if (config.window == "compact-narrow") "会議で会った人の名前を思い出すためのアプリ".repeat(6).take(MAX_SESSION_NAME)
+            else "A deliberately long idea name ".padEnd(MAX_SESSION_NAME, 'x')
+        check(name.length == MAX_SESSION_NAME)
+        prepare(base, config, inferenceAgreed = false)
+        val graph = checkNotNull(fixtureGraph)
+        val renamed = renameSession(checkNotNull(graph.sessionStore.get(id)), str(name), num(fixtures.now))
+        runBlocking { graph.sessionStore.save(renamed) }
+        val unchanged = graph.sessionStore.sessions.value.toList()
+        launchMain(scripted = false)
+        await(LibraryTags.SEARCH)
+        val list = hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))
+        compose.onNode(list).performScrollToNode(hasTestTag(LibraryTags.more(id)))
+        compose.onNodeWithTag(LibraryTags.more(id)).assertIsDisplayed().performClick()
+        UxSystemActions(instrumentation, target, systemOutput).use { system ->
+            compose.onNodeWithTag(LibraryTags.save(id)).performScrollTo().assertIsDisplayed().performClick()
+            system.awaitExternalWindow()
+            system.back()
+        }
+        val expected = target.getString(R.string.idea_export_cancelled, sessionDisplayTitle(renamed))
+        compose.waitUntilAtLeastOneExists(hasText(expected), DEVICE_TIMEOUT)
+        val text = compose.onNode(hasText(expected)).fetchSemanticsNode()
+        val hidden = text.layoutInfo.coordinates.size.height - text.boundsInRoot.height
+        if (hidden > 1f) {
+            val range = generateSequence(text.parent) { it.parent }
+                .firstNotNullOfOrNull { it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) }
+            assertTrue("clipped named feedback scrolls to its end", range != null && range.maxValue() >= hidden - 1f)
+        }
+        val pane = compose.onNodeWithTag(LibraryTags.LIST).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue("the list pane keeps at least one native target of height: $pane in $root",
+            pane.bottom.coerceAtMost(root.bottom) - pane.top >= 48f * target.resources.displayMetrics.density)
+        recorder.capture(
+            base.copy(id = "ideas-export-feedback"), config, checkNotNull(activity),
+            listOf(tag(LibraryTags.EXPORT_DISMISS), tag(LibraryTags.more(id))), nativeSurface = "library",
+            nativeMapping = "Real MainActivity Ideas at ${config.requestedWidthDp}x${config.requestedHeightDp}dp: a real native Save picker " +
+                "cancelled for a ${MAX_SESSION_NAME}-character ${if (config.window == "compact-narrow") "full-width CJK" else "ASCII"} name. " +
+                "The complete named text is in the semantics tree and scrolls inside its bounded feedback.",
+        )
+        assertEquals("cancelling a save never changes a session", unchanged, graph.sessionStore.sessions.value)
+    }
+
     @Test
     fun requestedManualDictationKeepsLiteralDraftAndExplicitSend() {
         val bundle = InstrumentationRegistry.getArguments()
@@ -2337,15 +2517,24 @@ class UxCaptureDeviceTest {
         } + if (nativeVoice && "compact" in windows) listOf("light", "dark").map {
             UxConfiguration("compact-landscape", it, 2f, requestedWidthDp = 640, requestedHeightDp = 400)
         } else emptyList()
+        // Export feedback once consumed short and narrow windows; those shapes get their own records.
+        val feedbackMatrix = if (nativeIdeas && "compact" in windows) listOf(
+            Triple("compact-landscape", 640, 400), Triple("compact-narrow", 320, 720),
+        ).flatMap { (window, width, height) ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it, requestedWidthDp = width, requestedHeightDp = height) }
+            }
+        } else emptyList()
         val requestedStates = matrix.associateWith { config ->
             if (nativeVoice && config.window == "compact-landscape")
                 selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
             else selected
         }
         val walkthrough = if (request.states == null) walkthroughFrames else emptyList()
-        val expected = matrix.flatMap { config ->
-            requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
-        }.toSet()
+        val expected = (matrix.flatMap { config ->
+            requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" } +
+                if (nativeIdeas) libraryExportFrames.map { "${config.id}/$it" } else emptyList()
+        } + feedbackMatrix.map { "${it.id}/ideas-export-feedback" }).toSet()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux"), expected)
         val originalGraph = app.graph
         runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
@@ -2382,9 +2571,30 @@ class UxCaptureDeviceTest {
                             closeFixture()
                         }
                     }
+                    if (nativeIdeas) {
+                        try {
+                            captureLibraryExports(config, recorder, File(outputPath, "ux/${config.id}/native-system"))
+                        } catch (error: Throwable) {
+                            recorder.failedRun(error)
+                            var diagnostic = activity
+                            for (key in UxEvidence.unrecorded(libraryExportFrames.map { "${config.id}/$it" }.toSet(), recorder.recordedKeys)) {
+                                recorder.failed(fixtures.state("library-long").copy(id = key.substringAfter('/')),
+                                    config, error, diagnostic)
+                                diagnostic = null
+                            }
+                        } finally { closeFixture() }
+                    }
                     if (walkthrough.isNotEmpty()) {
                         captureWalkthrough(config, recorder)
                     }
+                }
+                for (config in feedbackMatrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        captureExportFeedback(config, recorder, File(outputPath, "ux/${config.id}/native-system"))
+                    } catch (error: Throwable) {
+                        recorder.failed(fixtures.state("library-long").copy(id = "ideas-export-feedback"), config, error, activity)
+                    } finally { closeFixture() }
                 }
             }
         } catch (error: Throwable) {
@@ -2430,6 +2640,7 @@ class UxCaptureDeviceTest {
         reportWritesRejected: AtomicBoolean? = null,
         nativeEngine: TtsEngine? = null,
         manualNative: Boolean = false,
+        documentSink: DocumentSink? = null,
     ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
@@ -2459,6 +2670,7 @@ class UxCaptureDeviceTest {
             sessionStorage = storage,
             ttsEngine = nativeEngine,
             recognitionAvailable = { manualNative || android.speech.SpeechRecognizer.isRecognitionAvailable(context) },
+            documentSink = documentSink ?: ContentResolverSink(context.contentResolver),
             preferences = io.github.jaypetez.ideaforge.data.PrefsStore.create(
                 CoroutineScope(SupervisorJob() + Dispatchers.IO).also { fixturePreferencesScope = it },
             ) { context.preferencesDataStoreFile("prefs") },

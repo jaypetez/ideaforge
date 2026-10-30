@@ -148,7 +148,11 @@ source wins over prose, and a generated artifact wins over a description of that
   private fixture graphs, installed adaptive panes and the existing fail-closed recorder.
   `UxSystemActions.kt` owns real native document/share interactions and cleanup of only
   created documents/share files plus clipboard restoration, with a real `sh` over the
-  API 34 stderr-capable UiAutomation transport and checked exit status.
+  API 34 stderr-capable UiAutomation transport and checked exit status. System snapshots
+  wait for UiAutomation idle, then for a settled frame changed from the pre-`launch` app
+  frame, and chooser snapshots also for a painted header/drag handle
+  (`UxEvidence.sheetPainted`); accessible window trees alone do not prove chooser/picker
+  paint, so inspect the system PNGs too.
   `InterviewScreen` includes retained History and persistent notice height in its
   short-window decision; the actual normal-font landscape regression is in
   `InterviewLayoutTest` (normal scale is verified, not inferred from method metadata).
@@ -215,6 +219,11 @@ source wins over prose, and a generated artifact wins over a description of that
   selection, filter disclosure/recovery and rename/delete dialogs.
   [`LibraryViewModel.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryViewModel.kt)
   keeps filter state and the existing reducer/store mutation path.
+  [`LibraryExports.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryExports.kt)
+  binds canonical `exportFor` bytes/name/identity before Share or SAF, independently of
+  provider admission, selection, session writes and mutation errors. `LibraryScreen` keeps
+  primary/overflow targets siblings and exposes secondary selected-pane Share/Save.
+  `AppGraph.documentSink` supplies the existing `ContentResolverSink` to Ideas and Result.
   [`ExportPreview.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/ExportPreview.kt)
   owns the literal unsynthesized conversation/draft presentation separately from canonical
   export rendering. Re-check DESIGN, the Android guide, full title semantics, compact
@@ -222,7 +231,12 @@ source wins over prose, and a generated artifact wins over a description of that
   actual compact/expanded light/dark/font evidence, and unchanged export bytes.
   `android-device.yml`'s `evidence=ideas` uses the focused Ideas method and existing
   recorder for its complete declared subset, including an actual held SessionStore read
-  through AppGraph's ordinary concrete-store injection. Inspect nonzero execution and every requested manifest
+  through AppGraph's ordinary concrete-store injection. Its export journey adds menu/long/
+  cancellation/named sink-error/saved frames, actual `UxSystemActions` share/SAF readback
+  without grant/key, and an admitted actual-app negative control for its installed rejecting
+  provider (never overwritten by a scripted launch). Re-check exact bytes, optional local
+  reports, unsent-draft preservation, source loss/deletion and newer error/focus tests.
+  Inspect nonzero execution and every requested manifest
   record instead of treating an ATD run or full-workflow colour as visual acceptance.
 - **Native question-first Interview.** Sources:
   [`InterviewScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/interview/InterviewScreen.kt)

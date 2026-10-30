@@ -48,6 +48,10 @@ internal class UxDeviceEnvironment(private val automation: UiAutomation) : Close
                     shell("wm size 960x${heightPx ?: 600}")
                     shell("wm density 240")
                 }
+                "compact-narrow" -> {
+                    shell("wm size 480x1080")
+                    shell("wm density 240")
+                }
                 else -> error("unknown window $window")
             }
         }

@@ -170,6 +170,79 @@ class UxEvidenceTest {
         bitmap.recycle()
     }
 
+    /**
+     * The rejected chooser frames had a complete system tree and passed the whole-screen
+     * render check while the screen showed only scrim over the dimmed source. Coordinates
+     * mirror the rejected compact frame's reported chooser header and drag handle.
+     */
+    @Test
+    fun aChooserTreeOverOnlyItsScrimIsNotAPaintedSheetInEitherTheme() {
+        val header = UxBounds(0f, 2065f, 1080f, 2118f)
+        val handle = UxBounds(456f, 2086f, 624f, 2097f)
+        val bitmap = Bitmap.createBitmap(1080, 2400, Bitmap.Config.ARGB_8888)
+        fun fill(box: UxBounds, colour: Int) {
+            for (y in box.top.toInt() until box.bottom.toInt()) for (x in box.left.toInt() until box.right.toInt()) bitmap.setPixel(x, y, colour)
+        }
+        fun dimmedSource() {
+            bitmap.eraseColor(Color.rgb(8, 9, 12))
+            // Dimmed source text runs through the band above the header, as in the real frame.
+            for (y in 1800 until 2060 step 40) fill(UxBounds(40f, y.toFloat(), 700f, y + 12f), Color.rgb(70, 70, 76))
+        }
+        for ((scrim, sheet, ink) in listOf(
+            Triple(Color.rgb(8, 9, 12), Color.rgb(242, 239, 247), Color.rgb(196, 196, 204)),
+            Triple(Color.rgb(8, 9, 12), Color.rgb(43, 41, 48), Color.rgb(140, 138, 148)),
+            Triple(Color.rgb(120, 120, 124), Color.rgb(242, 239, 247), Color.rgb(196, 196, 204)),
+        )) {
+            dimmedSource()
+            assertEquals("scrim over the source is not a sheet", false, UxEvidence.sheetPainted(bitmap, header, handle))
+            bitmap.eraseColor(scrim)
+            fill(UxBounds(0f, header.top, 1080f, 2400f), sheet)
+            assertEquals("a sheet without its painted handle is not complete", false,
+                UxEvidence.sheetPainted(bitmap, header, handle))
+            fill(handle, ink)
+            assertTrue("the painted sheet and handle are accepted", UxEvidence.sheetPainted(bitmap, header, handle))
+            fill(UxBounds(0f, header.top - header.height, 1080f, header.top), sheet)
+            assertEquals("a header indistinguishable from what lies above it is not proof", false,
+                UxEvidence.sheetPainted(bitmap, header, handle))
+        }
+        assertEquals("reported bounds outside the screenshot are never accepted", false,
+            UxEvidence.sheetPainted(bitmap, UxBounds(0f, 2390f, 1080f, 2443f), UxBounds(456f, 2400f, 624f, 2411f)))
+        bitmap.recycle()
+    }
+
+    /**
+     * A Save picker frame was accepted while the screen was still the app, unchanged or mid
+     * fade. A light picker over a light app differs in only 13-25% of samples, so the proof
+     * is change from the pre-launch frame plus a settled (repeated) sample, not identity.
+     */
+    @Test
+    fun aPickerFrameMustChangeFromTheAppAndSettleBeforeItIsEvidence() {
+        val bitmap = Bitmap.createBitmap(1080, 2400, Bitmap.Config.ARGB_8888)
+        fun band(top: Int, bottom: Int, colour: Int) {
+            for (y in top until bottom) for (x in 0 until bitmap.width) bitmap.setPixel(x, y, colour)
+        }
+        bitmap.eraseColor(Color.rgb(248, 247, 252))
+        band(200, 320, Color.rgb(30, 30, 40))
+        val app = UxEvidence.frameSample(bitmap)
+        assertEquals("the unchanged app is not a picker", false, UxEvidence.windowChanged(app, UxEvidence.frameSample(bitmap)))
+
+        // A light picker: same near-white background, different toolbar and bottom bar.
+        bitmap.eraseColor(Color.WHITE)
+        band(60, 180, Color.rgb(30, 30, 40))
+        band(2150, 2280, Color.rgb(33, 150, 243))
+        val picker = UxEvidence.frameSample(bitmap)
+        assertTrue("a light picker over a light app is a change", UxEvidence.windowChanged(app, picker))
+        assertTrue("the light case really shares most samples",
+            app.indices.count { app[it] != picker[it] } < app.size / 2)
+        assertEquals("a single changed sample is not yet settled", false, UxEvidence.settled(null, picker))
+        assertTrue(UxEvidence.settled(picker, UxEvidence.frameSample(bitmap)))
+
+        // Mid-transition: the next sample differs, so the frame is not settled.
+        band(0, 60, Color.rgb(120, 120, 120))
+        assertEquals(false, UxEvidence.settled(picker, UxEvidence.frameSample(bitmap)))
+        bitmap.recycle()
+    }
+
     @Test
     fun aThemePreferenceAloneIsNotEvidenceThatThePixelsChanged() {
         assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("dark", UxPixels(20, 30.0, 0x101010)) }

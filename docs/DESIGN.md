@@ -360,9 +360,11 @@ action. Titles may visually ellipsize after two lines; their full literal text r
 in semantics and the detail pane. Rows grow with enlarged text rather than using a fixed
 height.
 
-In a compact window, the row opens Continue or View result directly. More holds View
-details, Rename or tag, Archive/Restore and Delete. In a wider window, a row selects its
-detail; the detail holds the primary Continue/View result action. Filtering hides an
+In a compact window, the row opens Continue or View result directly. Its primary action
+and More button are sibling controls, not nested click targets. More holds View details,
+Share .md, Save .md, Rename or tag, Archive/Restore and Delete. In a wider window, a row
+selects its detail; the detail holds primary Continue/View result and secondary Share/Save
+actions. Exports appear after a recorded answer or skip. Filtering hides an
 unrelated selected preview immediately, while preserving search focus. A compact detail
 whose idea is removed or filtered out returns through the existing pane navigator.
 
@@ -385,11 +387,23 @@ failure without restarting voice.
 literal conversation and unsent draft, keeping checklist, skipped and answer-provenance
 labels. It does not manufacture a failed-generation notice. Existing write-ups and
 completed ideas still use `ExportPreview`; canonical export generation is unchanged.
+`LibraryExports` captures the canonical `exportFor` string, filename and source identity
+before an Android share sheet or document picker. One pending picker/write prevents a
+later action from replacing its source. It uses `ResultActions` and the same SAF sink as
+Result, with no provider construction, inference admission, session write or selection
+change. Named cancellation/failure/saved feedback is independent of mutation errors;
+it stays in the library header outside either pane's scroll and never requests focus. A write
+failure does not claim a complete file, and an opened share sheet does not claim delivery.
 The existing device workflow's `evidence=ideas` selects the focused method explicitly,
 reusing the general recorder for ready/empty/unavailable, normal/100-row/archived/filtered
 lists, the long active preview and a real pending store read. The injected store is still
 the graph's sole SessionStore, not a fake UI state. It runs in compact/expanded windows,
-both themes and all three font scales.
+both themes and all three font scales. The same route additionally captures the actual
+row menu, long selected detail, cancelled Save, named controlled sink failure and successful
+canonical Save. Its real native Share/SAF journey has no inference grant/key; a separate
+actual-app negative control proves the installed rejecting provider is reachable when
+inference is admitted. System picker/share PNGs and owned-file readback supplement the
+strict app/target/label captures.
 It is a focused Ideas inventory, not a claim that the full UX matrix passed.
 
 ## Current native Interview

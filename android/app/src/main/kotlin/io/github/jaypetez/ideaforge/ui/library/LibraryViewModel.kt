@@ -30,9 +30,12 @@ import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionLoadState
 import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
+import io.github.jaypetez.ideaforge.ui.result.DocumentSink
 import io.github.jaypetez.ideaforge.voice.DriveController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -113,6 +116,8 @@ class LibraryViewModel(
     private val clock: Clock,
     private val worker: SessionWorker,
     private val writes: CoroutineScope,
+    sink: DocumentSink,
+    io: CoroutineDispatcher = Dispatchers.IO,
     private val reportDrive: () -> DriveController? = { null },
 ) : ViewModel() {
     private val filters = MutableStateFlow(LibraryFilters())
@@ -125,6 +130,7 @@ class LibraryViewModel(
 
     /** The stored documents, for the detail pane's export preview. */
     val sessions: StateFlow<List<Session>> = store.sessions
+    val exports = LibraryExports(store::get, sink, viewModelScope, io)
     val reports = ContentReportController(store, worker, clock, writes, viewModelScope, ids = ids, drive = reportDrive)
 
     init { retryLoad() }
@@ -154,6 +160,8 @@ class LibraryViewModel(
     fun clearFilters() { filters.value = LibraryFilters() }
 
     fun noticeShown() { _notice.value = null }
+
+    fun now(): Long = clock.now()
 
     /** The web's "Rename or tag" form: [tagsText] is comma separated, as there. */
     fun saveDetails(id: String, name: String, tagsText: String) = mutate(id, LibraryNotice.Saved) { s, now ->
@@ -216,6 +224,7 @@ class LibraryViewModel(
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
                 LibraryViewModel(graph.sessionStore, graph.idGen, graph.clock, graph.sessionWorker, graph.appScope,
+                    sink = graph.documentSink,
                     reportDrive = { graph.driveController })
             }
         }

@@ -18,6 +18,8 @@ import io.github.jaypetez.ideaforge.data.SessionWorker
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultActions
+import io.github.jaypetez.ideaforge.ui.result.ContentResolverSink
+import io.github.jaypetez.ideaforge.ui.result.DocumentSink
 import io.github.jaypetez.ideaforge.ui.settings.BackupJobs
 import io.github.jaypetez.ideaforge.voice.AndroidAudioFocus
 import io.github.jaypetez.ideaforge.voice.AndroidTtsEngine
@@ -64,6 +66,7 @@ class AppGraph(
     sessionStorage: SessionStore? = null,
     ttsEngine: TtsEngine? = null,
     private val recognitionAvailable: () -> Boolean = { SpeechRecognizer.isRecognitionAvailable(context) },
+    val documentSink: DocumentSink = ContentResolverSink(context.contentResolver),
 ) {
     /**
      * Builds the interview's model provider from the keyring. Tests hand in a scripted one;
