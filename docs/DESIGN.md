@@ -23,6 +23,12 @@ its earlier values until
 [#205](https://github.com/jaypetez/ideaforge/issues/205). Actual app screenshots reflect
 the implemented surfaces, not the complete reference boards.
 
+The [Forge Studio proposal](#forge-studio-proposal) for
+[#356](https://github.com/jaypetez/ideaforge/issues/356) evolves that functional foundation.
+Its stronger brand, original graphics and Android brand-first colour choice are
+**owner-approved direction**, not current shipped behaviour. The reference gallery uses
+the proposed treatment; the shipped token tables below still describe actual source.
+
 ## Current shipped tokens
 
 ## Colour roles
@@ -751,6 +757,80 @@ only from `'self'` and `data:`. `app.js` rewrites some button labels, and a pseu
 survives that. And the icon adds no text, so tests that find a button by its exact label
 still find it.
 
+## Forge Studio proposal
+
+**Status: owner-approved direction; not yet implemented in the apps.** The owner requested a more distinctive, trustworthy
+identity on both Android and web/PWA, without sacrificing the current responsiveness.
+The [same reference gallery](design/focus-studio.html) now presents the proposed
+Forge Studio treatment, retaining the Focus Studio information architecture and recovery
+contract. It does not change application assets, theme defaults or runtime behaviour.
+
+The selected direction is **forged spark**: an original angled F/spark mark, warm paper-like
+light surfaces, layered green-ink dark surfaces, a recognizable petrol action colour and
+a restrained warm accent. **Compact forge**, an original simpler anvil, is shown beside
+it as the unselected alternative. The owner explicitly chose
+**"Approve Forge Studio with A: Forged spark"** after reviewing the rendered references.
+The mark is deliberately judged at
+16/24/48px, a larger launcher study, a wordmark lockup and circular/squircle/grayscale
+studies. Those studies do not certify adaptive layers, a genuine monochrome silhouette
+or maskable safe zones; #357/#361/#362 own the approved masters and platform derivatives.
+
+`design/forge-mark.svg`, `design/forge-anvil.svg` and `design/idea-workbench.svg` are
+original, local reference artwork. They are not third-party icon copies and add no remote
+resource, runtime dependency, font, telemetry or image-generation service. Small artwork
+supports first-use/empty states and the brand; it never replaces labels or claims that
+capture, synthesis or saving succeeded. The empty-state illustration is not used for an
+unreadable library.
+
+| Surface | Proposed distinctive treatment | Behaviour retained |
+|---|---|---|
+| Entry and navigation | Small brand lockup, warmer layered surfaces, purposeful first-idea graphic | Existing provider/required-fields/ready and native onboarding/mode-choice flows; no microphone on navigation |
+| Ideas | Compact labelled coverage tracks, independent write-up-state cue, clear selection | Existing filters, direct open, adaptive detail, local data and export identity |
+| Interview | Strong question typography, quiet history and compact, clearly grouped composer | Editable chips, provenance, draft durability, explicit Send/Skip and once-only wrap |
+| Voice | Small static brand motif, clear actual phase/captions and stable large controls | Actual samples only, no-level text, serial capture/output, deliberate Pause/Resume/Exit |
+| Result | A foreground editorial document with a branded edge and readable sections | Complete canonical Markdown; failed generation exposes Retry write-up without another answer |
+| Settings | Coherent section rhythm and local, clearly named recovery | Five sections, independent secrets/consents, explicit data operations and appearance errors |
+
+Android's proposed default is **IdeaForge brand**, with **Use wallpaper colours** an
+explicit opt-in where supported, independently of System/Light/Dark. Current Android still
+uses wallpaper colour by default; #359 owns the intentional preference/default change.
+Web keeps IBM Plex Sans and Android keeps its system family. Reference drawings use
+system fonts only. Colour identity does not require making the two platforms pixel-identical.
+
+The exploration track is a bounded **coverage measure**, never AI confidence, elapsed
+model progress or a promise of a finished document. Example rows deliberately include
+partial exploration, a write-up at less than 100% and an archived unfinished idea.
+Readiness comes from the existing engine, not a new percentage threshold. A known current
+generation failure says so and offers a deliberate owned retry; legacy absence is
+**No write-up yet**, not evidence that an unobserved request failed. Stale output is named
+as stale. #365 owns the shared derived semantics, not a new progress store.
+
+### Approval and evidence boundaries
+
+The owner approved the Forge Studio compositions and concept A in #356's implementation
+review. Concept B is retained for comparison, not for shipping. #357 still owns final
+editable masters, the genuine monochrome silhouette and platform-safe-zone studies.
+Approval of a
+drawing is not acceptance of native geometry, keyboard, screen reader, physical recognition
+or model-backed output. The current native captures linked from #355 are a source-aware
+before comparison, not a new running prototype or proof of a defect.
+
+The approved reference palette is checked against the existing text/non-text contrast floors.
+Component blends, optional wallpaper palettes, forced colours and real large-text/IME
+layouts still require implementation evidence. Shapes and type hierarchy are explicit
+design choices: 12px/dp controls, 20 surfaces, 24 dialogs; 16 body and at least 14 metadata;
+larger titles without reducing the answer/document space. Optional 100-180ms motion never
+gates input and is removed for reduced motion/system animation settings. The static gallery
+has no animation at all.
+
+The design rationale follows the linked
+[Android colour guidance](https://developer.android.com/design/ui/mobile/guides/styles/color),
+[Material colour/type/shape systems](https://developer.android.com/develop/ui/compose/designsystems/material3)
+and [accessible bounded meters](https://www.w3.org/WAI/ARIA/apg/patterns/meter/).
+These support semantic colour, hierarchy, meaningful graphics and truthful labels; they
+do not establish that the specific aesthetic is optimal for IdeaForge. No new experimental
+Material API or dependency is required to implement the proposal.
+
 ## Focus Studio contract
 
 Focus Studio is a quiet working space for a question, an answer and a useful document.
@@ -765,9 +845,11 @@ not a production route, functional prototype, README screenshot or native-device
 The boards use local assets and system fonts, have no script, make no provider or media
 request, and are excluded from the assembled site by `tools/assemble-site.mjs`.
 Their controls are disabled drawings of the intended controls, not working app actions.
-The actual web app keeps IBM Plex Sans; Android keeps its system family and wallpaper
-dynamic colour. Native boards show the fallback scheme at logical compact/expanded widths,
-not a pixel claim about an emulator or phone.
+The actual web app keeps IBM Plex Sans; Android keeps its system family. Current Android
+still uses wallpaper dynamic colour by default. The new native boards show the proposed
+brand-first scheme at logical compact/expanded widths, not a pixel claim about an emulator
+or phone. The original interaction contract remains; the proposal above replaces only
+its reference visual treatment. This approval does not mark the proposed app changes as shipped.
 
 ### Reference inventory and deliberate differences
 
@@ -775,8 +857,14 @@ The main web compositions have light/dark pairs at **390x844** and **1280x900**:
 provider choice, ready Start, Ideas list/detail, Interview, listening/paused/recovering
 voice, Result and Settings. Compact pairs also show true-empty/filtered/unavailable
 Ideas, provider checking/failure, missing model discovery, unsaved Settings, busy turn,
-failed save, wrap offer, blocked voice, failed synthesis and long content. Native Ideas
-has compact 390 and expanded 840 logical-width compositions in both fallback themes.
+failed save, wrap offer, blocked voice, failed synthesis and long content. Native onboarding,
+new idea, Ideas, Interview, listening Voice, Result and Settings have compact 390 and
+expanded 840 logical-width compositions in both proposed brand themes. Native compact
+pairs also include empty/unavailable Ideas, busy/unsaved/failed-write-up/long-content,
+paused/recovering/blocked voice, unsaved Settings and connection failure.
+Both platforms also have compact light/dark 200%-typography long-content references.
+These scale the drawing's text, not its viewport; they do not simulate Android font
+metrics, an actual browser zoom setting or a visible keyboard.
 
 These are new targets, not a repetition of the completed first pass (#60):
 
@@ -796,24 +884,26 @@ checks take precedence over a pleasant drawing.
 ### Proposed roles and measurements
 
 `design/focus-studio.css` owns only these reference values. Web and native implementation
-issues migrate their actual owners independently; Android dynamic colour remains supported.
+issues migrate their actual owners independently; Android dynamic colour remains supported
+as the proposed explicit opt-in rather than being removed.
 The current web table above records actual composed-contrast adjustments rather than
 pretending every reference hex can be used unchanged. The native fallback table records
 the same roles with explicit Compose composites and dynamic-colour differences.
 
 | Role | Light | Dark | Intended use |
 |---|---|---|---|
-| Ground | `#F5F7FA` | `#11161B` | Quiet page/workspace |
-| Lowest surface | `#FFFFFF` | `#1B222A` | Foreground work, fields |
-| Container | `#E8EDF2` | `#27313B` | Quiet selection/hover/grouping |
-| Raised | `#DEE6EE` | `#313E49` | Menu/dialog/foreground support |
-| Ink | `#17212B` | `#EEF3F8` | Body and headings |
-| Secondary ink | `#526171` | `#B4C0CB` | Readable metadata/help |
-| Outline | `#718091` | `#91A1B2` | Operative field/control boundaries |
-| Primary | `#0F6963` | `#7AD5C7` | Main action, selection, focus |
-| On primary | `#FFFFFF` | `#0A332E` | Primary-button text |
-| Error | `#A83C3A` | `#F3AAA0` | Failure/destructive text |
-| Warning | `#765C20` | `#E7C882` | Untested/pending/degraded text |
+| Ground | `#F6F4EF` | `#101B1B` | Warm paper / green-ink workspace |
+| Lowest surface | `#FFFFFF` | `#192B2A` | Foreground work, fields |
+| Container | `#EAE8E0` | `#233B39` | Quiet selection/hover/grouping |
+| Raised | `#E1DED5` | `#2B4541` | Menu/dialog/foreground support |
+| Ink | `#1C2B2B` | `#F1F5EE` | Body and headings |
+| Secondary ink | `#4F625E` | `#B7CBC4` | Readable metadata/help |
+| Outline | `#6C7771` | `#93ACA3` | Operative field/control boundaries |
+| Primary | `#0B625D` | `#7AD7C5` | Main action, selection, focus |
+| On primary | `#FFFFFF` | `#073B33` | Primary-button text |
+| Error | `#983C32` | `#F3AAA0` | Failure/destructive text |
+| Warning | `#775117` | `#EAC57C` | Untested/pending/degraded text |
+| Spark / on spark | `#F0BE75` / `#45300E` | `#F0BE75` / `#45300E` | Restrained brand accent, never a success indicator |
 
 Opaque-pair tests require body, secondary, primary, error and warning text to reach 4.5:1
 on every proposed surface, outline to reach 3:1, and on-primary text to reach 4.5:1.
@@ -824,7 +914,7 @@ uses its own component, palette and device evidence described above and below.
 | Role | Reference value / rule |
 |---|---|
 | Spacing | 4, 8, 12, 16, 24, 32, 48 and 64px/dp steps |
-| Shape | 8px/dp controls, 12 surfaces, 16 dialogs; pills only for tags/status |
+| Shape | Proposed 12px/dp controls, 20 surfaces, 24 dialogs; pills only for tags/status |
 | Body | 16px/sp, approximately 1.6 line height, regular weight |
 | Metadata | 14px/sp, approximately 1.45 line height; never lower contrast to create hierarchy |
 | Titles | 24-28px/sp, 600; long titles wrap or retain accessible full text |
@@ -885,7 +975,7 @@ with that UI; no credential, backup or session schema is introduced here.
 | Offline / checklist fallback | Cached app/local ideas are not proof of model connectivity. Current checklist source and sticky degraded history are visible. | Polite source/failure status; continue/retry through normal provider policy. | SW shell/store, turn `questionSource`, `warn`/`fail`; native provider/runtime |
 | Failed save | **Not saved to this device**; export before closing. Persistent until saved or deliberately dismissed, not a success toast. | Error available without covering Send/Pause/Exit/export; next turn cannot erase it. | Web `persist`/`saveFailure`/`saveWarning`; native store/work error |
 | Wrap offer | Once-only Write it up versus Keep going; never disguised as an answer chip. Hands-free speaks it without a manual card. | Offer actions reachable; Keep going returns to the same question/task. | `renderWrapOffer`/`wrapOffered`, engine advisory; native core/UI |
-| Writing / synthesis failed | Writing is actual work. Failure says refined prompt was not generated; transcript/open questions/coverage remain exportable. | Result heading or persistent failure; retry/Ask me more uses the same idea. | `runSynthesis`, `renderDone`/`showDone`, canonical export; native Result/InterviewWork |
+| Writing / synthesis failed | Writing is actual work. Failure says refined prompt was not generated; transcript/open questions/coverage remain exportable. Proposed Retry write-up makes one deliberate request without another answer; it is not shipped recovery yet. | Result heading or persistent failure; retry/Ask me more uses the same idea and current inference permit. | `runSynthesis`, `renderDone`/`showDone`, canonical export; native Result/InterviewWork; #371/#372 own retry |
 | Voice permission denied | Mic permission is blocked/unavailable; Type instead/Exit available. No recognizer/service starts. Native notification denial is separate and nonfatal. | Rationale/recovery status; only explicit voice retry requests permission again. | Web probe/controller and `startInterview`; native Interview permission launchers |
 | Voice listening / no samples | Actual phase/backend, current question and full caption. **No level reading** is honest, never a simulated meter. | Bounded status/captions, not an announcement per sample; Pause/Exit remain reachable. | `createVoiceStage`, supplied mic samples; native `VoiceStage`/`Recognizer.samples` |
 | Voice transient recovery | Existing bounded repeat/retry/skip ladder with factual detail, not an unbounded spinner or forced tap for every miss. | Status plus captions; fatal input/output failure stands down. | `createDriveLoop`; native `DriveLoop`/`DriveController` |
