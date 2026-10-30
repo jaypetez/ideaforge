@@ -567,7 +567,10 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   Keep one pending picker/write, immutable share files, and separate named export feedback:
   cancellation, late completion or deletion must not change selection, steal newer focus,
   resurrect a session or clear a newer mutation error. Missing source after process death
-  is an explicit retry, never permission to export the current selection.
+  is an explicit retry, never permission to export the current selection. The feedback is
+  bounded by the space the Ideas top bar is actually given (the panes keep two controls of
+  height): its named text scrolls and Dismiss stays in the window, with no width, font or
+  height branch.
 - **New idea is an explicit mode choice, not a microphone request.** `NewIdeaRoute` opens
   before an id is allocated; Voice/Type selection alone creates a fresh Interview entry,
   guarded by the originating entry and admission revision. The new-entry voice flag is

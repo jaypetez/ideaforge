@@ -57,14 +57,45 @@ internal class UxSystemActions(
         // A new window's accessibility tree can arrive before its first painted frame.
         automation.waitForIdle(300, DEVICE_TIMEOUT)
         check(output.isDirectory || output.mkdirs())
-        File(output, "$name-system.txt").writeText(tree(automation.rootInActiveWindow))
-        val bitmap = checkNotNull(automation.takeScreenshot()) { "no system screenshot for $name" }
-        try {
-            UxEvidence.requireRendered(bitmap, UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()))
-            File(output, "$name-system.png").outputStream().use {
-                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
-            }
-        } finally { bitmap.recycle() }
+        val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
+        var previousSheet: Pair<UxBounds, UxBounds>? = null
+        while (true) {
+            val root = automation.rootInActiveWindow
+            root?.refresh()
+            val sheet = sheet(root)
+            val bitmap = checkNotNull(automation.takeScreenshot()) { "no system screenshot for $name" }
+            try {
+                UxEvidence.requireRendered(bitmap, UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()))
+                // Idle accessibility is not paint: a chooser's tree arrives while the screen
+                // still shows only its scrim over the dimmed source, and the sheet then slides
+                // in. Accept two consecutive painted frames at the same reported sheet bounds.
+                val painted = sheet == null || UxEvidence.sheetPainted(bitmap, sheet.first, sheet.second)
+                if (sheet == null || (painted && sheet == previousSheet)) {
+                    File(output, "$name-system.txt").writeText(tree(root))
+                    File(output, "$name-system.png").outputStream().use {
+                        check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+                    }
+                    return
+                }
+                previousSheet = if (painted) sheet else null
+                check(SystemClock.uptimeMillis() < deadline) {
+                    "the $name system sheet did not paint within the capture budget:\n${tree(root)}"
+                }
+            } finally { bitmap.recycle() }
+            SystemClock.sleep(150)
+        }
+    }
+
+    /** The share chooser's header and drag handle, in screen pixels, when that sheet is active. */
+    private fun sheet(root: AccessibilityNodeInfo?): Pair<UxBounds, UxBounds>? {
+        fun bounds(id: String) = descendants(root).firstOrNull { it.viewIdResourceName == id && it.isVisibleToUser }?.let {
+            val rect = Rect()
+            it.getBoundsInScreen(rect)
+            UxBounds(rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat())
+        }
+        val header = bounds("android:id/chooser_header") ?: return null
+        val handle = checkNotNull(bounds("android:id/drag")) { "the chooser header has no drag handle to prove its paint" }
+        return header to handle
     }
 
     fun createDocument(label: String): String {

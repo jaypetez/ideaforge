@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
@@ -249,26 +251,33 @@ fun LibraryScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             val label = stringResource(R.string.nav_new_idea)
-            Column {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
-                    horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.library_title),
-                        Modifier.weight(1f).focusRequester(headingFocus).focusTarget()
-                            .testTag(LibraryTags.HEADING).semantics { heading() },
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Button(
-                        onClick = newIdea,
-                        modifier = Modifier.testTag(LibraryTags.NEW).semantics { contentDescription = label },
-                    ) { Text(label) }
-                }
-                exports.notice?.let { notice ->
-                    Box(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight)) {
-                        ExportNotice(notice, vm.exports::dismissNotice)
+            // Export feedback is bounded by the space the window actually offers, not by a
+            // width/font/height branch: it may grow until the panes would fall below a usable
+            // height, and beyond that its text scrolls while Dismiss stays inside the window.
+            BoxWithConstraints {
+                val bounded = if (constraints.hasBoundedHeight) {
+                    Modifier.heightIn(max = (maxHeight - minOf(PANE_RESERVE, maxHeight / 2)).coerceAtLeast(0.dp))
+                } else Modifier
+                Column(bounded) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
+                        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.library_title),
+                            Modifier.weight(1f).focusRequester(headingFocus).focusTarget()
+                                .testTag(LibraryTags.HEADING).semantics { heading() },
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Button(
+                            onClick = newIdea,
+                            modifier = Modifier.testTag(LibraryTags.NEW).semantics { contentDescription = label },
+                        ) { Text(label) }
+                    }
+                    exports.notice?.let { notice ->
+                        ExportNotice(notice, vm.exports::dismissNotice, Modifier.weight(1f, fill = false)
+                            .padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight))
                     }
                 }
             }
@@ -668,8 +677,11 @@ private fun IdeaDetail(
     }
 }
 
+/** Height the list/detail panes keep below export feedback: two native controls. */
+private val PANE_RESERVE = IdeaForgeSpacing.control * 2
+
 @Composable
-private fun ExportNotice(notice: LibraryExportNotice, dismiss: () -> Unit) {
+private fun ExportNotice(notice: LibraryExportNotice, dismiss: () -> Unit, modifier: Modifier = Modifier) {
     val text = when (notice.result) {
         LibraryExportResult.Saved -> R.string.idea_export_saved
         LibraryExportResult.Cancelled -> R.string.idea_export_cancelled
@@ -680,11 +692,14 @@ private fun ExportNotice(notice: LibraryExportNotice, dismiss: () -> Unit) {
         LibraryExportResult.SourceLost -> R.string.idea_export_source_lost
     }
     val error = notice.result !in setOf(LibraryExportResult.Saved, LibraryExportResult.Cancelled)
-    Column(Modifier.fillMaxWidth().testTag(LibraryTags.EXPORT_NOTICE).semantics { liveRegion = LiveRegionMode.Polite },
+    Column(modifier.fillMaxWidth().testTag(LibraryTags.EXPORT_NOTICE).semantics { liveRegion = LiveRegionMode.Polite },
         verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
-        Text(stringResource(text, notice.title),
-            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium)
+        // Only the named text yields height; it scrolls, so the complete message stays readable.
+        Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            Text(stringResource(text, notice.title),
+                color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium)
+        }
         TextButton(onClick = dismiss, modifier = Modifier.testTag(LibraryTags.EXPORT_DISMISS)) {
             Text(stringResource(R.string.notice_dismiss))
         }

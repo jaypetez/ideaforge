@@ -31,6 +31,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
@@ -52,6 +53,7 @@ import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.buildBackup
 import io.github.jaypetez.ideaforge.core.renameSession
+import io.github.jaypetez.ideaforge.core.MAX_SESSION_NAME
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.num
@@ -2190,6 +2192,59 @@ class UxCaptureDeviceTest {
         }
     }
 
+    /**
+     * A cancelled Save for a maximum-length name in the two window shapes that once pushed
+     * Dismiss out of the window and collapsed the pane: 640x400dp (ASCII) and 320x720dp (a
+     * full-width CJK name). Dismiss and the row's More must be reachable native targets, the
+     * pane must keep height, and the complete named text must be present and scrollable.
+     */
+    private fun captureExportFeedback(config: UxConfiguration, recorder: UxCaptureRecorder, systemOutput: File) {
+        check(fixtureGraph == null && scenario == null && heldLibraryRead == null) {
+            "export feedback evidence must start after the preceding fixture's complete cleanup"
+        }
+        val base = fixtures.state("library-long")
+        val id = "ux-long-active"
+        val name = if (config.window == "compact-narrow") "会議で会った人の名前を思い出すためのアプリ".repeat(6).take(MAX_SESSION_NAME)
+            else "A deliberately long idea name ".padEnd(MAX_SESSION_NAME, 'x')
+        check(name.length == MAX_SESSION_NAME)
+        prepare(base, config, inferenceAgreed = false)
+        val graph = checkNotNull(fixtureGraph)
+        val renamed = renameSession(checkNotNull(graph.sessionStore.get(id)), str(name), num(fixtures.now))
+        runBlocking { graph.sessionStore.save(renamed) }
+        val unchanged = graph.sessionStore.sessions.value.toList()
+        launchMain(scripted = false)
+        await(LibraryTags.SEARCH)
+        val list = hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST))
+        compose.onNode(list).performScrollToNode(hasTestTag(LibraryTags.more(id)))
+        compose.onNodeWithTag(LibraryTags.more(id)).assertIsDisplayed().performClick()
+        UxSystemActions(instrumentation, target, systemOutput).use { system ->
+            compose.onNodeWithTag(LibraryTags.save(id)).performScrollTo().assertIsDisplayed().performClick()
+            system.awaitExternalWindow()
+            system.back()
+        }
+        val expected = target.getString(R.string.idea_export_cancelled, sessionDisplayTitle(renamed))
+        compose.waitUntilAtLeastOneExists(hasText(expected), DEVICE_TIMEOUT)
+        val text = compose.onNode(hasText(expected)).fetchSemanticsNode()
+        val hidden = text.layoutInfo.coordinates.size.height - text.boundsInRoot.height
+        if (hidden > 1f) {
+            val range = generateSequence(text.parent) { it.parent }
+                .firstNotNullOfOrNull { it.config.getOrNull(SemanticsProperties.VerticalScrollAxisRange) }
+            assertTrue("clipped named feedback scrolls to its end", range != null && range.maxValue() >= hidden - 1f)
+        }
+        val pane = compose.onNodeWithTag(LibraryTags.LIST).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue("the list pane keeps at least one native target of height: $pane in $root",
+            pane.bottom.coerceAtMost(root.bottom) - pane.top >= 48f * target.resources.displayMetrics.density)
+        recorder.capture(
+            base.copy(id = "ideas-export-feedback"), config, checkNotNull(activity),
+            listOf(tag(LibraryTags.EXPORT_DISMISS), tag(LibraryTags.more(id))), nativeSurface = "library",
+            nativeMapping = "Real MainActivity Ideas at ${config.requestedWidthDp}x${config.requestedHeightDp}dp: a real native Save picker " +
+                "cancelled for a ${MAX_SESSION_NAME}-character ${if (config.window == "compact-narrow") "full-width CJK" else "ASCII"} name. " +
+                "The complete named text is in the semantics tree and scrolls inside its bounded feedback.",
+        )
+        assertEquals("cancelling a save never changes a session", unchanged, graph.sessionStore.sessions.value)
+    }
+
     @Test
     fun requestedManualDictationKeepsLiteralDraftAndExplicitSend() {
         val bundle = InstrumentationRegistry.getArguments()
@@ -2459,16 +2514,24 @@ class UxCaptureDeviceTest {
         } + if (nativeVoice && "compact" in windows) listOf("light", "dark").map {
             UxConfiguration("compact-landscape", it, 2f, requestedWidthDp = 640, requestedHeightDp = 400)
         } else emptyList()
+        // Export feedback once consumed short and narrow windows; those shapes get their own records.
+        val feedbackMatrix = if (nativeIdeas && "compact" in windows) listOf(
+            Triple("compact-landscape", 640, 400), Triple("compact-narrow", 320, 720),
+        ).flatMap { (window, width, height) ->
+            listOf("light", "dark").flatMap { theme ->
+                listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it, requestedWidthDp = width, requestedHeightDp = height) }
+            }
+        } else emptyList()
         val requestedStates = matrix.associateWith { config ->
             if (nativeVoice && config.window == "compact-landscape")
                 selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
             else selected
         }
         val walkthrough = if (request.states == null) walkthroughFrames else emptyList()
-        val expected = matrix.flatMap { config ->
+        val expected = (matrix.flatMap { config ->
             requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" } +
                 if (nativeIdeas) libraryExportFrames.map { "${config.id}/$it" } else emptyList()
-        }.toSet()
+        } + feedbackMatrix.map { "${it.id}/ideas-export-feedback" }).toSet()
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, File(outputPath, "ux"), expected)
         val originalGraph = app.graph
         runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
@@ -2521,6 +2584,14 @@ class UxCaptureDeviceTest {
                     if (walkthrough.isNotEmpty()) {
                         captureWalkthrough(config, recorder)
                     }
+                }
+                for (config in feedbackMatrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        captureExportFeedback(config, recorder, File(outputPath, "ux/${config.id}/native-system"))
+                    } catch (error: Throwable) {
+                        recorder.failed(fixtures.state("library-long").copy(id = "ideas-export-feedback"), config, error, activity)
+                    } finally { closeFixture() }
                 }
             }
         } catch (error: Throwable) {

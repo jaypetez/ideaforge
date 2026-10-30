@@ -170,6 +170,46 @@ class UxEvidenceTest {
         bitmap.recycle()
     }
 
+    /**
+     * The rejected chooser frames had a complete system tree and passed the whole-screen
+     * render check while the screen showed only scrim over the dimmed source. Coordinates
+     * mirror the rejected compact frame's reported chooser header and drag handle.
+     */
+    @Test
+    fun aChooserTreeOverOnlyItsScrimIsNotAPaintedSheetInEitherTheme() {
+        val header = UxBounds(0f, 2065f, 1080f, 2118f)
+        val handle = UxBounds(456f, 2086f, 624f, 2097f)
+        val bitmap = Bitmap.createBitmap(1080, 2400, Bitmap.Config.ARGB_8888)
+        fun fill(box: UxBounds, colour: Int) {
+            for (y in box.top.toInt() until box.bottom.toInt()) for (x in box.left.toInt() until box.right.toInt()) bitmap.setPixel(x, y, colour)
+        }
+        fun dimmedSource() {
+            bitmap.eraseColor(Color.rgb(8, 9, 12))
+            // Dimmed source text runs through the band above the header, as in the real frame.
+            for (y in 1800 until 2060 step 40) fill(UxBounds(40f, y.toFloat(), 700f, y + 12f), Color.rgb(70, 70, 76))
+        }
+        for ((scrim, sheet, ink) in listOf(
+            Triple(Color.rgb(8, 9, 12), Color.rgb(242, 239, 247), Color.rgb(196, 196, 204)),
+            Triple(Color.rgb(8, 9, 12), Color.rgb(43, 41, 48), Color.rgb(140, 138, 148)),
+            Triple(Color.rgb(120, 120, 124), Color.rgb(242, 239, 247), Color.rgb(196, 196, 204)),
+        )) {
+            dimmedSource()
+            assertEquals("scrim over the source is not a sheet", false, UxEvidence.sheetPainted(bitmap, header, handle))
+            bitmap.eraseColor(scrim)
+            fill(UxBounds(0f, header.top, 1080f, 2400f), sheet)
+            assertEquals("a sheet without its painted handle is not complete", false,
+                UxEvidence.sheetPainted(bitmap, header, handle))
+            fill(handle, ink)
+            assertTrue("the painted sheet and handle are accepted", UxEvidence.sheetPainted(bitmap, header, handle))
+            fill(UxBounds(0f, header.top - header.height, 1080f, header.top), sheet)
+            assertEquals("a header indistinguishable from what lies above it is not proof", false,
+                UxEvidence.sheetPainted(bitmap, header, handle))
+        }
+        assertEquals("reported bounds outside the screenshot are never accepted", false,
+            UxEvidence.sheetPainted(bitmap, UxBounds(0f, 2390f, 1080f, 2443f), UxBounds(456f, 2400f, 624f, 2411f)))
+        bitmap.recycle()
+    }
+
     @Test
     fun aThemePreferenceAloneIsNotEvidenceThatThePixelsChanged() {
         assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("dark", UxPixels(20, 30.0, 0x101010)) }

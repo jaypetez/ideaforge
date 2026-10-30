@@ -149,7 +149,8 @@ source wins over prose, and a generated artifact wins over a description of that
   `UxSystemActions.kt` owns real native document/share interactions and cleanup of only
   created documents/share files plus clipboard restoration, with a real `sh` over the
   API 34 stderr-capable UiAutomation transport and checked exit status. System snapshots
-  wait for UiAutomation idle; accessible window trees alone do not prove chooser/picker
+  wait for UiAutomation idle, and chooser snapshots for a painted header/drag handle
+  (`UxEvidence.sheetPainted`); accessible window trees alone do not prove chooser/picker
   paint, so inspect the system PNGs too.
   `InterviewScreen` includes retained History and persistent notice height in its
   short-window decision; the actual normal-font landscape regression is in

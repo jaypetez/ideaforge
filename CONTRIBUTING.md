@@ -547,11 +547,16 @@ filtered lists, long active detail and an actual pending SessionStore read. The 
 store remains the graph's only store; the read is released during cleanup, not replaced
 with a fabricated loading flag. Compact/expanded, light/dark and font scales 1.0/1.3/2.0
 also include the row export menu, long selected detail, cancelled Save, named controlled
-document-write failure and successful canonical Save. That journey reuses `UxSystemActions`
+document-write failure and successful canonical Save. The compact profile adds a cancelled
+Save for a 120-character name at 640x400dp (ASCII) and 320x720dp (full-width CJK), each
+theme and font scale, proving Dismiss, the row's More and a usable pane stay in the window.
+That journey reuses `UxSystemActions`
 for real share-sheet/document-picker interactions and exact file readback. System snapshots
-wait for UiAutomation idle: an accessible chooser/picker tree alone can precede its painted
-window and photograph the app underneath. Inspect the actual system PNGs, not just their
-tree files. It launches
+wait for UiAutomation idle, and a share chooser's snapshot also waits for two consecutive
+frames whose reported header and drag handle are actually painted
+(`UxEvidence.sheetPainted`): an accessible chooser tree alone can precede its painted
+sheet and photograph only the scrim over the app underneath. Inspect the actual system
+PNGs, not just their tree files. It launches
 without the debug scripted-provider override, removes its private dummy key after opening
 Ideas, and has no inference grant. A separate admitted actual-app negative control must
 reach its installed rejecting provider. Inspect every original and export record,

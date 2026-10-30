@@ -218,6 +218,39 @@ object UxEvidence {
         error("requested $theme root/status-bar paint did not stabilize within the capture budget (last $last)")
     }
 
+    /**
+     * A bottom-sheet system window (the share chooser) publishes its accessibility tree, and
+     * passes [requireRendered] on the whole screen, while the display still shows only its
+     * scrim over the dimmed source app: five accepted chooser frames were exactly that. The
+     * sheet is painted only when its drag handle stands apart from the header around it and
+     * that header stands apart from the scrim directly above it. Theme-independent: it reads
+     * no expected colour, only contrast at the coordinates the window itself reports.
+     */
+    fun sheetPainted(bitmap: Bitmap, header: UxBounds, handle: UxBounds): Boolean {
+        val screen = UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+        if (!screen.contains(header) || !header.contains(handle) || header.top < header.height) return false
+        val background = dominant(bitmap, header, exclude = handle) ?: return false
+        val ink = dominant(bitmap, handle) ?: return false
+        val scrim = dominant(bitmap, UxBounds(header.left, header.top - header.height, header.right, header.top)) ?: return false
+        return distinct(ink, background) && distinct(background, scrim)
+    }
+
+    private fun distinct(a: Int, b: Int) = listOf(16, 8, 0).any { shift ->
+        kotlin.math.abs(((a shr shift) and 255) - ((b shr shift) and 255)) > 24
+    }
+
+    private fun dominant(bitmap: Bitmap, box: UxBounds, exclude: UxBounds? = null): Int? {
+        val colours = HashMap<Int, Int>()
+        for (y in max(0, box.top.toInt()) until min(bitmap.height, box.bottom.toInt())) {
+            for (x in max(0, box.left.toInt()) until min(bitmap.width, box.right.toInt())) {
+                if (exclude != null && x >= exclude.left && x < exclude.right && y >= exclude.top && y < exclude.bottom) continue
+                val colour = bitmap.getPixel(x, y) and 0x00F8F8F8
+                colours[colour] = (colours[colour] ?: 0) + 1
+            }
+        }
+        return colours.maxByOrNull { it.value }?.key
+    }
+
     fun requireComplete(expected: Set<String>, captured: Set<String>, failures: List<String>) {
         check(expected == captured) { "missing requested UX evidence: ${unrecorded(expected, captured)}; unexpected: ${captured - expected}" }
         check(failures.isEmpty()) { "invalid requested UX evidence:\n${failures.joinToString("\n")}" }

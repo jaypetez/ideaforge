@@ -32,6 +32,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -661,6 +662,63 @@ class LibraryScreenTest {
         compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         assertTrue(opened.isEmpty())
+    }
+
+    /**
+     * Cancels a row Save for a maximum-length name and proves the feedback cannot consume the
+     * window: Dismiss lies wholly inside the root, the pane keeps a usable height, the complete
+     * named text can be scrolled into view, and the row's More stays reachable in the list.
+     */
+    private fun cancelledMaximumNameKeepsRecoveryInsideTheWindow(name: String) {
+        val vm = show(idea(garden, 1, "A local conversation", name = name))
+        val list = compose.onNode(androidx.compose.ui.test.hasScrollToIndexAction() and
+            hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
+        list.performScrollToNode(hasTestTag(LibraryTags.more(garden)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
+        compose.onNodeWithTag(LibraryTags.save(garden)).performScrollTo().performClick()
+        assertEquals(Intent.ACTION_CREATE_DOCUMENT, shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity.action)
+        compose.runOnIdle { vm.exports.saveResult(null) }
+
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val dismiss = compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        val dismissBounds = dismiss.fetchSemanticsNode().boundsInRoot
+        val full = dismiss.fetchSemanticsNode().layoutInfo.coordinates.size
+        assertTrue("Dismiss is wholly inside the window: $dismissBounds in $root",
+            dismissBounds.bottom <= root.bottom + 1 && dismissBounds.height >= full.height - 1)
+        val pane = compose.onNodeWithTag(LibraryTags.LIST).fetchSemanticsNode().boundsInRoot
+        assertTrue("the list pane keeps a usable height below the feedback: $pane in $root",
+            pane.top < root.bottom && pane.bottom.coerceAtMost(root.bottom) - pane.top >= 48f)
+
+        val message = compose.onNodeWithText("Save .md cancelled for “$name”. Nothing was written.")
+        message.performScrollTo().assertIsDisplayed()
+        val text = message.fetchSemanticsNode()
+        val hidden = text.layoutInfo.coordinates.size.height - text.boundsInRoot.height
+        if (hidden > 1f) {
+            // A clipped message must be a scrollable one, with room to reveal every hidden line.
+            val range = generateSequence(text.parent) { it.parent }
+                .firstNotNullOfOrNull { it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange) { null } }
+            assertTrue("clipped feedback text can scroll to its end", range != null && range.maxValue() >= hidden - 1f)
+        }
+        list.performScrollToNode(hasTestTag(LibraryTags.more(garden)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        assertEquals(LibraryExportResult.Cancelled, vm.exports.state.value.notice?.result)
+        assertTrue(opened.isEmpty())
+        dismiss.performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp", fontScale = 2f)
+    fun shortLandscapeCancellationKeepsNamedFeedbackDismissAndAUsablePane() {
+        cancelledMaximumNameKeepsRecoveryInsideTheWindow("A deliberately long idea name ".padEnd(120, 'x'))
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h720dp", fontScale = 2f)
+    fun narrowPortraitCancellationKeepsAFullWidthNameAndRecoveryReachable() {
+        val name = "会議で会った人の名前を思い出すためのアプリ".repeat(6).take(120)
+        assertEquals(io.github.jaypetez.ideaforge.core.MAX_SESSION_NAME, name.length)
+        cancelledMaximumNameKeepsRecoveryInsideTheWindow(name)
     }
 
     @Test
