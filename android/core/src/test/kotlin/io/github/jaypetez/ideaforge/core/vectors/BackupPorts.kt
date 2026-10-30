@@ -6,13 +6,18 @@ import io.github.jaypetez.ideaforge.core.MAX_BACKUP_BYTES
 import io.github.jaypetez.ideaforge.core.MAX_BACKUP_SESSIONS
 import io.github.jaypetez.ideaforge.core.backupFilename
 import io.github.jaypetez.ideaforge.core.buildBackup
+import io.github.jaypetez.ideaforge.core.createSession
+import io.github.jaypetez.ideaforge.core.js.bool
+import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.num
+import io.github.jaypetez.ideaforge.core.js.obj
 import io.github.jaypetez.ideaforge.core.js.opt
 import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.toNumber
 import io.github.jaypetez.ideaforge.core.mergeImported
 import io.github.jaypetez.ideaforge.core.parseBackup
 import io.github.jaypetez.ideaforge.core.sessionsEqual
+import io.github.jaypetez.ideaforge.core.utf8Length
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -40,6 +45,22 @@ val BACKUP_PORTS: Map<String, Port> = mapOf(
     "sessionsEqual" to { c -> JsonPrimitive(sessionsEqual(c.arg(0), c.arg(1))) },
     "backupFilename" to { c -> str(backupFilename(c.arg(0))) },
     "buildBackup" to { c -> str(buildBackup(c.arg(0), c.arg(1).opt("now", num(0)))) },
+    "backupBoundary" to { c ->
+        val sessions = List(toNumber(c.arg(0)).toInt()) { createSession("s_limit_$it") }.toMutableList()
+        val bytes = toNumber(c.arg(1) ?: num(0)).toInt()
+        if (bytes != 0) {
+            val room = bytes - utf8Length(buildBackup(JsonArray(sessions)))
+            sessions[0] = JsonObject(sessions[0] + ("draftAnswer" to str("😀".repeat(room / 4) + "x".repeat(room % 4))))
+        }
+        val text = buildBackup(JsonArray(sessions))
+        val parsed = parseBackup(text)
+        obj(
+            "bytes" to num(utf8Length(text)),
+            "count" to num((parsed["sessions"] as JsonArray).size),
+            "skipped" to parsed["skipped"],
+            "unchanged" to bool(sessionsEqual(JsonArray(sessions), parsed["sessions"])),
+        )
+    },
     "parseBackup" to { c ->
         val (maxBytes, maxSessions) = c.parseOptions(1)
         plain(parseBackup(c.arg(0), maxBytes = maxBytes, maxSessions = maxSessions))

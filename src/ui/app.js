@@ -2852,6 +2852,7 @@ async function removeLibrarySession(session) {
 
 async function exportLibraryBackup() {
   fail(null);
+  say(null);
   settingsFeedback('data-status', 'Preparing a backup of the saved ideas…');
   try {
     const sessions = await listSessions();

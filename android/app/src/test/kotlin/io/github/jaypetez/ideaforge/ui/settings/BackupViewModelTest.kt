@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge.ui.settings
 
 import android.net.Uri
 import io.github.jaypetez.ideaforge.core.MAX_BACKUP_BYTES
+import io.github.jaypetez.ideaforge.core.MAX_BACKUP_SESSIONS
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.num
@@ -29,6 +30,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -58,7 +60,7 @@ class BackupViewModelTest {
 
     private fun dir() = File(tmp.root, "sessions").apply { mkdirs() }
 
-    private fun vm(store: SessionStore, docs: FakeDocuments) =
+    private fun vm(store: SessionStore, docs: BackupDocuments) =
         BackupViewModel(store, docs, Clock { now }, IdGen(Clock { now }), BackupJobs(scope))
 
     private fun web(id: String) = webSessions.first { stringOf(it["id"]) == id } as JsonObject
@@ -295,7 +297,7 @@ class BackupViewModelTest {
         runBlocking { graph.sessionStore.save(idea("s_beside_the_ring")) }
         val docs = FakeDocuments()
 
-        vm(graph.sessionStore, docs).run { export(uri); assertFalse(settled().failed) }
+        assertFalse(vm(graph.sessionStore, docs).exportTo(uri).failed)
 
         val text = docs.outputs.getValue(uri).toByteArray().decodeToString()
         assertFalse(text.contains(secret))
@@ -312,12 +314,143 @@ class BackupViewModelTest {
         runBlocking { store.save(idea("s_only")) }
         val docs = FakeDocuments()
         val vm = vm(store, docs)
-        assertEquals("ideaforge-backup-2025-10-11.json", vm.exportFilename())
+        assertEquals("ideaforge-backup-2025-10-11.json", runBlocking { vm.prepareExport() })
         vm.export(uri)
         assertEquals("Backed up 1 idea.", vm.settled().message)
         runBlocking { store.save(idea("s_two")) }
+        assertEquals("Backed up 2 ideas.", vm.exportTo(uri).message)
+    }
+
+    @Test
+    fun fiveHundredAndOneIdeasRefuseExportWithoutReplacingTheDestinationOrChangingIdeas() {
+        val dir = dir()
+        val sessions = List(MAX_BACKUP_SESSIONS + 1) { createSession("s_limit_$it") }
+        for (session in sessions) File(dir, "${stringOf(session["id"])}.json").writeText(session.toString())
+        val store = SessionStore(dir)
+        val docs = FakeDocuments()
+        val existing = "an existing backup must survive".encodeToByteArray()
+        docs.openOutput(uri).use { it.write(existing) }
+        val vm = vm(store, docs)
+
+        val filename = runBlocking { vm.prepareExport() }
+        if (filename != null) vm.export(uri)
+
+        val state = vm.settled()
+        assertTrue("an unrestorable export must not report success", state.failed)
+        assertFalse(state.busy)
+        assertNull("an oversized library must not open the picker", filename)
+        assertTrue(state.message.orEmpty().contains("more than 500"))
+        assertEquals(1, docs.outputOpens)
+        assertArrayEquals(existing, docs.outputs.getValue(uri).toByteArray())
+        assertEquals(sessions.toSet(), store.sessions.value.toSet())
+        for (session in sessions) {
+            assertEquals(session.toString(), File(dir, "${stringOf(session["id"])}.json").readText())
+        }
+    }
+
+    @Test
+    fun aMaximumCountSnapshotStaysRestorableWhenTheLibraryGrowsWhileThePickerIsOpen() {
+        val dir = dir()
+        val sessions = List(MAX_BACKUP_SESSIONS) { createSession("s_limit_$it") }
+        for (session in sessions) File(dir, "${stringOf(session["id"])}.json").writeText(session.toString())
+        val store = SessionStore(dir)
+        val docs = FakeDocuments()
+        val vm = vm(store, docs)
+        assertNotNull(runBlocking { vm.prepareExport() })
+        assertEquals(0, docs.outputOpens)
+        assertNull("preparation is not a successful export", vm.state.value.message)
+
+        runBlocking { store.save(idea("s_arrived_while_picking")) }
+        assertNull("a second preparation must not replace the first picker's snapshot", runBlocking { vm.prepareExport() })
         vm.export(uri)
-        assertEquals("Backed up 2 ideas.", vm.settled().message)
+        assertEquals("Backed up 500 ideas.", vm.settled().message)
+        val parsed = parseBackup(docs.outputs.getValue(uri).toByteArray().decodeToString())
+        assertEquals(sessions.toSet(), (parsed["sessions"] as JsonArray).toSet())
+        assertEquals(num(0), parsed["skipped"])
+        assertEquals(MAX_BACKUP_SESSIONS + 1, store.sessions.value.size)
+        assertNotNull(store.get("s_arrived_while_picking"))
+    }
+
+    @Test
+    fun oneExtraUtf8ByteRefusesThePickerAndLeavesAnExistingBackupAndTheIdeaUntouched() {
+        val dir = dir()
+        val store = SessionStore(dir)
+        val exact = backupSizedIdea(MAX_BACKUP_BYTES, now)
+        runBlocking { store.save(exact) }
+        val docs = FakeDocuments()
+        val vm = vm(store, docs)
+        assertEquals("Backed up 1 idea.", vm.exportTo(uri).message)
+        val previous = docs.outputs.getValue(uri).toByteArray()
+        assertEquals(MAX_BACKUP_BYTES, previous.size)
+        assertEquals(exact, (parseBackup(previous.decodeToString())["sessions"] as JsonArray).single())
+
+        val oversized = JsonObject(exact + ("draftAnswer" to str(stringOf(exact["draftAnswer"]) + "x")))
+        runBlocking { store.save(oversized) }
+        val before = File(dir, "s_utf8.json").readBytes()
+        assertNull(runBlocking { vm.prepareExport() })
+        val failed = vm.settled()
+        assertTrue(failed.failed)
+        assertFalse(failed.busy)
+        assertTrue(failed.message.orEmpty().contains("larger than 10 MB"))
+        assertFalse(failed.message.orEmpty().contains("Backed up"))
+        assertEquals(1, docs.outputOpens)
+        assertArrayEquals(previous, docs.outputs.getValue(uri).toByteArray())
+        assertArrayEquals(before, File(dir, "s_utf8.json").readBytes())
+        assertEquals(oversized, store.get("s_utf8"))
+
+        runBlocking { store.save(exact) }
+        assertFalse("a later valid export can recover", vm.exportTo(uri).failed)
+        assertEquals(2, docs.outputOpens)
+        assertArrayEquals(previous, docs.outputs.getValue(uri).toByteArray())
+    }
+
+    @Test
+    fun cancellationAndPickerFailureRetireTheSnapshotWithoutCreatingAFile() {
+        val store = SessionStore(dir())
+        runBlocking { store.save(idea("s_kept")) }
+        val docs = FakeDocuments()
+        val vm = vm(store, docs)
+        assertNotNull(runBlocking { vm.prepareExport() })
+        vm.export(null)
+        assertNull(vm.state.value.message)
+        assertEquals(0, docs.outputOpens)
+
+        vm.export(uri)
+        assertTrue(vm.settled().failed)
+        assertEquals("a late result cannot use the cancelled snapshot", 0, docs.outputOpens)
+        assertNotNull(runBlocking { vm.prepareExport() })
+        vm.exportPickerFailed(IOException("The document picker is unavailable."))
+        assertEquals("The document picker is unavailable.", vm.settled().message)
+        vm.export(uri)
+        assertTrue(vm.settled().failed)
+        assertEquals(0, docs.outputOpens)
+        assertEquals(listOf(idea("s_kept")), store.sessions.value)
+
+        assertFalse(vm.exportTo(uri).failed)
+        assertEquals(1, docs.outputOpens)
+        vm.export(Uri.parse("content://test/late-result.json"))
+        assertTrue(vm.settled().failed)
+        assertEquals("a snapshot is consumed only once", 1, docs.outputOpens)
+    }
+
+    @Test
+    fun aPreparedBackupStillReportsAWriteFailureRatherThanSuccess() {
+        val store = SessionStore(dir())
+        val session = idea("s_kept")
+        runBlocking { store.save(session) }
+        val docs = FakeDocuments()
+        val failing = object : BackupDocuments by docs {
+            override fun openOutput(uri: Uri) = throw IOException("The backup destination is read-only.")
+        }
+        val vm = vm(store, failing)
+
+        val state = vm.exportTo(uri)
+
+        assertTrue(state.failed)
+        assertFalse(state.busy)
+        assertEquals("The backup destination is read-only.", state.message)
+        assertEquals(0, docs.outputOpens)
+        assertEquals(session, store.get("s_kept"))
     }
 
     @Test

@@ -275,6 +275,22 @@
         archived ideas, along with tags, drafts, coverage, and transcripts. It does not
         contain inference, transcription or speech keys, device voice preferences or audio.
       </p>
+      <h3 id="backup-limits">Backup limits and recovery</h3>
+      <p>
+        Android and the web keep the same restore limits: at most <strong>500 ideas</strong>
+        and <strong>10 MiB (10,485,760 UTF-8 bytes)</strong> per backup, including JSON
+        formatting. If the complete library exceeds either limit, backup preparation fails
+        explicitly before a download or Android file picker opens. No ideas are dropped or
+        changed, and an existing backup is left untouched. Android saves the snapshot
+        prepared when you requested the backup, not later edits made while its picker is open.
+      </p>
+      <p>
+        Keep the source device&rsquo;s app or site data when a backup fails. You can still
+        read your ideas and save individual Markdown write-ups, but Markdown files cannot
+        be imported as session backups. Do not clear the library or uninstall the app
+        assuming a failed backup protected it; verify a successful restore before removing
+        the source data.
+      </p>
       <div class="callout danger">
         <strong>The backup is not encrypted.</strong>
         It contains the full text of your interviews in readable JSON. Protect it like any

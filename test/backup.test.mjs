@@ -24,6 +24,38 @@ test('a backup round-trips migrated sessions without adding credentials', () => 
   assert.equal(backupFilename(Date.UTC(2026, 8, 20)), 'ideaforge-backup-2026-09-20.json');
 });
 
+test('export at the session limit round-trips every idea; one more is refused without changing them', () => {
+  const sessions = Array.from({ length: MAX_BACKUP_SESSIONS }, (_, i) =>
+    createSession({ id: `s_limit_${i}`, now: 0 }));
+  const json = buildBackup(sessions);
+  assert.ok(Buffer.byteLength(json) < MAX_BACKUP_BYTES);
+  assert.deepEqual(parseBackup(json), { sessions, skipped: 0 });
+
+  sessions.push(createSession({ id: 's_one_more', now: 0 }));
+  const before = JSON.stringify(sessions);
+  assert.throws(() => buildBackup(sessions), /more than 500/);
+  assert.equal(JSON.stringify(sessions), before);
+});
+
+test('export counts the complete UTF-8 file, accepting its byte limit but refusing one extra byte', () => {
+  const session = createSession({ id: 's_utf8', now: 0 });
+  const room = MAX_BACKUP_BYTES - Buffer.byteLength(buildBackup([session]));
+  const unit = '😀é漢"\\\n';
+  const unitBytes = Buffer.byteLength(JSON.stringify(unit)) - 2;
+  const draft = unit.repeat(Math.floor(room / unitBytes)) + 'x'.repeat(room % unitBytes);
+  const exact = { ...session, draftAnswer: draft };
+  const json = buildBackup([exact]);
+  assert.equal(Buffer.byteLength(json), MAX_BACKUP_BYTES);
+  assert.ok(json.length < MAX_BACKUP_BYTES, 'a character count would miss the oversize case');
+  assert.ok(json.endsWith('\n'), 'the final newline is part of the limit');
+  assert.deepEqual(parseBackup(json), { sessions: [exact], skipped: 0 });
+
+  const oversized = { ...exact, draftAnswer: draft + 'x' };
+  assert.throws(() => buildBackup([oversized]), /larger than 10 MB/);
+  assert.equal(oversized.draftAnswer, draft + 'x');
+  assert.equal(exact.draftAnswer, draft);
+});
+
 test('backup parsing rejects malformed, oversized and future formats', () => {
   assert.throws(() => parseBackup(''), /empty/);
   assert.throws(() => parseBackup('{not json'), /valid JSON/);

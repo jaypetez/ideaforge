@@ -52,7 +52,9 @@ test('the load-bearing invariants are covered by named vectors', () => {
       'provider error: bank fallback keeps zeroGainStreak', 'compound twice: unfixable'],
     speech: ['parseSpeech "I\'d skip this one if I could"', 'parseSpeech "we went over budget"'],
     'drive-loop': ['skip phrase inside an answer is an answer', 'chips are spoken separately'],
-    backup: ['sessionsEqual key order ignored', 'parseBackup future version'],
+    backup: ['sessionsEqual key order ignored', 'parseBackup future version',
+      'buildBackup session limit round trip', 'buildBackup session limit plus one refuses export',
+      'buildBackup UTF-8 byte limit round trip', 'buildBackup UTF-8 byte limit plus one refuses export'],
     providers: ['request anthropic cache marker at the threshold'],
   };
   for (const [family, required] of Object.entries(must)) {

@@ -170,15 +170,23 @@ fun backupFilename(now: Long): String = backupFilename(num(now))
 
 /** The backup file's exact text: two-space JSON and a trailing newline, as the web writes it. */
 fun buildBackup(sessions: JsonElement?, now: JsonElement = num(0)): String {
+    val list = sessions as? JsonArray ?: arr(emptyList())
+    if (list.size > MAX_BACKUP_SESSIONS) {
+        throw BackupException("The backup contains more than $MAX_BACKUP_SESSIONS sessions. No backup was created; your ideas are unchanged.")
+    }
     val doc = obj(
         "format" to str(BACKUP_FORMAT),
         "version" to num(BACKUP_VERSION),
         "exportedAt" to now,
-        "sessions" to (sessions as? JsonArray ?: arr(emptyList())),
+        "sessions" to list,
     )
     val out = StringBuilder()
     pretty(doc, "", out)
-    return out.append('\n').toString()
+    val text = out.append('\n').toString()
+    if (utf8Bytes(text) > MAX_BACKUP_BYTES) {
+        throw BackupException("The backup is larger than ${Math.round(MAX_BACKUP_BYTES / 1024.0 / 1024.0)} MB. No backup was created; your ideas are unchanged.")
+    }
+    return text
 }
 
 /** Thrown with the message the web app shows for the same file. */
