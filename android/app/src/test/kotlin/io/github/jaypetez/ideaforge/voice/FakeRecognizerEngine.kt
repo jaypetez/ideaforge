@@ -98,7 +98,8 @@ class FakeRecognizerEngine(
         }
     }
 
-    private fun fire(ev: Ev) {
+    /** Explicit delivery can model a platform callback arriving even after cancellation. */
+    fun fire(ev: Ev) {
         inCallback = true
         try {
             when (ev) {

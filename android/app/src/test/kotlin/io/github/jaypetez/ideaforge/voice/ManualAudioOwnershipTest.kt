@@ -99,6 +99,39 @@ class ManualAudioOwnershipTest {
         } finally { manual.cancel(); rig.close() }
     }
 
+    @Test fun deletingThePausedDriveCannotReleaseANewerManualCapture() {
+        val rig = DriveRig(tmp.newFolder())
+        val manual = ManualDictation(rig.main, { rig.recognizer }, rig.inference,
+            beforeCapture = { rig.controller.pauseFor("Manual dictation requested.") })
+        rig.beforeVoiceStart = manual::cancel
+        try {
+            rig.scripts += listOf(At(100, Ev.Partial("the driving idea's words")))
+            rig.controller.start(rig.seeded, "typed")
+            assertTrue(rig.until { rig.state.caption.isNotEmpty() })
+            val permit = rig.main.async { rig.inference.require() }
+            rig.scheduler.runCurrent()
+            rig.scripts += listOf(At(100, Ev.Partial("the manual idea's words over", final = true)))
+            val capture = manual.start(runBlocking { permit.await() })
+            val result = rig.main.async { capture.await() }
+            rig.advance(200)
+            assertEquals(VoiceMode.PAUSED, rig.state.mode)
+            assertTrue(rig.saved() != null)
+
+            rig.library.delete(rig.id)
+            rig.scheduler.runCurrent()
+            assertFalse(rig.state.attached)
+            assertEquals(1, rig.service.stops)
+            assertTrue(rig.saved() == null)
+            assertFalse(result.isCompleted)
+            assertFalse(rig.factory.engines.last().destroyed)
+            assertEquals("the manual idea's words over", capture.state.value.caption)
+            capture.stop()
+            rig.advance(1000)
+            assertEquals("the manual idea's words over", runBlocking { result.await() }.text)
+            assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+        } finally { manual.cancel(); rig.close() }
+    }
+
     @Test fun aBlockedDriveWhisperReadReleasesItsMicrophoneBeforeManualNativeInputCanOpen() {
         val rig = DriveRig(tmp.newFolder())
         val entered = CountDownLatch(1)
