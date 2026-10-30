@@ -63,6 +63,8 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeShape
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.readableColor
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import kotlinx.serialization.json.JsonObject
 import io.github.jaypetez.ideaforge.voice.DriveController
 import io.github.jaypetez.ideaforge.voice.RMS_FLOOR_DB
 import io.github.jaypetez.ideaforge.voice.SpeechBackend
@@ -85,6 +87,9 @@ fun VoiceStage(
     ideaTitle: String = "",
     microphoneDenied: Boolean = false,
     notificationsOff: Boolean = false,
+    questionOutput: JsonObject? = null,
+    suggestionsOutput: JsonObject? = null,
+    onReport: (JsonObject) -> Unit = {},
 ) {
     var help by rememberSaveable(state.sessionId) { mutableStateOf(false) }
     Column(modifier.fillMaxSize().imePadding().testTag("voice-stage")) {
@@ -118,8 +123,10 @@ fun VoiceStage(
             )
             if (state.question.isNotEmpty()) {
                 Text(stringResource(R.string.voice_current_question), style = MaterialTheme.typography.labelLarge)
+                ContentReportAction(questionOutput, "report-voice-question", onReport)
                 Text(state.question, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("voice-question").semantics { heading() })
             }
+            ContentReportAction(suggestionsOutput, "report-voice-suggestions", onReport)
             if (state.phase == DrivePhase.SPEAKING && state.mode == VoiceMode.ACTIVE &&
                 state.said.isNotEmpty() && state.said != state.question) {
                 Text(stringResource(R.string.voice_reading_aloud), style = MaterialTheme.typography.labelLarge)
@@ -160,8 +167,13 @@ fun VoiceStage(
                     modifier = Modifier.testTag("voice-detail"),
                 )
             }
-            state.lastSpeech?.fallback?.takeIf { it != state.detail }?.let {
-                IdeaForgeStatusText(it, tone = StatusTone.Warning, modifier = Modifier.testTag("voice-fallback"))
+            state.lastSpeech?.let { speech ->
+                val warnings = listOfNotNull(speech.fallback, speech.message.takeIf { speech.voiceMissing })
+                    .distinct().filter { it != state.detail }
+                if (warnings.isNotEmpty()) {
+                    IdeaForgeStatusText(warnings.joinToString(" "), tone = StatusTone.Warning,
+                        modifier = Modifier.testTag("voice-fallback"))
+                }
             }
             if (microphoneDenied) MicrophoneSettingsAction()
             if (notificationsOff) IdeaForgeStatusText(
@@ -244,13 +256,16 @@ private fun MicrophoneSettingsAction() {
 }
 
 @Composable
-internal fun VoicePermissionDialog(notificationsNeeded: Boolean, onContinue: () -> Unit, onDismiss: () -> Unit) {
+internal fun VoicePermissionDialog(
+    notificationsNeeded: Boolean, onContinue: () -> Unit, onDismiss: () -> Unit, manual: Boolean = false,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.voice_mic_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.content)) {
-                Text(stringResource(R.string.voice_mic_rationale), modifier = Modifier.testTag("voice-mic-rationale"))
+                Text(stringResource(if (manual) R.string.dictation_mic_rationale else R.string.voice_mic_rationale),
+                    modifier = Modifier.testTag("voice-mic-rationale"))
                 if (notificationsNeeded) {
                     Text(stringResource(R.string.voice_notifications_title), style = MaterialTheme.typography.titleSmall)
                     Text(stringResource(R.string.voice_notifications_rationale), modifier = Modifier.testTag("voice-notification-rationale"))

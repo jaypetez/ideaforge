@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBackup } from '../src/core/backup.js';
 import {
   archiveSession, createSession, renameSession, setSessionTags,
+  addContentReport, reportableOutput,
 } from '../src/core/session.js';
 import { seedTurn, submitAnswer, runTurn } from '../src/runtime/turn.js';
 import { runSynthesis } from '../src/runtime/synthesize.js';
@@ -71,7 +72,10 @@ export async function webBackupSessions() {
     await interview('s_web_remember_names', ANSWERS.length, { synthesize: true }),
     ['memory', 'mobile'], tick(1000),
   );
-  const draft = renameSession(await interview('s_web_draft', 3), 'Names at meetups — draft', tick(1001));
+  const draft0 = renameSession(await interview('s_web_draft', 3), 'Names at meetups — draft', tick(1001));
+  const draft = addContentReport(draft0, { id: 'r_web_backup',
+    output: reportableOutput(draft0, { kind: 'question', turnId: 't2' }),
+    category: 'other', note: 'Neutral web report note.', now: tick(1002) });
   const archived = archiveSession(
     submitAnswer(
       seedTurn(createSession({ id: 's_web_archived', now: tick(2000), device: 'phone' }), { now: tick(2000) }),

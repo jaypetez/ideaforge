@@ -25,6 +25,8 @@ import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
+import io.github.jaypetez.ideaforge.voice.DriveController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -133,9 +135,12 @@ class ResultViewModel(
     private val writes: CoroutineScope,
     private val inference: InferenceConsent,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    reportDrive: () -> DriveController? = { null },
 ) : ViewModel() {
     private val _state = MutableStateFlow(ResultState())
     val state: StateFlow<ResultState> = _state.asStateFlow()
+    val reports = ContentReportController(store, worker, clock, writes, viewModelScope,
+        changed = { session, _ -> show(session) }, drive = reportDrive)
 
     init {
         viewModelScope.launch { open() }
@@ -264,6 +269,7 @@ class ResultViewModel(
                     sink = ContentResolverSink(app.contentResolver),
                     writes = graph.appScope,
                     inference = graph.inferenceConsent,
+                    reportDrive = { graph.driveController },
                 )
             }
         }

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
@@ -14,9 +15,13 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.getOrNull
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.createSession
 import io.github.jaypetez.ideaforge.core.emptyKeyring
@@ -91,6 +96,43 @@ class InterviewScreenTest {
     private fun turn(n: Int): JsonObject = (store.get(id)!!["turns"] as JsonArray)[n - 1] as JsonObject
 
     @Test
+    fun theCurrentQuestionIsAnAnnouncedHeadingBeforeTheEditableAnswerAndNamedSendAction() {
+        show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(
+            androidx.compose.ui.semantics.SemanticsActions.SetText))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+            .assertTextContains("Send")
+        val tags = compose.onAllNodes(SemanticsMatcher("all native task semantics") { true }, useUnmergedTree = true).fetchSemanticsNodes()
+            .mapNotNull { it.config.getOrNull(SemanticsProperties.TestTag) }
+        assertTrue("task reading order is question, editable answer, then Send",
+            tags.indexOf("question") in 0 until tags.indexOf("answer") && tags.indexOf("answer") < tags.indexOf("send"))
+    }
+
+    @Test
+    fun anAnsweredTurnAwaitingItsModelExposesTheSubmittedExchangeNotAnInventedOpenQuestion() {
+        val model = ScriptedModel()
+        val gate = CompletableDeferred<Unit>()
+        model.gate = gate
+        val vm = show(model)
+        compose.waitForIdle()
+        try {
+            send(answers[0])
+            compose.waitUntil(5_000) { vm.state.value.busy == Busy.Thinking }
+            compose.onNodeWithTag("question").assertDoesNotExist()
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("busy-line").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            compose.onNodeWithTag("interview-busy").assert(
+                SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+            compose.onNodeWithText(answers[0]).assertExists()
+        } finally { gate.complete(Unit) }
+    }
+
+    @Test
     fun coverageDetailShowsTheContractDimensionsAndTheirLevels() {
         show(ScriptedModel())
         compose.waitForIdle()
@@ -160,6 +202,13 @@ class InterviewScreenTest {
         dir.writeText("controlled unavailable storage")
         send(answers[0])
         compose.onNodeWithTag("notice-message").assertIsDisplayed()
+        compose.onNodeWithTag("question").assertDoesNotExist()
+        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        compose.onNodeWithTag("history-toggle").performClick()
+        val thread = androidx.compose.ui.test.hasAnyAncestor(hasTestTag("thread"))
+        compose.onNode(hasText(io.github.jaypetez.ideaforge.core.SEED_QUESTION) and thread).assertExists()
+        compose.onNode(hasText(answers[0]) and thread).assertExists()
         assertTrue("a manual failure is still owned by the ViewModel", vm.state.value.notice is InterviewNotice.Failed)
         compose.mainClock.advanceTimeBy(12_000)
         compose.waitForIdle()
@@ -194,7 +243,7 @@ class InterviewScreenTest {
         compose.waitUntilAtLeastOneExists(hasTestTag("chip-0"), 5_000)
         compose.onNodeWithTag("bridge").assertIsDisplayed()
         val chip = stringOf((turn(2)["chips"] as JsonArray)[0])!!
-        compose.onNodeWithTag("chip-0").performClick()
+        compose.onNodeWithTag("chip-0").performScrollTo().assertIsDisplayed().performClick()
         compose.onNodeWithTag("answer").assertTextContains(chip)
         compose.onNodeWithTag("send").performClick()
         compose.waitForIdle()
@@ -206,6 +255,64 @@ class InterviewScreenTest {
     }
 
     @Test
+    fun questionAndSuggestionReportsOpenInOneTapAndReplacementKeepsTheUnansweredTurnAndCoverage() {
+        val vm = show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("report-current-question").assertDoesNotExist()
+        compose.onNodeWithText("AI-generated question").assertDoesNotExist()
+        send(answers[0])
+        compose.waitUntilAtLeastOneExists(hasTestTag("report-current-question"), 5_000)
+        compose.onNodeWithTag("report-current-suggestions").performScrollTo().performClick()
+        compose.onNodeWithTag("content-report-dialog").assertExists()
+        compose.onNodeWithTag("report-review").performScrollTo().performClick()
+        compose.onNodeWithTag("report-payload").assertTextContains(stringOf((turn(2)["chips"] as JsonArray)[0])!!, substring = true)
+        compose.onNodeWithTag("report-cancel").performClick()
+        assertEquals(null, store.get(id)!!["contentReports"])
+
+        compose.runOnIdle { vm.onAnswerChange("Neutral retained draft.") }
+        compose.onNodeWithTag("report-current-question").performScrollTo().performClick()
+        for (category in listOf("offensive", "harmful", "inaccurate", "other")) {
+            compose.onNodeWithTag("report-category-$category").assertExists()
+        }
+        compose.onNodeWithTag("report-category-inaccurate").performScrollTo().performClick()
+        compose.onNodeWithTag("report-note").performScrollTo().performTextInput("Neutral optional report note.")
+        val before = vm.state.value.session!!
+        compose.onNodeWithTag("report-save").performClick()
+        compose.waitUntil(5_000) { vm.reports.state.value.saved }
+        compose.onNodeWithTag("report-saved").assertExists()
+        compose.onNodeWithTag("report-replace").performScrollTo().performClick()
+        compose.waitUntil(5_000) { vm.reports.state.value.replaced }
+        val saved = store.get(id)!!
+        assertEquals(before["coverage"], saved["coverage"])
+        assertEquals(before["facts"], saved["facts"])
+        assertEquals((before["turns"] as JsonArray).size, (saved["turns"] as JsonArray).size)
+        assertEquals("", stringOf(turn(2)["answer"]))
+        assertEquals("replacement", stringOf(turn(2)["questionSource"]))
+        assertEquals("Neutral retained draft.", vm.state.value.answer)
+        assertEquals("Neutral optional report note.", stringOf((saved["contentReports"] as JsonArray).single()["note"]))
+        compose.onNodeWithTag("report-done").performClick()
+        compose.onNodeWithTag("replacement-source").assertExists()
+        compose.onNodeWithTag("report-current-question").assertDoesNotExist()
+    }
+
+    @Test
+    fun aHistoricalGeneratedQuestionHasItsOwnReportInsteadOfBorrowingTheCurrentTurn() {
+        val vm = show(ScriptedModel())
+        compose.waitForIdle()
+        send(answers[0])
+        send(answers[1])
+        compose.onNodeWithTag("history-toggle").performClick()
+        compose.onNodeWithTag("thread").performScrollToNode(hasTestTag("report-history-question-t2"))
+        compose.onNodeWithTag("report-history-question-t2").performClick()
+        assertEquals("t2", stringOf(vm.reports.state.value.output!!["turnId"]))
+        compose.onNodeWithTag("report-category-other").performScrollTo().performClick()
+        compose.onNodeWithTag("report-save").performClick()
+        compose.waitUntil(5_000) { vm.reports.state.value.saved }
+        compose.onNodeWithTag("report-replace").assertDoesNotExist()
+        assertEquals("t3", stringOf(vm.state.value.openTurn!!["id"]))
+    }
+
+    @Test
     fun aDegradedTurnIsVisiblyFlagged() {
         show(ScriptedModel(fail = ProviderException("network", "offline")))
         compose.waitForIdle()
@@ -213,6 +320,8 @@ class InterviewScreenTest {
         send(answers[0])
         compose.waitUntilAtLeastOneExists(hasTestTag("degraded"), 5_000)
         compose.onNodeWithTag("degraded").assertTextContains("from the built-in checklist", substring = true)
+        compose.onNodeWithTag("report-current-question").assertDoesNotExist()
+        compose.onNodeWithTag("report-current-suggestions").assertDoesNotExist()
         assertEquals("bank", stringOf(turn(2)["questionSource"]))
     }
 

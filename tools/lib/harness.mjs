@@ -113,6 +113,8 @@ export function launchChrome(chrome, { url, extraArgs = [] }) {
   const profile = mkdtempSync(join(tmpdir(), 'ideaforge-chrome-'));
   const args = [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    // Fresh profiles can still receive managed extensions that interfere with app modules.
+    '--disable-extensions', '--disable-component-extensions-with-background-pages',
     '--user-data-dir=' + profile,
     ...extraArgs,
   ];

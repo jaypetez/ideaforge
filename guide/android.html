@@ -57,8 +57,10 @@
 
       <div class="callout warning">
         <strong>Hands-free voice is new, and has not been tried on a phone.</strong>
-        It has been checked only on an emulator with a scripted recogniser. If you rely on
-        voice on a phone today, the web app is the tested one; see
+        Emulator checks do not establish physical-phone behavior; the
+        <a href="#foreground-service-declaration">declaration recording below</a> distinguishes
+        its real native effects from test setup. If you rely on voice on a phone today,
+        the web app is the tested one; see
         <a href="./mobile-and-voice.html#android">Mobile and voice</a>.
       </div>
 
@@ -79,7 +81,9 @@
                 keep a contextual title and Back button; a long title can shorten visually
                 while its complete text remains accessible. In a short Interview with the
                 keyboard open, that bar scrolls with the content to leave room for the
-                answer editor. The focused voice stage hides
+                answer editor. History and persistent errors also count towards the
+                short-window scroll decision, so they cannot leave a zero-height
+                current-question area. The focused voice stage hides
                 unrelated navigation until Exit.</td>
             </tr>
             <tr>
@@ -121,8 +125,28 @@
                 palette. The app keeps Android&rsquo;s system font.</td>
             </tr>
             <tr>
-              <th scope="row">Voice input</th>
-              <td>Hands-free only. <em>Answer by voice</em> on the interview screen asks for the
+              <th scope="row">Launcher icon</th>
+              <td>The anvil adapts to your launcher&rsquo;s icon shape. On Android 13 and
+                later, enable <em>Themed icons</em> in your launcher&rsquo;s wallpaper or
+                home-screen settings to use its wallpaper colours instead of the brand
+                background. Themed icons depend on launcher support; the app&rsquo;s
+                Appearance setting does not turn them on.</td>
+            </tr>
+            <tr>
+              <th scope="row">Manual dictation</th>
+              <td>In a typed interview, tap <strong>Start dictation</strong>, speak, then tap
+                <strong>Stop dictation</strong>. Recognised words are added to your editable
+                answer draft; review them and tap <strong>Send</strong> yourself. Finish words
+                and phrases such as &ldquo;skip this one&rdquo; remain literal text here.
+                This is tap-to-start/tap-to-stop, not press-and-hold or automatic submission.
+                Only microphone permission is needed; no notification or background service
+                starts. Leaving the screen, editing, opening Report or starting hands-free
+                cancels unfinished dictation and keeps the existing draft. Denial, no speech
+                and input failures are reported beside the draft, without erasing it.</td>
+            </tr>
+            <tr>
+              <th scope="row">Hands-free input</th>
+              <td><em>Hands-free interview</em> on the interview screen asks for the
                 microphone (and, on Android 13 and later, notifications), then reads each
                 question aloud and listens until you say your finish word from Voice. A
                 notification with Pause and Exit keeps the interview hearing with the screen
@@ -133,12 +157,17 @@
                 to keep typing. Notification permission is explained separately and is optional:
                 refusing it does not block voice, and the stage says the controls remain here.
                 The phone&rsquo;s speech service processes audio, on-device
-                where available; IdeaForge does not store audio. Press-to-talk is not there yet.</td>
+                where available; IdeaForge does not store audio.</td>
             </tr>
             <tr>
               <th scope="row">Spoken replies</th>
               <td>In a voice interview only: the phone&rsquo;s own voice reads each question, then
-                its suggestions, at the speaking pace from Voice. Optional OpenAI speech
+                its suggestions, at the speaking pace from Voice. In <strong>Settings &rarr;
+                Voice &rarr; Device voice choice</strong>, choose <strong>Engine default</strong>
+                or an installed name and locale. The saved choice applies to subsequent device
+                speech, including fallback from OpenAI. Local/network labels are engine metadata,
+                not a quality ranking or an offline guarantee. Opening Settings and choosing a
+                voice never play a preview or request the microphone. Optional OpenAI speech
                 (Marin or Cedar) is in Settings under Voice: it needs its own OpenAI key
                 (never your interview key), three consents (an AI-generated voice, the spoken
                 text sent to OpenAI, metered use) and a <em>Check and preview</em> that plays
@@ -157,7 +186,11 @@
                 Whisper or OpenAI, paste a key for that service alone and agree to send
                 recorded audio. Hands-free answers are then recorded (at most 45 seconds per
                 segment and 120 seconds per answer) and transcribed. While the recogniser is
-                working, nothing is recorded or sent. Unticking the consent or Forget stops the
+                working, nothing is recorded or sent. Manual dictation uses the same eligibility
+                and its own current grant: Stop releases the microphone before one transcription,
+                with the existing 120-second recording and upload-size bounds. Silence does not
+                submit a manual answer, and transcribed commands remain ordinary draft text.
+                Unticking the consent or Forget stops the
                 next upload and pauses the interview; Pause keeps what was already
                 transcribed as your draft. Transcribing is shown only while an actual upload
                 is pending, and completed segments appear as captions.</td>
@@ -241,6 +274,21 @@
         a failed check stays an error beside its action, not a successful toast.
       </p>
       <p>
+        <strong>Voice</strong> keeps the hands-free finish word, speaking pace and device
+        voice choice. The old global Hands-free switch is gone: choose Voice or Type for a
+        new idea, or use the explicit dictation and hands-free actions in Interview.
+        Changing the finish word never turns manual dictation into a command listener.
+      </p>
+      <p>
+        <strong>Device voice choice</strong> keeps the saved identifier while the engine loads
+        or fails. Use <strong>Reload device voices</strong> to retry, including after installing
+        voices in the system text-to-speech settings. An empty list is reported explicitly.
+        If the saved voice disappears, it is kept and a warning explains that subsequent
+        device speech uses the engine default and reports the fallback. Choose another voice
+        or Engine default deliberately to replace it. This setting does not change the
+        separate OpenAI voice, key, successful check or consents.
+      </p>
+      <p>
         <strong>Your data</strong> separates <strong>Backup ideas</strong> /
         <strong>Import ideas</strong> from <strong>Forget all keys</strong>. Forget asks
         explicitly and revokes before pending writes can restore credentials; ideas and
@@ -264,6 +312,162 @@
         provider. It opens the <a href="./privacy-policy.html">published policy</a>
         outside the app. If no browser can open it, the inline error and address are
         brought into view and you can try again; reading the policy does not check a provider.
+      </p>
+
+      <h2 id="report-ai-output">Report AI output without sending it automatically</h2>
+      <p>
+        <strong>Report</strong> is beside generated questions and suggestion groups,
+        including earlier conversation and Ideas previews, and in the Result actions.
+        The voice stage also offers it for its question and suggestions; opening a report
+        pauses hands-free voice or cancels manual dictation before the note can be entered,
+        and never resumes the microphone automatically. Generated questions
+        and suggestions are labelled; a mixed document says it contains AI-generated
+        content. The opening question, a checklist replacement and missing synthesis
+        are not labelled as generated.
+      </p>
+      <ol class="steps">
+        <li>Tap <strong>Report</strong>, choose <strong>Offensive</strong>,
+          <strong>Harmful</strong>, <strong>Inaccurate</strong> or <strong>Other</strong>,
+          and optionally add a note. <strong>Review included generated text</strong>
+          shows the exact snapshot.</li>
+        <li><strong>Save report locally</strong> saves the generated text, category,
+          optional note and report time to this idea. It does not add user-written answers,
+          the full transcript, keys or connection settings. A Result report includes
+          the idea&rsquo;s generated write-up, questions, suggestions, unedited AI drafts and coverage gaps,
+          not the complete exported interview. Generated text itself may contain private
+          details. Cancel saves nothing; a failed save keeps the form for retry.</li>
+        <li>After saving a report for the still-current unanswered question,
+          <strong>Ask a different question</strong> uses a distinct built-in checklist
+          question on that same turn and dimension. It records no answer or skip and
+          changes no coverage. Your unsent draft remains editable. If no different
+          question is available, the error says so and keeps the current question.</li>
+      </ol>
+      <p>
+        Saving does <strong>not</strong> send the report to the developer or a model
+        provider. Reports stay with the idea and appear in its markdown export and
+        JSON backup; sharing those files also shares the reports. Deleting the idea
+        deletes its local reports, not copies you have already shared. The optional
+        <strong>Open email to developer</strong> action uses the confirmed
+        <a href="./privacy-policy.html#developer">privacy contact</a> and opens an
+        email composer containing only the report&rsquo;s generated text, category
+        and note. Review and send it there; an opened composer is not proof of delivery.
+      </p>
+      <p>
+        This reporting interface is Android-only by the requested native development
+        scope, not a claim of Play approval. The shared session and export contract
+        preserves reports in web imports, backups and exports, but the web app has
+        no Report controls yet.
+      </p>
+
+      <h2 id="native-verification">What the native interface checks prove</h2>
+      <p>
+        The repository&rsquo;s optional <code>Android device</code> workflow has a
+        <code>evidence=makeover</code> acceptance route. It exercises real onboarding,
+        the explicit Voice/Type choice, typed and suggestion answers, wrap-up, Results,
+        Copy and native Save/Share cancellation, the library, Settings and backup/import
+        recovery. Its model/check/speech/service effects use dummy or scripted data;
+        isolated voice phase frames are labelled as such and never fabricate level bars.
+      </p>
+      <p>
+        Rendering-enabled managed emulators measure compact, expanded and short-landscape
+        windows, both themes and font scales 1.0, 1.3 and 2.0. The evidence includes the
+        actual keyboard, system-navigation clearance, reachable controls, session/selection
+        through rotation and automated heading, role, name, state and status semantics.
+        Manifests record achieved dp/density and the tested source commit; a large image
+        alone is not tablet evidence. Long-content and keyboard checks cover every
+        requested font/window/theme; additional list, error, dialog and voice recovery
+        stress states use font scale 2.0. A run is evidence only after its selected test,
+        complete passed manifests and actual screenshots have been checked.
+      </p>
+      <p>
+        These checks do <strong>not</strong> establish physical-phone recognition,
+        microphone contention, screen-off survival, live hosted-speech quality or a
+        usability study. Manual TalkBack and switch-access checks remain unperformed;
+        automated semantics do not certify either. Scripted permission-result tests
+        cover microphone denial and optional notification denial without claiming a
+        physical permission or recognition result. See
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/docs/DESIGN.md#complete-native-makeover-acceptance">the native acceptance commands and artifact requirements</a>.
+      </p>
+      <p>
+        The focused <code>evidence=dictation</code> route uses the real manual Interview,
+        capture owner and recogniser with controlled callbacks, not a drawn listening state.
+        It checks Start/Stop, literal editable drafts, error and long-text states, report
+        cancellation and Settings on compact and expanded rendering-enabled emulators,
+        both themes at font scales 1.0, 1.3 and 2.0. A missing microphone grant is accepted
+        through the real system dialog on that owned emulator; no recording, real recogniser,
+        spoken output, service or hosted request runs. Require the selected passing test,
+        complete clean-SHA manifests and inspected original screenshots. This does not
+        certify physical recognition, speech quality, manual TalkBack or #89.
+      </p>
+      <p>
+        The focused <code>evidence=reporting</code> route uses the same native recorder
+        on rendering-enabled compact and expanded emulators, both themes and font scales
+        1.0, 1.3 and 2.0. It checks actual question/suggestion/history/Result/Ideas/voice
+        reachability, a pending session-lock save, a refused report write with retry,
+        local export and no-answer replacement. Its voice output and service are
+        scripted; it does not open a real email app, contact a model or certify a
+        physical device. Require its selected passing test, complete clean-SHA
+        manifests and inspected screenshots, not just a successful dispatch.
+      </p>
+
+      <h2 id="foreground-service-declaration">Play Console: microphone foreground service</h2>
+      <p>
+        Maintainer declaration copy for <strong>App content &rarr; Foreground service
+        permissions</strong>, not a Play publication step. Select <strong>microphone</strong>
+        and the use case <strong>Background Audio Access</strong>. The manifest declares
+        <code>FOREGROUND_SERVICE_MICROPHONE</code>; the separate microphone runtime
+        permission and interview-text agreement are still required.
+        See <a href="https://support.google.com/googleplay/android-developer/answer/13392821">Google&rsquo;s FGS requirements</a>
+        and the <a href="https://github.com/jaypetez/ideaforge/issues/171">publishing walkthrough</a>.
+      </p>
+      <h3>Functionality (paste into the declaration)</h3>
+      <blockquote id="fgs-functionality">
+        IdeaForge offers a user-started, hands-free idea interview. From an Interview the
+        user taps Hands-free interview (or chooses Start with voice for a new idea), then allows
+        microphone access. A microphone foreground service keeps the active interview able
+        to listen for answers and voice commands when the user switches apps or turns the
+        screen off. With notification permission, an ongoing notification shows Pause and
+        Exit. Pause stops microphone capture and speech, keeps the available captured words
+        as an unsent draft, and requires an explicit Resume tap. Exit stops the service and
+        returns to the same idea for typing without submitting an answer or requesting a
+        write-up. The service does not start at boot or restart after process death.
+      </blockquote>
+      <h3>Impact of deferral or interruption (paste into the declaration)</h3>
+      <blockquote id="fgs-impact">
+        If start is deferred, the hands-free interview cannot listen when the user requests
+        it. If interrupted, it cannot continue receiving the current answer or commands;
+        words not yet recognised or transcribed may be lost. Explicit Pause preserves the
+        draft words already available. The user can Resume deliberately or Exit and type;
+        the app does not silently reopen the microphone after a stopped run.
+      </blockquote>
+      <h3>Record and review the video</h3>
+      <p>
+        Run the repository&rsquo;s <code>Android device</code> workflow with
+        <code>evidence=microphone-demo</code> on the intended clean commit. Its opt-in
+        <code>pixel2Api34Voice</code> managed emulator uses a standard Google APIs image and
+        checks the installed native recogniser and text-to-speech services before recording.
+        The test explicitly selects Android&rsquo;s real default recognition service through
+        an existing test seam, not scripted recognition: the stock emulator&rsquo;s advertised
+        on-device engine lacks usable English support.
+        It runs the real on-device <code>screenrecord</code> utility through Android
+        UiAutomation&rsquo;s shell transport with a 55-second recording limit: Interview,
+        Hands-free interview, the real system microphone and notification Allow dialogs, the
+        hands-free stage, the real notification&rsquo;s Pause/Exit controls, then Exit back
+        to the same typed interview. It checks actual active audio recording and the
+        foreground service, then verifies that Exit removes both and its notification.
+      </p>
+      <p>
+        Download <code>android-microphone-demo-&lt;SHA&gt;</code> from that workflow run.
+        Require a passed manifest for the intended commit, a 30&ndash;60-second actual MP4,
+        nonzero selected-test execution and all decoded <code>video-*.png</code> frames.
+        Watch the clip and inspect the decoded permission, listening, notification and Exit
+        frames before using it. The debug interview model and private setup data are
+        scripted; native speech, permission dialogs, microphone, service and actions are
+        not simulated. Default-service selection is test-only; this is not proof of the
+        preferred on-device recogniser, physical-phone, speech-quality or screen-off-survival
+        behavior. Artifacts expire after 14 days: the maintainer must
+        retain the MP4, upload the reviewed video to unlisted YouTube, and paste that
+        durable video URL into Play Console. The workflow never uploads to YouTube or Play.
       </p>
 
       <h2 id="get-the-apk">Get the debug APK</h2>
@@ -301,7 +505,7 @@
           release&rsquo;s assets.</li>
         <li>Check the hash: <code>sha256sum --check --ignore-missing SHA256SUMS</code>.</li>
         <li>Check the signer with <code>apksigner</code> from the Android SDK build tools:
-          it must print exactly one signer whose SHA-256 digest equals the fingerprint in
+          every reported signer or SDK range must use the one app-signing certificate whose SHA-256 digest equals the fingerprint in
           <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#release-signing-certificate">SECURITY.md</a>
           (ignore case and colons). If it does not, do not install it.</li>
         <li>Install it with <code>adb install -r</code>, as below. Opening the file on the
@@ -313,6 +517,17 @@ adb install -r ideaforge-VERSION.apk</code></pre>
       <p>
         Android updates an installed release only with an APK signed by the same key, so a
         later release installs over it and keeps its data.
+      </p>
+      <p>
+        Releases also carry <code>ideaforge-VERSION.aab</code> and the bundle&rsquo;s R8
+        <code>mapping.txt</code>, both covered by <code>SHA256SUMS</code>. The bundle is for
+        Play upload, not direct installation. Its separate <strong>upload key</strong>
+        authenticates the upload; Play signs the generated device APKs with the enrolled
+        <strong>app-signing key</strong>. The maintainer must enrol the same app-signing key
+        if Play and GitHub APKs are to share the published fingerprint. The upload
+        certificate is not the APK trust pin. This does not mean Play distribution is
+        available yet; see the
+        <a href="https://github.com/jaypetez/ideaforge/blob/main/SECURITY.md#play-upload-key-and-bundle">key and bundle policy</a>.
       </p>
 
       <h2 id="emulator">Install on the emulator</h2>

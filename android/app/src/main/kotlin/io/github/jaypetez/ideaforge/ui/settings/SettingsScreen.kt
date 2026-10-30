@@ -23,7 +23,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,7 +36,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
@@ -107,11 +105,18 @@ object SettingsTags {
     const val SAVE = "settings-save"
     const val STATUS = "settings-status"
     const val ACTIVE = "settings-active"
-    const val HANDS_FREE = "settings-handsfree"
     const val TRIGGER = "settings-trigger"
     const val TRIGGER_NOTE = "settings-trigger-note"
     const val TRIGGER_WARNING = "settings-trigger-warning"
     const val PACE = "settings-pace"
+    const val DEVICE_VOICE = "settings-device-voice"
+    const val DEVICE_VOICE_DEFAULT = "settings-device-voice-default"
+    const val DEVICE_VOICE_STATUS = "settings-device-voice-status"
+    const val DEVICE_VOICE_MISSING = "settings-device-voice-missing"
+    const val DEVICE_VOICE_RELOAD = "settings-device-voice-reload"
+    const val DEVICE_VOICE_CLOSE = "settings-device-voice-close"
+    const val DEVICE_VOICE_SAVE_PROBLEM = "settings-device-voice-save-problem"
+    fun deviceVoice(id: String) = "settings-device-voice-$id"
     const val FORGET = "settings-forget"
     const val FORGET_CONFIRM = "settings-forget-confirm"
     const val VERSION = "settings-version"
@@ -213,7 +218,7 @@ fun SettingsScreen(
                         Modifier.onGloballyPositioned { offsets[part] = it.positionInParent().y.roundToInt() }) {
                         when (part) {
                             SettingsPart.Connection -> Connection(state, vm)
-                            SettingsPart.Voice -> { Listening(state, vm); HostedSpeechSection() }
+                            SettingsPart.Voice -> { Listening(state, vm); DeviceVoiceSettings(state, vm); HostedSpeechSection() }
                             SettingsPart.Appearance -> Appearance(state, vm)
                             SettingsPart.Data -> { BackupSection(); if (state.canForget) Forget(state, vm) }
                             SettingsPart.About -> About()
@@ -414,18 +419,6 @@ private fun ModelField(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun Listening(state: SettingsState, vm: SettingsViewModel) {
     val prefs = state.prefs ?: return
-    val handsFreeLabel = stringResource(R.string.pref_hands_free)
-    Row(Modifier.fillMaxWidth().heightIn(min = IdeaForgeSpacing.control)
-        .toggleable(prefs.handsFree, role = Role.Switch, onValueChange = { vm.setHandsFree(it) })
-        .testTag(SettingsTags.HANDS_FREE).semantics { contentDescription = handsFreeLabel },
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(handsFreeLabel, style = MaterialTheme.typography.bodyLarge)
-            Hint(stringResource(R.string.settings_hands_free_hint))
-        }
-        Switch(checked = prefs.handsFree, onCheckedChange = null)
-    }
-
     val warning = state.triggerWarning
     OutlinedTextField(
         value = state.trigger,

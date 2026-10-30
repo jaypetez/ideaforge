@@ -184,7 +184,7 @@ class InferenceDisclosureScreenTest {
             preferences.hold = null
             compose.onNodeWithText("Not now").performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("answer"), 10_000)
-            compose.onNodeWithTag("voice-start").assertIsDisplayed().performClick()
+            compose.onNodeWithTag("voice-start").performScrollTo().assertIsDisplayed().performClick()
             compose.waitUntilAtLeastOneExists(hasTestTag("voice-mic-continue"), 10_000)
             held.complete(Unit)
             compose.waitUntil(10_000) {
@@ -200,6 +200,150 @@ class InferenceDisclosureScreenTest {
             preferences.hold = null
             held.complete(Unit)
         }
+    }
+
+    private fun typedManualAdmission(preferences: DelayedAdmissionPreferences): Triple<AppGraph, AtomicInteger, AtomicInteger> {
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true,
+            preferences = PrefsStore(preferences), recognitionAvailable = { true })
+        ownedGraphs += graph
+        graph.providerSource = io.github.jaypetez.ideaforge.ui.interview.ProviderSource {
+            io.github.jaypetez.ideaforge.ui.interview.ScriptedModel()
+        }
+        val nativeStarts = AtomicInteger()
+        val serviceStarts = AtomicInteger()
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { serviceStarts.incrementAndGet() }
+            override fun stop() = Unit
+        }
+        graph.driveSpeaker = object : io.github.jaypetez.ideaforge.voice.Speaker {
+            override suspend fun speak(text: String): io.github.jaypetez.ideaforge.voice.SpeakResult = kotlinx.coroutines.awaitCancellation()
+            override fun cancel() = Unit
+            override fun shutdown() = Unit
+        }
+        graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+            io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory {
+                object : io.github.jaypetez.ideaforge.voice.RecognizerEngine {
+                    lateinit var callbacks: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener
+                    override fun setListener(listener: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener) { callbacks = listener }
+                    override fun start(language: String) { nativeStarts.incrementAndGet(); callbacks.onReady() }
+                    override fun stop() { callbacks.onResults("literal manual words over") }
+                    override fun cancel() = Unit
+                    override fun destroy() = Unit
+                }
+            }, graph.mainScope)
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(
+            android.Manifest.permission.RECORD_AUDIO, android.Manifest.permission.POST_NOTIFICATIONS)
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 10_000)
+        compose.onNode(hasText("New idea") and hasClickAction() and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 10_000)
+        compose.onNodeWithTag("new-idea-type").performScrollTo().performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("dictation-toggle"), 10_000)
+        return Triple(graph, nativeStarts, serviceStarts)
+    }
+
+    @Test
+    fun notificationResumeRetiresManualIntentStillAwaitingAuthorizationBeforeACaptureExists() {
+        val preferences = DelayedAdmissionPreferences()
+        val (graph, nativeStarts, _) = typedManualAdmission(preferences)
+        val other = io.github.jaypetez.ideaforge.core.runtime.seedTurn(
+            io.github.jaypetez.ideaforge.core.createSession("s_other_00000001", kotlinx.serialization.json.JsonPrimitive(1)),
+            kotlinx.serialization.json.JsonPrimitive(1))
+        scenario!!.onActivity { graph.driveController.start(other, "typed") }
+        compose.waitUntil(10_000) {
+            var speaking = false
+            scenario!!.onActivity { speaking = graph.driveController.state.value.phase == io.github.jaypetez.ideaforge.core.runtime.DrivePhase.SPEAKING }
+            speaking
+        }
+        scenario!!.onActivity { graph.driveController.pause() }
+        val held = CompletableDeferred<Unit>()
+        preferences.hold = held
+        try {
+            compose.onNodeWithTag("dictation-toggle").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(10_000) {
+                var waiting = false
+                scenario!!.onActivity { waiting = preferences.waiting }
+                waiting
+            }
+            scenario!!.onActivity { graph.driveController.resume() }
+            preferences.hold = null
+            held.complete(Unit)
+            compose.waitUntil(10_000) {
+                var waiting = true
+                scenario!!.onActivity { waiting = preferences.waiting }
+                !waiting
+            }
+            compose.waitForIdle()
+            scenario!!.onActivity {
+                assertEquals("the older manual continuation cannot pause the newly resumed drive",
+                    io.github.jaypetez.ideaforge.voice.VoiceMode.ACTIVE, graph.driveController.state.value.mode)
+                assertEquals(0, nativeStarts.get())
+            }
+            compose.onNodeWithTag("dictation-toggle").assertTextContains("Start dictation")
+        } finally { preferences.hold = null; held.complete(Unit) }
+    }
+
+    @Test
+    fun manualStartRetiresOlderHandsFreeAuthorizationInsteadOfLettingItReplaceManualCapture() {
+        val preferences = DelayedAdmissionPreferences()
+        val (graph, nativeStarts, serviceStarts) = typedManualAdmission(preferences)
+        val held = CompletableDeferred<Unit>()
+        preferences.hold = held
+        try {
+            compose.onNodeWithTag("voice-start").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(10_000) {
+                var waiting = false
+                scenario!!.onActivity { waiting = preferences.waiting }
+                waiting
+            }
+            preferences.hold = null
+            compose.onNodeWithTag("dictation-toggle").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntilAtLeastOneExists(hasText("Listening for dictation.", substring = true), 10_000)
+            assertEquals(1, nativeStarts.get())
+            held.complete(Unit)
+            compose.waitUntil(10_000) {
+                var waiting = true
+                scenario!!.onActivity { waiting = preferences.waiting }
+                !waiting
+            }
+            compose.waitForIdle()
+            scenario!!.onActivity {
+                assertFalse("the older hands-free continuation cannot replace manual input", graph.driveController.state.value.attached)
+                assertEquals(0, serviceStarts.get())
+            }
+            compose.onNodeWithTag("dictation-toggle").assertTextContains("Stop dictation")
+        } finally { preferences.hold = null; held.complete(Unit) }
+    }
+
+    @Test
+    fun backgroundingAndReturningCannotRevivePendingNonEntryHandsFreeAuthorization() {
+        val preferences = DelayedAdmissionPreferences()
+        val (graph, nativeStarts, serviceStarts) = typedManualAdmission(preferences)
+        val held = CompletableDeferred<Unit>()
+        preferences.hold = held
+        try {
+            compose.onNodeWithTag("voice-start").performScrollTo().assertIsDisplayed().performClick()
+            compose.waitUntil(10_000) {
+                var waiting = false
+                scenario!!.onActivity { waiting = preferences.waiting }
+                waiting
+            }
+            scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+            scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+            preferences.hold = null
+            held.complete(Unit)
+            compose.waitUntil(10_000) {
+                var waiting = true
+                scenario!!.onActivity { waiting = preferences.waiting }
+                !waiting
+            }
+            compose.waitForIdle()
+            scenario!!.onActivity {
+                assertFalse("a retired pre-background tap cannot start voice after return", graph.driveController.state.value.attached)
+                assertEquals(0, nativeStarts.get())
+                assertEquals(0, serviceStarts.get())
+            }
+        } finally { preferences.hold = null; held.complete(Unit) }
     }
 
     @Test

@@ -140,4 +140,82 @@ class WhisperListenerTest {
         assertEquals(1, mic.stops)
     }
 
+    @Test
+    fun manualStopReleasesRecordingBeforeUploadingAndReturnsCommandsAndFinishWordsLiterally() = runTest {
+        val pcm = FakePcm(listOf(600L to 40, 2000L to 8000))
+        lateinit var capture: WhisperListener.ManualCapture
+        var reads = 0
+        val mic = object : PcmSource by pcm {
+            override fun read(buffer: ShortArray): Int {
+                val count = pcm.read(buffer)
+                if (++reads == 140) capture.stop()
+                return count
+            }
+        }
+        val w = WhisperListener({ mic }, { audio, _ ->
+            assertFalse("manual Stop releases audio, not just a listening flag", pcm.open)
+            uploads += audio
+            "repeat skip this one over"
+        }, io = StandardTestDispatcher(testScheduler))
+        capture = w.manualCapture()
+        assertEquals("repeat skip this one over", capture.await())
+        assertEquals(1, uploads.size)
+        assertEquals(1, pcm.stops)
+        assertFalse(pcm.open)
+    }
+
+    @Test
+    fun manualFallbackCannotUploadAfterItsOriginalConsentOrKeyGenerationWasRetired() = runTest {
+        val pcm = FakePcm(speech(2000))
+        var allowed = true
+        lateinit var capture: WhisperListener.ManualCapture
+        var reads = 0
+        val mic = object : PcmSource by pcm {
+            override fun read(buffer: ShortArray): Int {
+                val count = pcm.read(buffer)
+                if (++reads == 140) {
+                    allowed = false
+                    capture.stop()
+                }
+                return count
+            }
+        }
+        val w = WhisperListener({ mic }, { audio, _ -> uploads += audio; "not permitted" },
+            io = StandardTestDispatcher(testScheduler), allowed = { allowed })
+        capture = w.manualCapture()
+        val result = runCatching { capture.await() }
+        assertEquals("AbortError", (result.exceptionOrNull() as ListenFailure).name)
+        assertTrue(uploads.isEmpty())
+        assertFalse(pcm.open)
+    }
+
+    @Test
+    fun manualSilenceAndCancelledSetupUploadNothing() = runTest {
+        val pcm = FakePcm(emptyList())
+        val w = WhisperListener({ pcm }, { audio, _ -> uploads += audio; "invented" },
+            maxAnswerMs = 4000, io = StandardTestDispatcher(testScheduler))
+        assertEquals("", w.manualCapture().await())
+        val cancelled = w.manualCapture()
+        cancelled.cancel()
+        val result = runCatching { cancelled.await() }
+        assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+        assertEquals("cancelled setup cannot open another microphone", 1, pcm.starts)
+        assertTrue(uploads.isEmpty())
+    }
+
+    @Test
+    fun stoppingWhileTheOriginalFallbackGrantIsBeingReadCannotOpenAudioAfterTheRead() = runTest {
+        val allowed = CompletableDeferred<Boolean>()
+        val mic = FakePcm(speech())
+        val w = WhisperListener({ mic }, { audio, _ -> uploads += audio; "not started" },
+            io = StandardTestDispatcher(testScheduler), allowed = { allowed.await() })
+        val capture = w.manualCapture()
+        val result = async { capture.await() }
+        runCurrent()
+        capture.stop()
+        allowed.complete(true)
+        assertEquals("", result.await())
+        assertEquals(0, mic.starts)
+        assertTrue(uploads.isEmpty())
+    }
 }

@@ -129,6 +129,20 @@ export function buildExport(session, { mode = 'claude', note = null } = {}) {
   if (session.opening) parts.push(`**The idea, as first stated:** ${session.opening}`);
   parts.push(transcriptSection(session));
 
+  if (session.contentReports?.length) {
+    parts.push('## Content reports (saved locally)');
+    parts.push('These reports were saved on the device, not automatically sent to the developer. ' +
+      'They may contain private text. Sharing this document shares them too.');
+    const quote = (text) => text.replace(/\r\n?/g, '\n').split('\n').map((line) => `> ${line}`).join('\n');
+    for (const [i, report] of session.contentReports.entries()) {
+      parts.push(`### Report ${i + 1} · ${report.category}`);
+      parts.push(`${isoDate(report.at)} · ${report.output.kind}` +
+        (report.output.turnId ? ` · ${report.output.turnId}` : ''));
+      parts.push('Reported AI output:\n\n' + quote(report.output.text));
+      if (report.note) parts.push('Optional note:\n\n' + quote(report.note));
+    }
+  }
+
   parts.push('---');
   parts.push('_Forged with IdeaForge._');
 

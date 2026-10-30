@@ -29,6 +29,8 @@ import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
+import io.github.jaypetez.ideaforge.voice.DeviceVoice
+import io.github.jaypetez.ideaforge.voice.DeviceVoiceLoadException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,16 +58,8 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 
 /**
- * SettingsViewModel against a real PrefsStore (DataStore on disk) and a real KeyringStore
- * (AES-GCM under a software key). "Process death" is the ViewModel cleared and the DataStore
- * shut down, then both opened again over the same files.
- *
- * One preference write per prefs file: DataStore replaces its file by rename, which a Windows
- * JVM refuses over an existing file (see PrefsStoreTest). Android does not.
- */
-/**
- * Preferences in memory, for tests that need more than one write: a Windows JVM refuses the
- * second write to a real DataStore file (see the class comment below).
+ * Preferences in memory, for tests that need more than one write: the plain Windows JVM
+ * fixture refuses DataStore's second rename over an existing file (see the class below).
  */
 class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
     private val state = MutableStateFlow(initial)
@@ -88,6 +82,15 @@ class FlakyKey(val inner: SoftwareKey = SoftwareKey()) : KeyringKey by inner {
     }
 }
 
+/**
+ * Real PrefsStore and KeyringStore (AES-GCM under a software key). Preferences use DataStore
+ * on disk by default: "process death" clears the ViewModel and shuts down DataStore, then
+ * opens both again over the same files.
+ *
+ * Multi-write behavior tests use Process.memoryPrefs: provider/address changes withdraw an
+ * old grant before acceptance writes a new one, and DataStore's rename over an existing file
+ * fails on the plain Windows JVM host (see PrefsStoreTest). Persistence tests keep real files.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     @get:Rule
@@ -110,15 +113,18 @@ class SettingsViewModelTest {
         checker: ProviderCheck = check,
         /** Null: a real DataStore on [prefsFile]. */
         memoryPrefs: Preferences? = null,
+        voices: suspend () -> List<DeviceVoice> = { listOf(DeviceVoice("en-GB-test", "en-GB", false)) },
+        preferenceStore: PrefsStore? = null,
     ) {
         private val job = SupervisorJob()
-        val prefs = if (memoryPrefs != null) PrefsStore(MemoryDataStore(memoryPrefs))
+        val prefs = preferenceStore ?: if (memoryPrefs != null) PrefsStore(MemoryDataStore(memoryPrefs))
             else PrefsStore.create(CoroutineScope(job + Dispatchers.IO)) { prefsFile }
         val keyring = KeyringStore(File(tmp.root, "nobackup/${KeyringStore.FILE_NAME}").apply { parentFile!!.mkdirs() }, key)
         private val store = ViewModelStore()
         private val inference = io.github.jaypetez.ideaforge.data.InferenceConsent(
             prefs, { keyring.state.value.ring }, CoroutineScope(job + Dispatchers.IO))
-        val vm = SettingsViewModel(prefs, keyring, checker, inference, buildLocal = { built += it }).also { store.put("settings", it) }
+        val vm = SettingsViewModel(prefs, keyring, checker, inference, buildLocal = { built += it },
+            loadDeviceVoices = voices).also { store.put("settings", it) }
 
         fun loaded(): SettingsState = runBlocking {
             withTimeout(10_000) { vm.state.first { it.prefs != null && it.editor != null } }
@@ -182,12 +188,13 @@ class SettingsViewModelTest {
     @Test
     fun everyPreferencePersistsAcrossProcessDeath() {
         val cases: List<Triple<String, (SettingsViewModel) -> Job?, (Prefs) -> Any?>> = listOf(
-            Triple("handsFree", { vm -> vm.setHandsFree(true) }, { p -> p.handsFree }),
             Triple("trigger", { vm -> vm.setTriggerDraft("  Bananas! "); vm.commitTrigger() }, { p -> p.trigger }),
             Triple("theme", { vm -> vm.setTheme(Prefs.THEME_DARK) }, { p -> p.theme }),
             Triple("speechRate", { vm -> vm.setSpeechRate(1.2) }, { p -> p.speechRate }),
+            Triple("speechVoice", { vm -> vm.setSpeechVoice("en-GB-test") }, { p -> p.speechVoice }),
         )
-        val expected = mapOf<String, Any?>("handsFree" to true, "trigger" to "bananas", "theme" to "dark", "speechRate" to 1.2)
+        val expected = mapOf<String, Any?>("trigger" to "bananas", "theme" to "dark", "speechRate" to 1.2,
+            "speechVoice" to "en-GB-test")
         for ((name, set, read) in cases) {
             val file = prefsFile(name)
             val first = Process(file)
@@ -199,6 +206,109 @@ class SettingsViewModelTest {
             assertEquals("$name after a restart", expected[name], read(second.loaded().prefs!!))
             second.kill()
         }
+    }
+
+    @Test
+    fun editingCurrentSettingsPreservesTheLegacyHandsFreeValueWithoutSelectingAMode() {
+        val file = prefsFile("legacy-handsfree")
+        val first = Process(file)
+        first.loaded()
+        runBlocking { assertTrue(first.prefs.update { it.copy(handsFree = true) }) }
+        first.kill()
+        val second = Process(file)
+        assertTrue(second.loaded().prefs!!.handsFree)
+        second.join(second.vm.setTheme("dark"))
+        assertTrue(second.settle().prefs!!.handsFree)
+        second.kill()
+    }
+
+    @Test
+    fun voiceReadsAndLateFailedResultsCannotEraseASavedOrNewerChoice() {
+        var read = 0
+        val late = CompletableDeferred<List<DeviceVoice>>()
+        val p = Process(prefsFile("voice-read-race"), memoryPrefs = emptyPreferences(), voices = {
+            when (++read) {
+                1 -> listOf(DeviceVoice("en-GB-test"))
+                2 -> kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { late.await() }
+                3 -> throw DeviceVoiceLoadException("Controlled engine failure. Try again.")
+                else -> emptyList()
+            }
+        })
+        p.loaded()
+        p.settle { it.deviceVoices.phase == DeviceVoicePhase.READY }
+        p.join(p.vm.setSpeechVoice("en-GB-test"))
+        p.vm.refreshDeviceVoices()
+        assertEquals("en-GB-test", p.settle { it.deviceVoices.phase == DeviceVoicePhase.LOADING }.prefs!!.speechVoice)
+        p.join(p.vm.setSpeechVoice(""))
+        p.join(p.vm.refreshDeviceVoices())
+        assertEquals("", p.settle { it.deviceVoices.phase == DeviceVoicePhase.FAILED }.prefs!!.speechVoice)
+        late.complete(listOf(DeviceVoice("retired-catalogue")))
+        assertEquals(DeviceVoicePhase.FAILED, p.settle().deviceVoices.phase)
+        p.join(p.vm.refreshDeviceVoices())
+        assertTrue(p.settle { it.deviceVoices.phase == DeviceVoicePhase.READY }.deviceVoices.choices.isEmpty())
+        assertEquals("", runBlocking { p.prefs.current().speechVoice })
+        assertTrue(p.check.calls.isEmpty())
+        p.kill()
+    }
+
+    @Test
+    fun aFailedVoiceWriteKeepsThePreviousPreferenceAndReportsRetryWithoutTouchingKeys() {
+        val existing = MemoryDataStore()
+        val store = PrefsStore(object : DataStore<Preferences> by existing {
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+                throw java.io.IOException("controlled refused preferences write")
+        })
+        val p = Process(prefsFile("voice-save-failure"), preferenceStore = store)
+        val before = p.loaded().ring
+        p.settle { it.deviceVoices.phase == DeviceVoicePhase.READY }
+        p.join(p.vm.setSpeechVoice("en-GB-test"))
+        val failed = p.settle { it.voiceSaveProblem != null }
+        assertTrue(failed.voiceSaveProblem!!.contains("could not be saved"))
+        assertFalse(failed.voiceSaving)
+        assertEquals("", failed.prefs!!.speechVoice)
+        assertEquals(before, failed.ring)
+        assertTrue(p.check.calls.isEmpty())
+        p.kill()
+    }
+
+    @Test
+    fun anOlderPreferenceWriteCannotOverrideANewerDeviceVoiceSelection() {
+        val gate = CompletableDeferred<Unit>()
+        var writes = 0
+        val memory = MemoryDataStore()
+        val prefs = PrefsStore(object : DataStore<Preferences> by memory {
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                if (++writes == 1) gate.await()
+                return memory.updateData(transform)
+            }
+        })
+        val p = Process(prefsFile("voice-write-race"), preferenceStore = prefs,
+            voices = { listOf(DeviceVoice("older"), DeviceVoice("newer")) })
+        p.loaded()
+        p.settle { it.deviceVoices.phase == DeviceVoicePhase.READY }
+        val older = p.vm.setSpeechVoice("older")
+        p.join(p.vm.setSpeechVoice("newer"))
+        gate.complete(Unit)
+        p.join(older)
+        assertEquals("newer", runBlocking { prefs.current().speechVoice })
+        assertFalse(p.settle { it.prefs!!.speechVoice == "newer" }.voiceSaving)
+        p.kill()
+    }
+
+    @Test
+    fun unavailableAndOversizedVoiceSelectionsReportRefusalWithoutTruncatingOrReplacingTheSavedChoice() {
+        val oversized = "x".repeat(Prefs.MAX_VOICE + 1)
+        val p = Process(prefsFile("refused-device-choice"), memoryPrefs = emptyPreferences(),
+            voices = { listOf(DeviceVoice("en-GB-test"), DeviceVoice(oversized)) })
+        p.loaded()
+        p.settle { it.deviceVoices.phase == DeviceVoicePhase.READY }
+        p.join(p.vm.setSpeechVoice("en-GB-test"))
+        assertNull(p.vm.setSpeechVoice(oversized))
+        assertTrue(p.settle { it.voiceSaveProblem != null }.voiceSaveProblem!!.contains("too long"))
+        assertNull(p.vm.setSpeechVoice("not-in-the-current-list"))
+        assertTrue(p.settle { it.voiceSaveProblem!!.contains("list changed") }.voiceSaveProblem!!.contains("previous choice is kept"))
+        assertEquals("en-GB-test", runBlocking { p.prefs.current().speechVoice })
+        p.kill()
     }
 
     // The trigger is stored as the web stores it: normalised, and only when it changed.
@@ -430,7 +540,7 @@ class SettingsViewModelTest {
     // check nor the saved record may carry an address for a hosted provider.
     @Test
     fun aHostedProviderNeverSavesOrSendsAnAddress() {
-        val p = Process(prefsFile("hosted"))
+        val p = Process(prefsFile("hosted"), memoryPrefs = emptyPreferences())
         p.loaded()
         p.vm.pickProvider("openai")
         assertTrue("the preset's address sits in the form", p.settle { it.editor?.choice?.id == "openai" }.editor!!.baseUrl.isNotEmpty())
@@ -439,6 +549,7 @@ class SettingsViewModelTest {
         p.vm.setWrapModel("gpt-wrap")
         p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
+        assertTrue("the explicit agreement was stored", runBlocking { p.prefs.inferenceCurrent() }.inferenceGrant.isNotEmpty())
         assertNull("the check got no address", p.check.calls.single().second.baseUrl)
         val rec = credsFor(p.keyring.state.value.ring, "openai")
         assertEquals("", stringOf(rec["baseUrl"]))
@@ -451,7 +562,7 @@ class SettingsViewModelTest {
     // never gains a key, and needs a model before it can be saved at all.
     @Test
     fun aLocalServerSavesItsAddressAndModelsAndNoKey() {
-        val p = Process(prefsFile("local"))
+        val p = Process(prefsFile("local"), memoryPrefs = emptyPreferences())
         p.loaded()
         p.vm.pickProvider("ollama")
         p.vm.setBaseUrl("http://10.0.2.2:11434/v1")
@@ -460,6 +571,7 @@ class SettingsViewModelTest {
         p.vm.setModel("qwen2.5:7b-instruct")
         p.join(p.agreeAndSave())
         assertNull(p.settle().failure)
+        assertTrue("the explicit agreement was stored", runBlocking { p.prefs.inferenceCurrent() }.inferenceGrant.isNotEmpty())
         assertTrue("a local save makes no network call", p.check.calls.isEmpty())
         assertEquals("http://10.0.2.2:11434/v1", p.built.single().baseUrl)
         val rec = credsFor(p.keyring.state.value.ring, "ollama")

@@ -6,9 +6,9 @@
     {
       "schema": 2,
       "id": "s_android_reading",
-      "rev": 2,
+      "rev": 4,
       "createdAt": 1760100200000,
-      "updatedAt": 1760100230000,
+      "updatedAt": 1760100245000,
       "status": "interviewing",
       "name": "",
       "title": "",
@@ -32,6 +32,23 @@
           "askedAt": 1760100200000,
           "answeredAt": 1760100230000,
           "classification": "substantive"
+        },
+        {
+          "id": "t2",
+          "n": 2,
+          "dimension": "outcome",
+          "question": "Neutral Android generated question marker?",
+          "bridge": null,
+          "move": null,
+          "chips": [],
+          "questionSource": "model",
+          "answer": "",
+          "answerSource": null,
+          "draftText": null,
+          "skipped": false,
+          "askedAt": 1760100240000,
+          "answeredAt": 0,
+          "classification": null
         }
       ],
       "coverage": {
@@ -40,8 +57,8 @@
           "status": "probing",
           "gap": null,
           "evidence": null,
-          "turnsSpent": 1,
-          "lastTurn": 1,
+          "turnsSpent": 2,
+          "lastTurn": 2,
           "waivedReason": null
         },
         "substance": {
@@ -115,7 +132,21 @@
       "wrapOffered": false,
       "meta": {
         "device": "tablet"
-      }
+      },
+      "contentReports": [
+        {
+          "id": "r_android_backup",
+          "at": 1760100245000,
+          "category": "other",
+          "note": "Neutral Android report note.",
+          "output": {
+            "kind": "question",
+            "turnId": "t2",
+            "question": "Neutral Android generated question marker?",
+            "text": "Neutral Android generated question marker?"
+          }
+        }
+      ]
     },
     {
       "schema": 2,

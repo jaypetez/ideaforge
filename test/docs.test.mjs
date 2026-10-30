@@ -225,6 +225,20 @@ test('the privacy policy distinguishes local credentials and Pause by platform',
   assert.match(paragraph('web-pause'), /may finish transcription/);
 });
 
+test('native reporting uses only the canonical confirmed privacy contact and documents local copies', () => {
+  const policy = guide('privacy-policy.html');
+  const strings = readFileSync(join(ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'strings_reporting.xml'), 'utf8');
+  const recipient = strings.match(/<string name="report_privacy_email" translatable="false">([^<]*)<\/string>/)?.[1];
+  assert.notEqual(recipient, undefined, 'email availability must be an explicit non-secret resource');
+  const contact = policy.match(/<address id="privacy-contact" data-status="ready">[\s\S]*?mailto:([^"?]+)"/)?.[1];
+  assert.equal(recipient, checkPrivacyPolicy(policy).ok ? contact : '',
+    'never offer an invented, stale or unconfirmed report recipient');
+  assert.match(policy, /id="content-reports"/);
+  assert.match(policy, /Report metadata is not sent in model/);
+  assert.match(guide('android.html'), /web app has\s+no Report controls yet/);
+  assert.match(guide('android.html'), /not a claim of Play approval/);
+});
+
 test('the guide only documents npm scripts that exist and keeps browser checks fail-closed', () => {
   let commands = 0;
   for (const page of GUIDE_PAGES) {
@@ -605,6 +619,36 @@ test('the signed-APK instructions match the release workflow and SECURITY.md (#9
   }
 });
 
+test('Play bundle guidance preserves the app pin and documents separate upload signing (#176)', () => {
+  const release = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  const name = release.match(/dist\/(ideaforge-)\$\{VERSION\}(\.aab)/);
+  assert.ok(name, 'release.yml must name its upload bundle');
+  const documented = `${name[1]}VERSION${name[2]}`;
+  const security = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8');
+  const contributor = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+  const procedure = readFileSync(join(ROOT, '.claude', 'skills', 'release', 'SKILL.md'), 'utf8');
+  for (const [name, text] of [
+    ['SECURITY.md', security],
+    ['CONTRIBUTING.md', contributor],
+    ['guide/android.html', guide('android.html')],
+  ]) {
+    assert.ok(text.includes(documented), `${name} omits ${documented}`);
+    assert.ok(text.includes('mapping.txt'), `${name} omits the bundle mapping`);
+    assert.match(text, /app-signing key/i, `${name} must distinguish the installed-app identity`);
+    assert.match(text, /upload key/i, `${name} must distinguish upload authentication`);
+  }
+  for (const key of ['KEYSTORE_B64', 'KEYSTORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD']) {
+    for (const text of [security, contributor, procedure]) {
+      assert.ok(text.includes(`ANDROID_UPLOAD_${key}`), `missing upload-secret setup: ${key}`);
+    }
+  }
+  assert.ok(guide('android.html').includes('not direct installation'));
+  assert.ok(procedure.includes('all six expected uploaded assets'));
+  assert.ok(procedure.includes('five payload filenames'));
+  assert.ok(procedure.includes('--pattern "ideaforge-$VERSION.aab" --pattern mapping.txt'));
+  assert.ok(procedure.includes('android-aab'));
+});
+
 test('the device workflow runs the declared managed device, on demand, outside the ci gate', () => {
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
   const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
@@ -623,8 +667,8 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both privacy visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'privacy-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=before' \|\| inputs\.evidence == 'privacy' && '-Pandroid\.testInstrumentationRunnerArguments\.uxPrivacyProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both privacy probes without an empty runner argument');
-  assert.equal((workflow.match(/!startsWith\(inputs\.evidence, 'privacy'\) && !startsWith\(inputs\.evidence, 'consent'\) && format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=\{0\}'/g) || []).length, 2,
-    'privacy and consent requests must not inherit the unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence == 'shell' && '-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=true' \|\| ''/g) || []).length, 2,
+    'only shell requests may supply their nonempty opt-in on either visual device');
   assert.equal((workflow.match(/#requestedInferenceConsentIsProminent/g) || []).length, 2,
     'both consent visual devices must select the actual test method');
   assert.equal((workflow.match(/inputs\.evidence == 'onboarding' && '#requestedNativeOnboardingAndEntryKeepIntentAndRecovery'/g) || []).length, 2,
@@ -635,10 +679,33 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both Settings devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'settings' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true'/g) || []).length, 2,
     'both Settings devices must opt into the complete matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'device-voices' && '#requestedNativeSettingsKeepSectionsAndDataBoundaries'/g) || []).length, 2,
+    'device-voice evidence must explicitly select the existing Settings test on both rendering profiles');
+  assert.equal((workflow.match(/inputs\.evidence == 'device-voices' && '-Pandroid\.testInstrumentationRunnerArguments\.uxSettingsProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxDeviceVoicesProbe=true'/g) || []).length, 2,
+    'both voice-choice devices must opt into their fixed named-state matrix');
+  assert.equal((workflow.match(/inputs\.evidence == 'dictation' && '#requestedManualDictationKeepsLiteralDraftAndExplicitSend'/g) || []).length, 2,
+    'both rendering profiles must select the real manual-dictation journey');
+  assert.equal((workflow.match(/inputs\.evidence == 'dictation' && '-Pandroid\.testInstrumentationRunnerArguments\.uxDictationProbe=true'/g) || []).length, 2,
+    'manual dictation must opt into its complete literal-draft, listening, error and enlarged-state matrix');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '#requestedNativeResultKeepsDocumentAndCanonicalActions'/g) || []).length, 2,
     'both Result devices must select the actual focused method');
   assert.equal((workflow.match(/inputs\.evidence == 'result' && '-Pandroid\.testInstrumentationRunnerArguments\.uxResultProbe=true'/g) || []).length, 2,
     'both Result devices must explicitly opt into the full subset');
+  assert.equal((workflow.match(/inputs\.evidence == 'makeover' && '#requestedNativeMakeoverAcceptance'/g) || []).length, 2,
+    'both rendering devices must select the complete real-app acceptance method, not default discovery');
+  assert.equal((workflow.match(/inputs\.evidence == 'makeover' && '-Pandroid\.testInstrumentationRunnerArguments\.uxMakeoverProbe=true'/g) || []).length, 2,
+    'both acceptance devices must explicitly opt into the fixed inventory');
+  const atdStep = workflow.match(/- name: Instrumented walkthrough on a managed emulator\n([\s\S]*?)(?=\n      #)/)?.[1];
+  assert.match(atdStep ?? '', /inputs\.evidence != 'makeover'/,
+    'the joined rendering-device journeys must not repeat ATD first and exhaust the unchanged device-job budget');
+  for (const [name, text] of [
+    ['guide/android.html', guide('android.html')],
+    ['docs/DESIGN.md', readFileSync(join(ROOT, 'docs', 'DESIGN.md'), 'utf8')],
+    ['CONTRIBUTING.md', readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')],
+  ]) {
+    assert.ok(text.includes('evidence=makeover'), `${name} omits the actual acceptance selector`);
+    assert.match(text, /TalkBack/, `${name} omits the manual accessibility evidence boundary`);
+  }
   assert.equal((workflow.match(/inputs\.evidence == 'ideas' && '#requestedIdeasAreCompactReachableAndTruthful'/g) || []).length, 2,
     'both Ideas visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxIdeasProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=ready\+empty\+unavailable\+library\+library-100\+library-archived\+filtered\+library-long\+ideas-loading/g) || []).length, 2,
@@ -651,8 +718,10 @@ test('the device workflow runs the declared managed device, on demand, outside t
     'both voice visual devices must select the actual focused capture method');
   assert.equal((workflow.match(/uxVoiceProbe=true -Pandroid\.testInstrumentationRunnerArguments\.uxCaptureStates=voice-ready\+voice-starting\+voice-speaking\+voice-listening\+voice-transcribing\+voice-thinking\+voice-paused\+voice-recovering\+voice-blocked\+voice-complete\+voice-writing\+voice-fallback\+voice-notifications-off\+voice-help/g) || []).length, 2,
     'voice evidence must include every declared native phase and recovery presentation');
-  assert.equal((workflow.match(/inputs\.evidence != 'ideas' && inputs\.evidence != 'interview' && inputs\.evidence != 'voice' && inputs\.evidence != 'onboarding' && inputs\.evidence != 'settings' && inputs\.evidence != 'result' && !startsWith\(inputs\.evidence, 'privacy'\)/g) || []).length, 2,
-    'Result/Settings/Onboarding/Ideas/Interview/voice evidence must not inherit an unrelated empty shell runner argument');
+  assert.equal((workflow.match(/inputs\.evidence == 'reporting' && '#requestedContentReportsKeepLocalPayloadAndQuestionIdentity'/g) || []).length, 2,
+    'both rendering profiles must explicitly select the reporting acceptance test');
+  assert.equal((workflow.match(/inputs\.evidence == 'reporting' && '-Pandroid\.testInstrumentationRunnerArguments\.uxReportingProbe=true'/g) || []).length, 2,
+    'reporting evidence requires its nonempty opt-in, not generic discovery');
   assert.equal((workflow.match(/inputs\.evidence == 'consent-before' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=before' \|\| inputs\.evidence == 'consent' && '-Pandroid\.testInstrumentationRunnerArguments\.uxInferenceProbe=after' \|\| ''/g) || []).length, 2,
     'before/after provenance must reach both consent probes without an empty runner argument');
   for (const [name, text] of [
@@ -663,6 +732,124 @@ test('the device workflow runs the declared managed device, on demand, outside t
   ]) {
     assert.ok(text.includes('android-device.yml'), `${name} omits android-device.yml`);
     assert.ok(text.includes(device), `${name} omits the managed device ${device}`);
+  }
+});
+
+test('default native UX dispatch selects the full method without an empty shell argument', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const budget = workflow.match(/timeout-minutes: \$\{\{ \(inputs\.evidence == 'full' \|\| !inputs\.evidence\) && (\d+) \|\| (\d+) }}/);
+  assert.ok(budget, 'full and absent push/nightly inputs need the same measured overall budget, without extending focused routes');
+  const contributor = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+  assert.ok(contributor.includes(`${budget[1]}-minute overall job budget`), 'full budget guidance drifted');
+  assert.ok(contributor.includes(`Focused routes retain ${budget[2]} minutes`), 'focused budget guidance drifted');
+  for (const name of ['Compact native UX evidence', 'Expanded native UX evidence']) {
+    const step = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(step, `missing ${name}`);
+    assert.match(step, /\|\| '#requestedUxEvidenceIsRenderedCompleteAndReachable'/,
+      'default/full must select the actual full-inventory method, not the whole opt-in class');
+    assert.doesNotMatch(step, /format\('-Pandroid\.testInstrumentationRunnerArguments\.uxShellProbe=/,
+      'an unused empty instrumentation argument must not reach managed-device discovery');
+    assert.ok(step.includes("inputs.evidence == 'shell' && '-Pandroid.testInstrumentationRunnerArguments.uxShellProbe=true' || ''"),
+      'only focused shell evidence supplies its nonempty opt-in');
+    assert.ok(step.includes('check-android-device-results.py'),
+      'Gradle success without actual selected visual tests must fail before artifact acceptance');
+    assert.ok(step.includes('"-Pandroid.testInstrumentationRunnerArguments.class=$UX_CAPTURE_TEST"'),
+      'the verified selector must be the selector supplied to instrumentation');
+    assert.ok(step.includes('.xml "$UX_CAPTURE_TEST"'),
+      'the report gate must require that exact method, not an unrelated nonzero test');
+    assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2,
+      'visual provenance needs clean-tree checks before and after capture');
+    assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2,
+      'visual provenance needs actual checkout SHA checks before and after capture');
+  }
+  assert.ok(workflow.includes('run: python3 test/android-device-results.test.py'),
+    'the hosted route must exercise its zero-test/failure/skip/wrong-method guard regressions');
+  assert.ok(workflow.includes('if-no-files-found: error'), 'missing evidence must remain an upload failure');
+});
+
+test('Play listing dispatch selects a rendering-enabled 9:16 phone and the complete scripted capture', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const profile = androidFile('app', 'build.gradle.kts')
+    .match(/ManagedVirtualDevice>\("pixel2Api34Visual"\) \{([\s\S]*?)\n\s*}/)?.[1];
+  assert.ok(profile, 'listing screenshots need their native 9:16 managed profile');
+  for (const setting of ['device = "Pixel 2"', 'apiLevel = 34', 'systemImageSource = "aosp"', 'testedAbi = "x86_64"']) {
+    assert.ok(profile.includes(setting), `listing profile omits ${setting}`);
+  }
+  const step = workflow.match(/- name: Play listing assets on a native 9:16 phone\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'listing capture needs an explicit selectable workflow step');
+  for (const argument of [
+    "inputs.evidence == 'play-listing'",
+    ':app:pixel2Api34VisualDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'UxCaptureDeviceTest#requestedPlayListingAssets',
+    '-Pandroid.testInstrumentationRunnerArguments.playListingProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCapture=walkthrough',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) {
+    assert.ok(step.includes(argument), `listing dispatch omits ${argument}`);
+  }
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2,
+    'final listing provenance must check the actual worktree before and after capture');
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2,
+    'a supplied SHA alone does not prove the captured checkout identity');
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'play-listing'"),
+      `focused listing capture must not also run the unrelated ${name}`);
+  }
+});
+
+test('launcher evidence selects only the actual installed-icon test on a rendering-enabled phone', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const step = workflow.match(/- name: Installed launcher icon and unmasked Play artwork\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'launcher acceptance needs its explicit workflow route');
+  for (const argument of [
+    "inputs.evidence == 'launcher'",
+    ':app:pixel2Api34VisualDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'LauncherIconDeviceTest#requestedLauncherShowsMaskedAndThemedInstalledIcon',
+    '-Pandroid.testInstrumentationRunnerArguments.launcherIconProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) assert.ok(step.includes(argument), `launcher dispatch omits ${argument}`);
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2);
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2);
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'launcher'"),
+      `focused launcher evidence must not run the unrelated ${name}`);
+  }
+});
+
+test('microphone declaration recording selects real native effects and retains pasteable copy', () => {
+  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'android-device.yml'), 'utf8');
+  const step = workflow.match(/- name: Microphone foreground-service declaration video\n([\s\S]*?)(?=\n      - name:)/)?.[1];
+  assert.ok(step, 'the microphone video needs an explicit opt-in workflow step');
+  for (const argument of [
+    "inputs.evidence == 'microphone-demo'",
+    ':app:pixel2Api34VoiceDebugAndroidTest',
+    '-Pandroid.enableAdditionalTestOutput=true',
+    'MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo',
+    '-Pandroid.testInstrumentationRunnerArguments.microphoneDemoProbe=true',
+    '-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=${{ github.sha }}',
+  ]) assert.ok(step.includes(argument), `microphone video omits ${argument}`);
+  assert.equal((step.match(/test -z "\$\(git status --porcelain\)"/g) || []).length, 2);
+  assert.equal((step.match(/test "\$\(git rev-parse HEAD\)" = "\$\{\{ github\.sha }}"/g) || []).length, 2);
+  for (const name of ['Instrumented walkthrough on a managed emulator', 'Compact native UX evidence', 'Expanded native UX evidence']) {
+    const other = workflow.split(`- name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(other?.includes("inputs.evidence != 'microphone-demo'"),
+      `the focused video must not start unrelated ${name}`);
+  }
+  assert.ok(workflow.includes('name: android-microphone-demo-${{ github.sha }}'));
+  const android = guide('android.html');
+  for (const id of ['foreground-service-declaration', 'fgs-functionality', 'fgs-impact']) {
+    assert.ok(android.includes(`id="${id}"`), `the guide lost declaration field ${id}`);
+  }
+  for (const fact of ['Background Audio Access', 'Hands-free interview', 'Pause', 'Resume', 'Exit',
+    'unlisted YouTube', '30&ndash;60', '14 days', '13392821']) {
+    assert.ok(android.includes(fact), `the guide omits ${fact}`);
   }
 });
 

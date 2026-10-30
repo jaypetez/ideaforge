@@ -479,4 +479,27 @@ class RecognizerTest {
         val e = result.await().exceptionOrNull() as ListenFailure
         assertEquals("DriveLoop treats AbortError as Pause/Exit", "AbortError", e.name)
     }
+
+    @Test
+    fun aReleasedEnginesLateCallbackCannotDictateIntoTheNextCapture() = runTest {
+        val listeners = mutableListOf<RecognizerEngine.Listener>()
+        val recognizer = Recognizer(RecognizerEngineFactory {
+            object : RecognizerEngine {
+                override fun setListener(listener: RecognizerEngine.Listener) { listeners += listener }
+                override fun start(language: String) = Unit
+                override fun stop() = Unit
+                override fun cancel() = Unit
+                override fun destroy() = Unit
+            }
+        }, backgroundScope)
+        recognizer.start(pushToTalk)
+        recognizer.release()
+        val current = recognizer.start(pushToTalk)
+        listeners.first().onPartial("retired private words", null, true)
+        assertEquals("destroyed engine callbacks belong to no new capture", "", recognizer.caption.value)
+        listeners.last().onPartial("current words", null, true)
+        assertEquals("current words", recognizer.caption.value)
+        current.cancel()
+        recognizer.release()
+    }
 }

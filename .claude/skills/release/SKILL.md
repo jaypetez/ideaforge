@@ -64,9 +64,9 @@ changes from the same task, including this skill's initial creation; do not swee
 changes into a release. Use a separate branch/worktree when needed. Never reset someone
 else's work, alter global Git/Docker credentials, or bypass branch protection.
 
-The release workflow also builds the signed Android APK, and fails the whole release when
+The release workflow also builds the app-signed Android APK and upload-signed AAB, and fails the whole release when
 [SECURITY.md](../../../SECURITY.md#release-signing-certificate) still pins `PENDING` or the
-`release` environment lacks the four `ANDROID_*` keystore secrets.
+`release` environment lacks either role's keystore secrets.
 
 **STOP if the pin reads `PENDING`.** Read the `Signer certificate SHA-256:` line in
 SECURITY.md's "Release signing certificate" section. If it says `PENDING`, do not tag or
@@ -86,8 +86,11 @@ preflight findings rather than actions to take, whether the maintainer has: stor
 `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
 `ANDROID_KEY_PASSWORD` as environment secrets on the `release` environment, never as
 repository secrets; and restricted that environment's deployment branches and tags to
-`v*.*.*` tags (a required reviewer is optional). The workflow keeps those secrets in one job
-only if the environment is configured that way.
+`v*.*.*` tags (a required reviewer is optional). The separate `android-aab` job requires
+`ANDROID_UPLOAD_KEYSTORE_B64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`
+and `ANDROID_UPLOAD_KEY_PASSWORD` in that environment. It validates the bundle and refuses
+reuse of the app-signing certificate. The write-enabled job receives neither key.
+The workflow's confinement depends on that environment configuration.
 
 Read both version files and the latest stable release. Confirm the requested version is
 appropriate and available. An existing tag or release is not permission to overwrite it:
@@ -232,24 +235,42 @@ gh run view "$RELEASE_RUN_ID" --repo jaypetez/ideaforge --json headSha,headBranc
 ```
 
 Do not select a run by recency alone. Require the matching tag and commit, a completed
-successful run, and successful `verify`, `android-apk`, `release` and `image` jobs. If no matching run
+successful run, and successful `verify`, `android-apk`, `android-aab`, `release` and `image` jobs. If no matching run
 exists, publication is pending or blocked; creating a release by hand is not a repair.
 
 Inspect and download the actual release into a new scratch directory:
 
 ```sh
 gh release view "$TAG" --repo jaypetez/ideaforge --json tagName,isDraft,isPrerelease,assets,url
-gh release download "$TAG" --repo jaypetez/ideaforge --dir "$SCRATCH" --pattern "ideaforge-$VERSION.tar.gz" --pattern "ideaforge-$VERSION.zip" --pattern "ideaforge-$VERSION.apk" --pattern SHA256SUMS
+gh release download "$TAG" --repo jaypetez/ideaforge --dir "$SCRATCH" --pattern "ideaforge-$VERSION.tar.gz" --pattern "ideaforge-$VERSION.zip" --pattern "ideaforge-$VERSION.apk" --pattern "ideaforge-$VERSION.aab" --pattern mapping.txt --pattern SHA256SUMS
 ```
 
-Require a published stable release and all four expected uploaded assets. Verify the
-archive and APK hashes against `SHA256SUMS`, accepting only the three expected filenames.
-Check the APK's signer with `apksigner verify --print-certs` and require exactly one signer
-whose SHA-256 matches SECURITY.md (`node tools/apk-cert-pin.mjs` on the saved output does
-that comparison). Never install it as part of verification. Inspect
+Require a published stable release and all six expected uploaded assets. Verify both
+archives, APK, AAB and nonempty `mapping.txt` against `SHA256SUMS`, accepting only those five payload filenames.
+Check the APK's signer with `apksigner verify --print-certs` and require the pinned
+app-signing certificate in every reported signer or SDK range (`node tools/apk-cert-pin.mjs` on the saved output does
+that comparison for legacy numbered, V2-labelled and SDK-range labels, refusing another certificate or
+unknown labels). Never install it as part of verification. Inspect
 both archives with standard-library/platform tools: require the `ideaforge-VERSION/`
 prefix and matching `package.json`/`src/version.js` contents. Reject unsafe archive paths
 and never execute downloaded content. An HTTP 200 or a release page is not this check.
+
+Verify the AAB without requesting the private upload key. Export its public signer
+certificate into a new scratch-only truststore and run the same pinned validator used
+by the release job (from the verified source checkout):
+
+```sh
+keytool -printcert -rfc -jarfile "$SCRATCH/ideaforge-$VERSION.aab" > "$SCRATCH/upload.pem"
+keytool -importcert -noprompt -alias upload -file "$SCRATCH/upload.pem" -keystore "$SCRATCH/upload-trust.p12" -storetype PKCS12 -storepass public-verification-only
+RUNNER_TEMP="$SCRATCH" ANDROID_KEYSTORE_PASSWORD=public-verification-only \
+  bash tools/check-android-bundle.sh "$SCRATCH/ideaforge-$VERSION.aab" "$SCRATCH/upload-trust.p12" upload SECURITY.md
+```
+
+This proves format and signature integrity and a certificate different from the app pin;
+the certificate extracted from the bundle is not independently an expected upload-key
+identity. Require the matching successful protected `android-aab` job and release hashes
+as well. Do not use that upload certificate to trust an installed APK. The checksum-pinned
+bundletool is a verification tool, not execution of the downloaded app.
 
 Check the public image without using the user's saved registry credentials. If Docker is
 available, use a new, empty `--config` directory; never run `docker logout` against the

@@ -59,7 +59,7 @@ npm test                            # ~1s  — purity lint + the unit suite. Run
 npm run test:docs                   # public docs, links, facts and agent wiring.
 npm run test:graph                  # ~1s  — broken imports and unresolved module edges.
 npm run test:browser:required
-                                    # ~90s — headless Chrome on the assembled site tree.
+                                    # headless Chrome, policy checks and isolated probes.
 npm run test:all                    # unit + graph + required browser checks.
 npm run screenshots                 # ~35s — only when the UI or the README changes
 VALIDATE_MODE=handsfree \
@@ -119,6 +119,9 @@ for source checks. Stop at a green PR unless merge/publication was explicitly re
 
 Run the cheapest rung that can disprove your change, and only climb when it passes. Rungs 1–3
 are sub-second; do not skip them to get to the interesting one.
+The explicitly invoked [backlog workflow](.claude/skills/work-issues/SKILL.md) owns issue
+sequencing, fresh multi-issue workers and focused/review/final phases; this ladder remains
+the validation contract, not a second phase schedule.
 
 **1 · Purity lint — `npm run lint:purity`**
 Fails if `src/core/` or `src/runtime/` references `window`, `document`, `localStorage`,
@@ -184,6 +187,11 @@ by a fake-media pass. Record unavailable physical checks rather than claiming de
 and never run paid speech checks without an authorised key and spending cap.
 The real-app policy phase also drives Preview, Start, Resume, Pause and Exit with trusted
 input and actual playback, using only scripted model/recognition and fake speech HTTP.
+The harness logs elapsed time per probe and runs those probes sequentially. Use its exact
+`--probe` selector during development; even focused runs retain policy/accessibility checks.
+Before pushing, the clean-head `npm run test:all` gate remains mandatory. A passing
+required-browser phase inside that command is the same evidence, not a reason to run it
+again on unchanged inputs; a changed head or validation input requires fresh evidence.
 
 Add a probe by dropping a file in `test/browser/`:
 ```js
@@ -281,7 +289,8 @@ not be.
 **7 · CI** — six Node legs (Linux/Windows/macOS × Node 22/24), each running `npm test`
 and `npm run test:graph`, plus the browser job and the `android` job
 (`./gradlew check :app:assembleDebug` in `android/`, which uploads the debug APK as an
-artifact). All of them feed the single required `ci` check. Windows is not decoration: two
+artifact), which also checks APK/AAB signing and rejection controls with disposable keys.
+All of them feed the single required `ci` check. Windows is not decoration: two
 of this repo's toolchain bugs were Windows-only path handling.
 
 **Use `npm run test:browser:required` or `npm run test:all` as an agent.** The plain

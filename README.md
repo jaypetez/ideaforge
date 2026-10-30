@@ -343,7 +343,10 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   steps, before a provider needs to be checked. Onboarding requires an unchecked,
   provider-named interview-text agreement; existing installations review it in Connection
   before starting new model work.
-- **New, emulator-checked only:** hands-free voice. *Answer by voice* reads each question
+- **Manual dictation:** tap *Start dictation*, then *Stop dictation* to add literal speech
+  to the editable answer draft. Only *Send* submits it. No finish-word or voice-command
+  interpretation, press-and-hold gesture or background listening.
+- **New, emulator-checked only:** hands-free voice. *Hands-free interview* reads each question
   aloud and listens for the finish word, kept hearing with the screen off by a microphone
   foreground service whose notification offers Pause and Exit. It has not been tried on a
   physical phone; the installed web app above is the tested voice path.
@@ -352,7 +355,6 @@ ported to Kotlin and held to the web app's behaviour by golden vectors. It is an
   back visibly to the phone's voice), and a Whisper transcription fallback, with its own key
   and audio consent, used only when the phone's recogniser is missing or cannot recognise
   your language.
-- **Not yet:** press-to-talk; voice input is hands-free only.
 - **Signed APK:** attached to each GitHub release, starting with the first tag after the
   release key's fingerprint is pinned in
   [SECURITY.md](SECURITY.md#release-signing-certificate) (it still reads `PENDING` until

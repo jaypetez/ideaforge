@@ -126,6 +126,8 @@ class UxFixtureActivity : ComponentActivity() {
         transcribing = state.phase == "transcribing",
         lastSpeech = if (state.id == "voice-fallback") SpeakResult(
             SpeakStatus.SPOKEN, fallback = "Scripted hosted failure. The device voice completed the last utterance.",
+            requestedVoice = "ux-retained-unavailable-voice", voiceMissing = true,
+            message = "Scripted selected device voice is unavailable; the engine default spoke. The saved choice is retained.",
         ) else null,
         writing = state.phase == "writing",
         levels = emptyList(),
@@ -142,7 +144,7 @@ class UxFixtureActivity : ComponentActivity() {
             "ready" -> "Native has no ready stage: showing its starting presentation."
             "complete" -> "Native completion leaves the stage: showing the completed result component."
             else -> when (state.id) {
-                "voice-fallback" -> "Isolated stage with a scripted successful device-speech result and hosted-failure reason; no hosted call or output quality is proved."
+                "voice-fallback" -> "Isolated stage with a scripted successful default-speech result, retained missing-device-voice warning and hosted-failure reason; no real speech, hosted call or output quality is proved."
                 "voice-notifications-off" -> "Isolated optional-notification-denial presentation, not a platform permission decision."
                 "voice-help" -> "Isolated stage with its real command disclosure opened through the UI."
                 else -> null

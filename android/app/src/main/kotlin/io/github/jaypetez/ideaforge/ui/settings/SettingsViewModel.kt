@@ -30,6 +30,9 @@ import io.github.jaypetez.ideaforge.ui.onboarding.CheckFailure
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.onboarding.checkFailure
 import io.github.jaypetez.ideaforge.ui.onboarding.hasUsableProvider
+import io.github.jaypetez.ideaforge.voice.DeviceVoice
+import io.github.jaypetez.ideaforge.voice.DeviceVoiceLoadException
+import io.github.jaypetez.ideaforge.voice.loadDeviceVoices
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -65,6 +68,14 @@ data class ConnectionEditor(
     val agreement: Boolean? = null,
 )
 
+enum class DeviceVoicePhase { LOADING, READY, FAILED }
+
+data class DeviceVoicesState(
+    val phase: DeviceVoicePhase = DeviceVoicePhase.LOADING,
+    val choices: List<DeviceVoice> = emptyList(),
+    val problem: String? = null,
+)
+
 data class SettingsState(
     /** Null until the preferences file has been read once. */
     val prefs: Prefs? = null,
@@ -86,6 +97,9 @@ data class SettingsState(
     val inferenceDestination: InferenceDestination? = null,
     val inferenceAgreed: Boolean = false,
     val inferenceProblem: String? = null,
+    val deviceVoices: DeviceVoicesState = DeviceVoicesState(),
+    val voiceSaving: Boolean = false,
+    val voiceSaveProblem: String? = null,
 ) {
     val ring: JsonObject get() = keyring.ring
 
@@ -116,6 +130,9 @@ private data class Local(
     val confirmingForget: Boolean = false,
     val forgetting: Boolean = false,
     val forgotten: Boolean = false,
+    val deviceVoices: DeviceVoicesState = DeviceVoicesState(),
+    val voiceSaving: Boolean = false,
+    val voiceSaveProblem: String? = null,
 )
 
 /**
@@ -138,6 +155,7 @@ class SettingsViewModel(
      * forgetKey tears voice down before it deletes anything.
      */
     private val onForget: () -> Unit = {},
+    private val loadDeviceVoices: suspend () -> List<DeviceVoice> = { emptyList() },
 ) : ViewModel() {
     private val local = MutableStateFlow(Local())
 
@@ -160,11 +178,17 @@ class SettingsViewModel(
                 inferenceDestination = destination,
                 inferenceAgreed = destination != null && (editor?.agreement ?: inference.allowed(destination, prefs)),
                 inferenceProblem = consent.problem,
+                deviceVoices = l.deviceVoices,
+                voiceSaving = l.voiceSaving,
+                voiceSaveProblem = l.voiceSaveProblem,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     private var work: Job? = null
     private var generation = 0
+    private var voicesWork: Job? = null
+    private var voicesGeneration = 0
+    @Volatile private var voiceRevision = 0
 
     /**
      * Forget all, while it runs. Save, Check and Replace refuse to start meanwhile: a save
@@ -177,6 +201,7 @@ class SettingsViewModel(
     init {
         // The application starts this at launch; a graph built without it still works.
         viewModelScope.launch { if (keyring.state.value.status == KeyringState.Status.NOT_LOADED) keyring.load() }
+        refreshDeviceVoices()
     }
 
     private fun activeId(ring: JsonObject): String =
@@ -409,9 +434,52 @@ class SettingsViewModel(
         }
     }
 
-    fun setHandsFree(on: Boolean): Job = viewModelScope.launch { prefsStore.update { it.copy(handsFree = on) } }
-
     fun setSpeechRate(rate: Double): Job = viewModelScope.launch { prefsStore.update { it.copy(speechRate = rate) } }
+
+    fun refreshDeviceVoices(): Job {
+        val request = ++voicesGeneration
+        voicesWork?.cancel()
+        local.update { it.copy(deviceVoices = it.deviceVoices.copy(phase = DeviceVoicePhase.LOADING, problem = null)) }
+        return viewModelScope.launch {
+            try {
+                val choices = loadDeviceVoices()
+                currentCoroutineContext().ensureActive()
+                if (request == voicesGeneration) local.update {
+                    it.copy(deviceVoices = DeviceVoicesState(DeviceVoicePhase.READY, choices))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: DeviceVoiceLoadException) {
+                if (request == voicesGeneration) local.update {
+                    it.copy(deviceVoices = it.deviceVoices.copy(phase = DeviceVoicePhase.FAILED, problem = failure.message))
+                }
+            }
+        }.also { voicesWork = it }
+    }
+
+    /** Merge only this preference; an engine read never writes or replaces a saved choice. */
+    fun setSpeechVoice(id: String): Job? {
+        val problem = when {
+            id.length > Prefs.MAX_VOICE -> "That device voice identifier is too long to save. Your previous choice is kept; choose another voice."
+            id.isNotEmpty() && (local.value.deviceVoices.phase != DeviceVoicePhase.READY ||
+                local.value.deviceVoices.choices.none { it.id == id }) ->
+                "The device voice list changed. Your previous choice is kept; reload and choose again."
+            else -> null
+        }
+        if (problem != null) {
+            local.update { it.copy(voiceSaveProblem = problem) }
+            return null
+        }
+        val request = ++voiceRevision
+        local.update { it.copy(voiceSaving = true, voiceSaveProblem = null) }
+        return viewModelScope.launch {
+            val saved = prefsStore.update { if (request == voiceRevision) it.copy(speechVoice = id) else it }
+            if (request == voiceRevision) local.update {
+                it.copy(voiceSaving = false, voiceSaveProblem = if (saved) null else
+                    "The device voice could not be saved. Your previous choice is kept; choose again to retry.")
+            }
+        }
+    }
 
     // ---- Appearance ---------------------------------------------------------------------
 
@@ -477,6 +545,7 @@ class SettingsViewModel(
                         graph.hostedSpeaker.cancel()
                         graph.driveController.pauseFor("Keys were deleted from this device. Tap Resume to continue with the device voice.")
                     },
+                    loadDeviceVoices = graph.nativeTtsEngine::loadDeviceVoices,
                 )
             }
         }

@@ -167,6 +167,20 @@ fun buildExport(session: JsonElement?, mode: String = "claude", note: String? = 
     parts.add("## Transcript")
     if (truthy(session["opening"])) parts.add("**The idea, as first stated:** ${jsString(session["opening"])}")
     parts.add(transcriptSection(session))
+    val reports = session["contentReports"] as? JsonArray
+    if (!reports.isNullOrEmpty()) {
+        parts.add("## Content reports (saved locally)")
+        parts.add("These reports were saved on the device, not automatically sent to the developer. " +
+            "They may contain private text. Sharing this document shares them too.")
+        fun quote(text: String) = text.replace(CRLF, "\n").split("\n").joinToString("\n") { "> $it" }
+        for ((i, report) in reports.withIndex()) {
+            parts.add("### Report ${i + 1} · ${stringOf(report["category"])}")
+            parts.add("${isoDay(report["at"])} · ${stringOf(report["output"]["kind"])}" +
+                if (truthy(report["output"]["turnId"])) " · ${stringOf(report["output"]["turnId"])}" else "")
+            parts.add("Reported AI output:\n\n" + quote(stringOf(report["output"]["text"])!!))
+            if (truthy(report["note"])) parts.add("Optional note:\n\n" + quote(stringOf(report["note"])!!))
+        }
+    }
     parts.add("---")
     parts.add("_Forged with IdeaForge._")
     return parts.joinToString("\n\n") + "\n"

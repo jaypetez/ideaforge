@@ -6,6 +6,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -13,7 +15,7 @@ import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
@@ -50,6 +52,8 @@ internal fun scriptedWalkthrough(
     fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
         .getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()
+    fun answer() = compose.onNodeWithTag("answer").fetchSemanticsNode().config
+        .getOrNull(SemanticsProperties.EditableText)?.text.orEmpty()
     fun click(tag: String) {
         val interaction = compose.onNodeWithTag(tag)
         val node = interaction.fetchSemanticsNode()
@@ -58,7 +62,7 @@ internal fun scriptedWalkthrough(
         val raw = UxBounds(top.x, top.y, top.x + coordinates.size.width, top.y + coordinates.size.height)
         val clipped = node.boundsInWindow.let { UxBounds(it.left, it.top, it.right, it.bottom) }
         if (!clipped.contains(raw)) interaction.performScrollTo()
-        interaction.performClick()
+        interaction.assertIsDisplayed().assertIsEnabled().performClick()
     }
 
     launch()
@@ -82,18 +86,22 @@ internal fun scriptedWalkthrough(
                 click(chipTag)
                 settleInput()
                 assertEquals("turn $turn chip was actually tapped and filled the real draft", chipText,
-                    compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+                    answer())
                 capture("chip")
                 click("send")
             }
             else -> {
-                compose.onNodeWithTag("answer").performTextInput(stringOf(step["text"])!!)
+                val body = stringOf(step["text"])!!
+                assertEquals("turn $turn starts with an empty real editor, not a stale draft", "", answer())
+                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement(body)
+                compose.waitUntil("turn $turn enters its whole scripted answer", DEVICE_TIMEOUT) { answer() == body }
                 settleInput()
+                assertEquals("turn $turn keeps its actual answer when input settles", body, answer())
                 click("send")
             }
         }
         turn++
-        compose.waitUntil(DEVICE_TIMEOUT) {
+        compose.waitUntil("turn ${turn - 1} advances from its scripted question: $expected", DEVICE_TIMEOUT) {
             exists("wrap-offer") || (!exists("interview-busy") && exists("question") && text("question") != expected)
         }
         if (exists("wrap-offer")) break

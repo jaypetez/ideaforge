@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="report_action">Report</string>
+    <string name="report_named_action">Report: %1$s</string>
+    <string name="report_ai_question">AI-generated question</string>
+    <string name="report_ai_suggestions">AI-generated suggestions</string>
+    <string name="report_ai_result">Contains AI-generated content</string>
+    <string name="report_title">Report AI output</string>
+    <string name="report_disclosure">Save a report to this idea on your device. It includes the reported generated text, category, optional note and report time. It does not add user-written answers, full transcript, keys or connection settings. Unedited AI suggestions and drafts are generated text; generated text itself may contain private details. Reports are included in this idea’s markdown export and session backups. Saving does not send anything to the developer or a model provider.</string>
+    <string name="report_review_payload">Review included generated text</string>
+    <string name="report_hide_payload">Hide included generated text</string>
+    <string name="report_offensive">Offensive</string>
+    <string name="report_harmful">Harmful</string>
+    <string name="report_inaccurate">Inaccurate</string>
+    <string name="report_other">Other</string>
+    <string name="report_note">Optional note</string>
+    <string name="report_note_limit">%1$d / %2$d characters</string>
+    <string name="report_save">Save report locally</string>
+    <string name="report_saved_title">Report saved locally</string>
+    <string name="report_saved">Saved to this idea and its export. Nothing was automatically sent to the developer.</string>
+    <string name="report_saving">Saving locally. This may wait for work already running on this idea.</string>
+    <string name="report_save_failed">The report was not saved. Your category and note are still here; try again. %1$s</string>
+    <string name="report_retired">The idea changed or was deleted before this operation could complete. Nothing new was saved. %1$s</string>
+    <string name="report_done">Done</string>
+    <string name="report_replace">Ask a different question</string>
+    <string name="report_replace_disclosure">If this is still the current unanswered question, replace it with a different built-in checklist question. No answer or coverage change is recorded. Your unsent draft stays for you to edit. Voice stays paused.</string>
+    <string name="report_replaced">A different checklist question is ready. No answer was recorded and coverage is unchanged.</string>
+    <string name="report_replacement_source">Different question from the built-in checklist, not AI-generated</string>
+    <string name="report_replace_failed">The question was not replaced. Your saved report and unsent draft are unchanged. %1$s</string>
+    <string name="report_email">Open email to developer</string>
+    <string name="report_email_disclosure">Optional: open your email app to %1$s with only this report’s generated text, category and note. Review and send it there. Opening the composer is not proof of delivery.</string>
+    <string name="report_email_unavailable">Optional developer email is unavailable until the project confirms a privacy contact. Your local report and export still work.</string>
+    <string name="report_email_failed">No email composer could be opened. Your report is still saved locally; you can export it or try again.</string>
+    <string name="report_email_subject">IdeaForge content report</string>
+    <string name="report_privacy_email" translatable="false">jayson@duck.com</string>
+</resources>

@@ -41,6 +41,31 @@ cd android
 `:core` and `:providers` are plain JVM modules on JUnit 5. `:app` runs its tests under
 Robolectric on JUnit 4, with no device. `WalkthroughVectorTest` lives in `src/testDebug/`, so
 it runs in the debug unit-test task only. Reports land in `android/<module>/build/reports/`.
+Use these selectors while correcting a failure, preserving warm Gradle state. Routine
+`clean`, `--rerun-tasks`, cache deletion or daemon shutdown defeats incremental validation;
+the worktree-removal shutdown in section 6 is a different operation.
+
+## 1a. Native readiness during development
+
+Before the final gate, inspect the changed states using focused tests and the existing
+[capture routes](../../../CONTRIBUTING.md#development-ux-evidence):
+
+- Check truthful absent/saved fields against actual stored values, not a nonempty default
+  credential map.
+- Measure native interactive targets (`touchBoundsInRoot`), not only paint bounds. Inspect
+  clipped labels and controls at the requested windows and enlarged font scales.
+- Capture visible named errors/loading while the affected field or operation is on screen,
+  not a preceding field or an off-screen summary.
+- Use semantic selectors that distinguish headings from table cells or repeated text.
+  Check affected capture drivers and the canonical walkthrough, including its chip/export
+  consumers, before freezing the head.
+
+Keep emulator jobs sequential; preserve the existing device ownership and cleanup rules.
+A focused capture is not a full-matrix pass. For final acceptance, inspect actual
+selected-test execution, complete requested profile/SHA manifests and the PNGs on a
+rendering-enabled image; ATD semantics are not visual evidence. Use the
+[backlog workflow](../work-issues/SKILL.md#5-prove-it) for its focused/review/final ordering,
+not another implementation worker or a new evidence runner.
 
 ## 2. The whole Android gate
 
@@ -48,9 +73,21 @@ it runs in the debug unit-test task only. Reports land in `android/<module>/buil
 ./gradlew check :app:assembleDebug
 ```
 
-This is exactly what CI runs (section 7). `check` covers every module's tests, both `:app`
-unit-test variants and Android lint (`abortOnError`). The APK lands in
+This is exactly what CI runs (section 7). `check` covers every module's configured unit
+tests and Android lint (`abortOnError`). The APK lands in
 `android/app/build/outputs/apk/debug/`.
+Run this whole gate on the clean final reviewed head, not after every focused fix. Retain
+its command/result and tested SHA; any changed head, including test-only changes, fixtures
+or validation inputs invalidates the corresponding evidence. The web pre-push
+`npm run test:all` gate is still required.
+
+`PlayRequirementsTest` checks the effective debug and release merged-manifest targets are
+at least API 36. The existing recognizer-probe release-manifest guard still denies debug-only
+permissions and components. A focused policy run is:
+
+```sh
+./gradlew :app:testDebugUnitTest --tests '*PlayRequirementsTest' --tests '*RecognizerProbeTest.theReleaseMergedManifestHasNothingTheProbeAdds'
+```
 
 ## 3. Golden vectors: the contract with the JavaScript core
 
@@ -200,6 +237,14 @@ These are known and handled; do not "fix" them by loosening a test.
   paths and finds none on a Windows host. `ResultActions.contentUri` is a seam that
   `ResultScreenTest` swaps only when a probe through the real provider fails, and it
   requires the real provider off Windows.
+- **Preferences DataStore replacement.** In plain Windows JVM tests, DataStore's fallback
+  `.preferences_pb.tmp` rename cannot replace an existing preferences file. Provider/address
+  changes can write a withdrawal before `InferenceConsent.accept` writes the new grant.
+  Multi-write behavior tests use the existing `SettingsViewModelTest.Process.memoryPrefs`
+  fixture, keeping the real `PrefsStore`, consent policy and on-disk keyring. Keep
+  process-death/persistence tests on real files, and retain `PrefsStoreTest`'s explicit
+  Windows assumption for corrupt-file write-back (which Linux CI exercises). Never swallow
+  a storage failure or assume consent to make a behavior test pass.
 - A Gradle daemon can keep files under `build/` open. `./gradlew --stop` before deleting a
   worktree.
 
@@ -211,12 +256,42 @@ PRs). It then runs `./gradlew --no-daemon check :app:assembleDebug`. It uploads 
 as the `ideaforge-debug-apk` artifact for 14 days, and the reports and test results on
 failure. The job feeds the single required `ci` check, so a red Android build blocks every
 PR.
+After assembling, it runs `tools/test-android-apk-alignment.py` with SDK `zipalign` on the
+actual debug APK. The helper runs `zipalign -c -P 16 -v 4`, then proves rejection by appending
+a copied arm64 `.so` at a four-byte but not 16 KB-aligned ZIP offset in a separate APK.
+It leaves the original APK untouched and removes the planted copy. To run it locally from
+the repository root, select SDK Build-Tools 35 or newer (use `python` and `zipalign.exe` on
+Windows):
+
+```sh
+python3 tools/test-android-apk-alignment.py "$ANDROID_HOME/build-tools/<version>/zipalign" android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+This is ZIP packaging evidence, not an ELF segment check or a 16 KB-device runtime test.
+It also runs `bash tools/test-android-packages.sh` with disposable generated keys: the
+actual minified APK and AAB, the same APK alignment check and planted control on the signed
+release APK, distinct signing roles, common versionCode, bundle validation, and
+missing-secret/unsigned/corrupt-download rejection. No production signing secret is needed.
+`verifyReleaseApk` and `verifyReleaseBundle` check their actual shipped containers.
 
 `.github/workflows/android-device.yml` is separate and not required. On every push to `main`,
 nightly and on `workflow_dispatch`, it enables KVM on Ubuntu and runs
 `./gradlew --no-daemon :app:pixel6Api34DebugAndroidTest` with software rendering
-(`swiftshader_indirect`), uploading the reports on failure. Start a run with
-`gh workflow run android-device.yml`.
+(`swiftshader_indirect`), then default/full runs the complete shared UX inventory on
+the standard AOSP `pixel6Api34Visual` and `pixelTabletApi34Visual` profiles sequentially.
+It explicitly selects `UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable`;
+only the focused shell route supplies `uxShellProbe=true`. Never pass an unused empty
+instrumentation argument. After each visual task, `tools/check-android-device-results.py`
+requires the actual selected passing test in that device's JUnit XML, rejecting zero
+discovery, wrong methods, failures and skips even when Gradle succeeds. Its dependency-free
+regressions run with `python test/android-device-results.test.py` from the repository root.
+Clean-tree/SHA checks bracket captures, and uploads retain `if-no-files-found: error`.
+Read back complete manifests and inspect original PNGs; the execution guard is not visual
+acceptance. Start a run with `gh workflow run android-device.yml`; focused routes are not
+default/full proof.
+Default/full has a measured 60-minute overall job budget after a complete compact matrix
+took over 21 minutes and the expanded task hit the former shared cap. Focused routes retain
+40 minutes; capture/test deadlines, requested inventories and evidence checks are unchanged.
 
 ## 8. Report
 

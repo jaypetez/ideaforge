@@ -29,6 +29,8 @@ import io.github.jaypetez.ideaforge.data.IdGen
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionLoadState
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
+import io.github.jaypetez.ideaforge.voice.DriveController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -111,6 +113,7 @@ class LibraryViewModel(
     private val clock: Clock,
     private val worker: SessionWorker,
     private val writes: CoroutineScope,
+    reportDrive: () -> DriveController? = { null },
 ) : ViewModel() {
     private val filters = MutableStateFlow(LibraryFilters())
     private val _notice = MutableStateFlow<LibraryNotice?>(null)
@@ -122,6 +125,7 @@ class LibraryViewModel(
 
     /** The stored documents, for the detail pane's export preview. */
     val sessions: StateFlow<List<Session>> = store.sessions
+    val reports = ContentReportController(store, worker, clock, writes, viewModelScope, ids = ids, drive = reportDrive)
 
     init { retryLoad() }
 
@@ -210,7 +214,8 @@ class LibraryViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val graph = (this[APPLICATION_KEY] as IdeaForgeApp).graph
-                LibraryViewModel(graph.sessionStore, graph.idGen, graph.clock, graph.sessionWorker, graph.appScope)
+                LibraryViewModel(graph.sessionStore, graph.idGen, graph.clock, graph.sessionWorker, graph.appScope,
+                    reportDrive = { graph.driveController })
             }
         }
 

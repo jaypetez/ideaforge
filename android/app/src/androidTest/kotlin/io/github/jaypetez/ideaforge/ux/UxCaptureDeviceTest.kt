@@ -4,16 +4,23 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.SystemClock
+import android.util.Log
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
@@ -28,9 +35,11 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.isDialog
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.DEVICE_TIMEOUT
 import io.github.jaypetez.ideaforge.IdeaForgeApp
@@ -41,8 +50,13 @@ import io.github.jaypetez.ideaforge.core.PromptParts
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.SEED_QUESTION
 import io.github.jaypetez.ideaforge.core.emptyKeyring
+import io.github.jaypetez.ideaforge.core.buildBackup
+import io.github.jaypetez.ideaforge.core.renameSession
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.core.js.num
+import io.github.jaypetez.ideaforge.core.js.str
+import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.runtime.Provider
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.runtime.SampleResult
@@ -60,6 +74,7 @@ import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
 import io.github.jaypetez.ideaforge.ui.library.LibraryTags
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.result.ResultTags
+import io.github.jaypetez.ideaforge.ui.result.exportFor
 import io.github.jaypetez.ideaforge.ui.settings.SettingsTags
 import io.github.jaypetez.ideaforge.ui.settings.HostedSpeechTags
 import io.github.jaypetez.ideaforge.ui.settings.BackupTags
@@ -69,14 +84,23 @@ import io.github.jaypetez.ideaforge.voice.DriveServiceControl
 import io.github.jaypetez.ideaforge.voice.SpeakResult
 import io.github.jaypetez.ideaforge.voice.Speaker
 import io.github.jaypetez.ideaforge.voice.VoiceMode
+import io.github.jaypetez.ideaforge.voice.DeviceVoice
+import io.github.jaypetez.ideaforge.voice.SpeakStatus
+import io.github.jaypetez.ideaforge.voice.TtsEngine
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -89,6 +113,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
@@ -107,19 +132,576 @@ import javax.crypto.spec.SecretKeySpec
 @RunWith(AndroidJUnit4::class)
 class UxCaptureDeviceTest {
     @get:Rule
-    val compose = createEmptyComposeRule()
+    val compose = if (listOf("playListingProbe", "uxMakeoverProbe", "uxReportingProbe", "uxDeviceVoicesProbe", "uxDictationProbe").any {
+        InstrumentationRegistry.getArguments().getString(it) == "true"
+    }) {
+        // Queue new capture effects; the legacy unconfined dispatcher can re-enter layout.
+        androidx.compose.ui.test.junit4.v2.createEmptyComposeRule()
+    } else createEmptyComposeRule()
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val target = instrumentation.targetContext
     private val app get() = target.applicationContext as IdeaForgeApp
     private var scenario: ActivityScenario<out Activity>? = null
     private var fixtureGraph: AppGraph? = null
+    private var fixturePreferencesScope: CoroutineScope? = null
     private var activity: Activity? = null
     private lateinit var fixtures: UxFixtures
     private lateinit var runDir: File
     private var nextGraph = 0
     private var heldLibraryRead: CountDownLatch? = null
     private var libraryReadEntered: CountDownLatch? = null
+    private var heldVoiceInit: CompletableDeferred<Boolean>? = null
+    private val walkthroughFrames = listOf("seed", "chip", "result")
+
+    @Test
+    fun failedShareVerificationAndChooserLaunchStillCleanOnlyOwnedFiles() {
+        val shares = File(target.cacheDir, io.github.jaypetez.ideaforge.ui.result.ResultActions.SHARE_DIR)
+        val hadDirectory = shares.isDirectory
+        check(shares.isDirectory || shares.mkdirs())
+        val prefix = "ux207-cleanup-${SystemClock.elapsedRealtimeNanos()}"
+        val prior = File(shares, "$prefix-prior").apply { check(mkdir()); resolve("prior.md").writeText("keep prior export") }
+        try {
+            for (chooserFails in listOf(false, true)) {
+                val created = File(shares, "$prefix-$chooserFails")
+                val failure = runCatching {
+                    UxSystemActions(instrumentation, target, target.cacheDir).use { system ->
+                        if (android.os.Build.VERSION.SDK_INT >= 34) system.requireCommandTransport()
+                        system.share {
+                            check(created.mkdir())
+                            created.resolve("result.md").writeText("truncated")
+                            if (chooserFails) error("scripted chooser launch failed")
+                        }
+                        system.requireShared("complete canonical markdown")
+                    }
+                }.exceptionOrNull()
+                assertTrue("the intended chooser/content fault remains a failure", failure is IllegalStateException)
+                assertTrue("even a failed share removes its registered files", !created.exists())
+                assertEquals("prior exports remain untouched", "keep prior export", prior.resolve("prior.md").readText())
+            }
+        } finally {
+            check(prior.deleteRecursively())
+            if (!hadDirectory) check(shares.delete())
+        }
+    }
+
+    @Test
+    fun requestedNativeMakeoverAcceptance() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxMakeoverProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedNativeMakeoverAcceptance") != true) {
+                "the selected makeover acceptance requires uxMakeoverProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "makeover acceptance has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-makeover")
+        fixtures = UxFixtures.load(target)
+        val windows = when (request.window) {
+            "compact" -> listOf("compact", "compact-landscape")
+            "expanded" -> listOf("expanded")
+            else -> listOf("compact", "compact-landscape", "expanded")
+        }
+        val sizes = mapOf("compact" to (411 to 914), "compact-landscape" to (640 to 400), "expanded" to (1280 to 900))
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { scale -> UxConfiguration(window, theme, scale,
+                requestedWidthDp = sizes.getValue(window).first, requestedHeightDp = sizes.getValue(window).second) }
+        } }
+        val states = listOf("library", "library-100", "filtered", "library-long", "interview-ime", "bank",
+            "busy-turn", "save-failure", "synthesis-failure", "result-long",
+            "voice-listening", "voice-paused", "voice-recovering", "voice-blocked", "voice-notifications-off")
+        val allFontStates = setOf("library", "library-long", "interview-ime", "bank", "save-failure", "result-long", "voice-listening")
+        fun statesFor(config: UxConfiguration) = states.filter { config.fontScale == 2f || it in allFontStates }
+        val journeyFrames = listOf("fresh", "provider-checking", "provider-error", "ready-choice", "voice-rationale", "typed-seed",
+            "chip", "result", "save-cancel", "share-cancel", "saved-markdown", "copied-markdown", "ask-more",
+            "controller-paused", "controller-exit", "wrap", "skipped", "theme", "forget-dialog", "forget-cancel",
+            "backup", "import-copy", "import-failure")
+        val environment = UxDeviceEnvironment(instrumentation.uiAutomation)
+        check(environment.navigationModes.toSet() == setOf("threebutton", "gestural")) {
+            "acceptance needs installed gesture and three-button navigation overlays"
+        }
+        val navigationMatrix = matrix.filter { it.fontScale == 2f }.flatMap { config ->
+            environment.navigationModes.map { config.copy(navigationMode = it) }
+        }
+        val expected = matrix.flatMap { config ->
+            (statesFor(config) + if (config.fontScale == 2f) listOf("library-menu", "delete-dialog", "delete-cancel")
+                else emptyList()).map { "${config.id}/$it" } +
+                if (config.fontScale == 1f && config.window != "compact-landscape") {
+                    journeyFrames.map { "${config.id}/journey-$it" } +
+                        listOf("${config.id}/journey-rotated", "${config.id}/library-rotated")
+                } else emptyList()
+        }.toSet() + navigationMatrix.map { "${it.id}/interview-ime" }
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output, expected)
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-makeover-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            environment.use {
+                for (config in matrix + navigationMatrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    config.navigationMode?.let { mode ->
+                        environment.selectNavigationMode(mode)
+                        compose.waitUntil(DEVICE_TIMEOUT) { environment.navigationModeApplied(mode) }
+                    }
+                    for (id in if (config.navigationMode == null) statesFor(config) else listOf("interview-ime")) {
+                        val state = when {
+                            id.startsWith("voice-") -> UxFixtureActivity.requestedVoiceState(fixtures, id)
+                            id == "interview-ime" -> fixtures.state("interview-long").copy(id = id)
+                            else -> fixtures.state(id)
+                        }
+                        try {
+                            prepare(state, config)
+                            val controls = navigate(state).toMutableList()
+                            if (id in setOf("library", "library-100")) {
+                                controls += tag(LibraryTags.more(requireNotNull(stringOf(fixtures.sessions(state).first()["id"]))))
+                            }
+                            requireMakeoverSemantics(state)
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeSurface = nativeSurface(state), nativeMapping = nativeMapping(state))
+                            if (id == "interview-ime") {
+                                check(activity!!.window.decorView.rootWindowInsets.isVisible(WindowInsets.Type.ime())) {
+                                    "actual IME was lost during native reachability checks"
+                                }
+                            }
+                            if (id == "library-long") requireSelectedPaneSurvivesRecreation(config, recorder)
+                            if (id == "library" && config.fontScale == 2f) {
+                                val graph = checkNotNull(fixtureGraph)
+                                val before = graph.sessionStore.sessions.value
+                                val menu = LibraryTags.more(requireNotNull(stringOf(fixtures.sessions(state).first()["id"])))
+                                compose.onNodeWithTag(menu).performClick()
+                                val delete = hasText(target.getString(R.string.idea_delete)) and hasClickAction()
+                                recorder.capture(state.copy(id = "library-menu"), config, checkNotNull(activity),
+                                    listOf(UxControl("delete-menu", delete)), rootSurfaceRole = "surfaceContainer")
+                                compose.onNode(delete).performClick()
+                                val cancel = hasText(target.getString(R.string.action_cancel)) and hasClickAction() and hasAnyAncestor(isDialog())
+                                recorder.capture(state.copy(id = "delete-dialog"), config, checkNotNull(activity),
+                                    listOf(UxControl("cancel-delete", cancel), UxControl("confirm-delete", delete and hasAnyAncestor(isDialog()))),
+                                    rootSurfaceRole = "surfaceContainerHigh")
+                                compose.onNode(cancel).performClick()
+                                assertEquals("Cancel does not delete a library row", before, graph.sessionStore.sessions.value)
+                                recorder.capture(state.copy(id = "delete-cancel"), config, checkNotNull(activity),
+                                    listOf(tag(menu)))
+                            }
+                        } catch (error: Throwable) {
+                            recorder.failed(state, config, error, activity)
+                        } finally { closeFixture() }
+                    }
+                    if (config.navigationMode == null && config.fontScale == 1f && config.window != "compact-landscape") {
+                        try {
+                            captureMakeoverJourney(config, recorder, output)
+                        } catch (error: Throwable) {
+                            recorder.failedRun(error)
+                            var diagnostic = activity
+                            for (key in UxEvidence.unrecorded(journeyFrames.map { "${config.id}/journey-$it" }.toSet() +
+                                "${config.id}/journey-rotated", recorder.recordedKeys)) {
+                                recorder.failed(UxState(key.substringAfter('/'), "journey", "real-app", null, null, null),
+                                    config, error, diagnostic)
+                                diagnostic = null
+                            }
+                        } finally { closeFixture() }
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "owned makeover state remains: $runDir" } },
+                { check(app.graph === originalGraph) { "the original app graph was not restored" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
+
+    private fun captureMakeoverJourney(config: UxConfiguration, recorder: UxCaptureRecorder, output: File) {
+        val checks = AtomicInteger()
+        val checking = CompletableDeferred<Unit>()
+        prepare(fixtures.state("fresh"), config, checker = ProviderCheck { _, _ ->
+            if (checks.incrementAndGet() == 1) {
+                checking.await()
+                throw ProviderException(ProviderErrorCode.AUTH, "Scripted rejected dummy key; retry the same field.", status = 401)
+            }
+            emptyList()
+        })
+        val graph = checkNotNull(fixtureGraph)
+        val starts = AtomicInteger()
+        val speeches = AtomicInteger()
+        graph.driveService = object : DriveServiceControl {
+            override fun start() { starts.incrementAndGet() }
+            override fun stop() {}
+        }
+        graph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult { speeches.incrementAndGet(); return awaitCancellation() }
+            override fun cancel() {}
+            override fun shutdown() {}
+        }
+        fun capture(frame: String, controls: List<UxControl>, surfaceRole: String = "background") = recorder.capture(
+            UxState("journey-$frame", "journey", "real-app", null, null, null), config, checkNotNull(activity), controls,
+            nativeMapping = "Real MainActivity navigation and native system document/share actions. Only model/check/speech/service effects are scripted; private stores and dummy credentials are removed in cleanup.",
+            rootSurfaceRole = surfaceRole)
+        fun click(tag: String) { revealControl(tag); compose.onNodeWithTag(tag).assertIsDisplayed().performClick() }
+        fun button(label: Int) = hasText(target.getString(label)) and hasClickAction()
+        fun dialogCancel() = compose.onNode(button(R.string.action_cancel) and hasAnyAncestor(isDialog())).performClick()
+        launchMain()
+        await("provider-groq")
+        compose.onNode(hasText(target.getString(R.string.onboarding_pick_title)))
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+        capture("fresh", listOf(tag("provider-groq"), tag("provider-ollama")))
+        click("provider-groq")
+        await("api-key")
+        compose.onNodeWithTag("api-key").performTextReplacement("ux_dummy_never_transmitted")
+        hideKeyboard()
+        click("inference-consent")
+        click("check-key")
+        compose.waitUntilAtLeastOneExists(hasText(target.getString(R.string.onboarding_checking)), DEVICE_TIMEOUT)
+        compose.onNodeWithTag("check-key").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
+        compose.onNodeWithTag("api-key").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+        capture("provider-checking", listOf(UxControl("checking-key", hasTestTag("api-key"), false),
+            textControl("provider-back", R.string.onboarding_back)))
+        checking.complete(Unit)
+        await("check-failure")
+        compose.onNodeWithTag("check-failure")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        capture("provider-error", listOf(tag("api-key"), tag("inference-consent"), tag("check-key")))
+        click("check-key")
+        await("new-idea-choice")
+        assertEquals(0, graph.sessionStore.sessions.value.size)
+        assertEquals(0, starts.get())
+        compose.onNodeWithTag("new-idea-voice").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        capture("ready-choice", listOf(tag("new-idea-voice"), tag("new-idea-type"), tag("new-idea-cancel")))
+        require(!voicePermissionsHeld(target)) { "permission-intent acceptance requires an ungranted managed-device permission" }
+        click("new-idea-voice")
+        await("voice-mic-rationale")
+        capture("voice-rationale", listOf(tag("voice-mic-continue"),
+            UxControl("voice-not-now", button(R.string.voice_mic_cancel))), "surfaceContainerHigh")
+        compose.onNode(button(R.string.voice_mic_cancel)).performClick()
+        await("answer")
+        assertEquals("rationale cancellation starts no service", 0, starts.get())
+        assertEquals("rationale cancellation speaks nothing", 0, speeches.get())
+        compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+        await("new-idea-type")
+        click("new-idea-type")
+        await("answer")
+        requireMakeoverSemantics(fixtures.state("interview-long").copy(id = "typed"))
+        capture("typed-seed", interviewControls())
+
+        scriptedWalkthrough(compose, target, launch = {}, settleInput = ::hideKeyboard, capture = { frame ->
+            if (frame == "chip") capture("chip", interviewControls())
+            if (frame == "result") capture("result", resultControls())
+        })
+        val done = graph.sessionStore.sessions.value.single { stringOf(it["status"]) == "done" }
+        val id = requireNotNull(stringOf(done["id"]))
+        val export = exportFor(done)
+        val ids = runBlocking { graph.sessionStore.knownIds() }
+        UxSystemActions(instrumentation, target, File(output, "${config.id}/native-system")).use { system ->
+            system.requireCommandTransport()
+            click(ResultTags.SAVE)
+            system.awaitExternalWindow()
+            system.snapshot("save-cancel")
+            system.back()
+            await(ResultTags.OUTPUT)
+            assertEquals(done, graph.sessionStore.get(id))
+            capture("save-cancel", resultControls())
+            system.share { click(ResultTags.SHARE) }
+            system.awaitExternalWindow()
+            system.requireShared(export)
+            system.snapshot("share-cancel")
+            system.back()
+            await(ResultTags.OUTPUT)
+            assertEquals(done, graph.sessionStore.get(id))
+            capture("share-cancel", resultControls())
+            click(ResultTags.SAVE)
+            val saved = system.createDocument("result.md")
+            await(ResultTags.OUTPUT)
+            compose.waitUntil(DEVICE_TIMEOUT) { system.readDocument(saved) == export }
+            capture("saved-markdown", resultControls())
+            system.copy { click(ResultTags.COPY) }
+            system.requireCopied(export)
+            capture("copied-markdown", resultControls())
+            click(ResultTags.ASK_MORE)
+            await("answer")
+            compose.waitUntil(DEVICE_TIMEOUT) { !exists("interview-busy") }
+            assertEquals(ids, runBlocking { graph.sessionStore.knownIds() })
+            assertEquals("interviewing", stringOf(graph.sessionStore.get(id)!!["status"]))
+            capture("ask-more", interviewControls())
+            assertEquals("manual work starts no voice service", 0, starts.get())
+            compose.runOnUiThread { graph.driveController.start(checkNotNull(graph.sessionStore.get(id)), "typed") }
+            await("voice-stage")
+            compose.waitUntil(DEVICE_TIMEOUT) { speeches.get() == 1 }
+            click("voice-pause")
+            assertEquals(VoiceMode.PAUSED, graph.driveController.state.value.mode)
+            capture("controller-paused", listOf(tag("voice-resume"), tag("voice-exit")))
+            // Admission is deliberately scripted here; real UI Resume still requires mic permission.
+            compose.runOnUiThread { graph.driveController.resume() }
+            compose.waitUntil(DEVICE_TIMEOUT) { speeches.get() == 2 }
+            click("voice-pause")
+            click("voice-exit")
+            await("answer")
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { graph.driveController.draftWrite?.join() } }
+            compose.waitUntil(DEVICE_TIMEOUT) { !exists("interview-busy") }
+            compose.waitForIdle()
+            assertEquals(null, graph.driveController.state.value.mode)
+            assertEquals("a retired run cannot start more speech", 2, speeches.get())
+            assertEquals(ids, runBlocking { graph.sessionStore.knownIds() })
+            capture("controller-exit", interviewControls())
+            val draft = "The same draft and session survive real device rotation."
+            awaitEditableQuestion()
+            compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement(draft)
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                    .getOrNull(SemanticsProperties.EditableText)?.text == draft
+            }
+            hideKeyboard()
+            assertEquals(draft, compose.onNodeWithTag("answer").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+            val before = checkNotNull(activity).resources.configuration.orientation
+            scenario!!.onActivity { it.requestedOrientation = if (before == Configuration.ORIENTATION_PORTRAIT)
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                var rotated = false
+                scenario!!.onActivity { activity = it; rotated = it.resources.configuration.orientation != before }
+                rotated && exists("answer")
+            }
+            assertEquals(draft, compose.onNodeWithTag("answer").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+            assertEquals(ids, runBlocking { graph.sessionStore.knownIds() })
+            assertEquals(sessionDisplayTitle(graph.sessionStore.get(id)!!), nodeText("interview-title"))
+            // Rotation has its own achieved dimensions; never label the swapped window as a tablet.
+            val view = checkNotNull(activity).window.decorView
+            val density = checkNotNull(activity).resources.displayMetrics.density
+            recorder.capture(UxState("journey-rotated", "interview", "real-app", null, null, id),
+                config.copy(requestedWidthDp = (view.width / density).toInt(), requestedHeightDp = (view.height / density).toInt()),
+                checkNotNull(activity), interviewControls(),
+                nativeMapping = "Actual requestedOrientation recreation; exact session ids, full title and editable draft are asserted unchanged. Achieved rotated dp/density are recorded.")
+            scenario!!.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
+            closeFixture()
+            prepare(fixtures.state("ready"), config)
+            // Keep the real typed wrap path independent of the earlier chip case.
+            scriptedWalkthrough(compose, target, launch = ::launchMain, settleInput = ::hideKeyboard, wrapOnly = true)
+            capture("wrap", listOf(tag("wrap-accept"), tag("wrap-decline")))
+            click("wrap-decline")
+            val wrapGraph = checkNotNull(fixtureGraph)
+            val wrapping = wrapGraph.sessionStore.sessions.value.single()
+            val wrapId = requireNotNull(stringOf(wrapping["id"]))
+            val turn = (wrapping["turns"] as JsonArray).last()
+            click("skip")
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                !exists("interview-busy") && (wrapGraph.sessionStore.get(wrapId)!!["turns"] as JsonArray)
+                    .any { it["n"] == turn["n"] && truthy(it["skipped"]) }
+            }
+            capture("skipped", interviewControls())
+        }
+        val dataGraph = checkNotNull(fixtureGraph)
+        compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+        await(SettingsTags.PROVIDER)
+        val keyBytes = dataGraph.keyringStore.file.readBytes()
+        val generation = dataGraph.keyringStore.generation.value
+        revealControl(SettingsTags.theme(config.theme))
+        compose.onNodeWithTag(SettingsTags.theme(config.theme)).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+        val otherTheme = if (config.theme == "light") "dark" else "light"
+        click(SettingsTags.theme(otherTheme))
+        compose.waitUntil(DEVICE_TIMEOUT) { runBlocking { dataGraph.prefsStore.current().theme } == otherTheme }
+        click(SettingsTags.theme(config.theme))
+        compose.waitUntil(DEVICE_TIMEOUT) { runBlocking { dataGraph.prefsStore.current().theme } == config.theme }
+        capture("theme", Prefs.THEMES.map { tag(SettingsTags.theme(it)) })
+        click(SettingsTags.FORGET)
+        await(SettingsTags.FORGET_CONFIRM)
+        capture("forget-dialog", listOf(UxControl("cancel-forget", button(R.string.action_cancel) and hasAnyAncestor(isDialog()))),
+            "surfaceContainerHigh")
+        dialogCancel()
+        click(SettingsTags.FORGET)
+        await(SettingsTags.FORGET_CONFIRM)
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.FORGET_CONFIRM) }
+        assertTrue(keyBytes.contentEquals(dataGraph.keyringStore.file.readBytes()))
+        assertEquals(generation, dataGraph.keyringStore.generation.value)
+        capture("forget-cancel", listOf(tag(SettingsTags.FORGET)))
+        UxSystemActions(instrumentation, target, File(output, "${config.id}/native-system")).use { system ->
+            click(BackupTags.EXPORT)
+            val path = system.createDocument("backup.json")
+            await(BackupTags.STATUS)
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                !dataGraph.backupJobs.state.value.busy &&
+                    dataGraph.backupJobs.state.value.message.orEmpty().startsWith("Backed up")
+            }
+            val backup = Json.parseToJsonElement(system.readDocument(path)) as JsonObject
+            assertEquals(setOf("format", "version", "exportedAt", "sessions"), backup.keys)
+            assertEquals(dataGraph.sessionStore.sessions.value.size, (backup["sessions"] as JsonArray).size)
+            capture("backup", listOf(tag(BackupTags.EXPORT), tag(BackupTags.IMPORT)))
+            val original = dataGraph.sessionStore.sessions.value.single()
+            val changed = renameSession(original, str("A collision preserved as an imported copy"), num(fixtures.now + 1))
+            val incoming = system.importDocument("collision", buildBackup(JsonArray(listOf(changed)), num(fixtures.now)))
+            click(BackupTags.IMPORT)
+            system.chooseDocument(incoming)
+            await(BackupTags.STATUS)
+            compose.waitUntil(DEVICE_TIMEOUT) { dataGraph.sessionStore.sessions.value.size == 2 && !dataGraph.backupJobs.state.value.busy }
+            assertEquals(original, dataGraph.sessionStore.get(requireNotNull(stringOf(original["id"]))))
+            assertTrue(dataGraph.backupJobs.state.value.message.orEmpty().contains("1 kept as copies"))
+            capture("import-copy", listOf(tag(BackupTags.IMPORT), UxControl("import-status", hasTestTag(BackupTags.STATUS), false)))
+            val beforeImport = dataGraph.sessionStore.sessions.value
+            val malformed = system.importDocument("malformed", "{\"not\":\"an IdeaForge backup\"}")
+            click(BackupTags.IMPORT)
+            system.chooseDocument(malformed)
+            compose.waitUntil(DEVICE_TIMEOUT) { dataGraph.backupJobs.state.value.failed && !dataGraph.backupJobs.state.value.busy }
+            revealControl(BackupTags.STATUS)
+            compose.onNodeWithTag(BackupTags.STATUS).assertIsDisplayed().assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            assertEquals(beforeImport, dataGraph.sessionStore.sessions.value)
+            assertTrue(keyBytes.contentEquals(dataGraph.keyringStore.file.readBytes()))
+            capture("import-failure", listOf(tag(BackupTags.IMPORT), UxControl("import-status", hasTestTag(BackupTags.STATUS), false)))
+        }
+        assertEquals("only the explicitly scripted controller admission starts a service", 1, starts.get())
+        assertEquals("no retired speech runs after leaving the interview", 2, speeches.get())
+    }
+
+    private fun requireMakeoverSemantics(state: UxState) {
+        fun role(tag: String, value: Role) = compose.onNodeWithTag(tag)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, value))
+        if (state.id.startsWith("voice-")) {
+            compose.onNodeWithTag("voice-question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            compose.onNodeWithTag("voice-phase").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            role(if (state.phase in setOf("paused", "blocked")) "voice-resume" else "voice-pause", Role.Button)
+            role("voice-exit", Role.Button)
+            compose.onNodeWithTag("voice-levels").assertDoesNotExist()
+            if (state.id in setOf("voice-listening", "voice-notifications-off"))
+                compose.onNodeWithTag("voice-no-level").assertExists()
+        } else if (state.id in setOf("busy-turn", "save-failure")) {
+            compose.onNodeWithTag("question").assertDoesNotExist()
+            if (state.id == "save-failure") {
+                revealControl("history-toggle")
+                compose.onNodeWithTag("history-toggle").performClick()
+            }
+            val thread = hasAnyAncestor(hasTestTag("thread"))
+            compose.onNode(hasText(SEED_QUESTION) and thread).assertExists()
+            compose.onNode(hasText(fixtures.text("answer")) and thread).assertExists()
+            role("send", Role.Button)
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
+            if (state.id == "busy-turn") {
+                compose.onNodeWithTag("interview-busy").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
+                compose.onNodeWithTag("busy-line").assert(
+                    SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            } else {
+                compose.onNodeWithTag("notice-message").assertIsDisplayed()
+                compose.onNodeWithTag("notice-dismiss").assertExists()
+            }
+        } else if (state.surface == "interview") {
+            compose.onNodeWithTag("question").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+            role("send", Role.Button)
+            compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsActions.SetText))
+            val tags = compose.onAllNodes(SemanticsMatcher("all native task semantics") { true }, useUnmergedTree = true).fetchSemanticsNodes()
+                .mapNotNull { it.config.getOrNull(SemanticsProperties.TestTag) }
+            check(tags.indexOf("question") in 0 until tags.indexOf("answer") && tags.indexOf("answer") < tags.indexOf("send")) {
+                "the native task reading order must be question, editable answer, then Send: $tags"
+            }
+            if (state.id == "bank") compose.onNodeWithTag("degraded").assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        } else if (state.surface == "library") {
+            compose.onNodeWithTag(LibraryTags.HEADING).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            if (exists(LibraryTags.FILTERS)) compose.onNodeWithTag(LibraryTags.FILTERS)
+                .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
+        } else if (state.id == "result-long") {
+            compose.onNodeWithTag(ResultTags.COPY).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+            assertTrue("the actual document exposes section headings",
+                compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading) and
+                    hasAnyAncestor(hasTestTag(ResultTags.OUTPUT))).fetchSemanticsNodes().isNotEmpty())
+        }
+    }
+
+    private fun requireSelectedPaneSurvivesRecreation(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        val graph = checkNotNull(fixtureGraph)
+        val ids = runBlocking { graph.sessionStore.knownIds() }
+        val title = sessionDisplayTitle(checkNotNull(graph.sessionStore.get("ux-long-active")))
+        scenario!!.recreate()
+        scenario!!.onActivity { activity = it }
+        await(LibraryTags.DETAIL)
+        compose.onNode(hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(title))).assertIsDisplayed()
+        assertEquals(ids, runBlocking { graph.sessionStore.knownIds() })
+        val selected = compose.onAllNodes(hasTestTag(LibraryTags.CARD)).fetchSemanticsNodes()
+            .filter { it.config.getOrNull(SemanticsProperties.Selected) == true }
+        val listVisible = runCatching { compose.onNodeWithTag(LibraryTags.LIST).assertIsDisplayed() }.isSuccess
+        if (listVisible) {
+            assertTrue("an expanded adaptive list/detail keeps the selected row", selected.isNotEmpty())
+        }
+        if (config.fontScale == 1f && config.window != "compact-landscape") {
+            val before = checkNotNull(activity).resources.configuration.orientation
+            scenario!!.onActivity { it.requestedOrientation = if (before == Configuration.ORIENTATION_PORTRAIT)
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+            compose.waitUntil(DEVICE_TIMEOUT) {
+                var rotated = false
+                scenario!!.onActivity { activity = it; rotated = it.resources.configuration.orientation != before }
+                rotated && exists(LibraryTags.DETAIL)
+            }
+            compose.onNode(hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(title))).assertIsDisplayed()
+            assertEquals("rotation never recreates the selected library idea", ids, runBlocking { graph.sessionStore.knownIds() })
+            val view = checkNotNull(activity).window.decorView
+            val density = checkNotNull(activity).resources.displayMetrics.density
+            recorder.capture(fixtures.state("library-long").copy(id = "library-rotated"),
+                config.copy(requestedWidthDp = (view.width / density).toInt(), requestedHeightDp = (view.height / density).toInt()),
+                checkNotNull(activity), listOf(textControl("continue", R.string.idea_continue)) + navigationControls(),
+                nativeMapping = "Installed adaptive list/detail selection survives actual requestedOrientation recreation; actual dp/density are recorded.")
+            scenario!!.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
+        }
+    }
+
+    @Test
+    fun requestedPlayListingAssets() {
+        val bundle = InstrumentationRegistry.getArguments()
+        val probe = bundle.getString("playListingProbe")
+        if (probe == null) {
+            require(bundle.getString("class")?.contains("#requestedPlayListingAssets") != true) {
+                "the selected listing capture requires playListingProbe=true"
+            }
+            return
+        }
+        require(probe == "true") { "playListingProbe must be true" }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "walkthrough" && request.window == "compact" && request.states == null) {
+            "listing capture requires the complete compact scripted walkthrough"
+        }
+        val outputPath = requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() })
+        val output = File(outputPath, "play-listing")
+        val matrix = listOf("light", "dark").map { UxConfiguration("compact", it, 1f) }
+        val expected = matrix.flatMap { config -> walkthroughFrames.map { "${config.id}/walkthrough-$it" } }.toSet()
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output, expected)
+        fixtures = UxFixtures.load(target)
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-listing-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs()) { "cannot create owned listing fixture directory" }
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = false)
+                    captureWalkthrough(config, recorder)
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "cannot remove owned listing fixture directory" } },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                if (recorder.failures.isEmpty()) {
+                    try {
+                        val screenshots = matrix.flatMap { config -> walkthroughFrames.map { frame ->
+                            "${config.theme}-$frame" to File(output, "${config.id}/real-app/walkthrough-$frame.png")
+                        } }
+                        writePlayListingAssets(target, output, screenshots)
+                    } catch (error: Throwable) {
+                        recorder.failedRun(error)
+                    }
+                }
+                recorder.finish()
+            }
+        }
+    }
 
     @Test
     fun requestedNativeResultKeepsDocumentAndCanonicalActions() {
@@ -250,10 +832,13 @@ class UxCaptureDeviceTest {
         val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
             listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
         } }
-        val frames = listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
+        val deviceVoices = bundle.getString("uxDeviceVoicesProbe") == "true"
+        val frames = if (deviceVoices) listOf("device-default", "device-long-choice", "device-selected",
+            "device-loading", "device-error", "device-empty", "device-missing", "device-spoken-fallback")
+        else listOf("connection-lan", "voice", "hosted-consents", "appearance", "data",
             "cancel-forget", "about", "connection-failure", "checking", "backup-failure")
         val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request,
-            File(outputPath, "ux-settings"),
+            File(outputPath, if (deviceVoices) "ux-device-voices" else "ux-settings"),
             matrix.flatMap { config -> frames.map { "${config.id}/settings-$it" } }.toSet())
         val originalGraph = app.graph
         runDir = File(target.filesDir, "ux-fixture-run-${SystemClock.elapsedRealtimeNanos()}")
@@ -264,8 +849,21 @@ class UxCaptureDeviceTest {
                 for (config in matrix) {
                     environment.configure(config.window, config.fontScale, resize = true)
                     for (frame in frames) {
-                        val state = UxState("settings-$frame", "settings", "real-app", null, null, null)
+                        val isolated = if (frame == "device-spoken-fallback")
+                            UxFixtureActivity.requestedVoiceState(fixtures, "voice-fallback") else null
+                        val state = isolated?.copy(id = "settings-$frame")
+                            ?: UxState("settings-$frame", "settings", "real-app", null, null, null)
                         try {
+                            if (isolated != null) {
+                                prepare(isolated, config)
+                                val controls = navigate(isolated) +
+                                    UxControl("spoken-device-warning", hasTestTag("voice-fallback"), actionRequired = false)
+                                compose.onNodeWithTag("voice-fallback").performScrollTo().assertIsDisplayed()
+                                check(nodeText("voice-fallback").contains("selected device voice is unavailable"))
+                                recorder.capture(state, config, checkNotNull(activity), controls,
+                                    nativeSurface = "voice", nativeMapping = UxFixtureActivity.nativeMapping(isolated))
+                                continue
+                            }
                             val checker = ProviderCheck { _, _ ->
                                 when (frame) {
                                     "checking" -> awaitCancellation()
@@ -275,11 +873,25 @@ class UxCaptureDeviceTest {
                                 }
                             }
                             val base = fixtures.state("ready")
-                            prepare(base, config, inferenceAgreed = frame != "connection-lan", checker = checker)
+                            val engine = if (deviceVoices) FixtureDeviceVoiceEngine(frame) else null
+                            heldVoiceInit = engine?.pending
+                            prepare(base, config, inferenceAgreed = frame != "connection-lan", checker = checker,
+                                nativeEngine = engine)
+                            val graph = checkNotNull(fixtureGraph)
+                            val savedVoice = if (frame in setOf("device-loading", "device-error", "device-missing"))
+                                "retained-unavailable-voice" else ""
+                            if (deviceVoices) runBlocking {
+                                check(graph.prefsStore.update { it.copy(speechVoice = savedVoice) })
+                            }
+                            val ringBefore = graph.keyringStore.state.value.ring
+                            val keyGeneration = graph.keyringStore.generation.value
+                            val prefsBefore = runBlocking { graph.prefsStore.current() }
                             navigate(base)
                             compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
                             await(SettingsTags.PROVIDER)
-                            when (frame) {
+                            if (deviceVoices) {
+                                prepareDeviceVoiceFrame(frame, checkNotNull(engine))
+                            } else when (frame) {
                                 "connection-lan" -> {
                                     compose.onNodeWithTag(SettingsTags.PROVIDER).performScrollTo().performClick()
                                     compose.onNodeWithTag(SettingsTags.provider("ollama")).performScrollTo().performClick()
@@ -341,8 +953,11 @@ class UxCaptureDeviceTest {
                                     revealControl("settings-section-$section")
                                 }
                             }
-                            val controls = when (frame) {
-                                "voice" -> listOf(tag(SettingsTags.HANDS_FREE), tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE))
+                            val controls = if (deviceVoices) deviceVoiceControls(frame) else when (frame) {
+                                "voice" -> {
+                                    compose.onNodeWithTag("settings-handsfree").assertDoesNotExist()
+                                    listOf(tag(SettingsTags.TRIGGER), tag(SettingsTags.PACE), tag(SettingsTags.DEVICE_VOICE))
+                                }
                                 "hosted-consents" -> listOf(tag(HostedSpeechTags.VOICE_MARIN), tag(HostedSpeechTags.VOICE_CEDAR),
                                     tag(HostedSpeechTags.CONSENT_SYNTHETIC), tag(HostedSpeechTags.CONSENT_TEXT), tag(HostedSpeechTags.CONSENT_METERED))
                                 "appearance" -> Prefs.THEMES.map { tag(SettingsTags.theme(it)) }
@@ -353,8 +968,40 @@ class UxCaptureDeviceTest {
                                 "connection-lan" -> listOf(tag("inference-consent"))
                                 else -> listOf(tag(SettingsTags.PROVIDER), tag(SettingsTags.CHECK), tag(SettingsTags.SAVE))
                             }
+                            if (deviceVoices) {
+                                assertTrue("opening Settings and selecting voices do not speak", engine!!.spoken.isEmpty())
+                                assertEquals("a native edit cannot change hosted/inference keys", ringBefore, graph.keyringStore.state.value.ring)
+                                assertEquals(keyGeneration, graph.keyringStore.generation.value)
+                                assertEquals("native voice edits change only speechVoice", prefsBefore.copy(
+                                    speechVoice = if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else savedVoice,
+                                ), runBlocking { graph.prefsStore.current() })
+                                assertEquals("Settings starts no voice run", null, graph.driveController.state.value.mode)
+                            }
                             recorder.capture(state, config, checkNotNull(activity), controls, nativeSurface = "settings",
-                                nativeMapping = "Real MainActivity Settings $frame; scripted connection/backup error, no file picker, hosted preview or real provider.")
+                                nativeMapping = if (deviceVoices)
+                                    "Real MainActivity Settings $frame; controlled engine identity/locale/network metadata and pending/error reads. UI/configuration proof, not real voice quality, network/offline support or physical-device evidence."
+                                else "Real MainActivity Settings $frame; scripted connection/backup error, no file picker, hosted preview or real provider.",
+                                rootSurfaceRole = if (frame in setOf("device-long-choice", "device-empty"))
+                                    "surfaceContainerHigh" else "background")
+                            if (deviceVoices) {
+                                when (frame) {
+                                    "device-selected", "device-missing" -> {
+                                        val result = runBlocking { graph.nativeSpeaker.speak("Controlled subsequent native output.") }
+                                        assertEquals(SpeakStatus.SPOKEN, result.status)
+                                        assertEquals(frame == "device-missing", result.voiceMissing)
+                                        assertEquals(if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else savedVoice,
+                                            result.requestedVoice)
+                                        assertEquals(if (frame == "device-selected") FixtureDeviceVoiceEngine.LONG_ID else "", result.voice)
+                                        assertEquals(result.voice, engine!!.selected)
+                                    }
+                                    "device-loading" -> assertTrue("loading remains a real pending engine read", !engine!!.pending.isCompleted)
+                                    "device-error" -> {
+                                        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_RELOAD).performScrollTo().assertIsDisplayed().performClick()
+                                        compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.DEVICE_VOICE_STATUS) }
+                                        assertEquals(savedVoice, runBlocking { graph.prefsStore.current().speechVoice })
+                                    }
+                                }
+                            }
                         } catch (error: Throwable) {
                             recorder.failed(state, config, error, activity)
                         } finally { closeFixture() }
@@ -369,6 +1016,64 @@ class UxCaptureDeviceTest {
                 { check(runDir.deleteRecursively()) { "could not delete owned fixture files: $runDir" } },
             )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
         }
+    }
+
+    private fun prepareDeviceVoiceFrame(frame: String, engine: FixtureDeviceVoiceEngine) {
+        await(SettingsTags.DEVICE_VOICE)
+        if (frame in setOf("device-loading", "device-error", "device-empty")) {
+            await(SettingsTags.DEVICE_VOICE_STATUS)
+            val status = when (frame) {
+                "device-loading" -> "Loading device voices"
+                "device-error" -> "did not start"
+                else -> "no installed voices"
+            }
+            compose.waitUntil(DEVICE_TIMEOUT) { nodeText(SettingsTags.DEVICE_VOICE_STATUS).contains(status) }
+            compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_STATUS).performScrollTo().assertIsDisplayed()
+        } else {
+            compose.waitUntil(DEVICE_TIMEOUT) { !exists(SettingsTags.DEVICE_VOICE_STATUS) }
+        }
+        when (frame) {
+            "device-long-choice", "device-selected", "device-empty" -> {
+                compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed().performClick()
+                await(SettingsTags.DEVICE_VOICE_DEFAULT)
+                if (frame != "device-empty") {
+                    // Existence alone does not mean a scrolled option can actually be clicked.
+                    compose.onNodeWithTag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID))
+                        .performScrollTo().assertIsDisplayed()
+                }
+                if (frame == "device-selected") {
+                    compose.onNodeWithTag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID)).performClick()
+                    compose.waitUntil(DEVICE_TIMEOUT) {
+                        runBlocking { fixtureGraph!!.prefsStore.current().speechVoice } == FixtureDeviceVoiceEngine.LONG_ID
+                    }
+                    scenario!!.recreate()
+                    scenario!!.onActivity { activity = it }
+                    await(SettingsTags.DEVICE_VOICE)
+                    compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed()
+                    assertTrue(nodeText(SettingsTags.DEVICE_VOICE).contains(FixtureDeviceVoiceEngine.LONG_ID))
+                    assertTrue(engine.spoken.isEmpty())
+                }
+            }
+            "device-missing" -> {
+                await(SettingsTags.DEVICE_VOICE_MISSING)
+                compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_MISSING).performScrollTo().assertIsDisplayed()
+            }
+            "device-default" -> compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    private fun deviceVoiceControls(frame: String): List<UxControl> = when (frame) {
+        "device-long-choice" -> listOf(tag(SettingsTags.DEVICE_VOICE_DEFAULT),
+            tag(SettingsTags.deviceVoice(FixtureDeviceVoiceEngine.LONG_ID)), tag(SettingsTags.DEVICE_VOICE_CLOSE))
+        "device-empty" -> listOf(UxControl("empty-voices", hasTestTag(SettingsTags.DEVICE_VOICE_STATUS), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE_DEFAULT), tag(SettingsTags.DEVICE_VOICE_CLOSE))
+        "device-loading", "device-error" -> listOf(
+            UxControl("voice-read-status", hasTestTag(SettingsTags.DEVICE_VOICE_STATUS), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE_RELOAD), tag(SettingsTags.DEVICE_VOICE))
+        "device-missing" -> listOf(
+            UxControl("missing-voice-warning", hasTestTag(SettingsTags.DEVICE_VOICE_MISSING), actionRequired = false),
+            tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.DEVICE_VOICE_RELOAD))
+        else -> listOf(tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.DEVICE_VOICE_RELOAD))
     }
 
     @Test
@@ -859,19 +1564,19 @@ class UxCaptureDeviceTest {
                             override fun cancel() {}
                             override fun shutdown() {}
                         }
-                        var serviceStarts = 0
+                        val serviceStarts = AtomicInteger()
                         graph.driveService = object : DriveServiceControl {
-                            override fun start() { serviceStarts++ }
+                            override fun start() { serviceStarts.incrementAndGet() }
                             override fun stop() {}
                         }
                         val session = checkNotNull(graph.sessionStore.get("ux-long-active"))
-                        compose.runOnUiThread {
-                            graph.driveController.start(session, "typed")
-                            graph.driveController.pause()
-                        }
+                        compose.runOnUiThread { graph.driveController.start(session, "typed") }
+                        // An immediate Pause may correctly retire Start before asynchronous consent admission.
+                        compose.waitUntil(DEVICE_TIMEOUT) { serviceStarts.get() == 1 }
+                        compose.runOnUiThread { graph.driveController.pause() }
                         await("voice-stage")
                         assertEquals(VoiceMode.PAUSED, graph.driveController.state.value.mode)
-                        assertEquals(1, serviceStarts)
+                        assertEquals(1, serviceStarts.get())
                         compose.onNodeWithTag(NAVIGATION).assertDoesNotExist()
                         compose.onNodeWithTag("interview-back").assertDoesNotExist()
                         val view = checkNotNull(activity).window.decorView
@@ -1140,6 +1845,213 @@ class UxCaptureDeviceTest {
     }
 
     @Test
+    fun requestedContentReportsKeepLocalPayloadAndQuestionIdentity() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxReportingProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedContentReportsKeepLocalPayloadAndQuestionIdentity") != true) {
+                "the selected reporting acceptance requires uxReportingProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "reporting acceptance has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-reporting")
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("question", "suggestions", "dialog", "saving", "save-failure", "saved", "replaced",
+            "history", "result", "library", "voice")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
+            matrix.flatMap { config -> frames.map { "${config.id}/report-$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-reporting-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primaryError: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    try {
+                        captureReportingJourney(config, recorder)
+                    } catch (error: Throwable) {
+                        recorder.failedRun(error)
+                        var diagnostic = activity
+                        for (key in UxEvidence.unrecorded(frames.map { "${config.id}/report-$it" }.toSet(), recorder.recordedKeys)) {
+                            recorder.failed(UxState(key.substringAfter('/'), "reporting", "real-app", null, null, null),
+                                config, error, diagnostic)
+                            diagnostic = null
+                        }
+                    } finally { closeFixture() }
+                }
+            }
+        } catch (error: Throwable) {
+            primaryError = error
+        } finally {
+            UxEvidence.finish(primaryError, listOf(
+                { closeFixture() }, { app.graph = originalGraph }, { check(runDir.deleteRecursively()) },
+            )) { errors ->
+                errors.forEach(recorder::failedRun)
+                recorder.finish()
+            }
+        }
+    }
+
+    private fun captureReportingJourney(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        fun click(name: String) {
+            // Lazy history can be composed but unplaced; node existence is not visibility.
+            val lazyHistory = name.startsWith("report-history-") &&
+                compose.onAllNodes(hasTestTag("thread") and hasScrollToIndexAction()).fetchSemanticsNodes().isNotEmpty()
+            if (lazyHistory || !exists(name)) compose.onNodeWithTag("thread").performScrollToNode(hasTestTag(name))
+            runCatching { compose.onNodeWithTag(name).performScrollTo() }
+            compose.onNodeWithTag(name).assertIsDisplayed().performClick()
+        }
+        fun capture(frame: String, controls: List<UxControl>, dialog: Boolean = true) = recorder.capture(
+            UxState("report-$frame", "reporting", "real-app", null, null, null),
+            config, checkNotNull(activity), controls,
+            nativeMapping = "Real MainActivity reporting with neutral private fixtures. Saves and replacement use the real store/worker/reducers; held-lock loading and refused report writes are controlled faults. Voice output/service are scripted; no recognizer, email composer or real provider is invoked.",
+            rootSurfaceRole = if (dialog) "surfaceContainerHigh" else "background",
+        )
+        val base = fixtures.state("interview-long")
+        val rejected = AtomicBoolean(false)
+        prepare(base, config, reportWritesRejected = rejected)
+        navigate(base)
+        val graph = checkNotNull(fixtureGraph)
+        val id = requireNotNull(base.sessionId)
+        val before = checkNotNull(graph.sessionStore.get(id))
+        val open = io.github.jaypetez.ideaforge.core.openTurn(before)!!
+        val turnId = stringOf(open["id"])!!
+        val output = io.github.jaypetez.ideaforge.core.reportableOutput(before, "question", turnId)!!
+        capture("question", listOf(tag("report-current-question"), tag("report-current-suggestions"), tag("chip-0")), dialog = false)
+        click("report-current-suggestions")
+        await("content-report-dialog")
+        capture("suggestions", listOf(tag("report-review"), tag("report-category-other"), tag("report-cancel")))
+        click("report-cancel")
+        assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+        click("report-current-question")
+        await("content-report-dialog")
+        click("report-category-inaccurate")
+        val note = "Neutral optional report note marker. ".repeat(4).trim()
+        compose.onNodeWithTag("report-note").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(note)) }
+        hideKeyboard()
+        capture("dialog", listOf(tag("report-category-inaccurate"), tag("report-note"), tag("report-save"), tag("report-cancel")))
+
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val hold = graph.appScope.launch { graph.sessionWorker.exclusive(id) { entered.complete(Unit); release.await() } }
+        try {
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { entered.await() } }
+            rejected.set(true)
+            click("report-save")
+            await("report-saving")
+            assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+            capture("saving", listOf(UxControl("report-saving", hasTestTag("report-saving"), actionRequired = false), tag("report-save")))
+        } finally {
+            release.complete(Unit)
+            runBlocking { withTimeout(DEVICE_TIMEOUT) { hold.join() } }
+        }
+        await("report-error")
+        assertTrue(nodeText("report-error").contains("report was not saved"))
+        assertEquals(null, graph.sessionStore.get(id)!!["contentReports"])
+        capture("save-failure", listOf(UxControl("report-error", hasTestTag("report-error"), actionRequired = false),
+            tag("report-note"), tag("report-save"), tag("report-cancel")))
+        rejected.set(false)
+        click("report-save")
+        await("report-saved")
+        val report = (graph.sessionStore.get(id)!!["contentReports"] as JsonArray).single()
+        assertEquals(note, stringOf(report["note"]))
+        assertEquals(output, report["output"])
+        assertTrue(exportFor(graph.sessionStore.get(id)!!).contains(note))
+        capture("saved", listOf(tag("report-replace"), tag("report-email"), tag("report-done")))
+        click("report-replace")
+        await("report-replaced")
+        val after = graph.sessionStore.get(id)!!
+        for (key in listOf("coverage", "facts", "zeroGainStreak", "opening", "draftAnswer"))
+            assertEquals("replacement leaves $key unchanged", before[key], after[key])
+        assertEquals((before["turns"] as JsonArray).size, (after["turns"] as JsonArray).size)
+        val replaced = io.github.jaypetez.ideaforge.core.openTurn(after)!!
+        assertEquals(turnId, stringOf(replaced["id"]))
+        assertEquals("", stringOf(replaced["answer"]))
+        assertTrue(!truthy(replaced["skipped"]))
+        assertEquals("replacement", stringOf(replaced["questionSource"]))
+        assertTrue(replaced["question"] != open["question"])
+        click("report-done")
+        await("replacement-source")
+        compose.onNodeWithTag("report-current-question").assertDoesNotExist()
+        capture("replaced", listOf(UxControl("replacement-source", hasTestTag("replacement-source"), actionRequired = false),
+            tag("answer"), tag("send")), dialog = false)
+
+        click("history-toggle")
+        val past = (before["turns"] as JsonArray).first { stringOf(it["questionSource"]) == "model" && truthy(it["answer"]) }
+        click("report-history-question-${stringOf(past["id"])}")
+        await("content-report-dialog")
+        capture("history", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
+        click("report-cancel")
+        closeFixture()
+
+        val result = fixtures.state("result-long")
+        prepare(result, config)
+        navigate(result)
+        click("report-result")
+        await("content-report-dialog")
+        capture("result", listOf(tag("report-review"), tag("report-category-other"), tag("report-cancel")))
+        click("report-cancel")
+        closeFixture()
+
+        prepare(base, config)
+        val voiceGraph = checkNotNull(fixtureGraph)
+        val starts = AtomicInteger()
+        val speeches = AtomicInteger()
+        voiceGraph.driveService = object : DriveServiceControl {
+            override fun start() { starts.incrementAndGet() }
+            override fun stop() {}
+        }
+        voiceGraph.driveSpeaker = object : Speaker {
+            override suspend fun speak(text: String): SpeakResult { speeches.incrementAndGet(); return awaitCancellation() }
+            override fun cancel() {}
+            override fun shutdown() {}
+        }
+        navigate(base)
+        compose.runOnUiThread { voiceGraph.driveController.start(checkNotNull(voiceGraph.sessionStore.get(id)), "typed") }
+        await("voice-stage")
+        compose.waitUntil(DEVICE_TIMEOUT) { starts.get() == 1 && speeches.get() == 1 }
+        click("report-voice-question")
+        await("content-report-dialog")
+        assertEquals(VoiceMode.PAUSED, voiceGraph.driveController.state.value.mode)
+        capture("voice", listOf(tag("report-category-other"), tag("report-save"), tag("report-cancel")))
+        assertEquals("opening Report never restarts speech", 1, speeches.get())
+        assertEquals("opening Report never starts another service", 1, starts.get())
+        click("report-cancel")
+        compose.runOnUiThread { voiceGraph.driveController.resume() }
+        compose.waitUntil(DEVICE_TIMEOUT) { speeches.get() == 2 }
+        scenario!!.onActivity { (it as androidx.activity.ComponentActivity).onBackPressedDispatcher.onBackPressed() }
+        await(LibraryTags.DETAIL)
+        assertEquals("Back preserves the app-graph run until reporting pauses it", VoiceMode.ACTIVE,
+            voiceGraph.driveController.state.value.mode)
+        val libraryBefore = voiceGraph.sessionStore.get(id)!!
+        val libraryTurn = io.github.jaypetez.ideaforge.core.openTurn(libraryBefore)!!
+        click("report-library-question-${stringOf(libraryTurn["id"])}")
+        await("content-report-dialog")
+        assertEquals("Ideas reporting must pause the same surviving run", VoiceMode.PAUSED,
+            voiceGraph.driveController.state.value.mode)
+        click("report-category-other")
+        click("report-save")
+        await("report-saved")
+        click("report-replace")
+        await("report-replaced")
+        val libraryAfter = voiceGraph.sessionStore.get(id)!!
+        assertEquals(libraryBefore["coverage"], libraryAfter["coverage"])
+        assertEquals((libraryBefore["turns"] as JsonArray).size, (libraryAfter["turns"] as JsonArray).size)
+        assertEquals(stringOf(io.github.jaypetez.ideaforge.core.openTurn(libraryAfter)!!["question"]),
+            voiceGraph.driveController.state.value.question)
+        assertEquals("replacement from Ideas never resumes speech", 2, speeches.get())
+        capture("library", listOf(UxControl("report-replaced", hasTestTag("report-replaced"), actionRequired = false),
+            tag("report-email"), tag("report-done")))
+    }
+
+    @Test
     fun requestedIdeasAreCompactReachableAndTruthful() {
         val bundle = InstrumentationRegistry.getArguments()
         val probe = bundle.getString("uxIdeasProbe")
@@ -1155,6 +2067,209 @@ class UxCaptureDeviceTest {
             "ready", "empty", "unavailable", "library", "library-100", "library-archived", "filtered", "library-long", "ideas-loading",
         )) { "Ideas evidence requires its complete fixed state matrix" }
         captureUxEvidence(request, nativeIdeas = true)
+    }
+
+    @Test
+    fun requestedManualDictationKeepsLiteralDraftAndExplicitSend() {
+        val bundle = InstrumentationRegistry.getArguments()
+        if (bundle.getString("uxDictationProbe") != "true") {
+            require(bundle.getString("class")?.contains("#requestedManualDictationKeepsLiteralDraftAndExplicitSend") != true) {
+                "the selected manual-dictation method requires uxDictationProbe=true"
+            }
+            return
+        }
+        val request = requireNotNull(UxCaptureRequest.from(bundle.keySet().associateWith { bundle.get(it).toString() }))
+        require(request.mode == "matrix" && request.states == null) { "manual dictation has a fixed complete inventory" }
+        val output = File(requireNotNull(bundle.getString("additionalTestOutputDir")?.takeIf { it.isNotBlank() }), "ux-dictation")
+        fixtures = UxFixtures.load(target)
+        val windows = if (request.window == "all") listOf("compact", "expanded") else listOf(request.window)
+        val matrix = windows.flatMap { window -> listOf("light", "dark").flatMap { theme ->
+            listOf(1f, 1.3f, 2f).map { UxConfiguration(window, theme, it) }
+        } }
+        val frames = listOf("dictation-ready", "dictation-listening", "dictation-stopped", "dictation-error",
+            "dictation-long", "dictation-report", "dictation-settings")
+        val recorder = UxCaptureRecorder(compose, instrumentation.uiAutomation, request, output,
+            matrix.flatMap { config -> frames.map { "${config.id}/$it" } }.toSet())
+        val originalGraph = app.graph
+        runDir = File(target.filesDir, "ux-dictation-run-${SystemClock.elapsedRealtimeNanos()}")
+        var primary: Throwable? = null
+        try {
+            check(runDir.mkdirs())
+            UxDeviceEnvironment(instrumentation.uiAutomation).use { environment ->
+                for (config in matrix) {
+                    environment.configure(config.window, config.fontScale, resize = true)
+                    for (frame in frames) {
+                        val state = UxState(frame, if (frame == "dictation-settings") "settings" else "interview",
+                            "real-app", null, null, null)
+                        try {
+                            prepare(state, config, nativeEngine = FixtureDeviceVoiceEngine("device-default"), manualNative = true)
+                            val graph = checkNotNull(fixtureGraph)
+                            val engines = mutableListOf<FixtureManualEngine>()
+                            val serviceStarts = AtomicInteger()
+                            graph.driveService = object : DriveServiceControl {
+                                override fun start() { serviceStarts.incrementAndGet() }
+                                override fun stop() = Unit
+                            }
+                            graph.recognizer = io.github.jaypetez.ideaforge.voice.Recognizer(
+                                io.github.jaypetez.ideaforge.voice.RecognizerEngineFactory {
+                                    FixtureManualEngine(graph.mainScope).also(engines::add)
+                                }, graph.mainScope)
+                            launchMain()
+                            await(NAVIGATION)
+                            compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
+                            await("new-idea-type")
+                            compose.onNodeWithTag("new-idea-type").performScrollTo().assertIsDisplayed().performClick()
+                            awaitEditableQuestion()
+                            assertTrue("Type/entry never starts recognition", engines.isEmpty())
+                            var controls = interviewControls()
+                            if (frame == "dictation-settings") {
+                                compose.onNode(navigationMatcher(R.string.nav_settings)).performClick()
+                                await(SettingsTags.TRIGGER)
+                                revealControl(SettingsTags.TRIGGER)
+                                compose.onNodeWithTag(SettingsTags.TRIGGER).assertIsDisplayed()
+                                compose.onNodeWithTag("settings-handsfree").assertDoesNotExist()
+                                assertTrue("opening Settings is never a microphone decision", engines.isEmpty())
+                                controls = listOf(tag(SettingsTags.TRIGGER), tag(SettingsTags.DEVICE_VOICE), tag(SettingsTags.PACE))
+                            } else if (frame != "dictation-ready") {
+                                if (frame == "dictation-report") {
+                                    revealControl("answer")
+                                    compose.onNodeWithTag("answer").assertIsEnabled()
+                                        .performTextReplacement("A local idea for remembering names.")
+                                    compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "A local idea for remembering names." }
+                                    hideKeyboard()
+                                    assertEquals("the opening draft survives keyboard dismissal",
+                                        "A local idea for remembering names.", editableAnswer())
+                                    revealControl("send")
+                                    compose.onNodeWithTag("send").assertIsDisplayed().assertIsEnabled().performClick()
+                                    await("report-current-question")
+                                }
+                                revealControl("answer")
+                                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement("Already typed words.")
+                                compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "Already typed words." }
+                                hideKeyboard()
+                                assertEquals("the typed prefix is present before manual input starts", "Already typed words.", editableAnswer())
+                                revealControl("dictation-toggle")
+                                compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+                                allowManualMicrophoneIfRequested()
+                                compose.waitUntil(DEVICE_TIMEOUT) { engines.size == 1 && engines.single().starts.get() == 1 }
+                                val engine = engines.single()
+                                val words = if (frame == "dictation-long") fixtures.text("answer") + " skip this one over"
+                                    else "We went over budget; skip this one over."
+                                engine.text = words
+                                compose.runOnUiThread {
+                                    if (frame == "dictation-error") engine.callbacks.onError(
+                                        io.github.jaypetez.ideaforge.voice.RecognizerError.AUDIO)
+                                    else engine.callbacks.onPartial(words, null, true)
+                                }
+                                if (frame == "dictation-error") {
+                                    compose.waitUntil(DEVICE_TIMEOUT) { nodeText("dictation-status").contains(target.getString(R.string.dictation_failed)) }
+                                    controls += UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false)
+                                    assertEquals("Already typed words.", editableAnswer())
+                                    assertTrue("an engine failure releases its audio owner", engine.destroyed.get())
+                                } else {
+                                    await("dictation-caption")
+                                    assertEquals(words, nodeText("dictation-caption"))
+                                    assertEquals(target.getString(R.string.dictation_stop), nodeText("dictation-toggle"))
+                                    assertEquals("a manual final/finish word never auto-sends or changes the editor", "Already typed words.", editableAnswer())
+                                    if (frame == "dictation-listening") {
+                                        controls += listOf(
+                                            UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false),
+                                            UxControl("dictation-caption", hasTestTag("dictation-caption"), actionRequired = false))
+                                    } else if (frame == "dictation-report") {
+                                        revealControl("report-current-question")
+                                        compose.onNodeWithTag("report-current-question").assertIsDisplayed().performClick()
+                                        await("content-report-dialog")
+                                        assertTrue("the input is released before any private report note", engine.destroyed.get())
+                                        compose.onNodeWithTag("report-note").performScrollTo().assertIsDisplayed()
+                                            .performSemanticsAction(SemanticsActions.SetText) {
+                                                it(androidx.compose.ui.text.AnnotatedString("Neutral private report note, not dictated answer text."))
+                                            }
+                                        assertEquals("Neutral private report note, not dictated answer text.",
+                                            compose.onNodeWithTag("report-note").fetchSemanticsNode().config
+                                                .getOrNull(SemanticsProperties.EditableText)?.text)
+                                        controls = listOf(tag("report-note"), tag("report-cancel"))
+                                    } else {
+                                        revealControl("dictation-toggle")
+                                        compose.onNodeWithTag("dictation-toggle").assertIsDisplayed().performClick()
+                                        compose.waitUntil(DEVICE_TIMEOUT) { editableAnswer() == "Already typed words. $words" }
+                                        assertTrue(engine.destroyed.get())
+                                        controls += UxControl("dictation-status", hasTestTag("dictation-status"), actionRequired = false)
+                                    }
+                                }
+                                if (frame != "dictation-report") {
+                                    val session = graph.sessionStore.sessions.value.singleOrNull()
+                                    val turns = session?.get("turns") as? JsonArray
+                                    assertTrue("no manual settlement, error or Stop submits an answer",
+                                        turns == null || turns.size == 1 && stringOf(turns.first()["answer"]).isNullOrEmpty())
+                                    assertEquals(SEED_QUESTION, nodeText("question"))
+                                }
+                            }
+                            assertEquals("manual input never starts a hands-free service", 0, serviceStarts.get())
+                            assertTrue("manual input never attaches a drive", !graph.driveController.state.value.attached)
+                            recorder.capture(state, config, checkNotNull(activity), controls,
+                                nativeMapping = "Real MainActivity/manual controller and PRESS_TO_TALK recognizer with controlled native callbacks; literal editable draft and explicit Send. The real microphone permission is granted through its OS dialog only when needed on this owned managed device. No real recognizer, recording, speech, service or hosted request; not physical #89 evidence.",
+                                rootSurfaceRole = if (frame == "dictation-report") "surfaceContainerHigh" else "background")
+                        } catch (failure: Throwable) {
+                            recorder.failed(state, config, failure, activity)
+                        } finally { closeFixture() }
+                    }
+                }
+            }
+        } catch (failure: Throwable) {
+            primary = failure
+        } finally {
+            UxEvidence.finish(primary, listOf(
+                { closeFixture() }, { app.graph = originalGraph },
+                { check(runDir.deleteRecursively()) { "could not remove owned dictation fixture files" } },
+            )) { errors -> errors.forEach(recorder::failedRun); recorder.finish() }
+        }
+    }
+
+    private fun editableAnswer() = compose.onNodeWithTag("answer").fetchSemanticsNode().config
+        .getOrNull(SemanticsProperties.EditableText)?.text.orEmpty()
+
+    private fun allowManualMicrophoneIfRequested() {
+        if (target.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        await("voice-mic-continue")
+        compose.onNodeWithTag("voice-notification-rationale").assertDoesNotExist()
+        compose.onNodeWithTag("voice-mic-continue").assertIsDisplayed().performClick()
+        val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
+        var clicked = false
+        while (!clicked && SystemClock.uptimeMillis() < deadline) {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            val nodes = root?.findAccessibilityNodeInfosByViewId(
+                "com.android.permissioncontroller:id/permission_allow_foreground_only_button").orEmpty()
+                .filter { it.isVisibleToUser && it.isEnabled && it.isClickable }
+            check(nodes.size <= 1) { "ambiguous native microphone permission action" }
+            clicked = nodes.singleOrNull()?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true
+            if (!clicked) SystemClock.sleep(100)
+        }
+        check(clicked) { "the actual native microphone Allow action was not found" }
+        compose.waitUntil(DEVICE_TIMEOUT) {
+            target.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private class FixtureManualEngine(private val main: CoroutineScope) : io.github.jaypetez.ideaforge.voice.RecognizerEngine {
+        lateinit var callbacks: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener
+        val starts = AtomicInteger()
+        val destroyed = AtomicBoolean()
+        var text = ""
+        private var readings: Job? = null
+        override fun setListener(listener: io.github.jaypetez.ideaforge.voice.RecognizerEngine.Listener) { callbacks = listener }
+        override fun start(language: String) {
+            starts.incrementAndGet()
+            callbacks.onReady()
+            readings = main.launch {
+                while (true) {
+                    kotlinx.coroutines.delay(1000)
+                    callbacks.onRms(-1.5f)
+                }
+            }
+        }
+        override fun stop() { callbacks.onResults(text) }
+        override fun cancel() { readings?.cancel(); readings = null }
+        override fun destroy() { cancel(); destroyed.set(true) }
     }
 
     @Test
@@ -1228,7 +2343,7 @@ class UxCaptureDeviceTest {
                 selected.filter { it.id in setOf("voice-listening", "voice-paused", "voice-blocked") }
             else selected
         }
-        val walkthrough = if (request.states == null) listOf("seed", "chip", "result") else emptyList()
+        val walkthrough = if (request.states == null) walkthroughFrames else emptyList()
         val expected = matrix.flatMap { config ->
             requestedStates.getValue(config).map { "${config.id}/${it.id}" } + walkthrough.map { "${config.id}/walkthrough-$it" }
         }.toSet()
@@ -1269,22 +2384,7 @@ class UxCaptureDeviceTest {
                         }
                     }
                     if (walkthrough.isNotEmpty()) {
-                        val state = UxState("walkthrough", "interview", "real-app", null, null, null)
-                        try {
-                            prepare(state, config)
-                            scriptedWalkthrough(compose, target, launch = ::launchMain, capture = { frame ->
-                                val captured = state.copy(id = "walkthrough-$frame", surface = if (frame == "result") "result" else "interview")
-                                recorder.capture(captured, config, checkNotNull(activity), if (frame == "result") resultControls() else interviewControls())
-                            }, settleInput = ::hideKeyboard)
-                        } catch (e: Throwable) {
-                            recorder.failedRun(e)
-                            val keys = walkthrough.map { "${config.id}/walkthrough-$it" }.toSet()
-                            for (key in UxEvidence.unrecorded(keys, recorder.recordedKeys)) {
-                                recorder.failed(state.copy(id = key.substringAfter('/')), config, e, activity)
-                            }
-                        } finally {
-                            closeFixture()
-                        }
+                        captureWalkthrough(config, recorder)
                     }
                 }
             }
@@ -1302,11 +2402,35 @@ class UxCaptureDeviceTest {
         }
     }
 
+    private fun captureWalkthrough(config: UxConfiguration, recorder: UxCaptureRecorder) {
+        val state = UxState("walkthrough", "interview", "real-app", null, null, null)
+        try {
+            prepare(state, config)
+            scriptedWalkthrough(compose, target, launch = ::launchMain, capture = { frame ->
+                val captured = state.copy(id = "walkthrough-$frame", surface = if (frame == "result") "result" else "interview")
+                recorder.capture(captured, config, checkNotNull(activity),
+                    if (frame == "result") resultControls() else interviewControls())
+            }, settleInput = ::hideKeyboard)
+        } catch (error: Throwable) {
+            Log.e("UxCapture", "scripted walkthrough failed for ${config.id}", error)
+            recorder.failedRun(error)
+            val keys = walkthroughFrames.map { "${config.id}/walkthrough-$it" }.toSet()
+            for (key in UxEvidence.unrecorded(keys, recorder.recordedKeys)) {
+                recorder.failed(state.copy(id = key.substringAfter('/')), config, error, activity)
+            }
+        } finally {
+            closeFixture()
+        }
+    }
+
     private fun prepare(
         state: UxState,
         config: UxConfiguration,
         inferenceAgreed: Boolean = true,
         checker: ProviderCheck = ProviderCheck { _, _ -> error("a UX fixture attempted a provider check") },
+        reportWritesRejected: AtomicBoolean? = null,
+        nativeEngine: TtsEngine? = null,
+        manualNative: Boolean = false,
     ) = runBlocking {
         val context = FixtureContext(target, File(runDir, "graph-${++nextGraph}"))
         val script = ScriptedProvider.loadScript(target)
@@ -1321,12 +2445,24 @@ class UxCaptureDeviceTest {
                 if (!gate.await(DEVICE_TIMEOUT, TimeUnit.MILLISECONDS)) throw IOException("controlled UX library read exceeded its capture budget")
                 Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
             })
+        } ?: reportWritesRejected?.let { refused ->
+            SessionStore(File(context.filesDir, "sessions"), writer = { file, bytes ->
+                if (refused.get() && (Json.parseToJsonElement(bytes.decodeToString()) as JsonObject).containsKey("contentReports")) {
+                    throw IOException("Neutral controlled report write failure; retry keeps the note.")
+                }
+                SessionStore.write(file, bytes)
+            })
         }
         val graph = AppGraph(
             context, clock = Clock { fixtures.now }, keyringKey = FixtureKey(),
             providerCheck = checker,
             providerSource = ProviderSource { controlled },
             sessionStorage = storage,
+            ttsEngine = nativeEngine,
+            recognitionAvailable = { manualNative || android.speech.SpeechRecognizer.isRecognitionAvailable(context) },
+            preferences = io.github.jaypetez.ideaforge.data.PrefsStore.create(
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).also { fixturePreferencesScope = it },
+            ) { context.preferencesDataStoreFile("prefs") },
         )
         fixtureGraph = graph
         app.graph = graph
@@ -1540,16 +2676,23 @@ class UxCaptureDeviceTest {
                 compose.onNode(navigationMatcher(R.string.nav_new_idea)).performClick()
                 await("new-idea-type")
                 compose.onNodeWithTag("new-idea-type").performClick()
-                await("answer")
-                compose.onNodeWithTag("answer").performTextInput(fixtures.text("answer"))
+                awaitEditableQuestion()
+                compose.onNodeWithTag("answer").assertIsEnabled().performTextReplacement(fixtures.text("answer"))
+                compose.waitUntil(DEVICE_TIMEOUT) {
+                    compose.onNodeWithTag("answer").fetchSemanticsNode().config
+                        .getOrNull(SemanticsProperties.EditableText)?.text == fixtures.text("answer")
+                }
                 hideKeyboard()
-                compose.onNodeWithTag("send").performClick()
+                assertEquals("the real failure/loading draft is entered before submission", fixtures.text("answer"),
+                    compose.onNodeWithTag("answer").fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text)
+                revealControl("send")
+                compose.onNodeWithTag("send").assertIsDisplayed().assertIsEnabled().performClick()
                 if (state.id == "busy-turn") {
                     await("interview-busy")
                     await("busy-line")
                 } else {
                     compose.waitUntil(DEVICE_TIMEOUT) {
-                        !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
+                        !exists("question") && !exists("interview-busy") && compose.onAllNodes(hasText(target.getString(
                             R.string.notice_interview_failed, "unused",
                         ).substringBefore("unused"), substring = true)).fetchSemanticsNodes().isNotEmpty()
                     }
@@ -1587,7 +2730,7 @@ class UxCaptureDeviceTest {
     }
 
     private fun interviewControls(): List<UxControl> = buildList {
-        add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("voice-start"))
+        add(tag("answer")); add(tag("send")); add(tag("skip")); add(tag("dictation-toggle")); add(tag("voice-start"))
         if (exists("write-up")) add(tag("write-up"))
         add(tag("interview-back"))
     }
@@ -1608,6 +2751,12 @@ class UxCaptureDeviceTest {
     private fun textControl(name: String, label: Int) = UxControl(name, hasText(target.getString(label)) and hasClickAction())
     private fun tag(name: String) = UxControl(name, hasTestTag(name))
     private fun await(tag: String) = compose.waitUntilAtLeastOneExists(hasTestTag(tag), DEVICE_TIMEOUT)
+    private fun awaitEditableQuestion() {
+        compose.waitUntil(DEVICE_TIMEOUT) {
+            exists("question") && compose.onAllNodes(hasTestTag("answer")).fetchSemanticsNodes()
+                .singleOrNull()?.config?.contains(SemanticsProperties.Disabled) == false
+        }
+    }
     private fun exists(tag: String) = compose.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     private fun nodeText(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config
         .getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()
@@ -1637,18 +2786,60 @@ class UxCaptureDeviceTest {
     }
 
     private fun closeFixture() {
+        heldVoiceInit?.complete(false)
+        heldVoiceInit = null
         heldLibraryRead?.countDown()
         heldLibraryRead = null
         libraryReadEntered = null
         val closing = scenario
         val graph = fixtureGraph
+        val preferences = fixturePreferencesScope
         scenario = null
         activity = null
         fixtureGraph = null
+        fixturePreferencesScope = null
         UxEvidence.finish(null, listOf(
+            { compose.runOnUiThread { graph?.manualDictation?.cancel(); graph?.driveController?.exit() } },
             { closing?.close() },
+            { graph?.nativeTtsEngine?.shutdown() },
+            { runBlocking { graph?.mainScope?.coroutineContext?.get(Job)?.cancelAndJoin() } },
             { runBlocking { graph?.appScope?.coroutineContext?.get(Job)?.cancelAndJoin() } },
+            { runBlocking { preferences?.coroutineContext?.get(Job)?.cancelAndJoin() } },
         )) {}
+    }
+
+    private class FixtureDeviceVoiceEngine(private val frame: String) : TtsEngine {
+        companion object {
+            const val LONG_ID = "en-GB-installed-voice-with-a-deliberately-long-engine-name-for-readable-wrapping-and-selection"
+        }
+        val pending = CompletableDeferred<Boolean>()
+        val spoken = mutableListOf<String>()
+        var selected = ""
+            private set
+        private var reads = 0
+        private var listener: TtsEngine.Listener? = null
+        override fun setListener(listener: TtsEngine.Listener) { this.listener = listener }
+        override suspend fun awaitReady(): Boolean = when {
+            // Hold only this controlled boundary until the named loading frame is retained.
+            frame == "device-loading" -> kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { pending.await() }
+            frame == "device-error" && ++reads == 1 -> false
+            else -> true
+        }
+        override fun voiceDetails() = if (frame == "device-empty") emptyList() else listOf(
+            DeviceVoice("en-US-device-local", "en-US", false), DeviceVoice(LONG_ID, "en-GB", true))
+        override fun voices() = voiceDetails().map { it.id }
+        override fun setVoice(id: String): Boolean { selected = id; return id in voices() }
+        override fun useDefaultVoice() { selected = "" }
+        override fun setRate(rate: Float) {}
+        override fun speak(text: String, utteranceId: String): Boolean {
+            spoken += text
+            checkNotNull(listener).onStart(utteranceId)
+            checkNotNull(listener).onDone(utteranceId)
+            return true
+        }
+        override fun stop() {}
+        override fun reset() {}
+        override fun shutdown() { pending.complete(false) }
     }
 
     private fun nativeSurface(state: UxState): String = when {
@@ -1671,7 +2862,7 @@ class UxCaptureDeviceTest {
     }
 }
 
-private class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
+internal class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
     private val files = File(root, "files").apply { check(mkdirs()) }
     private val noBackup = File(root, "no-backup").apply { check(mkdirs()) }
     override fun getFilesDir(): File = files
@@ -1680,7 +2871,7 @@ private class FixtureContext(base: Context, root: File) : ContextWrapper(base) {
     override fun getApplicationContext(): Context = this
 }
 
-private class FixtureKey : KeyringKey {
+internal class FixtureKey : KeyringKey {
     private val key = SecretKeySpec(ByteArray(32) { it.toByte() }, "AES")
     override fun existing(slot: Int): SecretKey = key
     override fun getOrCreate(slot: Int): SecretKey = key

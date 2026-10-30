@@ -20,18 +20,31 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.getOrNull
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.BuildConfig
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.withCreds
+import io.github.jaypetez.ideaforge.core.withTts
 import io.github.jaypetez.ideaforge.data.Prefs
+import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.usableRing
+import io.github.jaypetez.ideaforge.voice.DeviceVoice
+import io.github.jaypetez.ideaforge.voice.FakeEngine
+import io.github.jaypetez.ideaforge.voice.SpeakStatus
+import io.github.jaypetez.ideaforge.voice.TtsEngine
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -66,8 +79,9 @@ class SettingsScreenTest {
 
     private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntilAtLeastOneExists(matcher, timeoutMillis = 10_000)
 
-    private fun openSettings(ring: JsonObject, key: SoftwareKey = SoftwareKey()): AppGraph {
-        val graph = installTestGraph(ring = ring, key = key)
+    private fun openSettings(ring: JsonObject, key: SoftwareKey = SoftwareKey(),
+        engine: TtsEngine = FakeEngine(), preferences: PrefsStore? = null): AppGraph {
+        val graph = installTestGraph(ring = ring, key = key, ttsEngine = engine, preferences = preferences)
         scenario = ActivityScenario.launch(MainActivity::class.java)
         waitFor(hasTestTag(NAVIGATION))
         compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
@@ -126,6 +140,136 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun aDeviceVoiceSelectorOffersTheEngineDefault() {
+        openSettings(usableRing())
+        compose.onNodeWithTag("settings-device-voice").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithTag("settings-device-voice-default").assertIsDisplayed()
+            .assertTextContains("Engine default", substring = true)
+    }
+
+    @Test
+    fun selectingADeviceVoicePersistsThroughSettingsRecreationAndConfiguresTheNextNativeSpeak() {
+        val id = "en-gb-x-rjs-network"
+        val engine = FakeEngine().apply { details = listOf(DeviceVoice(id, "en-GB", true)) }
+        val prefs = PrefsStore(MemoryDataStore(mutablePreferencesOf(
+            booleanPreferencesKey("hostedSpeechAllowed") to true,
+            booleanPreferencesKey("hostedTranscriptionAllowed") to true,
+        )))
+        val ring = withTts(usableRing(), JsonObject(mapOf(
+            "kind" to JsonPrimitive("openai"), "apiKey" to JsonPrimitive("separate-speech-key"),
+            "voice" to JsonPrimitive("cedar"), "verified" to JsonPrimitive(true),
+        )))
+        val graph = openSettings(ring, engine = engine, preferences = prefs)
+        val generation = graph.keyringStore.generation.value
+        val before = runBlocking { prefs.current() }
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().performClick()
+        compose.onNodeWithTag(SettingsTags.deviceVoice(id)).performScrollTo().assertIsDisplayed()
+            .assertTextContains("en-GB", substring = true).performClick()
+        compose.waitUntil(10_000) { runBlocking { prefs.current().speechVoice } == id }
+        scenario!!.recreate()
+        waitFor(hasTestTag(SettingsTags.DEVICE_VOICE))
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertTextContains(id, substring = true)
+
+        assertTrue("Settings only enumerates; it never speaks", engine.spoken.isEmpty())
+        assertEquals("enumeration never configures a voice", null, engine.voice)
+        assertNull(graph.driveController.state.value.mode)
+        assertEquals(ring, graph.keyringStore.state.value.ring)
+        assertEquals(generation, graph.keyringStore.generation.value)
+        assertEquals(before.copy(speechVoice = id), runBlocking { prefs.current() })
+        val spoken = runBlocking { graph.nativeSpeaker.speak("The next native question.") }
+        assertEquals(SpeakStatus.SPOKEN, spoken.status)
+        assertEquals(id, spoken.voice)
+        assertEquals(id, engine.voice)
+
+        engine.installed = emptyList()
+        engine.details = emptyList()
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_RELOAD).performScrollTo().performClick()
+        waitFor(hasTestTag(SettingsTags.DEVICE_VOICE_MISSING))
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_MISSING).performScrollTo()
+            .assertTextContains("choice is kept", substring = true)
+        val fallback = runBlocking { graph.nativeSpeaker.speak("A later native question.") }
+        assertTrue(fallback.voiceMissing)
+        assertEquals(id, fallback.requestedVoice)
+        assertEquals("", fallback.voice)
+        assertEquals(id, runBlocking { prefs.current().speechVoice })
+
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().performClick()
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_DEFAULT).performScrollTo().performClick()
+        compose.waitUntil(10_000) { runBlocking { prefs.current().speechVoice }.isEmpty() }
+        assertFalse(runBlocking { graph.nativeSpeaker.speak("Using the default.") }.voiceMissing)
+        assertEquals(ring, graph.keyringStore.state.value.ring)
+    }
+
+    @Test
+    fun loadingFailedAndEmptyCataloguesRetainTheSavedChoiceAndOfferRecovery() {
+        val saved = "temporarily-unavailable-voice"
+        val prefs = PrefsStore(MemoryDataStore(mutablePreferencesOf(stringPreferencesKey("speechVoice") to saved)))
+        val initialized = CompletableDeferred<Boolean>()
+        var reads = 0
+        val fake = FakeEngine().apply { installed = emptyList() }
+        val engine = object : TtsEngine by fake {
+            override suspend fun awaitReady() = if (++reads == 1) initialized.await() else true
+        }
+        openSettings(usableRing(), engine = engine, preferences = prefs)
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_STATUS).performScrollTo()
+            .assertTextContains("Loading device voices", substring = true)
+        assertEquals(saved, runBlocking { prefs.current().speechVoice })
+        initialized.complete(false)
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasTestTag(SettingsTags.DEVICE_VOICE_STATUS) and hasText("did not start", substring = true))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_STATUS).assertTextContains("saved choice is kept", substring = true)
+        assertEquals(saved, runBlocking { prefs.current().speechVoice })
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_RELOAD).performScrollTo().performClick()
+        waitFor(hasTestTag(SettingsTags.DEVICE_VOICE_MISSING))
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_STATUS).performScrollTo()
+            .assertTextContains("no installed voices", substring = true)
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().performClick()
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE_DEFAULT).performScrollTo().assertIsDisplayed()
+        assertEquals(saved, runBlocking { prefs.current().speechVoice })
+        assertTrue(fake.spoken.isEmpty())
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp", fontScale = 2f)
+    fun compactDeviceVoiceChoicesWrapAndKeepFullNativeTargetsAt200Percent() = requireReadableDeviceVoiceChoices()
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun expandedDeviceVoiceChoicesWrapAndKeepFullNativeTargetsAt200Percent() = requireReadableDeviceVoiceChoices()
+
+    private fun requireReadableDeviceVoiceChoices() {
+        val id = "en-GB-installed-voice-with-a-deliberately-long-engine-name-for-readable-wrapping-and-selection"
+        openSettings(usableRing(), engine = FakeEngine().apply { details = listOf(DeviceVoice(id, "en-GB", true)) })
+        compose.onNodeWithTag(SettingsTags.DEVICE_VOICE).performScrollTo().assertIsDisplayed().performClick()
+        for (tag in listOf(SettingsTags.DEVICE_VOICE_DEFAULT, SettingsTags.deviceVoice(id), SettingsTags.DEVICE_VOICE_CLOSE)) {
+            val control = compose.onNodeWithTag(tag)
+            if (tag != SettingsTags.DEVICE_VOICE_CLOSE) control.performScrollTo()
+            control.assertIsDisplayed()
+            val node = control.fetchSemanticsNode()
+            val density = node.layoutInfo.density.density
+            assertTrue("$tag touch width", node.touchBoundsInRoot.width / density >= 48f)
+            assertTrue("$tag touch height", node.touchBoundsInRoot.height / density >= 48f)
+            assertTrue("$tag is fully visible", node.boundsInRoot.height >= node.layoutInfo.coordinates.size.height - 1f)
+            fun checkLabels(n: SemanticsNode) {
+                val results = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                compose.runOnUiThread { n.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results) }
+                for (text in results) {
+                    val lines = (0 until text.lineCount).toList()
+                    val inkWidth = lines.maxOfOrNull { text.getLineRight(it) - text.getLineLeft(it) } ?: 0f
+                    val inkHeight = lines.maxOfOrNull(text::getLineBottom) ?: 0f
+                    assertTrue("$tag clipped text: $inkWidth x $inkHeight in ${text.size}",
+                        inkWidth <= text.size.width + 1f && inkHeight <= text.size.height + 1f)
+                    assertFalse("$tag ellipsized text", text.multiParagraph.didExceedMaxLines || lines.any(text::isLineEllipsized))
+                }
+                n.children.forEach(::checkLabels)
+            }
+            checkLabels(node)
+        }
+    }
+
+    @Test
     @Config(qualifiers = "w1280dp-h900dp")
     fun expandedIndexKeepsTheFormBoundedAndNavigatesToItsSection() {
         openSettings(usableRing())
@@ -165,7 +309,8 @@ class SettingsScreenTest {
     @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
     fun voiceHitAreasHaveTheirOwnFullNativeHeightInsteadOfOffscreenExpansion() {
         openSettings(usableRing())
-        for (tag in listOf(SettingsTags.HANDS_FREE, SettingsTags.PACE)) {
+        compose.onNodeWithText("Hands-free").assertDoesNotExist()
+        for (tag in listOf(SettingsTags.TRIGGER, SettingsTags.PACE, SettingsTags.DEVICE_VOICE)) {
             compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         }
     }

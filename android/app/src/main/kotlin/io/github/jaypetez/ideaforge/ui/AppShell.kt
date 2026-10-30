@@ -94,7 +94,10 @@ fun AppShell(nav: NavHostController = rememberNavController()) {
     val scope = rememberCoroutineScope()
     val admission = remember { mutableLongStateOf(0L) }
     DisposableEffect(nav) {
-        val listener = NavController.OnDestinationChangedListener { _, _, _ -> admission.longValue++ }
+        val listener = NavController.OnDestinationChangedListener { _, _, _ ->
+            admission.longValue++
+            graph.manualDictation.cancel()
+        }
         nav.addOnDestinationChangedListener(listener)
         onDispose { nav.removeOnDestinationChangedListener(listener) }
     }

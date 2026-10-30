@@ -16,8 +16,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -128,16 +130,21 @@ class ResultScreenTest {
     }
 
     private fun show(session: JsonObject, synthesisFailed: Boolean = false,
-        clipboardUnavailable: Boolean = false): Pair<ResultHarness, ResultViewModel> {
+        clipboardUnavailable: Boolean = false, emailUnavailable: Boolean = false): Pair<ResultHarness, ResultViewModel> {
         val h = ResultHarness(tmp.newFolder(), Dispatchers.Unconfined, session)
         val vm = h.vm(stringOf(session["id"])!!)
         compose.setContent {
             IdeaForgeTheme {
                 val actual = LocalContext.current
-                val actionContext = remember(actual, clipboardUnavailable) {
-                    if (clipboardUnavailable) object : ContextWrapper(actual) {
+                val actionContext = remember(actual, clipboardUnavailable, emailUnavailable) {
+                    if (clipboardUnavailable || emailUnavailable) object : ContextWrapper(actual) {
                         override fun getSystemService(name: String): Any? =
-                            if (name == Context.CLIPBOARD_SERVICE) null else super.getSystemService(name)
+                            if (clipboardUnavailable && name == Context.CLIPBOARD_SERVICE) null else super.getSystemService(name)
+                        override fun startActivity(intent: Intent) {
+                            if (emailUnavailable && intent.action == Intent.ACTION_SENDTO)
+                                throw android.content.ActivityNotFoundException("Neutral missing email app.")
+                            super.startActivity(intent)
+                        }
                     } else actual
                 }
                 CompositionLocalProvider(LocalContext provides actionContext) {
@@ -182,6 +189,54 @@ class ResultScreenTest {
         show(ResultVectors.written)
         compose.onNode(hasTestTag(ResultTags.COPY) and hasAnyAncestor(hasTestTag("result-primary-action"))).assertExists()
         compose.onNodeWithTag(ResultTags.SAVE).assertExists()
+    }
+
+    @Test
+    fun resultReportingSavesLocallyBeforeAnOptionalExplicitEmailComposerHandoff() {
+        val (h, vm) = show(ResultVectors.written)
+        compose.onNodeWithTag("report-result").performClick()
+        compose.onNodeWithTag("content-report-dialog").assertExists()
+        compose.onNodeWithTag("report-category-other").performScrollTo().performClick()
+        compose.onNodeWithTag("report-save").performClick()
+        compose.waitUntil(5_000) { vm.reports.state.value.saved }
+        assertNull("saving a report starts no external activity", shadowOf(app).nextStartedActivity)
+        assertTrue(vm.state.value.export.contains("## Content reports (saved locally)"))
+        assertEquals(1, (h.stored()!!["contentReports"] as kotlinx.serialization.json.JsonArray).size)
+        compose.onNodeWithTag("report-email").performScrollTo().performClick()
+        val intent = startedIntent()
+        assertEquals(Intent.ACTION_SENDTO, intent.action)
+        assertTrue(intent.dataString!!.startsWith("mailto:jayson@duck.com?"))
+        val decoded = Uri.decode(intent.dataString!!)
+        assertTrue(decoded.contains("Category: other"))
+        assertTrue(decoded.contains("## Task"))
+        assertFalse("the email is not the complete exported interview", decoded.contains("## Transcript"))
+        assertFalse("a local report never opens a public GitHub issue", decoded.contains("github.com"))
+        assertTrue("opening a composer does not record successful delivery", vm.reports.state.value.saved)
+    }
+
+    @Test
+    fun aLocallyAssembledSeedOnlyResultDoesNotClaimAbsentAIGeneration() {
+        val seed = io.github.jaypetez.ideaforge.core.runtime.seedTurn(
+            io.github.jaypetez.ideaforge.core.createSession("s_static_result"))
+        show(io.github.jaypetez.ideaforge.core.setStatusField(seed, "done"))
+        compose.onNodeWithTag("report-result").assertDoesNotExist()
+        compose.onNodeWithText("Contains AI-generated content").assertDoesNotExist()
+        compose.onNodeWithTag(ResultTags.SYNTHESIS_FAILED).assertExists()
+    }
+
+    @Test
+    fun anUnavailableEmailAppKeepsTheDurableLocalReportAndOffersAnExplicitRetry() {
+        val (h, vm) = show(ResultVectors.written, emailUnavailable = true)
+        compose.onNodeWithTag("report-result").performClick()
+        compose.onNodeWithTag("report-category-other").performScrollTo().performClick()
+        compose.onNodeWithTag("report-save").performClick()
+        compose.waitUntil(5_000) { vm.reports.state.value.saved }
+        val saved = h.stored()!!
+        compose.onNodeWithTag("report-email").performScrollTo().performClick()
+        compose.onNodeWithTag("report-error").performScrollTo().assertIsDisplayed()
+            .assertTextContains("Your report is still saved locally", substring = true)
+        assertEquals(saved, h.stored())
+        compose.onNodeWithTag("report-email").performScrollTo().assertIsEnabled()
     }
 
     @Test

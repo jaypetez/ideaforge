@@ -84,6 +84,23 @@ adversarial pre-PR review on the exact diff, and squash-merges only when `ci` is
 the tested head. It never tags, releases, or touches settings, and it labels anything that
 needs a device, a secret, paid usage or a decision `needs-human`.
 
+Single-issue work stays direct. An explicitly requested multi-issue run uses a lean
+coordinator and one fresh sequential implementation worker per issue through the client's
+ordinary task tool, not fleet mode or a new custom agent. The worker owns implementation,
+reviews, final exact-head evidence, draft PR and actual acceptance; the coordinator verifies
+the compact handoff and real results, then owns the unchanged guarded merge and closeout.
+Same-issue corrections return to the same worker; the next starts only on verified green
+main within the requested queue/dependencies. See the skill for the canonical protocol and
+the [child guidance limits](docs/ASSISTANT-PROCESS.md#child-inheritance-limits) for unsupported
+lifecycle hooks. This changes neither model settings nor emulator concurrency.
+
+The skill separates focused development proof from one clean-head final validation.
+It records the reviewed diff, review/fix round and tested SHA so resume does not restart
+completed work; three unsuccessful rounds escalate rather than loop. Native-only changes
+use native visual evidence, not regeneration of unchanged web screenshots. Full pre-push
+checks and the exact-head `ci` gate still apply; see the skill for evidence invalidation
+and the [shared test ladder](AGENTS.md#the-ladder) for focused commands.
+
 The [lean coding contract](AGENTS.md#lean-coding) is adapted from Ponytail without copying
 its many-client distribution. Full guidance is automatic in the two CLI clients after
 normal workspace trust; `/ideaforge-assist lite`, `full`, `ultra` or `off` selects the
@@ -279,7 +296,8 @@ explicit owned emulator serial and JDK/SDK environment:
 $sha = git rev-parse HEAD
 .\gradlew.bat :app:connectedDebugAndroidTest `
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
   "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
@@ -298,12 +316,163 @@ under `android/app/build/intermediates/` or `build/outputs/`, named
 The current managed runner uses variant/task directories under `intermediates/`.
 The Android-device workflow collects both locations, along with reports, even after failure.
 
+The optional workflow's default/full route explicitly selects that full-inventory method
+on both visual devices, without an unused empty shell argument. After each Gradle command,
+`tools/check-android-device-results.py` requires the actual selected passing test in that
+device's JUnit XML; zero discovery, a different method, failures and skips fail the step
+even if Gradle exited successfully. Run its focused regressions from the repository root
+with `python test\android-device-results.test.py`. The workflow also checks the clean
+checkout SHA before and after captures. Complete requested manifests and inspected original
+PNGs in `android-ux-evidence-<SHA>` are still required; a nonzero test count alone is not
+acceptance.
+Default/full has a bounded 60-minute overall job budget: a verified complete compact run
+took over 21 minutes and left too little of the old budget for expanded evidence.
+Focused routes retain 40 minutes, and per-capture/test deadlines are unchanged.
+
 Use a standard rendering-enabled image, not ATD, for pixels. Real navigation and isolated
 Compose voice fixtures are explicitly distinguished; native-only `voice-writing` is rejected
 by the web runner. [DESIGN](docs/DESIGN.md#development-fixtures-and-captures) documents native
 phase/route mappings and the prerequisite fixes the matrix exposed. A focused green run
 is not a green full matrix; inaccessible actions, an unavailable read presented as empty,
 and black PNGs must remain failures.
+
+For complete native makeover acceptance, dispatch `android-device.yml` with
+`-f evidence=makeover` on the intended clean feature ref. This explicitly selects
+`UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` with `uxMakeoverProbe=true`.
+It runs sequential rendering-enabled phone/tablet tasks; their joined canonical journeys
+avoid a duplicate ATD boot within the unchanged 40-minute job budget. Ordinary/default
+and nightly ATD coverage is unchanged. It adds compact/expanded/short-landscape geometry at font scales 1.0/1.3/2.0,
+both themes, actual IME and installed system-navigation modes. The joined journey
+uses real onboarding/navigation, canonical answers/wrap, native document/share actions,
+Copy, same-session reopen/rotation, Settings and backup/import recovery.
+Only model/check/speech/service effects are scripted; voice phase fixtures are labelled
+isolated and OS permissions are not changed. The existing scripted permission-result
+tests cover microphone denial and nonfatal notification denial, not physical recognition.
+See [DESIGN's exact commands and evidence contract](docs/DESIGN.md#complete-native-makeover-acceptance).
+Require actual selected-test execution and both passed clean-SHA `ux-makeover` manifests;
+read back artifacts and inspect app, native-system and reachability PNGs. Cleanup also
+restores the clipboard and removes only owned documents/share files. Manual TalkBack,
+switch access, physical voice and live hosted speech remain explicitly unperformed.
+
+Play listing source lives in `android/fastlane/metadata/android/en-US/`. Keep its text
+plain, name compatible providers without their logos, and retain the non-affiliation
+notice. The changelog filename follows `versionCodeOf` in `android/app/build.gradle.kts`,
+which reads the version from `package.json`; this is not permission to publish to Play.
+
+Generate listing artwork and phone screenshots on a feature ref with:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=play-listing
+```
+
+Unlike the full UX mode, this explicit selection runs only the rendering-enabled
+`pixel2Api34Visual` managed device (standard AOSP API 34, Pixel 2). It retains the native
+1080x1920 display rather than resizing the existing UX profiles. The opt-in
+`UxCaptureDeviceTest#requestedPlayListingAssets` reuses the real debug scripted
+walkthrough and recorder for seed, selected-suggestion and Result frames in both themes,
+at font scale 1.0. It retains geometry/theme/rendering checks and requires every frame.
+Whole scripted answers use the real editor's SetText action, with empty-draft, exact-text
+and enabled-action checks; they do not certify physical typing or IME quality.
+No model key, real provider request or microphone is used. This is emulator capture,
+not physical-device or full-matrix acceptance.
+
+To run the same task with a suitable local managed-emulator setup, from `android\`:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:pixel2Api34VisualDebugAndroidTest `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedPlayListingAssets' `
+  '-Pandroid.testInstrumentationRunnerArguments.playListingProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=walkthrough' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Read back the workflow's `android-ux-evidence-<SHA>` and `android-device-reports`
+artifacts: require actual execution of the selected test with no failure, a passed
+`play-listing/manifest-compact.json` with the intended clean SHA and every requested frame,
+and inspect the light/dark PNGs. `play-listing/images/` holds the store copies:
+`icon.png` (512x512 RGBA), `featureGraphic.png` (1024x500 opaque RGB), and numbered
+`phoneScreenshots/` PNGs (1080x1920 opaque RGB). The native `PlayListingAssets.kt`
+renders the installed adaptive icon's background and foreground at Android's layer bounds,
+without the device mask (Play supplies its own); phone conversion only removes
+an unused alpha channel, with no resize, crop or replacement of app pixels. Preserve the
+original recorder images and manifest as evidence, then copy only the generated `images/`
+tree into the metadata directory. Never promote a failed or development-dirty run.
+
+After copying, from the repository root run `node tools\check-play-listing.mjs`.
+The checker rejects absent assets, out-of-limit text and PNG dimensions, wrong bit depth
+or transparency, missing themes and incomplete image data. It checks the current
+versionCode's changelog, not a stale version's file. Keep the generated assets with the
+listing source; `npm test` runs the same checker against the committed current-version
+inventory as well as adversarial boundary fixtures. A passing header/limit check never
+replaces the native manifest and visual inspection.
+
+For launcher-only changes, use the same workflow with `-f evidence=launcher`. This selects
+`LauncherIconDeviceTest#requestedLauncherShowsMaskedAndThemedInstalledIcon` on
+`pixel2Api34Visual`, not ATD or the full app matrix. It uses the actual AOSP Launcher3 home
+screen, places the installed app there if needed, and reads/changes/restores the launcher's
+own themed-icons setting through its customization provider. This route is for an owned
+managed emulator, not a shared launcher or a physical phone. It captures full, unmodified
+display frames with the device mask and with themed icons enabled; it is not a drawn
+contact sheet or a general launcher-compatibility claim.
+
+Require a passed `launcher-icon/manifest-compact.json`, the exact clean tested SHA, actual
+selected-test execution, and inspect `launcher-masked.png` and `launcher-themed.png`.
+The probe rejects a missing monochrome layer, an unmasked square or an unchanged brand
+background after theming. It also writes the two launcher-derived Play artwork PNGs under
+`launcher-icon/images/`. After inspecting and checking them, copy only `icon.png` and
+`featureGraphic.png` into the metadata images directory when they changed. Preserve the
+existing lossless phone frames when no app-screen input changed; launcher artwork does
+not require recapturing the interview. Re-run the listing checker on the complete inventory.
+
+For the Play microphone foreground-service declaration, dispatch the opt-in native recording:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=microphone-demo
+```
+
+`MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses the existing
+private-store fixture and debug scripted interview model, not a real inference key.
+`pixel2Api34Voice` is a standard Google APIs API 34 image; the test reports installed TTS
+and recognizer capabilities and fails if they are unavailable. Through the existing graph
+test seam it explicitly selects `androidRecognizerFactory(..., RecognizerMode.DEFAULT)`:
+the **real Android default recognition service**, not a scripted recognizer. This image's
+advertised on-device engine failed its real en-US start; this recording does
+not certify that preferred on-device branch. Native TTS, recognition/audio callbacks,
+permission dialogs, controller, foreground service and notification actions remain real.
+Use only a fresh owned managed emulator: the test requires ungranted microphone and
+notification permissions and clicks their actual system Allow actions. It does not revoke
+permissions, wipe data or uninstall an app on a shared device.
+
+Gradle owns the ephemeral device, so the recording invokes the **same on-device
+`screenrecord` utility as `adb shell screenrecord`** through
+`UiAutomation.executeShellCommand`, with `--time-limit 55 --bit-rate 4000000`. It records
+the real Interview → Hands-free interview → Allow → native hands-free listening → system
+notification with Pause/Exit → notification Exit → same typed idea. Assertions require
+actual non-silenced Android audio recording, recognizer audio callbacks, a real foreground
+`DriveService` and notification, then their teardown with no answer or wrap-up submitted.
+The private pre-agreed setup and scripted model are fixtures; default-service selection
+is test-only, with no release demo mode or production voice-policy change.
+
+Read back `android-microphone-demo-<SHA>` and `android-device-reports`. Require actual
+nonzero selected-test execution, a passed `microphone-demo/manifest.json` with the exact
+clean checkout SHA/profile, and the uploaded MP4's hash/bytes, codec, dimensions and actual
+30–60 s duration. Android's `MediaMetadataRetriever`/`MediaExtractor` verify the actual
+recording and decode the `video-*.png` frames at the recorded event times. Open those
+frames **and watch the clip**, checking that both real Allow dialogs, the listening stage,
+notification actions and same-idea Exit are visible. The `listening-system.txt` and
+`exited-system.txt` snapshots retain actual service/audio/app-op/notification state.
+An artifact or shell exit alone is not acceptance. This does not certify physical phones,
+speech quality, screen-off survival, other profiles or Play approval.
+
+Declaration copy is in the [Android guide](guide/android.html#foreground-service-declaration)
+and [publishing walkthrough #171](https://github.com/jaypetez/ideaforge/issues/171).
+Artifacts expire after 14 days; the maintainer retains the reviewed MP4 and uploads it to
+unlisted YouTube, then supplies the durable video URL to Play Console. Neither this
+workflow nor the agent publishes to YouTube or Play.
 
 For the adaptive native shell, dispatch the existing workflow on the exact feature ref:
 
@@ -318,7 +487,9 @@ actual IME, resize/recreation, same-session Ask me more and in-place paused voic
 Additional light/font-2 cases repeat Interview/IME, Result and paused Voice with each
 installed three-button/gestural system-navigation overlay, verifying selection and
 restoring the original overlay enablement. They prove inset layout, not gesture usability.
-The paused controller uses scripted speech and a fake service; it proves layout/identity,
+The paused capture waits for the injected service's admitted start before Pause: an
+immediate Pause can legitimately cancel a still-pending Start. The controller uses
+scripted speech and a fake service; it proves layout/identity,
 not real recognition, permission prompts or service behavior. The default `evidence=full`
 retains the shared full inventory; a focused shell pass is not a full-matrix pass.
 
@@ -361,6 +532,18 @@ and a labelled scripted backup-job failure. No file picker, hosted preview or re
 provider is invoked. Require actual selected-method XML and complete clean-SHA
 compact/expanded, light/dark, enlarged manifests/PNGs; it is not the full inventory.
 
+For device voice selection, dispatch `-f evidence=device-voices` on the exact feature ref.
+It selects the same Settings method with `uxSettingsProbe=true` and
+`uxDeviceVoicesProbe=true`, reusing the private graph and strict recorder rather than a
+new runner. The fixed seven states are engine default, long installed choice, actual
+selection/recreation, pending engine read, error, empty list and retained missing choice.
+Both rendering-enabled profiles run light/dark at actual font scales 1.0/1.3/2.0.
+Require actual passing selected-method XML, both complete clean-SHA `ux-device-voices`
+manifests and all original/reachability PNGs. The controlled engine also asserts subsequent
+native speaker configuration/fallback. An eighth, explicitly isolated voice-stage frame
+shows both the reported missing-device-voice warning and hosted fallback. These captures do not play real speech, request
+microphone permission or prove physical voice quality, offline compatibility or TalkBack.
+
 For native Result, `-f evidence=result` selects
 `UxCaptureDeviceTest#requestedNativeResultKeepsDocumentAndCanonicalActions` with
 `uxResultProbe=true`. Its fixed six-frame matrix covers long/scrolled/short documents,
@@ -400,6 +583,42 @@ UI tests, not a single-window phase screenshot. All phase captures are labelled 
 UI, including the native completion-to-Result mapping. No microphone, actual permission
 prompt, hosted request or service is started. Inspect actual selected-method execution,
 complete exact-SHA manifests and PNGs; #89 remains the physical-device owner.
+The isolated fixture's capture readiness also measures actual SystemUI clock and status
+glyph pixels against its requested background. Both clusters need 4.5:1 core ink contrast
+in two consecutive app-root samples, within the existing capture budget. Earlier attempts,
+their original display PNGs and requested window flags remain diagnostics; flags or an
+app-window PixelCopy alone cannot establish SystemUI paint. This does not certify production
+system bars or physical phones.
+
+For manual dictation, dispatch `-f evidence=dictation` on the exact feature ref. It selects
+`UxCaptureDeviceTest#requestedManualDictationKeepsLiteralDraftAndExplicitSend` with
+`uxDictationProbe=true`, reusing the existing private graphs and strict recorder.
+The fixed seven states are ready, listening, stopped draft, engine error, long literal text,
+report cancellation and Settings without the old global switch. Both rendering-enabled
+profiles run light/dark at actual font scales 1.0/1.3/2.0: 42 records per window.
+The real manual controller and `PRESS_TO_TALK` recognizer consume controlled callbacks.
+On these owned managed devices only, a missing microphone grant is accepted through the
+actual system Allow action. No notification permission, real recognizer, audio recording,
+spoken output, service or provider request runs. Require actual passing selected-method
+XML, complete clean-SHA `ux-dictation` manifests and inspected original/reachability PNGs.
+This is neither full-inventory acceptance nor physical #89, voice quality or manual
+TalkBack proof; native/Whisper eligibility, original grants and stale callbacks have
+separate focused tests.
+
+For native AI-output reporting, dispatch `-f evidence=reporting` on the exact feature ref.
+It selects `UxCaptureDeviceTest#requestedContentReportsKeepLocalPayloadAndQuestionIdentity`
+with `uxReportingProbe=true`, using the existing private-store routes and strict recorder.
+The fixed journey covers generated questions/suggestions, the localized dialog, a genuinely
+held session-lock save, a refused report write with retry, local export, no-answer
+replacement, earlier history, Result, the real voice stage and a Back-to-Ideas report
+that pauses and refreshes the surviving app-graph drive. It uses compact/expanded
+windows, both themes and font scales 1.0/1.3/2.0.
+Require the selected passing JUnit method, complete clean-SHA `ux-reporting` manifests
+and inspected original/reachability PNGs from `android-ux-evidence-<SHA>`. Voice
+speech/service are scripted; no recognizer, live provider or email composer is invoked.
+This is neither full UX acceptance nor Play approval, physical voice or manual TalkBack
+evidence. The optional email action has separate intent/payload tests and uses only the
+canonical policy's confirmed contact; no publication/account setup is needed.
 
 For the native shared-control foundation, select
 `UxCaptureDeviceTest#requestedFoundationEvidenceSeparatesFallbackAndSimulatedPalettesFromActualWallpaper`
@@ -416,7 +635,8 @@ The normal real-app matrix continues to use system dynamic colours. See
 with real dependencies. It is a separate Gradle project: nothing under it is imported by,
 copied into or served beside the web app, and `test/wiring.test.mjs` pins that
 `tools/assemble-site.mjs` never publishes it. The app is an alpha that runs the typed
-interview and a hands-free voice interview: native speech capture (#91) and the voice stage,
+interview with tap-start/tap-stop dictation into an editable draft, plus a hands-free
+voice interview: native speech capture (#91) and the voice stage,
 kept hearing by a microphone foreground service (#92). CI uploads a debug APK; the release
 workflow attaches a signed one (see [cutting a release](#cutting-a-release)).
 
@@ -446,6 +666,9 @@ The build's facts live in Gradle, and `test/docs.test.mjs` fails if this table d
 | Gradle wrapper | Gradle 9.8.1 | `android/gradle/wrapper/gradle-wrapper.properties` |
 | Toolchain | JDK 21 | every module's `jvmToolchain` |
 
+`PlayRequirementsTest` reads the effective debug and release merged manifests and fails if
+either targets below API 36. It uses Gradle artifact inputs, not a source-text SDK check.
+
 Every library version is in the catalog; bump it there, never inline in a build script.
 `versionName` is read from `package.json`, so the release triplet stays in two files, not
 three. The debug build adds `.debug` to the application id and installs beside a release.
@@ -458,6 +681,10 @@ neither, `:app:assembleRelease` produces `app-release-unsigned.apk`; a half-fill
 an error. `assembleRelease` is finalised by `:app:verifyReleaseApk`, which fails if the APK
 packages the walkthrough script or R8's mapping lists any debug-only class. Never commit a
 keystore or its passwords.
+`:app:bundleRelease` uses the same signing inputs and versionCode, and is finalised by
+`:app:verifyReleaseBundle` with the same checks on the actual AAB. The release workflow
+maps separate upload-key secrets into these existing Gradle inputs for the bundle; it
+does not change which certificate signs the APK.
 
 ```sh
 cd android
@@ -480,6 +707,24 @@ pass. Backups are a second contract: `test/fixtures/backup-from-web.json` and
 validates the Gradle wrapper, runs `./gradlew --no-daemon check :app:assembleDebug`, and
 uploads the debug APK as the `ideaforge-debug-apk` artifact. It feeds the single required `ci`
 check.
+After building, `tools/test-android-apk-alignment.py` runs SDK
+`zipalign -c -P 16 -v 4` on the actual APK. It appends a copy of a real arm64 library as
+`unaligned.so` in a separate APK, four-byte aligned but not 16 KB aligned, and requires
+`zipalign` to reject that entry. The original signed APK is untouched and the planted copy
+is deleted. Run the same check from the repository root with SDK Build-Tools 35 or newer:
+
+```sh
+python3 tools/test-android-apk-alignment.py "$ANDROID_HOME/build-tools/<version>/zipalign" android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+This guards ZIP placement of native libraries, not ELF segment alignment or runtime behavior
+on a 16 KB device. The existing release-manifest test still refuses debug-only permissions
+and probe components.
+The same job runs `bash tools/test-android-packages.sh` with two generated disposable keys:
+the same alignment check and planted control on the actual signed, minified release APK,
+actual APK/AAB signing, pinned bundletool validation, matching versionCode, and rejection of
+missing upload secrets, reused keys, unsigned bundles and a corrupt tool download.
+It neither reads production signing secrets nor publishes these test packages.
 
 **On a device.** `android/app/src/androidTest/` holds an instrumented walkthrough: it launches
 the debug build with its scripted provider, answers the interview through the screen (typed
@@ -549,6 +794,12 @@ For public documentation work, run `npm run test:docs` while editing. Guide rout
 service-worker, screenshot or app-link changes also need `npm run test:browser:required`;
 the all-up pre-push gate remains `npm run test:all`.
 
+The shared `launchChrome` in `tools/lib/harness.mjs` uses `--disable-extensions` and
+`--disable-component-extensions-with-background-pages` for its temporary profiles. A fresh
+profile alone can still receive managed content scripts. These launch flags do not change
+installed browser settings; autoplay, microphone and trusted-gesture policy still belong
+to each calling harness.
+
 The required browser command also runs `tools/browser-policy-check.mjs`: fresh-profile,
 real Web Audio checks with trusted gestures, separate from the synthetic microphone suite's
 autoplay bypass. Keep those evidence classes separate in a PR. Neither replaces real
@@ -616,12 +867,22 @@ and reruns the full ladder with `npm run test:all`. Only then does the write-ena
 than its tag is a support problem forever afterwards.
 
 The APK comes from a separate `android-apk` job in the `release` environment, the only job
-in the workflow that references the four keystore secrets (`ANDROID_KEYSTORE_B64`,
+in the workflow that references the four app-signing secrets (`ANDROID_KEYSTORE_B64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). It fails rather
 than skips when one is missing, and `tools/apk-cert-pin.mjs` fails it unless
-`apksigner verify --print-certs` shows exactly one signer whose SHA-256 equals the fingerprint
+`apksigner verify --print-certs` shows one app-signing certificate across all reported signers and SDK
+ranges, whose SHA-256 equals the fingerprint
 pinned in [SECURITY.md](SECURITY.md#release-signing-certificate). While that pin reads
 `PENDING`, every release fails at this job and nothing at all is published, by design.
+
+The separate read-only `android-aab` job receives only `ANDROID_UPLOAD_KEYSTORE_B64`,
+`ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS` and
+`ANDROID_UPLOAD_KEY_PASSWORD` from that same tag-restricted environment. It signs
+`:app:bundleRelease` with the upload key, checks the actual package for debug-only code
+and fixtures, validates it with checksum-pinned bundletool, verifies its signature and
+refuses an upload certificate equal to the published app-signing pin. It stages the
+bundle's own R8 `mapping.txt`, not a debug or APK mapping. Missing upload secrets fail
+loudly; there is no fallback to the app-signing key.
 
 The workflow text alone does not keep the secrets in that job; the repository settings do.
 Before the first signed tag the maintainer:
@@ -629,6 +890,9 @@ Before the first signed tag the maintainer:
 - creates the release key and stores the four values as **environment secrets on the
   `release` environment**, never as repository secrets (a repository secret is readable by
   any job in any workflow that names it);
+- creates a different Play upload key and stores its four `ANDROID_UPLOAD_*` values in
+  that environment; enrols the app-signing key with Play separately if both distribution
+  paths must use the same certificate;
 - restricts the `release` environment's deployment branches and tags to tags matching
   `v*.*.*`, so no branch, pull request or other workflow can run a job in it (a required
   reviewer is optional);
@@ -640,7 +904,8 @@ version would already have turned CI's `android` job red on `main`. There is no 
 them.
 
 The tag produces two things: a GitHub release with `.tar.gz`, `.zip`, the signed
-`ideaforge-VERSION.apk` and `SHA256SUMS` covering all three, the archives built straight from
+`ideaforge-VERSION.apk`, upload-signed `ideaforge-VERSION.aab`, its `mapping.txt`, and
+`SHA256SUMS` covering all five payloads, the archives built straight from
 the tagged tree with `git archive`; and a container image at
 `ghcr.io/jaypetez/ideaforge`, tagged with the version and — unless the tag is a prerelease —
 `latest`.

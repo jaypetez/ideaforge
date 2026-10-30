@@ -9,6 +9,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md) and
   [`package.json`](../../../../package.json). Re-check `README.md`, `CONTRIBUTING.md`, the
   development guide, and skills.
+- **Browser harness profile isolation.** Source: `launchChrome` in
+  [`tools/lib/harness.mjs`](../../../../tools/lib/harness.mjs) sets extension-isolation flags in its
+  temporary profiles; the calling harness owns autoplay, synthetic media and gesture policy.
+  Re-check contributor testing guidance without treating a fresh profile as proof that
+  managed content scripts cannot be injected.
 - **Implementation invariants.** Sources:
   [`CLAUDE.md`](../../../../CLAUDE.md), the owning modules, and their tests. Re-check
   `docs/ARCHITECTURE.md`, focused skills, and the development guide.
@@ -55,7 +60,8 @@ source wins over prose, and a generated artifact wins over a description of that
   Re-check DESIGN, the Android guide, architecture, full title semantics, no
   navigation-triggered microphone/service and actual exact-SHA pixel manifests.
   Scripted controller speech/service in paused-stage evidence is not physical input
-  or real foreground-service proof.
+  or real foreground-service proof. The shell capture waits for the injected service's
+  admitted start before Pause, preserving the runtime's cancellation of pending admission.
 - **Web visual foundation and chrome.** Sources:
   [`src/ui/app.css`](../../../../src/ui/app.css) owns semantic surfaces/text, composed
   control states, type, spacing, shape, separators and reduced/forced-colour rules.
@@ -64,6 +70,10 @@ source wins over prose, and a generated artifact wins over a description of that
   [`manifest.webmanifest`](../../../../manifest.webmanifest) own preference/first-paint
   and browser/install chrome. [`test/wiring.test.mjs`](../../../../test/wiring.test.mjs)
   holds those colours to the CSS ground roles.
+  The head's optional font preload is activated by the classic appearance script only
+  after page load, not awaited by app startup. `screenshots.mjs` and `requireUxFont` in
+  [`test/browser/fixtures/ux.js`](../../../../test/browser/fixtures/ux.js) await activation
+  and face registration before requiring real loaded fonts for capture.
   [`contrast.browser.mjs`](../../../../test/browser/contrast.browser.mjs) and
   [`a11y-keyboard.probe.mjs`](../../../../test/browser/a11y-keyboard.probe.mjs) measure
   actual composited controls, trusted hover/press/focus, selected/disabled/busy/status
@@ -92,6 +102,38 @@ source wins over prose, and a generated artifact wins over a description of that
   `Backup.kt`/`BackupJobs` retain session-only, collision-as-copy, failed-write behavior.
   Re-check Android Voice/Your data labels, DESIGN measures, Cancel/Back focus and actual
   `evidence=settings` fixed real-app matrix, not physical/live paid speech claims.
+  `DeviceVoiceSettings.kt`, `SettingsViewModel` and `PrefsStore.speechVoice` own the native
+  choice, separate from hosted state. `AppGraph.nativeTtsEngine` shares lazy initialization
+  and `AndroidTtsEngine.voiceDetails` metadata with `TextToSpeechSpeaker`; reload/error/
+  empty/missing choices never replace a preference. Re-check the Android guide, DESIGN,
+  architecture and CONTRIBUTING's `evidence=device-voices` Settings subset, including actual
+  selection/recreation/subsequent-speak/fallback tests, 48dp native touch bounds, both
+  rendering profiles/themes/fonts and inspected clean-SHA manifests/PNGs. Controlled engine
+  metadata is not physical speech quality, network/offline compatibility or TalkBack proof.
+  `VoiceStage` displays native `lastSpeech.voiceMissing`/`message` independently of hosted
+  `fallback`; its actual-speaker-result regression and the isolated `voice-fallback` fixture
+  protect both messages. The focused device-voices matrix includes that isolated frame.
+- **Native manual dictation and explicit modes.** Sources: `InterviewScreen.kt` owns the
+  tap-start/tap-stop control, microphone-only permission intent and lifecycle teardown.
+  `InterviewViewModel` owns literal draft/voice-source updates and original
+  entry/permit/question/edit/worker/observed-durable-draft guards, with explicit Send unchanged.
+  [`ManualDictation.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/ManualDictation.kt)
+  reuses `Recognizer.PRESS_TO_TALK`, never the drive parser. `AppGraph` and
+  `DriveController.beforeStart` serialize input against a surviving drive, including
+  notification Resume. Its shared input-intent revision also retires pending authorization/
+  permission in both modes; the paused drive surrenders its recognizer before handoff so
+  notification Exit cannot release newer input. `WhisperListener.listenForDrive` exposes
+  an immediate idempotent recording-release handle for blocked-read cancellation.
+  Report retires input intent before accepting private notes.
+  `WhisperListener.manualCapture` retains existing fallback eligibility/key-generation/
+  audio-consent/recording bounds and releases input before uploading. `Prefs.handsFree`
+  round-trips legacy storage only; its Settings control/writer are absent and finish word
+  remains hands-free-only. Re-check README's Android section, the Android guide, DESIGN,
+  architecture, CONTRIBUTING, permission/draft/drive tests and all Interview/Settings/
+  walkthrough capture consumers. `evidence=dictation` selects the existing strict recorder's
+  seven-state real-app subset, both visual profiles/themes and actual font1/1.3/2.
+  Controlled callbacks and one real OS microphone grant on an owned managed emulator do not
+  prove physical #89, recognition quality, hosted CORS or manual TalkBack.
 - **Native Result and canonical actions.** Sources: `ResultScreen.kt` owns compact
   Share/Copy and expanded Copy/Save priority, single document scroll/insets and persistent
   errors. `ResultViewModel` keeps actual load/IO failures distinct from missing rows and
@@ -101,6 +143,72 @@ source wins over prose, and a generated artifact wins over a description of that
   Windows real-provider probe seam. Re-check Android Result/export guidance and
   `evidence=result` actual long/scrolled/short/checklist/synthesis-failed/held-lock loading
   captures; no native chooser/picker/physical usability claim follows from their PNGs.
+- **Complete native makeover acceptance.** Sources:
+  `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance` reuses `ScriptedWalkthrough`,
+  private fixture graphs, installed adaptive panes and the existing fail-closed recorder.
+  `UxSystemActions.kt` owns real native document/share interactions and cleanup of only
+  created documents/share files plus clipboard restoration, with a real `sh` over the
+  API 34 stderr-capable UiAutomation transport and checked exit status.
+  `InterviewScreen` includes retained History and persistent notice height in its
+  short-window decision; the actual normal-font landscape regression is in
+  `InterviewLayoutTest` (normal scale is verified, not inferred from method metadata).
+  `UxCaptureRecorder.kt`
+  records every state's semantics, screen-space popup/dialog geometry, achieved dp/density,
+  actual IME, requested scheme/container pixel roles and exact supplied SHA.
+  `android-device.yml` selects the fixed inventory only with `evidence=makeover`, on
+  sequential rendering-enabled phone/tablet tasks outside required `ci`. Its canonical
+  journeys avoid the duplicate ATD boot within the unchanged job budget; ordinary/default
+  and nightly ATD coverage remains.
+  Re-check DESIGN, CONTRIBUTING and `guide/android.html` against selected-test execution,
+  both complete clean-SHA `ux-makeover` manifests and personally inspected app/system PNGs.
+  `AdaptiveShellTest` retains separately labelled scripted microphone/notification-denial
+  proof. Automated order/heading/name/role/state/status assertions are not manual TalkBack,
+  switch access, physical recognition, screen-off or hosted-speech certification.
+- **Native Play listing text and generated artwork.** Sources:
+  [`android/fastlane/metadata/android/en-US/`](../../../../android/fastlane/metadata/android/en-US/)
+  owns versioned plain-text listing copy and the versionCode-named changelog.
+  `android/app/build.gradle.kts` owns `versionCodeOf` and the native 9:16
+  `pixel2Api34Visual` managed profile. `UxCaptureDeviceTest#requestedPlayListingAssets`
+  reuses the real debug scripted walkthrough and strict recorder in both themes;
+  `PlayListingAssets.kt` flattens the installed adaptive background/foreground at Android's
+  layer bounds without a device mask, and exports lossless,
+  opaque phone copies. `android-device.yml`'s explicit `evidence=play-listing` mode owns
+  the focused hosted command, SHA checks and artifact upload.
+  [`tools/check-play-listing.mjs`](../../../../tools/check-play-listing.mjs) and
+  [`test/play-listing.test.mjs`](../../../../test/play-listing.test.mjs) own text/PNG limits
+  and the versioned inventory. Re-check CONTRIBUTING,
+  actual selected-test execution, complete clean-SHA manifests and inspected PNGs.
+  This does not publish a listing, prove physical-device behavior or replace the
+  remaining release/privacy gates.
+- **Native adaptive launcher.** Sources:
+  [`ic_launcher.xml`](../../../../android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml)
+  owns the full-bleed background, safe-zone anvil foreground and shared monochrome layer;
+  `AndroidManifest.xml` selects it for normal and round icons.
+  `LauncherIconTest` checks actual resource resolution at minSdk and a themed-icon API,
+  opacity, safe-circle containment and monochrome silhouette. `LauncherIconDeviceTest`
+  uses the actual AOSP Launcher3 home and its read-back themed-icons preference on the
+  rendering-enabled `pixel2Api34Visual` profile, restoring the preference afterwards.
+  `android-device.yml` selects it only with `evidence=launcher`; the same run exports the
+  two dependent Play artwork files without recapturing unchanged phone screenshots.
+  Re-check the Android guide, architecture, contributor commands, clean-SHA manifests,
+  actual selected-test execution and both full display PNGs. No physical-device or
+  other-launcher compatibility result follows from this focused emulator evidence.
+- **Native microphone foreground-service declaration.** Sources:
+  `InterviewScreen.kt` and `VoiceStage.kt` own the user voice entry and separate runtime
+  permissions; `AppGraph.kt`, `DriveController.kt`, `DriveService.kt`, `AndroidRecognizer.kt`
+  and `Speaker.kt` own admission, serial effects, real audio, notification actions and
+  teardown. `MicrophoneDemoDeviceTest#requestedMicrophoneForegroundServiceVideo` uses only
+  private setup stores and the debug scripted interview model, not fake native effects.
+  `android-device.yml` selects `evidence=microphone-demo` on standard Google APIs
+  `pixel2Api34Voice`, explicitly selects the real default recognizer through the existing
+  graph test seam (not the image's unusable on-device English engine), and uploads the real
+  shell `screenrecord` MP4, native media metadata and
+  decoded frames, plus actual service/audio snapshots. Re-check CONTRIBUTING,
+  `guide/android.html#foreground-service-declaration`, publishing walkthrough #171 and
+  Google's linked FGS declaration requirements. Read back the exact clean SHA/profile,
+  selected-test execution, actual video duration/bytes and decoded flow. Artifact expiry
+  and maintainer-owned unlisted YouTube upload are not an automated publication step.
+  Emulator input is not physical-phone, live speech-quality or screen-off-survival proof.
 - **Native Ideas rows, filters and previews.** Sources:
   [`LibraryScreen.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/library/LibraryScreen.kt)
   owns compact direct Continue/View result, secondary More/details, native adaptive
@@ -142,6 +250,12 @@ source wins over prose, and a generated artifact wins over a description of that
   service/hosted/capture tests and actual `evidence=voice` manifests/PNGs. Native completion
   maps to Result; static scripted phases never certify physical recognition, hosted
   quality, Android permission prompts or #89.
+  `UxCaptureRecorder` and `UxEvidence` additionally own bounded isolated-fixture SystemUI
+  pixel readiness: both clock and status clusters must paint the requested contrasting
+  ink alongside two consecutive app-root samples. Requested appearance flags and window
+  PixelCopy remain diagnostics, not glyph evidence. `UxSystemBarsTest` uses the unmodified
+  original full-display PNGs and their adjacent provenance to reject #287's stale light
+  glyphs without changing the production theme, capture inventory or deadline.
 - **Web Settings and safe recovery.** Sources:
   [`index.html`](../../../../index.html) and
   [`app.js`](../../../../src/ui/app.js) own the shared five-section form, current-state
@@ -159,6 +273,22 @@ source wins over prose, and a generated artifact wins over a description of that
   [`sw.js`](../../../../sw.js) and [`test/sw.test.mjs`](../../../../test/sw.test.mjs)
   own response cloning before consumption, refresh-event lifetime, reported cache-write
   failures and offline shell/module fallbacks. Keep guide/provider bypasses intact.
+- **Native AI-output reports and portable metadata.** Sources:
+  [`src/core/session.js`](../../../../src/core/session.js) owns `reportableOutput`,
+  `addContentReport`, `mergeContentReports`, `replaceReportedQuestion` and migration;
+  [`Markdown.kt`](../../../../android/core/src/main/kotlin/io/github/jaypetez/ideaforge/core/Markdown.kt)
+  and the JS export append reports only when present. Golden vectors and both generated
+  backup fixtures pin the JS/Kotlin data contract without changing no-report exports.
+  [`ContentReportController.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/reporting/ContentReportController.kt)
+  owns origin/draft identity and serialized local saves; `InterviewWork`, typed drafts
+  and paused `DriveController` preserve those writes.
+  [`ContentReportDialog.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/reporting/ContentReportDialog.kt)
+  is wired into questions, suggestion groups, history, Ideas previews, Result and voice.
+  The canonical privacy policy's confirmed contact is checked against its email resource
+  in `test/docs.test.mjs`. Re-check Android/interview/privacy guidance, architecture,
+  DESIGN and `evidence=reporting` selected execution, complete manifests and PNGs.
+  Android-only UI is deliberate; local save is not developer receipt, and scripted voice
+  or an email intent is not physical speech, email delivery or Play approval.
 - **Native visual foundation.** Sources:
   [`Theme.kt`](../../../../android/app/src/main/kotlin/io/github/jaypetez/ideaforge/ui/theme/Theme.kt)
   owns fallback `LightTokens`/`DarkTokens`, opaque composites, all 15 system-family type
@@ -202,6 +332,15 @@ source wins over prose, and a generated artifact wins over a description of that
   partial successful index. Re-check the Android guide and DESIGN's prerequisite account.
   [`android-device.yml`](../../../../.github/workflows/android-device.yml) owns standard
   visual managed devices and always-upload evidence, not the required `ci` gate.
+  Default/full explicitly selects `requestedUxEvidenceIsRenderedCompleteAndReachable`
+  without an empty shell opt-in and checks the clean checkout SHA around both captures.
+  [`tools/check-android-device-results.py`](../../../../tools/check-android-device-results.py)
+  and [`test/android-device-results.test.py`](../../../../test/android-device-results.test.py)
+  own the post-Gradle selected-test XML guard and its zero-discovery, wrong-method,
+  failure/skip regressions. Re-check contributor/Android-skill commands and DESIGN against
+  those owners; actual test execution does not replace complete manifests and inspected PNGs.
+  The workflow's measured overall budget is 60 minutes for full/default (including absent
+  push/nightly inputs), 40 for focused routes, without changing capture/test deadlines.
   Its method-focused inference-consent route records Settings Connection, provider
   selection and hosted/local details. A before phase requires absent agreement controls
   and unchanged pre-integration application sources; after requires the real labelled
@@ -249,7 +388,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`.github/workflows/release.yml`](../../../../.github/workflows/release.yml),
   [release-note configuration](../../../../.github/release.yml),
   [`tools/apk-cert-pin.mjs`](../../../../tools/apk-cert-pin.mjs) with the signer pin in
-  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK),
+  [`SECURITY.md`](../../../../SECURITY.md#release-signing-certificate) (the signed APK and
+  distinct upload certificate), [`tools/check-android-bundle.sh`](../../../../tools/check-android-bundle.sh)
+  (checksum-pinned bundletool and actual upload signatures), and
+  [`tools/test-android-packages.sh`](../../../../tools/test-android-packages.sh)
+  (disposable-key APK/AAB, shared versionCode and negative controls in required Android CI),
   [`tools/check-privacy-policy.mjs`](../../../../tools/check-privacy-policy.mjs) with
   [`guide/privacy-policy.html`](../../../../guide/privacy-policy.html) (the confirmed contact),
   [`package.json`](../../../../package.json), and
@@ -462,6 +605,11 @@ source wins over prose, and a generated artifact wins over a description of that
   [`android/app/build.gradle.kts`](../../../../android/app/build.gradle.kts) (SDK levels,
   application id, `.debug` suffix, version from `package.json`, release signing from the
   environment or `android/keystore.properties`, and `verifyReleaseApk`),
+  [`PlayRequirementsTest.kt`](../../../../android/app/src/test/kotlin/io/github/jaypetez/ideaforge/PlayRequirementsTest.kt)
+  (effective debug/release merged-manifest target floor),
+  [`tools/test-android-apk-alignment.py`](../../../../tools/test-android-apk-alignment.py)
+  (SDK `zipalign` on actual debug/release APKs and a planted native ZIP-entry rejection
+  control, not ELF or 16 KB-device runtime certification),
   [`android/gradle/libs.versions.toml`](../../../../android/gradle/libs.versions.toml) (AGP,
   Kotlin and every library version),
   [`android/gradle/wrapper/gradle-wrapper.properties`](../../../../android/gradle/wrapper/gradle-wrapper.properties),
@@ -483,6 +631,16 @@ source wins over prose, and a generated artifact wins over a description of that
   [`AGENTS.md`](../../../../AGENTS.md), [`CLAUDE.md`](../../../../CLAUDE.md), and
   [`CONTRIBUTING.md`](../../../../CONTRIBUTING.md). Re-check the development guide, skills,
   and review adapters.
+- **Backlog execution and evidence ordering.** Sources:
+  [`work-issues`](../../work-issues/SKILL.md) owns explicit invocation, requested-scope
+  preflight, the single-issue/direct and multi-issue/coordinator-worker boundary, persistent
+  review state, compact evidence handoff and guarded merge;
+  [`android-verify`](../../android-verify/SKILL.md) owns native readiness and validation.
+  Re-check `AGENTS.md`, `CONTRIBUTING.md`, `docs/ASSISTANT-PROCESS.md` and
+  [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs).
+  Commands and actual CI gates still come from `package.json` and `ci.yml`; ordinary client
+  task tools do not imply new hooks, permissions, model settings or emulator parallelism.
+  Contract/discovery checks do not prove model adherence or a measured speedup.
 - **Optional browser MCP.** Source:
   [`.mcp.json`](../../../../.mcp.json) and
   [`tools/playwright-mcp.mjs`](../../../../tools/playwright-mcp.mjs). Re-check the

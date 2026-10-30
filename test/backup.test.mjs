@@ -180,6 +180,7 @@ test('the web backup fixture imports with the summary the Android test asserts',
     newId: idsFrom('s_copy'), now: 2, reservedIds: ['s_web_archived', 's_web_draft'],
   });
   assert.equal(parsed.skipped, 1);
+  assert.equal(byId.s_web_draft.contentReports[0].note, 'Neutral web report note.');
   assert.deepEqual(summary, { imported: 1, copied: 1, duplicates: 1 });
   assert.deepEqual(writes.map((s) => [s.id, s.name]),
     [['s_web_remember_names', ''], ['s_copy', 'Names at meetups — draft (imported)']]);
@@ -203,6 +204,8 @@ test('a backup the Android app exported imports through the web path', () => {
   assert.ok(bike.archivedAt > 0);
   assert.match(reading.turns[0].answer, /"what did I learn" note\.$/);
   assert.equal(reading.turns[0].classification, 'substantive');
+  assert.equal(reading.contentReports[0].note, 'Neutral Android report note.');
+  assert.equal(reading.contentReports[0].output.question, reading.turns[1].question);
 
   // Into an empty browser library: everything imports as it is, no id minted.
   const fresh = mergeImported([], parsed.sessions, { newId: idsFrom() });

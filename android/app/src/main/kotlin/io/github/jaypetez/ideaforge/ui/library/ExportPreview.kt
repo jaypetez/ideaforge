@@ -26,7 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.github.jaypetez.ideaforge.R
-import io.github.jaypetez.ideaforge.core.buildExport
+import io.github.jaypetez.ideaforge.core.Session
+import io.github.jaypetez.ideaforge.core.reportableOutput
 import io.github.jaypetez.ideaforge.core.isLowConfidence
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.str
@@ -35,14 +36,18 @@ import io.github.jaypetez.ideaforge.core.js.truthy
 import io.github.jaypetez.ideaforge.core.renderBlocks
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import io.github.jaypetez.ideaforge.ui.result.exportFor
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 @Composable
-internal fun LibraryPreview(session: JsonElement) {
+internal fun LibraryPreview(session: Session, onReport: (JsonObject) -> Unit) {
     Column(Modifier.widthIn(max = IdeaForgeWidths.reading), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
         if (stringOf(session["status"]) == "done" || truthy(session["synthesis"]["text"])) {
-            ExportPreview(remember(session) { buildExport(session) })
+            ContentReportAction(reportableOutput(session, "result"), "report-library-result", onReport)
+            ExportPreview(remember(session) { exportFor(session) })
         } else {
             Text(stringResource(R.string.idea_no_write_up), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.idea_transcript), style = MaterialTheme.typography.titleLarge)
@@ -51,6 +56,8 @@ internal fun LibraryPreview(session: JsonElement) {
                 Text(stringResource(R.string.idea_no_preview), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             for (turn in turns) {
+                val turnId = stringOf(turn["id"])
+                ContentReportAction(reportableOutput(session, "question", turnId), "report-library-question-$turnId", onReport)
                 Text(stringOf(turn["question"]).orEmpty(), style = MaterialTheme.typography.titleSmall)
                 if (stringOf(turn["questionSource"]) == "bank") {
                     Text(stringResource(R.string.interview_from_checklist), style = MaterialTheme.typography.labelMedium)
@@ -60,6 +67,7 @@ internal fun LibraryPreview(session: JsonElement) {
                 } else if (truthy(turn["answer"])) {
                     if (isLowConfidence(turn)) {
                         Text(stringResource(R.string.interview_from_chip), style = MaterialTheme.typography.labelMedium)
+                        ContentReportAction(reportableOutput(session, "suggestions", turnId), "report-library-suggestions-$turnId", onReport)
                     } else if (stringOf(turn["answerSource"]) == "voice") {
                         Text(stringResource(R.string.idea_dictated), style = MaterialTheme.typography.labelMedium)
                     }

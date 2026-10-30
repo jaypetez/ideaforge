@@ -11,9 +11,10 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sqrt
 
-// Record-and-transcribe for hands-free, used ONLY when the native recogniser is unavailable
+// Record-and-transcribe for hands-free or manual dictation, ONLY when the recogniser is unavailable
 // (SpeechRecognizer.isRecognitionAvailable is false, or a capture reported the recogniser or
 // its language unavailable). The Android twin of the web's record path in src/voice/index.js
 // with the DRIVING_GATE from src/voice/vad.js.
@@ -29,6 +30,8 @@ import kotlin.math.sqrt
 //    MAX_AUDIO_BYTES, and one answer at most DEFAULTS.maxMs (120 s) of recording, after which
 //    what was heard is returned (the watchdog's "resolve, never reject").
 //  - Time is counted in samples, not read from a clock, so the gate is deterministic in tests.
+// Manual capture waits for Stop (or the same recording bound), releases the microphone before
+// transcription, and returns literal text: no trigger-word or command interpretation.
 
 /** A microphone, as far as the listener needs one. Only [WhisperMicrophone] opens a real one. */
 interface PcmSource {
@@ -110,10 +113,103 @@ class WhisperListener(
      */
     private val allowed: suspend () -> Boolean = { true },
 ) {
+    /** The manual editor uses the same fallback eligibility, format and recording bounds. */
+    fun manualCapture(): ManualCapture = ManualCapture()
+
+    inner class ManualCapture internal constructor() {
+        @Volatile private var stopped = false
+        @Volatile private var cancelled = false
+        @Volatile private var mic: PcmSource? = null
+
+        /** Release audio now; an explicit Stop may still transcribe the already recorded bytes. */
+        fun stop() {
+            stopped = true
+            releaseInput()
+        }
+
+        fun cancel() {
+            cancelled = true
+            stop()
+        }
+
+        private fun releaseInput() {
+            val input = synchronized(this) { mic.also { mic = null } }
+            input?.stop()
+        }
+
+        suspend fun await(authorize: suspend () -> Unit = {}, onTranscribing: (Boolean) -> Unit = {}): String {
+            authorize()
+            if (cancelled) throw CancellationException("Dictation cancelled")
+            if (stopped) return ""
+            if (!allowed()) throw ListenFailure("Transcription was turned off.", name = "AbortError")
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (cancelled) throw CancellationException("Dictation cancelled")
+            if (stopped) return ""
+            val input = source().also { mic = it }
+            val pcm = ByteArrayOutputStream()
+            val speech = SegmentGate(gate.copy(noSpeechMs = 0))
+            var recorded = 0L
+            try {
+                if (!input.start()) throw ListenFailure("The microphone is unavailable.", name = "AudioCaptureError")
+                val frame = ShortArray(input.sampleRate / 50)
+                withContext(io) {
+                    while (!stopped && recorded < maxAnswerMs) {
+                        ensureActive()
+                        val n = input.read(frame)
+                        if (stopped) break
+                        if (n < 0) throw ListenFailure("The microphone stopped delivering audio.", name = "AudioCaptureError")
+                        if (n == 0) continue
+                        if (pcm.size() + n * 2 + 44 > maxBytes) break
+                        var sum = 0.0
+                        val bytes = ByteArray(n * 2)
+                        for (i in 0 until n) {
+                            val value = frame[i]
+                            sum += (value / 32768.0) * (value / 32768.0)
+                            bytes[2 * i] = (value.toInt() and 0xff).toByte()
+                            bytes[2 * i + 1] = (value.toInt() shr 8 and 0xff).toByte()
+                        }
+                        pcm.write(bytes)
+                        val ms = n * 1000L / input.sampleRate
+                        recorded += ms
+                        // Silence judges whether there was speech, never stops a manual capture.
+                        speech.push(sqrt(sum / n), if (ms > 0) ms else 20L)
+                    }
+                }
+            } finally {
+                releaseInput()
+            }
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (cancelled) throw CancellationException("Dictation cancelled")
+            if (!speech.heard) return ""
+            authorize()
+            if (!allowed()) throw ListenFailure("Transcription was turned off.", name = "AbortError")
+            try {
+                onTranscribing(true)
+                val text = transcribe(pcmWav(pcm.toByteArray(), input.sampleRate), "audio/wav")
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                authorize()
+                if (cancelled || !allowed()) throw ListenFailure("Transcription was turned off.", name = "AbortError")
+                return text.trim()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: ListenFailure) {
+                throw failure
+            } catch (failure: io.github.jaypetez.ideaforge.core.runtime.ProviderException) {
+                throw failure
+            } catch (failure: Exception) {
+                throw ListenFailure(failure.message ?: "Transcription failed.", name = "TranscriptionError")
+            } finally {
+                onTranscribing(false)
+            }
+        }
+    }
+
     /** [onText] receives the accumulated transcript after each segment: the live caption. */
     suspend fun listenForDrive(
         trigger: String, firstWordMs: Long,
         onTranscribing: (Boolean) -> Unit = {},
+        /** An owned, immediate release handle, cleared on completion; cancellation need not wait for a blocked read. */
+        onRecording: ((() -> Unit)?) -> Unit = {},
         onText: (String) -> Unit = {},
     ): String {
         val mic = source()
@@ -122,7 +218,10 @@ class WhisperListener(
         val frameMs = 20L
         var answer = ""
         var recorded = 0L
+        val released = AtomicBoolean()
+        fun release() { if (released.compareAndSet(false, true)) mic.stop() }
         try {
+            onRecording(::release)
             while (recorded < maxAnswerMs) {
                 val g = SegmentGate(gate.copy(noSpeechMs = if (answer.isEmpty()) firstWordMs else 0))
                 val pcm = ByteArrayOutputStream()
@@ -175,7 +274,8 @@ class WhisperListener(
             }
             return answer
         } finally {
-            mic.stop()
+            release()
+            onRecording(null)
         }
     }
 }

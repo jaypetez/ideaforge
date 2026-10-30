@@ -179,6 +179,13 @@ function stripHtmlComments(md) {
   return md.replace(/<!--[\s\S]*?(?:-->|$)/g, '');
 }
 
+function markdownSection(md, heading) {
+  const section = stripHtmlComments(md).replace(/\r\n/g, '\n').split(/(?=^## )/m)
+    .find((part) => part.startsWith(`## ${heading}\n`));
+  assert.ok(section, `missing documentation section: ${heading}`);
+  return section.slice(`## ${heading}\n`.length).trim();
+}
+
 function localLinks(file, md) {
   return [...md.matchAll(/\]\(([^)\s]+)\)/g)]
     .map((match) => match[1].split('#')[0])
@@ -470,6 +477,140 @@ test('release remains explicit and references the existing delivery workflow', (
   ]) {
     assert.ok(links.includes(expected), `release is missing reference: ${expected}`);
   }
+});
+
+// These protect the documented protocol, not model adherence or measured speedups.
+test('backlog protocol uses sequential fresh workers only for explicit multi-issue work', () => {
+  const md = read('.claude', 'skills', 'work-issues', 'SKILL.md');
+  const boundary = markdownSection(md, 'Execution boundary').replace(/\s+/g, ' ');
+  assert.match(boundary, /single-issue invocation runs directly/i);
+  assert.match(boundary, /only an explicitly requested multi-issue run/i);
+  assert.match(boundary, /current client's ordinary task\/subagent tool/i);
+  assert.match(boundary, /one fresh implementation worker per issue/i);
+  assert.match(boundary, /workers run sequentially with one active issue/i);
+  assert.match(boundary, /no fleet/i);
+  assert.match(boundary, /worker must not spawn another implementation worker or coordinator, pick another issue, or merge/i);
+  assert.match(boundary, /same-issue follow-ups.*same worker.*round.*failure/i);
+  assert.match(boundary, /next worker starts only after.*green merged main/i);
+  assert.match(boundary, /fresh worker contexts are unavailable.*report.*stop/i);
+  assert.match(boundary, /coordinator.*merge gate.*closeout/i);
+});
+
+test('backlog protocol dispatch and handoff carry evidence rather than history', () => {
+  const boundary = markdownSection(read('.claude', 'skills', 'work-issues', 'SKILL.md'),
+    'Execution boundary').replace(/\s+/g, ' ');
+  for (const [pattern, label] of [
+    [/issue body and acceptance criteria/i, 'issue specification'],
+    [/worktree, branch and base SHA/i, 'checkout identity'],
+    [/owning instructions and skills/i, 'canonical instructions'],
+    [/inherited mode/i, 'inherited guidance'],
+    [/not earlier transcripts/i, 'fresh context boundary'],
+    [/exact tested SHA/i, 'tested commit'],
+    [/commands\/results/i, 'command evidence'],
+    [/review verdicts and combined code\/docs round/i, 'persistent review state'],
+    [/CI\/device run IDs and attempts/i, 'actual run provenance'],
+    [/artifact\/profile\/SHA provenance/i, 'artifact provenance'],
+    [/unresolved errors/i, 'remaining failures'],
+    [/not raw source\/log\/history dumps/i, 'compact handoff'],
+  ]) {
+    assert.match(boundary, pattern, `worker packet/handoff omits ${label}`);
+  }
+  assert.match(boundary, /coordinator verifies.*actual required.*ci/i);
+  assert.match(boundary, /does not redo.*exploration.*reviews.*tests.*screenshots/i);
+});
+
+test('backlog protocol checks actual green main and the requested dependency closure', () => {
+  const md = read('.claude', 'skills', 'work-issues', 'SKILL.md');
+  const preflight = markdownSection(md, '1. Preflight').replace(/\s+/g, ' ');
+  assert.ok(preflight.includes('--commit "$(git rev-parse HEAD)"'),
+    'main CI lookup must be pinned to the actual updated commit');
+  assert.match(preflight, /headSha.*completed.*success/i);
+  assert.match(preflight, /red main stops the run/i);
+  assert.match(preflight, /outside the requested scope.*stop and report/i);
+  const queue = markdownSection(md, '2. Pick the next issue').replace(/\s+/g, ' ');
+  assert.match(queue, /requested queue and dependency closure/i);
+  assert.match(queue, /transitive.*blockers/i);
+  assert.match(queue, /outside-request prerequisites.*explicit authorisation/i);
+});
+
+test('backlog protocol separates readiness, bounded review and exact-head final evidence', () => {
+  const md = read('.claude', 'skills', 'work-issues', 'SKILL.md');
+  const implementation = markdownSection(md, '4. Implement').replace(/\s+/g, ' ');
+  for (const pattern of [
+    /absent\/saved fields/i, /native touch targets/i, /visible named errors\/loading/i,
+    /semantic selectors and affected walkthroughs/i, /before final validation/i,
+    /phase changes or failures, not every routine command/i,
+  ]) assert.match(implementation, pattern);
+  const proof = markdownSection(md, '5. Prove it').replace(/\s+/g, ' ');
+  assert.match(proof, /focused regression proof before review/i);
+  assert.match(proof, /final inventory once on the clean final head/i);
+  assert.match(proof, /do not retry an identical unchanged failure without a specific transient-infrastructure diagnosis/i);
+  const review = markdownSection(md, '6. Independent review').replace(/\s+/g, ' ');
+  assert.match(review, /review agents do not run commands/i);
+  assert.match(review, /combined code\/docs review-and-fix rounds per issue/i);
+  assert.match(review, /compaction or resume never resets the count/i);
+  assert.match(review, /stop after three rounds/i);
+  assert.match(review, /clean review of an unchanged diff is terminal/i);
+  const delivery = markdownSection(md, '7. Deliver').replace(/\s+/g, ' ');
+  assert.match(delivery, /code, documentation and capture drivers are settled/i);
+  assert.match(delivery, /including test-only changes/i);
+  assert.match(delivery, /--draft/);
+  assert.match(delivery, /actual CI\/native acceptance/i);
+  assert.match(delivery, /metadata-only/);
+});
+
+test('backlog protocol preserves the literal-SHA merge guard and required ci', () => {
+  const md = read('.claude', 'skills', 'work-issues', 'SKILL.md');
+  const gates = fencedBlocks(markdownSection(md, '8. Merge gate'))
+    .filter(({ body }) => /\bgh pr merge\b/.test(body));
+  assert.equal(gates.length, 1, 'one indivisible merge guard must own the merge');
+  const expected = String.raw`PR=99 TESTED=0123456789abcdef0123456789abcdef01234567 &&
+gate=$(gh pr view "$PR" --json headRefOid,mergeStateStatus,isDraft,statusCheckRollup \
+  --jq '[.headRefOid, ((.statusCheckRollup | map(select(.name == "ci")) | .[0].conclusion) // "MISSING"), .mergeStateStatus, (.isDraft | tostring)] | join(" ")') &&
+set -- $gate &&
+echo "head=$1 ci=$2 state=$3 draft=$4" &&
+[[ "$1" =~ ^[0-9a-f]{40}$ ]] && [ "$1" = "$TESTED" ] &&
+[ "$2" = SUCCESS ] && [ "$3" != BEHIND ] && [ "$3" != DIRTY ] && [ "$4" = false ] &&
+gh pr merge "$PR" --squash --admin --match-head-commit "$1" --delete-branch`;
+  assert.equal(gates[0].language, 'sh');
+  assert.equal(gates[0].body, expected, 'do not weaken, split or replace the canonical merge guard');
+  const ci = read('.github', 'workflows', 'ci.yml');
+  assert.match(ci, /^  ci:\r?\n    name: ci\r?\n    if: always\(\)\r?\n    needs: \[test, browser, android\]/m);
+  assert.doesNotMatch(ci, /^[ \t]*paths(?:-ignore)?:/m);
+});
+
+test('native workflow preserves early acceptance, warm state and sequential emulators', () => {
+  const md = read('.claude', 'skills', 'android-verify', 'SKILL.md');
+  const readiness = markdownSection(md, '1a. Native readiness during development')
+    .replace(/\s+/g, ' ');
+  for (const pattern of [
+    /absent\/saved fields/i, /touchBoundsInRoot/, /paint bounds/i,
+    /visible named errors\/loading/i, /semantic selectors/i, /walkthrough/i,
+    /emulator jobs sequential/i, /focused capture is not.*full-matrix/i,
+  ]) assert.match(readiness, pattern);
+  const focused = markdownSection(md, "1. The cheapest rung: one module's unit tests")
+    .replace(/\s+/g, ' ');
+  assert.match(focused, /warm Gradle state/i);
+  assert.match(focused, /routine `clean`, `--rerun-tasks`, cache deletion or daemon shutdown/i);
+  assert.match(markdownSection(md, '6. Windows test-host quirks'), /\.\/gradlew --stop/);
+});
+
+test('workflow references retain one owner and explicit general-purpose child fallback', () => {
+  for (const parts of [
+    ['AGENTS.md'],
+    ['CONTRIBUTING.md'],
+    ['docs', 'ASSISTANT-PROCESS.md'],
+    ['.claude', 'skills', 'update-documentation', 'references', 'source-map.md'],
+  ]) {
+    const file = join(ROOT, ...parts);
+    assert.ok(localLinks(file, readFileSync(file, 'utf8')).includes(skillPath('work-issues')),
+      `${relative(ROOT, file)} must reference the canonical backlog skill`);
+  }
+  const limits = markdownSection(read('docs', 'ASSISTANT-PROCESS.md'),
+    'Native clients and status').replace(/\s+/g, ' ');
+  assert.match(limits, /general-purpose.*does not emit the normal child lifecycle hooks/i);
+  assert.match(limits, /explicit.*delegating prompt.*actual parent mode/i);
+  assert.match(limits, /AGENTS\.md#lean-coding/);
 });
 
 test('review agents are distinct, explicit, read-only adapters for the shared skill', () => {

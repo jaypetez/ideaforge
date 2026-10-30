@@ -253,6 +253,18 @@ theme, library availability/count and version from their owners, not a live heal
 An expanded window with sufficient font-scaled space adds a narrow section index; direct
 section navigation scrolls/focuses the heading without discarding editor state.
 
+Device voice choice opens a native scrolling radio dialog with an explicit Engine default
+and engine-supplied names/locales. Full labels wrap; rows retain at least 48dp native touch
+targets. Local/network metadata is neither a quality rank nor an offline promise.
+The saved choice stays visible during loading or failure; empty and missing-selected
+states explain recovery through Reload or a deliberate different selection. Selecting
+never previews speech or changes hosted settings. `evidence=device-voices` reuses the
+Settings capture route and strict recorder for default, long-choice, selected/recreated,
+loading, error, empty and missing states, plus an explicitly isolated voice-stage frame
+showing missing-voice and hosted-fallback warnings together, on both rendering profiles/themes
+at actual font scales 1.0/1.3/2.0. Engine metadata and subsequent-speak configuration are controlled
+test effects, not physical voice-quality or network/offline compatibility evidence.
+
 Hosted speech and transcription retain their separate keys/grants/checks and now retain
 separate operation notices. Failures use semantic error status; cancellation is not a
 passing check. Both hosted voice choices are vertical native radio targets at large fonts.
@@ -279,6 +291,31 @@ explicit persistent statuses; a failed read is not a missing row and offers retr
 ResultActions, exportFor, CreateDocument cancellation, FileProvider/temporary-share TTL,
 clipboard bytes and same-session reopen remain their owners, including the real-provider
 Windows test seam.
+
+## Current native content reporting
+
+Generated question and suggestion groups expose an adjacent labelled Report action.
+The earlier conversation, active Ideas preview, Result document and attached voice stage
+use the same dialog and immutable output identity, not a public-issue link. Static seed,
+checklist replacement and absent synthesis do not receive generated labels; a mixed
+document says it contains AI-generated content.
+
+The localized dialog separates a category, optional note, exact included-text disclosure
+and explicit local save. Cancel changes nothing. Failed writes retain the form and retry;
+pending saves are actual work, not a fabricated presentation. A saved report offers
+same-turn checklist replacement only for its still-unanswered question, preserves the
+draft and changes no coverage. Opening Report pauses voice and replacing does not resume
+it. Optional email is a deliberate composer handoff, not developer receipt.
+
+The shared reducers/export own portable report metadata, with no new web reporting UI:
+Android-only presentation is the agreed native scope. `evidence=reporting` reuses
+`UxCaptureDeviceTest` and the fail-closed recorder across both windows/themes and all
+three font scales. Its fixed real-app subset includes controlled held-lock loading,
+write failure/retry, saved/replaced output and every reporting surface, including
+reporting after Back to Ideas while the app-graph drive survives. Require the
+selected test, complete clean-SHA manifests and actual PNGs. Scripted voice effects,
+intent tests and emulator geometry do not prove physical recognition, real email
+delivery, manual TalkBack or Play compliance.
 
 ## Current native Ideas
 
@@ -322,8 +359,24 @@ It is a focused Ideas inventory, not a claim that the full UX matrix passed.
 `InterviewScreen.kt` gives the literal current question/bridge the primary reading
 hierarchy, with a quiet source/turn line and a bounded `IdeaForgeWidths.reading` column.
 The composer starts with one line and expands; Send is primary, with separate Skip,
-Answer by voice and Write it up actions. Suggestion chips still fill the editable draft
+Start/Stop dictation, Hands-free interview and Write it up actions. Suggestion chips still fill the editable draft
 through the same ViewModel, preserving unchanged/edited provenance.
+
+Manual dictation uses explicit taps and at least 64dp targets, not a hold gesture or the
+drive loop. Real capture/status and literal captions stay beside the editable draft;
+only Send submits, with the existing voice source when words were added. Finish words
+and commands are ordinary dictation. Denial, empty capture, cancellation and input/upload
+failure keep the existing draft and report an inline status. Editing, Report, navigation
+and disposal retire unfinished input, including delayed permission/transcription.
+Original entry/permit/question/edit/worker and observed durable-draft guards refuse late
+work, including a newer durable draft already present at Start. Shared input-intent
+revisions retire preparing/permission continuations as well as active capture.
+Manual selection retires older hands-free setup and pauses a surviving drive; drive
+Start/Resume retires manual intent before output. The paused drive's later Exit cannot
+release manual input. A blocked Whisper read has an immediate owned release handle,
+preserving serial output/input without waiting for coroutine teardown.
+The no-effect global Hands-free switch is absent; its stored field still round-trips,
+while Voice/Type entry and the hands-free finish word retain their meanings.
 
 Coverage starts as a factual percentage and Coverage details action. The disclosure
 shows dimension names and textual levels from the Kotlin contract, not confidence.
@@ -331,7 +384,7 @@ Show earlier includes the settled exchange count; Current question closes that v
 New turn results do not scroll a reader away from expanded earlier history. Thinking
 retains the submitted question/answer rather than replacing all context with activity.
 
-Short panes, enlarged text and expanded coverage use the existing single page scroller
+Short panes, enlarged text, dictation feedback and expanded coverage use the existing single page scroller
 for conversation and composer. Ordinary-height, default-text interviews retain their
 lazy thread and bounded docked editor. The contextual bar still joins the scroller only
 when a short window has the real keyboard open. Full labels/actions remain reachable
@@ -350,6 +403,15 @@ busy/save failure, actual IME, real engine wrap, Writing and failed synthesis. T
 uses the canonical typed walkthrough, stopping at its genuine offer; no presentation-only
 wrap flag is injected. The ordinary chip walkthrough retains its export assertions.
 This is a declared Interview subset, not a full-UX or physical-device result.
+
+`evidence=dictation` reuses the real-app capture routes and strict native recorder for
+ready/listening/stopped/error/long/report/Settings states: both visual profiles, both
+themes and actual font scales 1.0/1.3/2.0. The manual controller and recognizer use
+controlled native callbacks, with an actual system microphone grant only when needed
+on the owned managed emulator. No real recognizer, recording, speech, service or hosted
+request runs. Require the selected passing XML, complete clean-SHA manifests and original
+PNGs, including reachability/label/native-touch bounds. This is not #89, real-phone
+recognition/quality, a full UX matrix or manual TalkBack proof.
 
 ### Native focused voice presentation
 
@@ -858,7 +920,8 @@ matrix against the tested checkout:
 $sha = git rev-parse HEAD
 .\gradlew.bat :app:connectedDebugAndroidTest `
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true' `
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest' `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedUxEvidenceIsRenderedCompleteAndReachable' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
   '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=all' `
   "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
@@ -887,6 +950,122 @@ and clipping fail rather than becoming skipped passes. The Android-device workfl
 the original ATD walkthrough plus rendering-enabled `pixel6Api34Visual` and
 `pixelTabletApi34Visual` captures, uploading named evidence and reports after success or
 failure without changing the required `ci` gate.
+Default/full explicitly selects `requestedUxEvidenceIsRenderedCompleteAndReachable`;
+the shell opt-in is supplied only for the separate focused shell route, never as an empty
+runner argument. Each visual step checks its actual selected passing test in JUnit XML
+with `tools/check-android-device-results.py`, rejecting zero tests, wrong methods and
+failed/skipped runs before accepting evidence. The workflow verifies a clean unchanged
+checkout SHA around capture. This execution guard complements, not replaces, the recorder's
+complete expected inventory and the required inspection of original PNGs.
+The measured default/full workload has a 60-minute overall job budget; focused routes keep
+40 minutes. A complete compact matrix alone took over 21 minutes before the expanded task
+hit the former shared cap. This changes no requested frames, recorder checks or individual
+capture/test deadlines.
+
+#### Complete native makeover acceptance
+
+Dispatch the existing optional workflow with an explicit feature ref:
+
+```powershell
+gh workflow run android-device.yml --ref '<feature-branch>' -f evidence=makeover
+```
+
+This selects `UxCaptureDeviceTest#requestedNativeMakeoverAcceptance`, not the default
+visual-test discovery path. The local equivalent, from `android\`, is:
+
+```powershell
+$sha = git rev-parse HEAD
+.\gradlew.bat :app:pixel6Api34VisualDebugAndroidTest `
+  '-Pandroid.enableAdditionalTestOutput=true' `
+  '-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect' `
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.jaypetez.ideaforge.ux.UxCaptureDeviceTest#requestedNativeMakeoverAcceptance' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxMakeoverProbe=true' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCapture=matrix' `
+  '-Pandroid.testInstrumentationRunnerArguments.uxCaptureWindow=compact' `
+  "-Pandroid.testInstrumentationRunnerArguments.uxCaptureSha=$sha"
+```
+
+Run the expanded half sequentially with `pixelTabletApi34VisualDebugAndroidTest` and
+`uxCaptureWindow=expanded`. This route runs both rendering-enabled halves sequentially;
+their joined canonical journeys replace the otherwise duplicate ATD boot/walkthrough.
+Ordinary/default and nightly ATD coverage is unchanged. This keeps artifact collection
+inside the existing 40-minute job budget without dropping requested frames or extending
+timeouts. It adds no required CI job or protection rule.
+Require nonzero execution of the selected acceptance method, not a successful build,
+dispatch, unselected opt-in test or ATD image.
+
+The fixed inventory covers compact 411x914dp, expanded 1280x900dp and short landscape
+640x400dp configurations in both themes at actual font scales 1.0, 1.3 and 2.0. Those
+are requested window sizes, not physical tablet certification: each record must show
+achieved window dp, density, font scale, actual IME and safe bounds. The installed
+Material adaptive panes and system navigation overlays are exercised, including gesture
+and three-button IME cases at font scale 2.0. Long-content states cover 12/100 ideas,
+no matches, selected detail, checklist source, pending work, failed storage/synthesis,
+long Result and explicitly isolated paused/recovering/blocked/no-level/notification-off
+voice presentations. The 12-idea library, long selection, actual IME, checklist,
+failed save, long Result and no-level listening run at every requested font/window/theme.
+The hundred-idea/no-match/loading/synthesis/recovery/blocked/notification-off and open
+menu/delete-dialog stress cases run at font scale 2.0 in every window and theme;
+the joined normal-window journey below runs at 1.0. This avoids repeating every fixture's
+Cartesian product while retaining every requested state and every window/font/theme;
+the existing per-surface full matrices remain available unchanged.
+Required controls are measured after real scrolling, with 48dp
+native touch targets and 64dp voice controls; clipped painted labels remain failures.
+
+At font scale 1.0 in each normal window and theme, a joined real-`MainActivity` journey
+completes fresh onboarding through a held check, rejected dummy key and successful retry;
+Voice/Type choice and rationale cancellation; the canonical typed/chip interview and
+Result; actual native Save/Share cancellation, saved canonical markdown and Copy;
+same-session Ask me more and rotation; a separate canonical typed wrap followed by Skip;
+theme selection, Cancel/Back from Forget, session-only backup and collision-as-copy import,
+and malformed-import recovery. File actions use the real system document picker and
+FileProvider, not a replacement export. A held scripted speaker and service observer
+exercise real UI Pause/Exit plus explicitly controller-level Resume admission without
+opening a microphone; UI Resume's permission gate is not bypassed or claimed exercised.
+The existing
+`AdaptiveShellTest` permission-result cases separately cover microphone denial and
+nonfatal notification denial. No test key is transmitted.
+
+Read back `android-ux-evidence-<SHA>` and `android-device-reports`. Require both
+`ux-makeover/manifest-compact.json` and `manifest-expanded.json` to be passed, clean,
+complete and bound to the intended tested SHA. Inspect their named app PNGs, reachability
+shots and `native-system/*-system.png` picker/chooser frames. Every reached app state retains
+its unmerged semantics trees, not only failures: heading/name/role/selection, factual
+progress/source, polite status and question-before-editor-before-Send order have explicit
+assertions. Popup/dialog geometry includes the separate window's screen offset; their
+pixel oracle is the requested scheme's native menu/dialog container role, not a dimmed
+Scaffold background or a relaxed brightness threshold. The safe viewport also includes
+the decor window's actual screen origin: a tablet may letterbox a requested portrait
+orientation. Its measured app bounds, not the full display width, govern reachability.
+
+Cleanup closes activities, retires app/main/preference work, removes private fixture
+stores and only the created documents/share files, restores the clipboard and display/
+font/navigation overrides, and reinstates the original app graph. A cleanup failure
+fails the manifest. Final PR evidence records actual run/attempt, source SHA, selected-test
+counts, artifact hashes and personally inspected image names. Manual TalkBack,
+switch access, physical recognition/microphone contention, screen-off survival and live
+hosted speech remain **unperformed**; automated semantics are not screen-reader or
+usability certification. Unchanged web README screenshots are not regenerated for this
+native-only acceptance route.
+
+The acceptance run exposed a normal-font short-landscape case where retained History
+and a persistent notice could leave the actual current-question viewport at zero height.
+`InterviewScreen` now deducts those occupied slots before choosing its existing
+page-scrolling layout; it does not shrink labels or remove the composer. The focused
+`InterviewLayoutTest` uses the achieved 328dp content height and explicitly verifies
+normal text scale rather than accidentally inheriting the class's enlarged-text default.
+Document acceptance feeds a real `sh` through Android 34's stderr-capable UiAutomation
+transport: `executeShellCommand(String)` itself uses `Runtime.exec`, so quoted paths and
+shell operators cannot be treated as parsed commands. Nonzero exit status/stderr fail,
+and canonical file bytes plus actual removal are checked. Native root navigation re-queries
+until the Downloads row under the actual roots list accepts its action, not its identical
+toolbar/breadcrumb title or a stale accessibility node. Draft entry waits for the real
+question and enabled editor, then verifies the entered text before rotation/submission.
+A save-error status alone cannot settle submission: a failed draft write can already
+show it while the question is still open.
+Failed journeys retain one
+unverified current-UI diagnostic; unvisited states remain failed entries rather than
+repeatedly waiting out the same screenshot budget.
 
 The native baseline exposed missing action labels, compact enlarged composer clipping and
 a storage-read fault presented as empty Ideas. Those prerequisites are fixed in the shipped
@@ -940,8 +1119,8 @@ colours**. All are labelled isolated production-control compositions, not interv
 voice runs. Normal real-app captures still use the actual system dynamic scheme on
 Android 12+. The supplementary probe changes no wallpaper or permission.
 
-Native manifests distinguish raw/clipped paint bounds from raw/clipped native touch
-bounds. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
+Native manifests distinguish raw/clipped screen-space paint bounds from raw/clipped native
+touch bounds, including separate popup/dialog window offsets. A stock 40dp IconButton and 52x32dp Switch can expose real 48dp touch expansion;
 the target assertion measures that native hit rectangle, while separate checks retain
 full painted labels and safe unclipped geometry. Root-theme evidence requires pixels
 matching the requested scheme's actual surface, including labelled fallback/simulations.
@@ -953,6 +1132,15 @@ manifest attempts, not passes. The isolated fixture records its actual rendering
 the oracle remains the requested theme's factory background, never a self-reported
 rendered colour. Window PixelCopy is additional diagnostic evidence, not a substitute
 for the saved display pixels.
+For isolated fixtures, the same consecutive samples also require actual status-bar
+background and correctly directed glyph ink at 4.5:1 contrast, measured separately in
+the clock and status-icon clusters of the real status-bar inset. App-root readiness
+cannot prove SystemUI has painted a theme transition. Low-contrast attempts retain
+their original display PNGs and pixel counts; window appearance flags are diagnostic
+only. The capture budget is unchanged, with no fixed extra sleep or production theme
+override. `UxSystemBarsTest` replays unmodified full-display originals from #287,
+including the low-contrast light frame that the previous root-only check accepted;
+their source/artifact/digest provenance lives beside the test-only PNGs.
 
 The board checks actual controls, minimum targets and full painted labels through
 scrolling; base frames include disabled/busy/selected/destructive/error states and native

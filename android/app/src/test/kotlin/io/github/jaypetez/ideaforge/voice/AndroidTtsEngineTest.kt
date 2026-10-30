@@ -2,7 +2,12 @@ package io.github.jaypetez.ideaforge.voice
 
 import android.media.AudioManager
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -15,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.Locale
 
 /** The platform engine's own recovery, on Robolectric's TextToSpeech. */
 @RunWith(RobolectricTestRunner::class)
@@ -33,6 +39,43 @@ class AndroidTtsEngineTest {
             made += tts
             answers.getOrNull(n)?.let(listener::onInit)
         }
+    }
+
+    @Test
+    fun voiceMetadataUsesTheExistingEngineWithoutSpeakingOrSelectingAVoice() = runBlocking {
+        val installed = setOf(
+            Voice("en-network", Locale.UK, Voice.QUALITY_NORMAL, Voice.LATENCY_NORMAL, true, emptySet()),
+            Voice("en-local", Locale.US, Voice.QUALITY_NORMAL, Voice.LATENCY_NORMAL, false, emptySet()),
+        )
+        val e = AndroidTtsEngine(app, main = Dispatchers.Unconfined) { ctx, listener ->
+            object : TextToSpeech(ctx, listener) {
+                override fun getVoices(): Set<Voice> = installed
+            }.also { made += it; listener.onInit(TextToSpeech.SUCCESS) }
+        }
+        assertEquals(listOf(DeviceVoice("en-network", "en-GB", true), DeviceVoice("en-local", "en-US", false)), e.loadDeviceVoices())
+        assertEquals(2, e.loadDeviceVoices().size)
+        assertEquals("Settings and subsequent speech share initialization", 1, made.size)
+        assertEquals(null, shadowOf(made.single()).lastSpokenText)
+        e.shutdown()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun cancellingACatalogueInitCannotDropAConcurrentSpeakersReadyEngine() = runTest {
+        val e = engine(null, TextToSpeech.SUCCESS)
+        val catalogue = async { e.awaitReady() }
+        runCurrent()
+        val speech = async { e.awaitReady() }
+        runCurrent()
+        assertEquals("only one initialization is in flight", 1, made.size)
+        catalogue.cancelAndJoin()
+        assertTrue(speech.await())
+        assertEquals(2, made.size)
+        assertTrue(shadowOf(made.first()).isShutdown)
+        assertFalse("the retired catalogue must not shut down speech", shadowOf(made.last()).isShutdown)
+        assertTrue(e.awaitReady())
+        assertEquals(2, made.size)
+        e.shutdown()
     }
 
     @Test

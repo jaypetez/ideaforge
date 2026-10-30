@@ -133,11 +133,11 @@ The mitigations that actually matter here are structural:
 
 Signer certificate SHA-256: `PENDING`
 
-The Android APK attached to each GitHub release is signed with one release key. The value
+The Android APK attached to each GitHub release is signed with one app-signing key. The value
 above is that key's certificate fingerprint. It reads `PENDING` until the maintainer creates
 the key; while it does, the release workflow fails before publishing anything, so no
-release of any kind (archives, APK or container image) is published. Signed releases begin
-with the first tag after the fingerprint is pinned here and the privacy contact is confirmed.
+release of any kind (archives, APK or container image) is published. Signed releases require
+this pin, the confirmed privacy contact and both signing roles to be configured.
 The release workflow compares every APK it builds against this line (with
 `tools/apk-cert-pin.mjs`) and fails the release on any difference.
 
@@ -149,8 +149,11 @@ sha256sum --check --ignore-missing SHA256SUMS
 apksigner verify --print-certs ideaforge-VERSION.apk
 ```
 
-`apksigner` must exit 0 and print exactly one `Signer #1 certificate SHA-256 digest:` equal to
-the fingerprint above (ignore case and colons). Anything else is not an IdeaForge release:
+`apksigner` must exit 0 and report one app-signing certificate equal to the fingerprint
+above (ignore case and colons). Numbered and V2-labelled multi-signer output is refused. For SDK-range
+labels, every reported range must use that same certificate; another key or an unknown
+or mixed label is refused, not silently ignored. `tools/apk-cert-pin.mjs` checks legacy
+numbered, V2-labelled and SDK-range formats. Anything else is not an IdeaForge release:
 do not install it. Android also refuses to update an installed release with an APK signed by
 another key.
 
@@ -160,6 +163,33 @@ release workflow decodes it from an environment secret on the `release` environm
 runner's temporary directory and deletes it when the job ends, whether the job passed or
 failed. That environment accepts only `v*.*.*` tags, which is what keeps the key out of
 reach of branches, pull requests and other workflows.
+
+### Play upload key and bundle
+
+The release also carries `ideaforge-VERSION.aab` and the bundle's R8 `mapping.txt`.
+Both are covered by `SHA256SUMS`; an AAB is a Play upload artifact, not an APK to install
+directly. The APK and bundle take the same versionCode from `package.json`.
+
+The **app-signing key** identifies installed apps. For Play App Signing, the maintainer
+must enrol that same key with Play (using Play's key-export process) if Play-delivered and
+GitHub APKs are to share the pinned certificate above. This workflow does not enrol a key
+or publish to Play.
+
+The **upload key** authenticates bundles sent to Play; Play signs the generated device
+APKs with the enrolled app-signing key instead. It must be a different certificate.
+The read-only `android-aab` job uses only `ANDROID_UPLOAD_KEYSTORE_B64`,
+`ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS` and
+`ANDROID_UPLOAD_KEY_PASSWORD`, also environment secrets on the tag-restricted `release`
+environment. Missing values fail, never skip or fall back to the APK key. The job removes
+its temporary upload keystore on success or failure. The write-enabled publication job
+receives neither key.
+
+`tools/check-android-bundle.sh` checks the pinned bundletool download's SHA-256 before
+validation, verifies the actual JAR signature against the selected upload alias and
+rejects reuse of the pinned app-signing certificate. The upload certificate is not the
+APK trust pin and must not be used to verify an installed APK. Creating/enrolling keys,
+configuring environment secrets and any later Play upload-key reset remain maintainer
+actions. CI exercises signing with disposable test keys only; no production key is needed.
 
 ## Scope
 

@@ -86,6 +86,9 @@ import io.github.jaypetez.ideaforge.core.HARD_TURN_CEILING
 import io.github.jaypetez.ideaforge.core.coveragePercent
 import io.github.jaypetez.ideaforge.core.getDimension
 import io.github.jaypetez.ideaforge.core.sessionDisplayTitle
+import io.github.jaypetez.ideaforge.core.Session
+import io.github.jaypetez.ideaforge.core.reportableOutput
+import io.github.jaypetez.ideaforge.core.isLowConfidence
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.js.truthy
@@ -102,12 +105,16 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeSpacing
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.ui.theme.statusColors
 import io.github.jaypetez.ideaforge.ui.voice.VoiceStage
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportAction
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportDialog
+import io.github.jaypetez.ideaforge.ui.reporting.ContentReportController
 import io.github.jaypetez.ideaforge.ui.voice.VoicePermissionDialog
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
 import io.github.jaypetez.ideaforge.ui.voice.hasPermission
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissions
 import io.github.jaypetez.ideaforge.ui.voice.voicePermissionsHeld
 import io.github.jaypetez.ideaforge.voice.DriveController
+import io.github.jaypetez.ideaforge.voice.DictationPhase
 import io.github.jaypetez.ideaforge.voice.VoiceMode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +125,12 @@ import kotlinx.serialization.json.JsonObject
 data class CoveragePill(val id: String, val label: String, val level: String, val status: String)
 
 /** One settled exchange in the thread. */
-data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean)
+data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean, val id: String = "")
+
+private data class VoicePermissionIntent(
+    val request: Long, val permit: InferencePermit, val inputRevision: Long,
+    val fromEntry: Boolean, val resume: Boolean,
+)
 
 internal fun pillsOf(state: InterviewState): List<CoveragePill> = DIMENSIONS.map { d ->
     val id = stringOf(d["id"]).orEmpty()
@@ -135,7 +147,8 @@ internal fun threadOf(state: InterviewState): List<ThreadEntry> =
             n = (t["n"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0,
             question = stringOf(t["question"]).orEmpty(),
             answer = if (skipped) null else answer,
-            fromChip = stringOf(t["answerSource"]) == "chip",
+            fromChip = isLowConfidence(t),
+            id = stringOf(t["id"]).orEmpty(),
         )
     }
 
@@ -171,8 +184,18 @@ fun InterviewScreen(
     var initialVoicePending by rememberSaveable(vm.sessionId) { mutableStateOf(voiceOnEntry) }
     var entryVoiceInProgress by remember(vm.sessionId) { mutableStateOf(false) }
     val voiceRequest = remember(vm.sessionId) { mutableLongStateOf(0L) }
-    var permissionRequest by remember(vm.sessionId) { mutableStateOf<Long?>(null) }
+    var launchedVoicePermission by remember(vm.sessionId) { mutableStateOf<VoicePermissionIntent?>(null) }
     var screenVisible by remember(vm.sessionId) { mutableStateOf(false) }
+    var dictationRationale by remember(vm.sessionId) { mutableStateOf<DictationRequest?>(null) }
+    // Keep the launched request immutable until its OS callback, even if Stop retires it.
+    var dictationPermission by remember(vm.sessionId) { mutableStateOf<DictationRequest?>(null) }
+    val manualPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val request = dictationPermission
+        dictationPermission = null
+        if (request != null) scope0.launch(Dispatchers.Main.immediate) {
+            vm.dictationPermission(request, granted)
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { screenVisible = true }
     var microphoneHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECORD_AUDIO)) }
     var notificationsHeld by remember { mutableStateOf(hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)) }
@@ -181,14 +204,13 @@ fun InterviewScreen(
         notificationsHeld = hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
     }
     var rationale by remember { mutableStateOf(false) }
-    var permissionPermit by remember { mutableStateOf<InferencePermit?>(null) }
+    var voicePermissionIntent by remember { mutableStateOf<VoicePermissionIntent?>(null) }
     LaunchedEffect(inference) {
         vm.refreshConsent()
         if (inference.blocked) {
             voiceRequest.longValue++
             rationale = false
-            permissionPermit = null
-            permissionRequest = null
+            voicePermissionIntent = null
             entryVoiceInProgress = false
             initialVoicePending = false
             onVoiceEntryConsumed()
@@ -196,25 +218,46 @@ fun InterviewScreen(
     }
     DisposableEffect(vm.sessionId) {
         onDispose {
+            vm.cancelDictation()
             voiceRequest.longValue++
             if (initialVoicePending || entryVoiceInProgress) vm.voiceNotStarted(entryInterrupted)
             initialVoicePending = false
             entryVoiceInProgress = false
-            permissionPermit = null
-            permissionRequest = null
+            voicePermissionIntent = null
             onVoiceEntryConsumed()
         }
     }
-    // The answer to the permission prompt, then the tap's intent carried out.
+    fun ownsVoiceIntent(intent: VoicePermissionIntent): Boolean =
+        intent.request == voiceRequest.longValue && vm.ownsVoiceInput(intent.inputRevision) &&
+            screenVisible && isCurrentView() && vm.reports.state.value.output == null
+
+    fun beginAdmittedVoice(intent: VoicePermissionIntent, mic: Boolean) {
+        if (!ownsVoiceIntent(intent) || drive == null) return
+        if (intent.fromEntry && !mic) {
+            vm.voiceNotStarted(entryDenied)
+            return
+        }
+        if (intent.fromEntry && !vm.state.value.canAnswer) {
+            vm.voiceNotStarted(entryCancelled)
+            return
+        }
+        if (intent.resume) {
+            val current = drive.state.value
+            if (current.sessionId == vm.sessionId && current.mode in setOf(VoiceMode.PAUSED, VoiceMode.BLOCKED)) {
+                if (mic) drive.resume() else drive.microphoneDenied(deniedMessage)
+            }
+        } else beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
+    }
+
+    // Keep the actual launched intent until its callback, never a newer rationale's permit.
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        val intent = launchedVoicePermission
+        launchedVoicePermission = null
         scope0.launch(Dispatchers.Main.immediate) {
-            val expected = permissionPermit
-            val my = permissionRequest
-            if (expected == null || my == null || my != voiceRequest.longValue) return@launch
-            permissionPermit = null
-            permissionRequest = null
-            val allowed = vm.authorizeVoice(expected)
-            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            if (intent == null || !ownsVoiceIntent(intent)) return@launch
+            if (voicePermissionIntent === intent) voicePermissionIntent = null
+            val allowed = vm.authorizeVoice(intent.permit)
+            if (!ownsVoiceIntent(intent)) return@launch
             if (!allowed) {
                 entryVoiceInProgress = false
                 return@launch
@@ -222,26 +265,13 @@ fun InterviewScreen(
             val mic = grants[Manifest.permission.RECORD_AUDIO] ?: hasPermission(context, Manifest.permission.RECORD_AUDIO)
             microphoneHeld = mic
             notificationsHeld = grants[Manifest.permission.POST_NOTIFICATIONS] ?: hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            val fromEntry = entryVoiceInProgress
             entryVoiceInProgress = false
-            if (!mic && fromEntry) {
-                vm.voiceNotStarted(entryDenied)
-                return@launch
-            }
-            if (drive == null) return@launch
-            if (fromEntry && !vm.state.value.canAnswer) {
-                vm.voiceNotStarted(entryCancelled)
-                return@launch
-            }
-            val attached = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-            if (attached) {
-                if (mic) drive.resume()
-            } else {
-                beginVoice(drive, vm.handOffToVoice(), mic, deniedMessage)
-            }
+            beginAdmittedVoice(intent, mic)
         }
     }
     fun requestVoice(fromEntry: Boolean) {
+        val inputRevision = vm.retireVoiceInput()
+        dictationRationale = null
         if (!fromEntry) {
             initialVoicePending = false
             onVoiceEntryConsumed()
@@ -249,9 +279,18 @@ fun InterviewScreen(
         val my = ++voiceRequest.longValue
         entryVoiceInProgress = fromEntry
         vm.voiceRetry()
+        val expected = vm.inferenceState.value.permit ?: run {
+            entryVoiceInProgress = false
+            vm.refreshConsent()
+            return
+        }
+        val resume = drive?.state?.value?.let {
+            it.sessionId == vm.sessionId && it.mode in setOf(VoiceMode.PAUSED, VoiceMode.BLOCKED)
+        } == true
+        val intent = VoicePermissionIntent(my, expected, inputRevision, fromEntry, resume)
         scope0.launch(Dispatchers.Main.immediate) {
-            val allowed = vm.authorizeVoice()
-            if (my != voiceRequest.longValue || !isCurrentView()) return@launch
+            val allowed = vm.authorizeVoice(expected)
+            if (!ownsVoiceIntent(intent)) return@launch
             if (!allowed) {
                 entryVoiceInProgress = false
                 return@launch
@@ -261,12 +300,12 @@ fun InterviewScreen(
                 vm.voiceNotStarted(entryCancelled)
                 return@launch
             }
-            permissionPermit = vm.inferenceState.value.permit
+            voicePermissionIntent = intent
             if (drive != null) {
-                if (voicePermissionsHeld(context)) {
+                val ready = if (intent.resume) hasPermission(context, Manifest.permission.RECORD_AUDIO) else voicePermissionsHeld(context)
+                if (ready) {
                     entryVoiceInProgress = false
-                    val blocked = drive.state.value.let { it.sessionId == vm.sessionId && it.mode == VoiceMode.BLOCKED }
-                    if (blocked) drive.resume() else beginVoice(drive, vm.handOffToVoice(), micGranted = true, deniedMessage)
+                    beginAdmittedVoice(intent, mic = true)
                 } else {
                     rationale = true
                 }
@@ -291,15 +330,16 @@ fun InterviewScreen(
 
     // Leaving the screen (another app, the lock screen) writes a queued draft at once.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        vm.cancelDictation()
+        dictationRationale = null
         vm.flushDraft()
         screenVisible = false
+        voiceRequest.longValue++
+        rationale = false
+        voicePermissionIntent = null
         if (initialVoicePending || entryVoiceInProgress) {
-            voiceRequest.longValue++
-            rationale = false
             initialVoicePending = false
             entryVoiceInProgress = false
-            permissionPermit = null
-            permissionRequest = null
             onVoiceEntryConsumed()
             vm.voiceNotStarted(entryInterrupted)
         }
@@ -318,6 +358,27 @@ fun InterviewScreen(
     var coverageExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     var historyExpanded by rememberSaveable(vm.sessionId) { mutableStateOf(false) }
     val voiceAttached = voiceHere && voice?.attached == true
+    LaunchedEffect(state.dictation.active) {
+        if (!state.dictation.active) dictationRationale = null
+    }
+    dictationRationale?.let { request ->
+        VoicePermissionDialog(
+            notificationsNeeded = false,
+            manual = true,
+            onContinue = {
+                scope0.launch(Dispatchers.Main.immediate) {
+                    if (vm.authorizeDictation(request) && dictationRationale === request &&
+                        dictationPermission == null && screenVisible && isCurrentView()) {
+                        dictationRationale = null
+                        dictationPermission = request
+                        manualPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            },
+            onDismiss = { dictationRationale = null; vm.cancelDictation() },
+        )
+    }
+    ContentReportDialog(vm.reports, onReplace = { vm.replaceReportedQuestion(fromVoice = voiceAttached) })
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
         if (notice != null && noticeText != null) {
@@ -336,13 +397,12 @@ fun InterviewScreen(
         VoicePermissionDialog(
             notificationsNeeded = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
             onContinue = {
-                val my = voiceRequest.longValue
+                val intent = voicePermissionIntent
                 scope0.launch(Dispatchers.Main.immediate) {
-                    val expected = permissionPermit
-                    if (expected != null && vm.authorizeVoice(expected) && my == voiceRequest.longValue
-                        && rationale && isCurrentView()) {
+                    if (intent != null && vm.authorizeVoice(intent.permit) && ownsVoiceIntent(intent)
+                        && voicePermissionIntent === intent && rationale && launchedVoicePermission == null) {
                         rationale = false
-                        permissionRequest = my
+                        launchedVoicePermission = intent
                         permissions.launch(voicePermissions())
                     }
                 }
@@ -350,8 +410,7 @@ fun InterviewScreen(
             onDismiss = {
                 voiceRequest.longValue++
                 rationale = false
-                permissionPermit = null
-                permissionRequest = null
+                voicePermissionIntent = null
                 if (entryVoiceInProgress) {
                     entryVoiceInProgress = false
                     vm.voiceNotStarted(entryCancelled)
@@ -361,24 +420,28 @@ fun InterviewScreen(
     }
 
     if (drive != null && voice != null && voiceHere && voice.attached) {
+        val session = drive.reportingSession()?.takeIf { stringOf(it["id"]) == vm.sessionId }
+        val displayedTurn = (session?.get("turns") as? JsonArray).orEmpty()
+            .lastOrNull { stringOf(it["question"]) == voice.question }
+        val turnId = stringOf(displayedTurn?.get("id"))
         Column(modifier.fillMaxSize().testTag("interview")) {
             SnackbarHost(snackbar)
             VoiceStage(
                 voice,
-                onPause = drive::pause,
-                onResume = {
-                    scope0.launch {
-                        if (vm.authorizeVoice() && isCurrentView()) {
-                            permissionPermit = vm.inferenceState.value.permit
-                            if (!hasPermission(context, Manifest.permission.RECORD_AUDIO)) rationale = true else drive.resume()
-                        }
-                    }
-                },
-                onExit = drive::exit,
+                onPause = { voiceRequest.longValue++; voicePermissionIntent = null; rationale = false; drive.pause() },
+                onResume = askOrStart,
+                onExit = { voiceRequest.longValue++; voicePermissionIntent = null; rationale = false; drive.exit() },
                 modifier = Modifier.weight(1f),
                 ideaTitle = state.session?.let(::sessionDisplayTitle).orEmpty(),
                 microphoneDenied = voice.mode == VoiceMode.BLOCKED && !microphoneHeld,
                 notificationsOff = voicePermissions().contains(Manifest.permission.POST_NOTIFICATIONS) && !notificationsHeld,
+                questionOutput = session?.let { reportableOutput(it, "question", turnId) },
+                suggestionsOutput = session?.let { reportableOutput(it, "suggestions", turnId) },
+                onReport = { output ->
+                    if (session != null && screenVisible && isCurrentView()) {
+                        vm.reports.open(session, output, drive)
+                    }
+                },
             )
         }
         return
@@ -387,12 +450,15 @@ fun InterviewScreen(
     Column(modifier.fillMaxSize().testTag("interview")) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().imePadding()) {
             val barHeight = if (onBack != null) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp
-            val bodyHeight = (maxHeight - barHeight).coerceAtLeast(0.dp)
+            val noticeBlock = with(LocalDensity.current) { noticeHeight.toDp() }
+            val bodyHeight = (maxHeight - barHeight - noticeBlock).coerceAtLeast(0.dp)
             val composerMaxHeight = bodyHeight * 0.6f
-            // An open IME can leave less than one editor plus wrapped action rows.
+            // History and persistent feedback can starve the thread even without an IME.
+            val historyBlock = if (threadOf(state).isNotEmpty()) IdeaForgeSpacing.control else 0.dp
             // Scroll the real content instead of weighting the editor down to zero.
-            val shortWindow = bodyHeight < 240.dp * LocalDensity.current.fontScale
-            val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded
+            val shortWindow = bodyHeight - historyBlock < 240.dp * LocalDensity.current.fontScale
+            val scrollWithComposer = shortWindow || LocalDensity.current.fontScale > 1f || coverageExpanded ||
+                state.dictation.active || state.dictation.outcome != null
             // A fixed bar can leave less height than one enlarged editor above the IME.
             val scrollHeader = shortWindow && WindowInsets.isImeVisible
             val scroll = rememberScrollState()
@@ -417,11 +483,33 @@ fun InterviewScreen(
                         Spacer(Modifier.height(IdeaForgeSpacing.micro))
                     }
                     Conversation(state, vm, if (scrollWithComposer) Modifier else Modifier.weight(1f),
-                        scrollWithComposer, followCurrent = !coverageExpanded, expanded = historyExpanded,
+                        scrollWithComposer, followCurrent = !coverageExpanded && !state.dictation.active, expanded = historyExpanded,
                         onHistoryChange = { historyExpanded = it })
                     // Wrapped actions and enlarged drafts must not consume the entire thread.
                     Composer(
                         state, vm, onVoice = if (drive != null) askOrStart else null,
+                        onDictation = if (!vm.canDictate) null else {
+                            {
+                                if (state.dictation.active) vm.stopDictation()
+                                else if (dictationPermission == null) {
+                                    voiceRequest.longValue++
+                                    voicePermissionIntent = null
+                                    rationale = false
+                                    entryVoiceInProgress = false
+                                    initialVoicePending = false
+                                    onVoiceEntryConsumed()
+                                    scope0.launch(Dispatchers.Main.immediate) {
+                                        val request = vm.requestDictation { screenVisible && isCurrentView() }
+                                        if (request != null) {
+                                            if (hasPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                                vm.dictationPermission(request, true)
+                                            } else dictationRationale = request
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        permissionPending = dictationPermission != null,
                         modifier = if (scrollWithComposer) Modifier else Modifier.heightIn(max = composerMaxHeight),
                         shortWindow = shortWindow,
                         scrollWithPage = scrollWithComposer,
@@ -582,7 +670,7 @@ private fun Conversation(
             HistoryControl()
             Column(Modifier.padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
                 verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
-                if (expanded) for (entry in thread) ThreadItem(entry)
+                if (expanded) for (entry in thread) ThreadItem(entry, state.session, vm.reports)
                 Box(Modifier.fillMaxWidth().bringIntoViewRequester(current).testTag("current-turn")) {
                     OpenQuestion(state, vm)
                 }
@@ -604,7 +692,7 @@ private fun Conversation(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.tight),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
-            if (expanded) items(thread, key = { "turn-${it.n}" }) { ThreadItem(it) }
+            if (expanded) items(thread, key = { "turn-${it.n}" }) { ThreadItem(it, state.session, vm.reports) }
             item(key = "open") {
                 Box(Modifier.fillMaxWidth().testTag("current-turn")) { OpenQuestion(state, vm) }
             }
@@ -623,15 +711,18 @@ private fun OpenQuestion(state: InterviewState, vm: InterviewViewModel) {
         state.busy != null -> Column(verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related)) {
             BusyLine(state.busy)
             if (open != null) QuestionCard(state, open, vm)
-            else threadOf(state).lastOrNull()?.let { ThreadItem(it) }
+            else threadOf(state).lastOrNull()?.let { ThreadItem(it, state.session, vm.reports, "busy") }
         }
         open != null -> QuestionCard(state, open, vm)
     }
 }
 
 @Composable
-private fun ThreadItem(e: ThreadEntry) {
+private fun ThreadItem(e: ThreadEntry, session: Session?, reports: ContentReportController, surface: String = "history") {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
+        ContentReportAction(session?.let { reportableOutput(it, "question", e.id) }, "report-$surface-question-${e.id}") {
+            if (session != null) reports.open(session, it)
+        }
         Text(e.question, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Surface(
@@ -650,6 +741,10 @@ private fun ThreadItem(e: ThreadEntry) {
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            ContentReportAction(session?.let { reportableOutput(it, "suggestions", e.id) },
+                                "report-$surface-suggestions-${e.id}") {
+                                if (session != null) reports.open(session, it)
+                            }
                         }
                     }
                 }
@@ -686,6 +781,8 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             Modifier.fillMaxWidth().testTag("question-card"),
             verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.related),
         ) {
+            ContentReportAction(state.session?.let { reportableOutput(it, "question", stringOf(open["id"])) },
+                "report-current-question") { state.session?.let { session -> vm.reports.open(session, it) } }
             Column(Modifier.fillMaxWidth().testTag("turnline"), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.micro)) {
                 Text(turnline, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().testTag("turn-status"))
@@ -695,6 +792,10 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
                         Modifier.testTag("degraded"),
                         tone = StatusTone.Warning, style = MaterialTheme.typography.labelMedium,
                     )
+                }
+                if (stringOf(open["questionSource"]) == "replacement") {
+                    Text(stringResource(R.string.report_replacement_source), style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.testTag("replacement-source"))
                 }
             }
             if (bridge.isNotEmpty()) {
@@ -710,6 +811,8 @@ private fun QuestionCard(state: InterviewState, open: JsonObject, vm: InterviewV
             )
         }
         if (chips.isNotEmpty()) {
+            ContentReportAction(state.session?.let { reportableOutput(it, "suggestions", stringOf(open["id"])) },
+                "report-current-suggestions") { state.session?.let { session -> vm.reports.open(session, it) } }
             val label = stringResource(R.string.interview_suggestions)
             FlowRow(
                 Modifier.fillMaxWidth().testTag("chips").semantics { contentDescription = label },
@@ -753,12 +856,20 @@ private fun WrapOffer(offer: String, vm: InterviewViewModel) {
 @Composable
 private fun Composer(
     state: InterviewState, vm: InterviewViewModel, onVoice: (() -> Unit)? = null, modifier: Modifier = Modifier,
+    onDictation: (() -> Unit)? = null,
+    permissionPending: Boolean = false,
     shortWindow: Boolean = false,
     scrollWithPage: Boolean = shortWindow,
     noticeHeight: Int = 0,
     readingDetails: Boolean = false,
 ) {
     val editor = remember { BringIntoViewRequester() }
+    val dictationAction = remember { BringIntoViewRequester() }
+    LaunchedEffect(state.dictation.phase, state.dictation.outcome) {
+        if (scrollWithPage && !readingDetails && (state.dictation.active || state.dictation.outcome != null)) {
+            dictationAction.bringIntoView()
+        }
+    }
     var editorVisible by remember { mutableStateOf(false) }
     val keepEditor = remember(state.notice, scrollWithPage, readingDetails) {
         scrollWithPage && editorVisible && !readingDetails
@@ -785,6 +896,7 @@ private fun Composer(
                     } else it.weight(1f, fill = false)
                 }.testTag("answer"),
             )
+            if (onDictation != null) DictationFeedback(state.dictation)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight), verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
                 Button(
                     onClick = vm::send,
@@ -795,11 +907,27 @@ private fun Composer(
                 TextButton(onClick = vm::skip, enabled = state.canAnswer, busy = state.busy != null, modifier = Modifier.testTag("skip")) {
                     Text(stringResource(R.string.interview_skip))
                 }
+                if (onDictation != null) {
+                    FilledTonalButton(
+                        onClick = onDictation,
+                        enabled = state.canAnswer && (state.dictation.active || !permissionPending),
+                        voice = true,
+                        modifier = Modifier.widthIn(min = IdeaForgeSpacing.voice)
+                            .bringIntoViewRequester(dictationAction).testTag("dictation-toggle"),
+                    ) {
+                        Text(stringResource(when (state.dictation.phase) {
+                            DictationPhase.TRANSCRIBING, DictationPhase.STOPPING -> R.string.dictation_cancel
+                            null -> R.string.dictation_start
+                            else -> R.string.dictation_stop
+                        }))
+                    }
+                }
                 if (onVoice != null) {
                     FilledTonalButton(onClick = onVoice, enabled = state.canAnswer, voice = true, busy = state.busy != null, modifier = Modifier.testTag("voice-start")) {
                         Text(stringResource(R.string.voice_start))
                     }
                 }
+
                 if (state.canWriteUp) {
                     TextButton(onClick = vm::writeUp, modifier = Modifier.testTag("write-up")) {
                         Text(stringResource(R.string.interview_write_up))
@@ -808,4 +936,38 @@ private fun Composer(
             }
         }
     }
+}
+
+@Composable
+private fun DictationFeedback(state: DictationState) {
+    val label = state.phase?.let { phase ->
+        stringResource(when (phase) {
+            DictationPhase.PREPARING -> R.string.dictation_preparing
+            DictationPhase.PERMISSION -> R.string.dictation_permission
+            DictationPhase.LISTENING -> R.string.dictation_listening
+            DictationPhase.STOPPING -> R.string.dictation_stopping
+            DictationPhase.TRANSCRIBING -> R.string.dictation_transcribing
+        })
+    } ?: state.outcome?.let { outcome ->
+        stringResource(when (outcome) {
+            DictationOutcome.ADDED -> R.string.dictation_added
+            DictationOutcome.EMPTY -> R.string.dictation_empty
+            DictationOutcome.DENIED -> R.string.dictation_denied
+            DictationOutcome.CANCELLED -> R.string.dictation_cancelled
+            DictationOutcome.INTERRUPTED -> R.string.dictation_interrupted
+            DictationOutcome.FAILED -> R.string.dictation_failed
+        })
+    }
+    if (label != null) {
+        IdeaForgeStatusText(
+            listOf(label, state.detail).filter { it.isNotEmpty() }.joinToString(" "),
+            modifier = Modifier.testTag("dictation-status"),
+            tone = if (state.outcome in setOf(DictationOutcome.DENIED, DictationOutcome.FAILED)) StatusTone.Error else StatusTone.Neutral,
+        )
+    } else {
+        Text(stringResource(R.string.dictation_hint), style = MaterialTheme.typography.bodySmall)
+    }
+    if (state.caption.isNotEmpty()) Text(
+        state.caption, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("dictation-caption"),
+    )
 }
