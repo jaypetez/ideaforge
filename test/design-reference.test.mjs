@@ -162,6 +162,16 @@ test('every main web reference has both themes at actual 390 and 1280 logical wi
     + nativeStates.length * 4 + nativeEdges.length * 2);
 });
 
+test('reference accessible names agree with their platform and logical window', () => {
+  for (const board of boards(read(HTML))) {
+    const label = board.content.match(/class="reference-viewport"[^>]+aria-label="([^"]+)"/)?.[1];
+    const height = board.width === 390 ? 844 : 900;
+    assert.match(label || '', new RegExp(
+      `\\b${board.platform} ${board.width}x${height} ${board.theme}\\b`, 'i'),
+      `${board.state}/${board.theme}/${board.width} announces the wrong platform or window`);
+  }
+});
+
 test('reference boards cannot run app effects or load third-party resources', () => {
   const html = read(HTML);
   const css = read(CSS);
@@ -288,6 +298,8 @@ test('reference recovery states do not masquerade as zero ideas or a completed A
     assert.match(board.content, /transcript/);
     assert.match(board.content, /data-action="retry-writeup"/);
     assert.match(board.content, /No extra answer is needed/);
+    assert.doesNotMatch(board.content, /Otherwise Copy is primary/i,
+      'Share capability cannot promote an export above failed-generation recovery');
     const primary = [...board.content.matchAll(/class="ref-button primary"[^>]*data-action="([^"]+)"/g)];
     assert.deepEqual(primary.map((match) => match[1]), ['retry-writeup'],
       'recovering the missing write-up is the sole primary, not a successful-looking export');
