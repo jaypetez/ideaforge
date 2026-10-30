@@ -18,6 +18,7 @@ const ALL_TESTS_SCRIPT = 'npm test && npm run test:graph && npm run test:browser
 const EXPECTED_SKILLS = new Set([
   'add-provider',
   'android-verify',
+  'audit-android-app',
   'change-voice-and-driving',
   'ideaforge-assist',
   'audit-ideaforge-codebase',
@@ -33,7 +34,7 @@ const EXPECTED_SKILLS = new Set([
   'work-issues',
 ]);
 const EXPLICIT_SKILLS = new Set([
-  'release', 'work-issues', 'ideaforge-assist', 'audit-ideaforge-codebase',
+  'release', 'work-issues', 'ideaforge-assist', 'audit-ideaforge-codebase', 'audit-android-app',
 ]);
 const skillPath = (name) => join(ROOT, '.claude', 'skills', name, 'SKILL.md');
 

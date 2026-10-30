@@ -47,6 +47,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -276,6 +280,89 @@ class OnboardingFlowTest {
         assertEquals(JsonPrimitive("qwen2.5:7b-instruct"), creds["model"])
         assertEquals(JsonPrimitive("http://localhost:11434/v1"), creds["baseUrl"])
         assertEquals(JsonPrimitive(""), creds["apiKey"])
+    }
+
+    @Test
+    fun aMalformedCatalogueIsNotProofAndAValidEmptyCatalogueCanBeRetried() {
+        val reply = AtomicReference("<html>This is not a model API</html>")
+        CatalogueCheck { reply.get() }.use { catalogue ->
+            val graph = installTestGraph(catalogue.checker, preferences = PrefsStore(MemoryDataStore()))
+            launch()
+            waitFor(hasTestTag("provider-ollama"))
+            compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+            compose.onNodeWithTag("find-models").performScrollTo().performClick()
+            waitFor(hasTestTag("check-failure") or hasText("A previous connection check succeeded."))
+            assertEquals("/v1/models", catalogue.requests.single().url.encodedPath)
+            assertEquals("GET", catalogue.requests.single().method)
+            assertEquals(null, catalogue.requests.single().header("authorization"))
+            compose.onNodeWithText("The server answered, but not in a way this app understands.").assertExists()
+            compose.onNodeWithText("A previous connection check succeeded.").assertDoesNotExist()
+            compose.onNodeWithText("That server answered, but it has no models. Pull one first.").assertDoesNotExist()
+            assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
+
+            reply.set("""{"data":[]}""")
+            compose.onNodeWithTag("find-models").performScrollTo().performClick()
+            waitFor(hasText("That server answered, but it has no models. Pull one first."))
+            compose.onNodeWithText("A previous connection check succeeded.").assertExists()
+            compose.onNodeWithTag("check-failure").assertDoesNotExist()
+            assertEquals(2, catalogue.requests.size)
+            assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
+        }
+    }
+
+    @Test
+    fun aMalformedHostedCatalogueCannotSaveAKeyOrFinishOnboarding() {
+        CatalogueCheck { """{"choices":[]}""" }.use { catalogue ->
+            val graph = installTestGraph(catalogue.checker, preferences = PrefsStore(MemoryDataStore()))
+            launch()
+            waitFor(hasTestTag("provider-groq"))
+            compose.onNodeWithTag("provider-groq").performScrollTo().performClick()
+            compose.onNodeWithTag("api-key").performTextInput("scripted-catalogue-key")
+            compose.onNodeWithTag("inference-consent").performScrollTo().performClick()
+            compose.onNodeWithTag("check-key").performScrollTo().performClick()
+            waitFor(hasTestTag("check-failure") or hasTestTag("new-idea-choice"))
+            assertEquals("https://api.groq.com/openai/v1/models", catalogue.requests.single().url.toString())
+            assertEquals("GET", catalogue.requests.single().method)
+            assertEquals(KeyringState.Status.NONE, graph.keyringStore.state.value.status)
+            compose.onNodeWithText("The server answered, but not in a way this app understands.").assertExists()
+            compose.onNodeWithText("A previous connection check succeeded.").assertDoesNotExist()
+            compose.onNodeWithText("Step 2 of 2").assertExists()
+            compose.onNodeWithTag("new-idea-choice").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun aRetiredCatalogueResponseCannotReplaceAnotherProvidersProof() {
+        val release = CountDownLatch(1)
+        CatalogueCheck { request ->
+            if (request.url.port == 11434) {
+                if (!release.await(10, TimeUnit.SECONDS)) throw IOException("the retired catalogue was not released")
+                "<html>Late malformed response</html>"
+            } else """{"data":[{"id":"replacement-model"}]}"""
+        }.use { catalogue ->
+            try {
+                installTestGraph(catalogue.checker, preferences = PrefsStore(MemoryDataStore()))
+                launch()
+                waitFor(hasTestTag("provider-ollama"))
+                compose.onNodeWithTag("provider-ollama").performScrollTo().performClick()
+                compose.onNodeWithTag("find-models").performScrollTo().performClick()
+                compose.waitUntil(10_000) { catalogue.requests.size == 1 }
+                compose.onNodeWithText("Back").performScrollTo().performClick()
+                compose.onNodeWithTag("provider-lmstudio").performScrollTo().performClick()
+                compose.onNodeWithTag("find-models").performScrollTo().performClick()
+                waitFor(hasTestTag("model-replacement-model"))
+                release.countDown()
+                compose.waitUntil(10_000) { catalogue.idle }
+                compose.waitForIdle()
+                assertEquals(listOf(11434, 1234), catalogue.requests.map { it.url.port })
+                compose.onNodeWithText("A previous connection check succeeded.").assertExists()
+                compose.onNodeWithTag("model-replacement-model").assertExists()
+                compose.onNodeWithTag("check-failure").assertDoesNotExist()
+                compose.onNodeWithText("That server answered, but it has no models. Pull one first.").assertDoesNotExist()
+            } finally {
+                release.countDown()
+            }
+        }
     }
 
     @Test

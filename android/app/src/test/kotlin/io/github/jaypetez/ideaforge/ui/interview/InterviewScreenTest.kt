@@ -3,6 +3,7 @@ package io.github.jaypetez.ideaforge.ui.interview
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.SemanticsMatcher
@@ -41,6 +42,7 @@ import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -77,7 +79,7 @@ class InterviewScreenTest {
 
     private fun show(store: SessionStore, model: ScriptedModel, onFinished: (Boolean) -> Unit = {}): InterviewViewModel {
         this.store = store
-        val writes = CoroutineScope(Dispatchers.Unconfined)
+        val writes = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val vm = InterviewViewModel(
             id, store, SessionWorker(), Clock { 1_760_000_000_000 }, ring = { emptyKeyring() },
             providers = ProviderSource { model }, writes = writes,
@@ -196,29 +198,37 @@ class InterviewScreenTest {
     @Config(qualifiers = "w390dp-h844dp")
     fun aRealSaveFailureStaysVisibleUntilTheReaderDismissesIt() {
         val dir = tmp.newFolder()
-        val vm = show(SessionStore(dir, io = Dispatchers.Unconfined), ScriptedModel())
+        val model = ScriptedModel()
+        val vm = show(SessionStore(dir, io = Dispatchers.Unconfined), model)
         compose.waitForIdle()
         assertTrue("the empty owned store is replaceable", dir.delete())
         dir.writeText("controlled unavailable storage")
         send(answers[0])
         compose.onNodeWithTag("notice-message").assertIsDisplayed()
-        compose.onNodeWithTag("question").assertDoesNotExist()
-        compose.onNodeWithTag("answer").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
-        compose.onNodeWithTag("send").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Disabled))
-        compose.onNodeWithTag("history-toggle").performClick()
-        val thread = androidx.compose.ui.test.hasAnyAncestor(hasTestTag("thread"))
-        compose.onNode(hasText(io.github.jaypetez.ideaforge.core.SEED_QUESTION) and thread).assertExists()
-        compose.onNode(hasText(answers[0]) and thread).assertExists()
+        compose.onNodeWithTag("question").assertTextContains(io.github.jaypetez.ideaforge.core.SEED_QUESTION)
+        compose.onNodeWithTag("answer").assertIsEnabled().assertTextContains(answers[0])
+        compose.onNodeWithTag("send").assertIsEnabled()
+        compose.onNodeWithTag("history-toggle").assertDoesNotExist()
+        assertTrue("failed admission never calls the model", model.requests.isEmpty())
         assertTrue("a manual failure is still owned by the ViewModel", vm.state.value.notice is InterviewNotice.Failed)
         compose.mainClock.advanceTimeBy(12_000)
         compose.waitForIdle()
         compose.onNodeWithTag("notice-message").assertIsDisplayed()
         assertTrue(vm.state.value.notice is InterviewNotice.Failed)
-        assertEquals("the user's submitted answer remains in the live session", answers[0],
-            stringOf((vm.state.value.session!!["turns"] as JsonArray).first()["answer"]))
+        assertEquals("the failed answer remains editable", answers[0], vm.state.value.answer)
         compose.onNodeWithTag("notice-dismiss").performClick()
         compose.onNodeWithTag("notice-message").assertDoesNotExist()
         assertEquals(null, vm.state.value.notice)
+        assertTrue(dir.delete())
+        assertTrue(dir.mkdir())
+        compose.onNodeWithTag("send").assertIsEnabled().performClick()
+        compose.waitForIdle()
+        assertEquals("retry: busy=${vm.state.value.busy}, calls=${model.requests.size}, notice=${vm.state.value.notice?.detail}",
+            2, vm.state.value.turnCount)
+        assertEquals(answers[0], stringOf(turn(1)["answer"]))
+        assertEquals(1, model.requests.size)
+        compose.onNodeWithTag("answer").assertIsEnabled()
+        assertEquals("", vm.state.value.answer)
     }
 
     @Test

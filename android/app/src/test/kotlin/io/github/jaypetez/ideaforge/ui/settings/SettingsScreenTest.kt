@@ -34,6 +34,9 @@ import io.github.jaypetez.ideaforge.data.Prefs
 import io.github.jaypetez.ideaforge.data.PrefsStore
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.installTestGraph
+import io.github.jaypetez.ideaforge.FakeCheck
+import io.github.jaypetez.ideaforge.ui.onboarding.CatalogueCheck
+import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
 import io.github.jaypetez.ideaforge.ui.theme.IdeaForgeWidths
 import io.github.jaypetez.ideaforge.usableRing
@@ -61,6 +64,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicReference
 
 /** The settings screen inside the real app shell, with a software keyring key. */
 @OptIn(ExperimentalTestApi::class)
@@ -80,8 +84,9 @@ class SettingsScreenTest {
     private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntilAtLeastOneExists(matcher, timeoutMillis = 10_000)
 
     private fun openSettings(ring: JsonObject, key: SoftwareKey = SoftwareKey(),
-        engine: TtsEngine = FakeEngine(), preferences: PrefsStore? = null): AppGraph {
-        val graph = installTestGraph(ring = ring, key = key, ttsEngine = engine, preferences = preferences)
+        engine: TtsEngine = FakeEngine(), preferences: PrefsStore? = null,
+        checker: ProviderCheck = FakeCheck()): AppGraph {
+        val graph = installTestGraph(check = checker, ring = ring, key = key, ttsEngine = engine, preferences = preferences)
         scenario = ActivityScenario.launch(MainActivity::class.java)
         waitFor(hasTestTag(NAVIGATION))
         compose.onNode(hasText("Settings") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
@@ -99,6 +104,37 @@ class SettingsScreenTest {
         emptyKeyring(), "ollama",
         JsonObject(mapOf("baseUrl" to JsonPrimitive("http://10.0.2.2:11434/v1"), "model" to JsonPrimitive("qwen2.5:7b-instruct"))),
     )
+
+    @Test
+    fun aMalformedCatalogueShowsAnErrorInsteadOfSuccessfulConnectionStatus() {
+        val reply = AtomicReference("<html>This is not a model API</html>")
+        CatalogueCheck { reply.get() }.use { catalogue ->
+            val ring = localRing()
+            val graph = openSettings(ring, checker = catalogue.checker, preferences = PrefsStore(MemoryDataStore()))
+            compose.onNodeWithTag(SettingsTags.MODEL).performScrollTo().performTextClearance()
+            compose.onNodeWithTag(SettingsTags.MODEL).performTextInput("retained-model")
+            compose.onNodeWithTag(SettingsTags.CHECK).performScrollTo().performClick()
+            waitFor(hasTestTag(SettingsTags.STATUS) and (
+                hasText("The server answered, but not in a way this app understands.", substring = true) or
+                    hasText("That server answered, but it has no models. Pull one first.")
+                ))
+            assertEquals("GET", catalogue.requests.single().method)
+            assertEquals("/v1/models", catalogue.requests.single().url.encodedPath)
+            compose.onNodeWithTag(SettingsTags.STATUS)
+                .assertTextContains("Error: The server answered, but not in a way this app understands.", substring = true)
+            compose.onNodeWithTag(SettingsTags.MODEL).assertTextContains("retained-model")
+            assertEquals(ring, graph.keyringStore.state.value.ring)
+
+            reply.set("""{"models":[]}""")
+            compose.onNodeWithTag(SettingsTags.CHECK).performScrollTo().performClick()
+            waitFor(hasText("That server answered, but it has no models. Pull one first."))
+            compose.onNodeWithTag(SettingsTags.STATUS)
+                .assertTextContains("That server answered, but it has no models. Pull one first.")
+            compose.onNodeWithTag(SettingsTags.MODEL).assertTextContains("retained-model")
+            assertEquals(2, catalogue.requests.size)
+            assertEquals(ring, graph.keyringStore.state.value.ring)
+        }
+    }
 
     // A local server has no key: the field is not hidden, it is not there at all, so nothing
     // can read a value back out of it. Switching to a hosted provider brings it back.

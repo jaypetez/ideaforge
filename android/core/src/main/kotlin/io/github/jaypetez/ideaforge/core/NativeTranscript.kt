@@ -1,5 +1,6 @@
 package io.github.jaypetez.ideaforge.core
 
+import io.github.jaypetez.ideaforge.core.js.JS_S
 import io.github.jaypetez.ideaforge.core.js.jsLower
 import io.github.jaypetez.ideaforge.core.js.jsTrim
 import java.text.Normalizer
@@ -44,14 +45,19 @@ private const val MIN_REPLAY_WORDS = 2
 private val NOT_WORD = Regex("[^\\p{L}\\p{M}\\p{N}]+")
 private val APOSTROPHES = Regex("['’]")
 private val SPACE_RUN = Regex("\\s+")
+private val REPLAY_SPACE = Regex("[$JS_S]+")
+private val GRAPHEME = Regex("\\X")
+private val CHARACTER = Regex(".", RegexOption.DOT_MATCHES_ALL)
+
+private fun comparisonText(text: String): String =
+    APOSTROPHES.replace(jsLower(Normalizer.normalize(text, Normalizer.Form.NFKC)), "")
 
 /**
  * Words for COMPARING results, never for output: the web's wordsOf. On-device capitalises
  * one partial ("We went over") and not the next, so comparison ignores case and punctuation.
  */
 fun transcriptWords(text: String?): List<String> {
-    val folded = jsLower(Normalizer.normalize(text ?: "", Normalizer.Form.NFKC))
-    return jsTrim(NOT_WORD.replace(APOSTROPHES.replace(folded, ""), " "))
+    return jsTrim(NOT_WORD.replace(comparisonText(text ?: ""), " "))
         .split(' ')
         .filter { it.isNotEmpty() }
 }
@@ -166,8 +172,8 @@ private fun restated(kept: List<Seg>, seg: Seg): Int {
 }
 
 /**
- * Add [seg] to [kept]: it absorbs whatever it restates in full, and a restarted session's
- * replay of the last words before the restart is dropped from its front.
+ * Add [seg] to [kept]: it absorbs whatever it restates in full, and joins a restarted
+ * session's replay at original-text word boundaries.
  */
 private fun place(kept: MutableList<Seg>, seg: Seg) {
     var absorbed = false
@@ -194,22 +200,68 @@ private fun place(kept: MutableList<Seg>, seg: Seg) {
         overlap == 0 -> kept += seg
         overlap == seg.words.size -> Unit                 // a pure replay adds nothing
         else -> {
-            val rest = dropLeadingWords(seg.text, overlap)
-            kept += Seg(rest, transcriptWords(rest), seg.session)
+            val spans = comparisonWordSpans(seg.text)
+            // Prefer keeping the earlier spelling. If a comparison boundary splits a
+            // normalized glyph, take that whole glyph from the new result instead.
+            for (n in overlap downTo 0) {
+                val cut = wordBoundary(seg.text, spans, n) ?: continue
+                if (!trimReplayTail(kept, overlap - n)) continue
+                val rest = seg.text.substring(cut)
+                kept += Seg(rest, transcriptWords(rest), seg.session)
+                return
+            }
+            kept += seg // No loss when neither spelling has a safe splice boundary.
         }
     }
 }
 
-/** [text] without its first [n] comparison words, keeping the rest as written. */
-private fun dropLeadingWords(text: String, n: Int): String {
-    val tokens = jsTrim(text).split(SPACE_RUN)
-    var seen = 0
-    var i = 0
-    while (i < tokens.size && seen < n) {
-        seen += transcriptWords(tokens[i]).size
-        i++
+private fun comparisonWordSpans(text: String): List<IntRange> {
+    val spans = mutableListOf<IntRange>()
+    var inWord = false
+    // A whitespace token can contain new words after the replay ("well-known"). Map word
+    // starts to original graphemes: NFKC can expand characters or compose a base and mark.
+    for (source in GRAPHEME.findAll(text)) {
+        for (part in CHARACTER.findAll(comparisonText(source.value))) {
+            if (NOT_WORD.matches(part.value)) {
+                inWord = false
+            } else {
+                if (inWord) spans[spans.lastIndex] = spans.last().first..source.range.last
+                else spans += source.range
+                inWord = true
+            }
+        }
     }
-    return tokens.drop(i).joinToString(" ")
+    return spans
+}
+
+private fun wordBoundary(text: String, spans: List<IntRange>, n: Int): Int? {
+    if (n == 0) return 0
+    if (n == spans.size) return text.length
+    val end = spans[n - 1].last + 1
+    val start = spans[n].first
+    if (end > start) return null
+    // Keep a fresh token's leading punctuation ("-5", quoted text), not just its letters.
+    val space = REPLAY_SPACE.find(text.substring(end, start))
+    return if (space == null) start else end + space.range.last + 1
+}
+
+private fun trimReplayTail(kept: MutableList<Seg>, count: Int): Boolean {
+    if (count == 0) return true
+    var at = kept.size
+    var remaining = count
+    while (at > 0 && kept[at - 1].words.size <= remaining) {
+        at--
+        remaining -= kept[at].words.size
+    }
+    val shortened = if (remaining > 0) {
+        val last = kept[at - 1]
+        val retain = last.words.size - remaining
+        val cut = wordBoundary(last.text, comparisonWordSpans(last.text), retain) ?: return false
+        last.copy(text = jsTrim(last.text.substring(0, cut)), words = last.words.take(retain))
+    } else null
+    while (kept.size > at) kept.removeAt(kept.lastIndex)
+    if (shortened != null) kept[at - 1] = shortened
+    return true
 }
 
 /**

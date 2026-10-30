@@ -4,7 +4,6 @@ import io.github.jaypetez.ideaforge.core.PromptParts
 import io.github.jaypetez.ideaforge.core.js.jsTrim
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.core.runtime.SampleResult
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -102,12 +101,7 @@ val OPENAI_COMPAT_PRESETS: Map<String, OpenAiCompatPreset> = linkedMapOf(
  * at most 100, sorted by UTF-16 code unit as JS `sort()` does.
  */
 fun parseModelList(body: JsonElement?): List<String> {
-    val rows: List<JsonElement> = when {
-        body is JsonArray -> body
-        body is JsonObject && body["data"] is JsonArray -> body["data"] as JsonArray
-        body is JsonObject && body["models"] is JsonArray -> body["models"] as JsonArray
-        else -> emptyList()
-    }
+    val rows = modelRows(body) ?: return emptyList()
     val names = ArrayList<String>()
     for (row in rows) {
         val raw = stringOf(row) ?: (row as? JsonObject)?.let { stringOf(it["id"]) ?: stringOf(it["name"]) } ?: ""
@@ -118,7 +112,16 @@ fun parseModelList(body: JsonElement?): List<String> {
     return names.sorted()
 }
 
+private fun modelRows(body: JsonElement?): JsonArray? = when (body) {
+    is JsonArray -> body
+    is JsonObject -> body["data"] as? JsonArray ?: body["models"] as? JsonArray
+    else -> null
+}
+
 private fun stringOf(e: JsonElement?): String? = (e as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+// Untrusted catalogue metadata must fail before exhausting a native worker's stack.
+private const val MAX_CATALOGUE_JSON_DEPTH = 256
 
 /**
  * @param baseUrl the root `/chat/completions` and `/models` are appended to
@@ -185,10 +188,20 @@ class OpenAiCompatProvider(
         if (json) putJsonObject("response_format") { put("type", "json_object") }
     }
 
-    private suspend fun getJson(path: String): JsonElement {
-        val request = http.request("$root$path", auth, apiKey).get().build()
+    private suspend fun getModelCatalogue(): JsonElement {
+        val request = http.request("$root/models", auth, apiKey).get().build()
         val text = http.executeText(request, hostLabel)
-        return runCatching { Json.parseToJsonElement(text) }.getOrDefault(JsonObject(emptyMap()))
+        val body = try {
+            parseStrictJson(text, maxDepth = MAX_CATALOGUE_JSON_DEPTH)
+        } catch (e: IllegalArgumentException) {
+            throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "$hostLabel returned a model list that could not be read as JSON", e)
+        }
+        // Both readers establish connection proof. Tolerant name filtering alone cannot
+        // distinguish a valid empty catalogue from an unrelated successful response.
+        if (modelRows(body) == null) {
+            throw ProviderException(ProviderErrorCode.BAD_RESPONSE, "$hostLabel returned an unsupported model list")
+        }
+        return body
     }
 
     private suspend fun call(parts: PromptParts, modelTier: String, json: Boolean): Sampled {
@@ -216,11 +229,11 @@ class OpenAiCompatProvider(
     }
 
     /** What the server will actually answer to, rather than what we guessed it might. */
-    override suspend fun listModels(): List<String> = parseModelList(getJson("/models"))
+    override suspend fun listModels(): List<String> = parseModelList(getModelCatalogue())
 
     /** `GET /models`: proves the key (or the local server) without spending a token. */
     override suspend fun validateKey(): Boolean {
-        getJson("/models")
+        getModelCatalogue()
         return true
     }
 }

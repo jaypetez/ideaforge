@@ -422,6 +422,14 @@ allows private networks instead, and enforces it at DNS resolution rather than b
 the URL. Android cloud backup is off, so the only backup is the user's own export, which is
 the same file the web app reads and writes.
 
+[`NativeTranscript`](../android/core/src/main/kotlin/io/github/jaypetez/ideaforge/core/NativeTranscript.kt)
+is also native-specific: Android's whole partial hypotheses and final callbacks differ from
+the browser's per-index drafts. Restart replay compares normalized words, but splices at
+original-text boundaries so new words, spelling and leading punctuation survive. A Unicode
+normalization expansion crossing that boundary stays intact rather than being partly repeated.
+`NativeTranscriptTest` and `RecognizerTest` protect this behavior outside the shared JS
+vector families.
+
 **On a device.** Tap-start/tap-stop manual dictation and the hands-free voice stage
 with its drive loop running as a foreground service, live under
 `android/app/src/main/kotlin/io/github/jaypetez/ideaforge/voice/`. An instrumented

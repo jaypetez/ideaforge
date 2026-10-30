@@ -118,7 +118,7 @@ class LibraryViewModel(
     private val writes: CoroutineScope,
     sink: DocumentSink,
     io: CoroutineDispatcher = Dispatchers.IO,
-    reportDrive: () -> DriveController? = { null },
+    private val reportDrive: () -> DriveController? = { null },
 ) : ViewModel() {
     private val filters = MutableStateFlow(LibraryFilters())
     private val _notice = MutableStateFlow<LibraryNotice?>(null)
@@ -176,13 +176,14 @@ class LibraryViewModel(
 
     /**
      * Deletes after the screen's confirmation: the web's abort plus `deletedSessions`.
-     * Retiring first drops an in-flight interview turn's result as stale. The delete itself
-     * then runs under the session's lock, so it waits for a write already holding it, and a
-     * rename queued behind it finds no idea and writes nothing. The store also refuses any
-     * later save of the id, for writers that never took the lock.
+     * Retiring first drops an in-flight interview turn's result as stale and stops its voice
+     * effects. The delete then runs under the session's lock, so it waits for a write already
+     * holding it, and a rename queued behind it finds no idea and writes nothing. The store
+     * also refuses any later save of the id, for writers that never took the lock.
      */
     fun delete(id: String) {
         worker.retire(id)
+        reportDrive()?.retireSession(id)
         writes.launch {
             report(LibraryNotice.Deleted) { worker.exclusive(id) { store.delete(id) } }
         }

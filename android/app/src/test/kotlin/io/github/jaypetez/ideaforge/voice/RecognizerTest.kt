@@ -165,6 +165,68 @@ class RecognizerTest {
     }
 
     @Test
+    fun aRestartedHyphenatedAnswerKeepsNewWordsAndOrdinaryTriggerWords() = runTest {
+        val r = rig(
+            listOf(
+                At(100, Ev.Ready),
+                At(200, Ev.Partial("We need a well", final = true)),
+                At(300, Ev.Results(null)),
+            ),
+            listOf(
+                At(50, Ev.Ready),
+                At(100, Ev.Partial("a well-known design")),
+                At(200, Ev.Partial("a well-known design over", " budget")),
+                At(1000, Ev.Partial("a well-known design over budget, over.", final = true)),
+            ),
+        )
+        val capture = r.recognizer.start(handsFree)
+        advanceTimeBy(401)
+        runCurrent()
+        assertEquals("We need a well known design", r.recognizer.caption.value)
+        advanceTimeBy(800)
+        runCurrent()
+        assertTrue("over inside the answer cannot end capture", capture.isActive)
+        assertEquals(0, r.engine.stops)
+        assertEquals("We need a well known design over budget", r.recognizer.caption.value)
+        advanceTimeBy(200)
+        runCurrent()
+        val got = capture.await()
+        assertEquals(CaptureEnd.TRIGGER, got.end)
+        assertEquals("We need a well known design over budget, over.", got.text)
+        assertEquals("answer", got.speech().kind)
+        assertEquals("We need a well known design over budget", got.speech().text)
+    }
+
+    @Test
+    fun stoppingARestartedOnDevicePartialKeepsNewWordsThroughErrorClient() = runTest {
+        val r = rig(
+            listOf(
+                At(100, Ev.Ready),
+                At(200, Ev.Partial("We need a well")),
+                At(300, Ev.Error(RecognizerError.NO_MATCH)),
+            ),
+            listOf(
+                At(50, Ev.Ready),
+                At(100, Ev.Partial("a well-known design, over budget")),
+            ),
+            onDevice = true,
+        )
+        val capture = r.recognizer.start(pushToTalk)
+        advanceTimeBy(401)
+        runCurrent()
+        assertEquals("We need a well known design, over budget", r.recognizer.caption.value)
+        capture.stop()
+        advanceTimeBy(100)
+        runCurrent()
+        val got = capture.await()
+        assertEquals(CaptureEnd.STOPPED, got.end)
+        assertEquals("We need a well known design, over budget", got.text)
+        assertEquals(2, r.engine.starts)
+        advanceTimeBy(10_000)
+        assertEquals("a stopped capture must not restart", 2, r.engine.starts)
+    }
+
+    @Test
     fun anEmptyOnResultsIsNotAMiss() = runTest {
         val r = rig(listOf(At(700, Ev.Ready), At(2000, Ev.Partial("a quiz app")), At(4000, Ev.Results(null))))
         val capture = r.recognizer.start(handsFree.copy(firstWordMs = 8000))

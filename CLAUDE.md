@@ -549,6 +549,10 @@ ladder, including the emulator smoke run. Most of these rules fail silently too.
   `UNREADABLE` and is kept, not deleted, because a Keystore hiccup looks identical to a lost
   key. `allowBackup="false"` and `data_extraction_rules.xml` (enforced by `BackupRulesTest`)
   keep it, and everything else, out of Android backup; `buildBackup` never sees it.
+  Settings and onboarding use `saveIf`'s branch-mutation overload: read, merge the submitted
+  provider/STT/TTS update and persist under the same mutex. A serialized stale whole-ring
+  snapshot still loses independent saves. Forget generations and unreadable replacement
+  confirmation are checked inside that boundary; later transcription edits stay in the form.
 - **`SessionStore` never loses or clobbers a row.** One `<id>.json` per session, written by
   `writeAtomically` (temp file, `fsync`, atomic replace, then `fsync` of the directory, not
   androidx `AtomicFile`, which swallows a failed rename). It saves exactly the object it is

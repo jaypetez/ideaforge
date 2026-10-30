@@ -318,6 +318,19 @@ class DriveController(
     /** Exit, from the stage or the notification: back to typing, or the result once written. */
     fun exit() = exitRun(command = false)
 
+    /** Confirmed deletion must stop its owner before storage can wait, without saving a draft or reopening it. */
+    fun retireSession(id: String) {
+        if (sessionId != id) return
+        if (_state.value.attached) halt()
+        sessionId = null
+        session = null
+        work = null
+        prefix = ""
+        submittedCaption = ""
+        captureTurnId = null
+        _state.value = VoiceStageState()
+    }
+
     /** The screen has acted on [VoiceStageState.exit]. */
     fun exitShown() {
         if (_state.value.exit != null) _state.value = VoiceStageState()
