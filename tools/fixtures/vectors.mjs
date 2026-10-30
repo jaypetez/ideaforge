@@ -277,7 +277,7 @@ async function sessionFamily() {
     ['normalized Unicode is not verbatim evidence', 'Cafe\u0301 🍵'],
     ['changed punctuation is not verbatim evidence', 'Café 🍵 - "工房"'],
     ['collapsed line breaks are not verbatim evidence', '“工房” Deux vélos, Samedi.'],
-    ['changed line endings are not verbatim evidence', unicodeQuote.replace('\n', '\r\n')],
+    ['changed line endings are not verbatim evidence', unicodeQuote.replaceAll('\n', '\r\n')],
   ]) {
     cases.push(rec(name, applyCoverage, unicode, { outcome: { level: 'covered', evidence } }, { now: 8 }));
   }
