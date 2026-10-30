@@ -210,6 +210,39 @@ class UxEvidenceTest {
         bitmap.recycle()
     }
 
+    /**
+     * A Save picker frame was accepted while the screen was still the app, unchanged or mid
+     * fade. A light picker over a light app differs in only 13-25% of samples, so the proof
+     * is change from the pre-launch frame plus a settled (repeated) sample, not identity.
+     */
+    @Test
+    fun aPickerFrameMustChangeFromTheAppAndSettleBeforeItIsEvidence() {
+        val bitmap = Bitmap.createBitmap(1080, 2400, Bitmap.Config.ARGB_8888)
+        fun band(top: Int, bottom: Int, colour: Int) {
+            for (y in top until bottom) for (x in 0 until bitmap.width) bitmap.setPixel(x, y, colour)
+        }
+        bitmap.eraseColor(Color.rgb(248, 247, 252))
+        band(200, 320, Color.rgb(30, 30, 40))
+        val app = UxEvidence.frameSample(bitmap)
+        assertEquals("the unchanged app is not a picker", false, UxEvidence.windowChanged(app, UxEvidence.frameSample(bitmap)))
+
+        // A light picker: same near-white background, different toolbar and bottom bar.
+        bitmap.eraseColor(Color.WHITE)
+        band(60, 180, Color.rgb(30, 30, 40))
+        band(2150, 2280, Color.rgb(33, 150, 243))
+        val picker = UxEvidence.frameSample(bitmap)
+        assertTrue("a light picker over a light app is a change", UxEvidence.windowChanged(app, picker))
+        assertTrue("the light case really shares most samples",
+            app.indices.count { app[it] != picker[it] } < app.size / 2)
+        assertEquals("a single changed sample is not yet settled", false, UxEvidence.settled(null, picker))
+        assertTrue(UxEvidence.settled(picker, UxEvidence.frameSample(bitmap)))
+
+        // Mid-transition: the next sample differs, so the frame is not settled.
+        band(0, 60, Color.rgb(120, 120, 120))
+        assertEquals(false, UxEvidence.settled(picker, UxEvidence.frameSample(bitmap)))
+        bitmap.recycle()
+    }
+
     @Test
     fun aThemePreferenceAloneIsNotEvidenceThatThePixelsChanged() {
         assertThrows(IllegalStateException::class.java) { UxEvidence.requireTheme("dark", UxPixels(20, 30.0, 0x101010)) }

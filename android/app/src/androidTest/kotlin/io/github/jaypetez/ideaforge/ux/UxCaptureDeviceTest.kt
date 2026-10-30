@@ -403,14 +403,16 @@ class UxCaptureDeviceTest {
         val ids = runBlocking { graph.sessionStore.knownIds() }
         UxSystemActions(instrumentation, target, File(output, "${config.id}/native-system")).use { system ->
             system.requireCommandTransport()
-            click(ResultTags.SAVE)
+            revealControl(ResultTags.SAVE)
+            system.launch { compose.onNodeWithTag(ResultTags.SAVE).assertIsDisplayed().performClick() }
             system.awaitExternalWindow()
             system.snapshot("save-cancel")
             system.back()
             await(ResultTags.OUTPUT)
             assertEquals(done, graph.sessionStore.get(id))
             capture("save-cancel", resultControls())
-            system.share { click(ResultTags.SHARE) }
+            revealControl(ResultTags.SHARE)
+            system.share { system.launch { compose.onNodeWithTag(ResultTags.SHARE).assertIsDisplayed().performClick() } }
             system.awaitExternalWindow()
             system.requireShared(export)
             system.snapshot("share-cancel")
@@ -2145,7 +2147,8 @@ class UxCaptureDeviceTest {
             textControl("archive", R.string.idea_archive), textControl("delete", R.string.idea_delete)), menu = true)
         UxSystemActions(instrumentation, target, systemOutput).use { system ->
             system.requireCommandTransport()
-            system.share { compose.onNodeWithTag(LibraryTags.share(id)).performScrollTo().assertIsDisplayed().performClick() }
+            compose.onNodeWithTag(LibraryTags.share(id)).performScrollTo()
+            system.share { system.launch { compose.onNodeWithTag(LibraryTags.share(id)).assertIsDisplayed().performClick() } }
             system.awaitExternalWindow()
             system.requireShared(export)
             system.snapshot("ideas-share-cancel")
@@ -2168,7 +2171,8 @@ class UxCaptureDeviceTest {
                 capture(frame, listOf(UxControl("named-export-result", hasText(expected), actionRequired = false),
                     tag(LibraryTags.EXPORT_DISMISS)) + controls)
             }
-            save()
+            revealControl(LibraryTags.save(id))
+            system.launch { compose.onNodeWithTag(LibraryTags.save(id)).assertIsDisplayed().performClick() }
             system.awaitExternalWindow()
             system.snapshot("ideas-save-cancel")
             system.back()

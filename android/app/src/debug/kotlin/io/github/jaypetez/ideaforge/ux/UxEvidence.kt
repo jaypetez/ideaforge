@@ -235,6 +235,27 @@ object UxEvidence {
         return distinct(ink, background) && distinct(background, scrim)
     }
 
+    /** A coarse, compression-tolerant fingerprint of the whole screen. */
+    fun frameSample(bitmap: Bitmap, grid: Int = 48): IntArray = IntArray(grid * grid) { index ->
+        val x = ((index % grid) * 2 + 1) * bitmap.width / (grid * 2)
+        val y = ((index / grid) * 2 + 1) * bitmap.height / (grid * 2)
+        bitmap.getPixel(x, y) and 0x00F0F0F0
+    }
+
+    /**
+     * A full-screen system picker's tree also precedes its paint: accepted Save picker frames
+     * were the app's own unchanged screen, or the app mid-transition. Pixel identity cannot
+     * separate a light picker from a light app (they share most background samples), so a
+     * picker frame must have changed from the app frame captured just before the launch and
+     * then be [settled]: identical to the next sample, which an animating transition is not.
+     */
+    fun windowChanged(before: IntArray, after: IntArray, minimumFraction: Double = 0.05): Boolean {
+        require(before.size == after.size && before.isNotEmpty())
+        return before.indices.count { before[it] != after[it] } >= before.size * minimumFraction
+    }
+
+    fun settled(previous: IntArray?, current: IntArray): Boolean = previous != null && previous.contentEquals(current)
+
     private fun distinct(a: Int, b: Int) = listOf(16, 8, 0).any { shift ->
         kotlin.math.abs(((a shr shift) and 255) - ((b shr shift) and 255)) > 24
     }

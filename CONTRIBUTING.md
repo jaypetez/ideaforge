@@ -560,10 +560,11 @@ Save for a 120-character name at 640x400dp (ASCII) and 320x720dp (full-width CJK
 theme and font scale, proving Dismiss, the row's More and a usable pane stay in the window.
 That journey reuses `UxSystemActions`
 for real share-sheet/document-picker interactions and exact file readback. System snapshots
-wait for UiAutomation idle, and a share chooser's snapshot also waits for two consecutive
-frames whose reported header and drag handle are actually painted
-(`UxEvidence.sheetPainted`): an accessible chooser tree alone can precede its painted
-sheet and photograph only the scrim over the app underneath. Inspect the actual system
+wait for UiAutomation idle and then for a settled frame: two consecutive identical samples
+that, after a `launch`, have changed from the app frame captured before it, and for a share
+chooser show a painted header and drag handle at the bounds it reports
+(`UxEvidence.sheetPainted`). An accessible chooser or picker tree alone can precede its
+paint and photograph only the app underneath or its scrim. Inspect the actual system
 PNGs, not just their tree files. It launches
 without the debug scripted-provider override, removes its private dummy key after opening
 Ideas, and has no inference grant. A separate admitted actual-app negative control must

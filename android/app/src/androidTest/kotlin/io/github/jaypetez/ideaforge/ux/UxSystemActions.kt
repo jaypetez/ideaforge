@@ -53,12 +53,32 @@ internal class UxSystemActions(
             it.packageName?.toString() !in setOf("com.android.systemui", "com.android.inputmethod.latin")
     }
 
+    /**
+     * The app frame just before a system window is launched; [snapshot] requires the
+     * window's frame to have changed from it. Captured by [launch].
+     */
+    private var baseline: IntArray? = null
+
+    fun launch(action: () -> Unit) {
+        baseline = sample()
+        action()
+    }
+
+    private fun sample(): IntArray {
+        automation.waitForIdle(300, DEVICE_TIMEOUT)
+        val bitmap = checkNotNull(automation.takeScreenshot()) { "no baseline screenshot" }
+        return try { UxEvidence.frameSample(bitmap) } finally { bitmap.recycle() }
+    }
+
     fun snapshot(name: String) {
         // A new window's accessibility tree can arrive before its first painted frame.
         automation.waitForIdle(300, DEVICE_TIMEOUT)
         check(output.isDirectory || output.mkdirs())
+        val before = baseline
+        baseline = null
         val deadline = SystemClock.uptimeMillis() + DEVICE_TIMEOUT
         var previousSheet: Pair<UxBounds, UxBounds>? = null
+        var previousFrame: IntArray? = null
         while (true) {
             val root = automation.rootInActiveWindow
             root?.refresh()
@@ -66,11 +86,17 @@ internal class UxSystemActions(
             val bitmap = checkNotNull(automation.takeScreenshot()) { "no system screenshot for $name" }
             try {
                 UxEvidence.requireRendered(bitmap, UxBounds(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()))
-                // Idle accessibility is not paint: a chooser's tree arrives while the screen
-                // still shows only its scrim over the dimmed source, and the sheet then slides
-                // in. Accept two consecutive painted frames at the same reported sheet bounds.
+                // Idle accessibility is not paint. A chooser's tree arrives while the screen
+                // still shows only its scrim over the dimmed source and the sheet then slides
+                // in; a picker's arrives while the app is still on screen or mid-transition.
+                // Accept a frame only once it is settled (unchanged since the last sample),
+                // has changed from the app frame captured before the launch, and, for a
+                // chooser, shows its painted sheet at the same reported bounds as before.
+                val frame = UxEvidence.frameSample(bitmap)
                 val painted = sheet == null || UxEvidence.sheetPainted(bitmap, sheet.first, sheet.second)
-                if (sheet == null || (painted && sheet == previousSheet)) {
+                val accepted = painted && sheet == previousSheet && UxEvidence.settled(previousFrame, frame) &&
+                    (before == null || UxEvidence.windowChanged(before, frame))
+                if (accepted) {
                     File(output, "$name-system.txt").writeText(tree(root))
                     File(output, "$name-system.png").outputStream().use {
                         check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
@@ -78,8 +104,9 @@ internal class UxSystemActions(
                     return
                 }
                 previousSheet = if (painted) sheet else null
+                previousFrame = frame
                 check(SystemClock.uptimeMillis() < deadline) {
-                    "the $name system sheet did not paint within the capture budget:\n${tree(root)}"
+                    "the $name system window did not paint and settle within the capture budget:\n${tree(root)}"
                 }
             } finally { bitmap.recycle() }
             SystemClock.sleep(150)
