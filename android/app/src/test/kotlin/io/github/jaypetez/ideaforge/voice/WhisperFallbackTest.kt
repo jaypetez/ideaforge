@@ -1,6 +1,10 @@
 package io.github.jaypetez.ideaforge.voice
 
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -140,6 +144,55 @@ class WhisperFallbackTest {
         assertEquals("a retired upload cannot replace the paused caption", "the first part", rig.state.caption)
         assertEquals("the first part", rig.draft())
         assertTrue(rig.answered().isEmpty())
+    }
+
+    @Test
+    fun libraryDeletionReleasesRecordingBeforeARetiredUploadCanComplete() {
+        rig.recognitionAvailable = false
+        val reply = CompletableDeferred<String>()
+        var returned = false
+        rig.whisper = WhisperListener(
+            source = { FakePcm(speech()).also { mics += it } },
+            transcribe = { _, _ ->
+                // A completed HTTP callback can arrive after cancellation was requested.
+                withContext(NonCancellable) { reply.await().also { returned = true } }
+            },
+            io = rig.dispatcher,
+        )
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        try {
+            rig.controller.start(rig.seeded, "typed")
+            assertTrue(rig.until { rig.state.transcribing })
+            assertTrue(mics.single().open)
+            rig.library.delete(rig.id)
+            assertFalse("release cannot wait for the pending upload", mics.single().open)
+            assertFalse(rig.state.attached)
+            assertEquals(1, rig.service.stops)
+
+            rig.recognitionAvailable = true
+            val replacement = rig.unsaved("s_drive_00000002", "new typed words")
+            rig.scripts += listOf(At(300, Ev.Ready), At(500, Ev.Partial("new live words")))
+            rig.controller.start(replacement, "typed")
+            assertTrue(rig.until { rig.state.caption == "new live words" })
+            val current = rig.state
+            val starts = rig.starts()
+            val said = rig.speaker.said.size
+            reply.complete("deleted words over")
+            rig.advance(1000)
+            assertTrue("the adversarial late reply actually completed", returned)
+            assertEquals(current, rig.state)
+            assertEquals(replacement, rig.controller.reportingSession())
+            assertTrue(rig.saved() == null)
+            assertEquals(1, mics.single().stops)
+            assertEquals(starts, rig.starts())
+            assertEquals(said, rig.speaker.said.size)
+            assertTrue(rig.model.requests.isEmpty())
+            assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+        } finally {
+            reply.complete("deleted words over")
+            rig.advance(0)
+        }
     }
 
 }

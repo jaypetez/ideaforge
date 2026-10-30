@@ -6,7 +6,10 @@ import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.openTurn
 import io.github.jaypetez.ideaforge.ui.interview.InterviewViewModel
 import io.github.jaypetez.ideaforge.ui.interview.ProviderSource
+import io.github.jaypetez.ideaforge.ui.library.LibraryNotice
 import io.github.jaypetez.ideaforge.ui.voice.beginVoice
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +23,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 
 /**
  * The hands-free drive end to end on virtual time: DriveLoop, the Recognizer and the turn work
@@ -32,9 +36,13 @@ class DriveControllerTest {
     val tmp = TemporaryFolder()
 
     private lateinit var rig: DriveRig
+    private lateinit var dir: File
 
     @Before
-    fun setUp() { rig = DriveRig(tmp.newFolder()) }
+    fun setUp() {
+        dir = tmp.newFolder()
+        rig = DriveRig(dir)
+    }
 
     @After
     fun tearDown() = rig.close()
@@ -349,6 +357,154 @@ class DriveControllerTest {
     private val listeningWithWords = listOf(
         At(300, Ev.Ready), At(400, Ev.Rms(3f)), At(800, Ev.Partial("half an", unstable = " answer")),
     )
+
+    @Test
+    fun deletingTheActiveIdeaFromTheLibraryStopsItsEffectsBeforeDeletionCanFinish() {
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        assertEquals(rig.seeded, rig.saved())
+        rig.scripts += listeningWithWords + At(5000, Ev.Error(RecognizerError.NO_MATCH))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption.contains("answer") })
+
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        rig.writes.launch {
+            rig.worker.exclusive(rig.id) {
+                entered.complete(Unit)
+                release.await()
+            }
+        }
+        rig.advance(0)
+        assertTrue(entered.isCompleted)
+        val starts = rig.starts()
+        val said = rig.speaker.said.size
+        try {
+            rig.library.delete(rig.id)
+            assertEquals("capture stops before deletion can acquire its lock", CaptureState.IDLE, rig.recognizer.state.value)
+            assertTrue(rig.engine().destroyed)
+            assertFalse(rig.state.attached)
+            assertNull("deletion must not reopen the discarded idea", rig.state.exit)
+            assertNull(rig.controller.reportingSession())
+            assertEquals(1, rig.speaker.cancels)
+            assertEquals(1, rig.service.stops)
+            assertEquals("storage is still waiting, not the microphone", rig.seeded, rig.saved())
+        } finally {
+            release.complete(Unit)
+        }
+        assertTrue(rig.until { rig.saved() == null && rig.library.notice.value == LibraryNotice.Deleted })
+        rig.controller.resume()
+        rig.advance(12_000)
+        assertEquals("no recognition restart or stale Resume", starts, rig.starts())
+        assertEquals("no output after deletion", said, rig.speaker.said.size)
+        assertTrue(rig.model.requests.isEmpty())
+        assertNull(rig.saved())
+        assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun deletingAnotherIdeaKeepsTheDriveAndItsSubmittedTurn() {
+        val other = "s_drive_00000002"
+        rig.writes.launch { rig.store.save(rig.unsaved(other, "another idea")) }
+        rig.advance(0)
+        val hold = CompletableDeferred<Unit>()
+        rig.model.gate = hold
+        rig.scripts += spoken("keep my submitted answer over")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.model.requests.size == 1 })
+
+        rig.library.delete(other)
+        assertEquals(VoiceMode.ACTIVE, rig.state.mode)
+        assertEquals(rig.id, rig.state.sessionId)
+        assertEquals(0, rig.service.stops)
+        assertEquals(0, rig.speaker.cancels)
+        assertTrue(rig.until { rig.store.get(other) == null })
+
+        hold.complete(Unit)
+        assertTrue(rig.until { rig.answered().size == 1 && rig.state.listening })
+        assertEquals("keep my submitted answer", stringOf(rig.answered().single()["answer"]))
+        assertEquals(0, rig.service.stops)
+        assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun aDeletedDrivesLateRecognitionAndModelResultCannotDisturbItsReplacement() {
+        val hold = CompletableDeferred<Unit>()
+        rig.model.gate = hold
+        rig.scripts += spoken("the discarded answer over")
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.model.requests.size == 1 })
+        val oldEngine = rig.engine()
+        rig.library.delete(rig.id)
+        assertFalse(rig.state.attached)
+        assertEquals(1, rig.service.stops)
+
+        val other = "s_drive_00000002"
+        val replacement = rig.unsaved(other, "new typed draft")
+        rig.writes.launch { rig.store.save(replacement) }
+        rig.scripts += listOf(At(300, Ev.Ready), At(500, Ev.Partial("new live words")))
+        rig.controller.start(replacement, "typed")
+        assertTrue(rig.until { rig.state.caption == "new live words" })
+        val current = rig.state
+        val starts = rig.starts()
+        val said = rig.speaker.said.size
+
+        oldEngine.fire(Ev.Results("late discarded answer over"))
+        oldEngine.fire(Ev.Error(RecognizerError.NO_MATCH))
+        hold.complete(Unit)
+        rig.advance(1000)
+        assertEquals(current, rig.state)
+        assertEquals(replacement, rig.controller.reportingSession())
+        assertEquals(replacement, rig.store.get(other))
+        assertNull(rig.saved())
+        assertEquals(starts, rig.starts())
+        assertEquals(said, rig.speaker.said.size)
+        assertEquals(1, rig.model.requests.size)
+        assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun failedDeletionReportsFailureWithoutRestartingTheOwnersVoice() {
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        rig.scripts += listeningWithWords
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.caption.contains("answer") })
+        val file = File(dir, "${rig.id}.json")
+        assertTrue(file.delete())
+        assertTrue(file.mkdir())
+        File(file, "held").writeText("controlled deletion failure")
+        val starts = rig.starts()
+        val said = rig.speaker.said.size
+
+        rig.library.delete(rig.id)
+        assertEquals(CaptureState.IDLE, rig.recognizer.state.value)
+        assertTrue(rig.until { rig.library.notice.value == LibraryNotice.Failed })
+        assertEquals(rig.seeded, rig.saved())
+        assertTrue(File(file, "held").exists())
+        assertFalse(rig.state.attached)
+        assertEquals(1, rig.service.stops)
+        rig.controller.resume()
+        rig.advance(12_000)
+        assertEquals(starts, rig.starts())
+        assertEquals(said, rig.speaker.said.size)
+        assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+    }
+
+    @Test
+    fun deletionBeforeDriveAdmissionPreventsTheServiceAndMicrophoneStarting() {
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        rig.controller.start(rig.seeded, "typed")
+        rig.library.delete(rig.id)
+        rig.advance(12_000)
+        assertNull(rig.saved())
+        assertFalse(rig.state.attached)
+        assertEquals(0, rig.service.starts)
+        assertFalse(rig.recognizerBuilt)
+        assertTrue(rig.speaker.said.isEmpty())
+        assertTrue(rig.crashes.toString(), rig.crashes.isEmpty())
+    }
 
     @Test
     fun deletingTheIdeaMidDriveThenPausingAndResumingWritesNothingAndDoesNotCrash() {

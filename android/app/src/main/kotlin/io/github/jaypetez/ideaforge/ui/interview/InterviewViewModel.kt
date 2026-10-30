@@ -72,7 +72,6 @@ import java.io.IOException
 /** The web's queueDraftSave timer (src/ui/app.js): one write per pause in typing. */
 const val DRAFT_DEBOUNCE_MS = 600L
 
-private data class DraftWrite(val text: String, val turn: JsonObject, val tag: SessionWorker.Tag)
 
 /** What the interview is waiting for, for the loading line. */
 enum class Busy { Thinking, Resuming, Writing }
@@ -197,14 +196,17 @@ class InterviewViewModel(
     private var dimensionRequest = 0L
     private var dimensionOrigin: Pair<SessionWorker.Tag, Session>? = null
 
+    private data class PendingDraft(val text: String, val session: Session, val tag: SessionWorker.Tag)
+
     /**
-     * Text queued for a draft write and not yet saved. The debounce job cannot answer this:
+     * A draft retains its question and work tag even if navigation delays the flush.
+     * The debounce job cannot tell whether it is saved:
      * viewModelScope is cancelled before onCleared runs, so a flush that asked whether the job
      * was still active always found it dead and dropped a draft typed just before leaving.
      * Its question and epoch are captured now, never borrowed from the editor at execution.
      */
     @Volatile
-    private var pendingDraft: DraftWrite? = null
+    private var pendingDraft: PendingDraft? = null
 
     private fun now(): JsonElement = work.now()
 
@@ -226,7 +228,8 @@ class InterviewViewModel(
             // Keep this pending until the replacement is durable, including a failed-save retry.
             draftJob?.cancel()
             draftJob = null
-            pendingDraft = _state.value.openTurn?.let { DraftWrite(_state.value.answer, it, worker.tag(sessionId)) }
+            val st = _state.value
+            pendingDraft = st.session?.let { PendingDraft(st.answer, it, worker.tag(sessionId)) }
         }
         reports.replace(if (fromVoice) null else _state.value.answer)
     }
@@ -381,12 +384,45 @@ class InterviewViewModel(
     }
 
     private fun advance(answered: Session) {
+        val before = _state.value
+        val revision = answerRevision
         _state.update { it.copy(session = answered, answer = "", answerSource = "typed", wrapOffer = null) }
         // Started here, synchronously, not from inside a viewModelScope coroutine: Back right
         // after Send clears the ViewModel, and a turn still queued on its scope would be
         // cancelled before it ran, losing the answer with it.
         val turn = startTurn(answered, resume = false)
-        viewModelScope.launch { finishTurn(turn) }
+        viewModelScope.launch {
+            finishTurn(turn) { failure -> recoverAnswer(before, answered, revision, failure) }
+        }
+    }
+
+    /** Restore only this unadmitted answer, never a newer editor, question or retired idea. */
+    private suspend fun recoverAnswer(before: InterviewState, answered: Session, revision: Long, failure: TurnAdmissionFailure) {
+        val original = checkNotNull(before.session)
+        val recovery = worker.run(failure.tag, work = {
+            val latest = store.get(sessionId)
+            if (latest == null && sessionId in store.knownIds()) return@run null
+            if (latest != null && (latest["turns"] != original["turns"] || truthy(latest["pending"]) ||
+                    latest["status"] != original["status"])) return@run null
+            withLibraryMetadata(original, latest, now())
+        })
+        val restored = (recovery as? SessionWorker.Outcome.Committed)?.value
+            ?.takeIf { worker.isCurrent(failure.tag) }
+        _state.update {
+            if (it.session?.get("turns") != answered["turns"] || it.busy != Busy.Thinking) it
+            else it.copy(
+                session = restored ?: it.session,
+                answer = if (restored != null && answerRevision == revision) before.answer else it.answer,
+                answerSource = if (restored != null && answerRevision == revision) before.answerSource else it.answerSource,
+                wrapOffer = if (restored != null) before.wrapOffer else it.wrapOffer,
+                busy = null,
+                notice = InterviewNotice.Failed(message(failure.error), failure.error),
+            )
+        }
+        // Keep the normal navigation flush, without scheduling an automatic retry of a bad disk.
+        if (restored != null && _state.value.session === restored) {
+            pendingDraft = PendingDraft(_state.value.answer, restored, failure.tag)
+        }
     }
 
     /** Ask the next question: the web's nextQuestion, or resumeTurn for an interrupted one. */
@@ -402,11 +438,18 @@ class InterviewViewModel(
         }, resume)
     }
 
-    private suspend fun finishTurn(turn: Deferred<SessionWorker.Outcome<SettledTurn>>) {
+    private suspend fun finishTurn(
+        turn: Deferred<SessionWorker.Outcome<SettledTurn>>,
+        recover: (suspend (TurnAdmissionFailure) -> Unit)? = null,
+    ) {
         val outcome = try {
             turn.await()
         } catch (e: CancellationException) {
             throw e
+        } catch (e: TurnAdmissionFailure) {
+            if (recover != null) recover(e)
+            else _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e.error), e.error)) }
+            return
         } catch (e: ProviderException) {
             if (e.code == "consent") { consentFailed(e); return }
             _state.update { it.copy(busy = null, notice = InterviewNotice.Failed(message(e), e)) }
@@ -496,8 +539,9 @@ class InterviewViewModel(
 
     private fun queueDraft(text: String) {
         draftJob?.cancel()
-        val turn = _state.value.openTurn ?: return
-        val draft = DraftWrite(text, turn, worker.tag(sessionId))
+        val session = _state.value.session ?: return
+        if (openTurn(session) == null) return
+        val draft = PendingDraft(text, session, worker.tag(sessionId))
         pendingDraft = draft
         draftJob = viewModelScope.launch {
             delay(draftDelayMs)
@@ -511,12 +555,15 @@ class InterviewViewModel(
         pendingDraft = null
     }
 
-    private suspend fun writeDraft(draft: DraftWrite) {
-        val s = _state.value.session ?: return
-        val expected = draft.turn
-        val text = draft.text
+    private suspend fun writeDraft(draft: PendingDraft) {
+        val (text, s, tag) = draft
+        if (openTurn(s) == null) {
+            if (pendingDraft === draft) pendingDraft = null
+            return
+        }
+        val expected = openTurn(s) ?: return
         try {
-            val out = worker.run(draft.tag, work = {
+            val out = worker.run(tag, work = {
                 val latest = store.get(sessionId) ?: s.takeIf { sessionId !in store.knownIds() } ?: return@run null
                 val open = openTurn(latest) ?: return@run null
                 if (open["id"] != expected["id"] || open["question"] != expected["question"]) return@run null
@@ -527,7 +574,7 @@ class InterviewViewModel(
             val drafted = (out as? SessionWorker.Outcome.Committed)?.value
             if (drafted != null) {
                 _state.update {
-                    if (it.answer == text && it.openTurn?.get("id") == expected["id"] &&
+                    if (worker.isCurrent(tag) && it.answer == text && it.openTurn?.get("id") == expected["id"] &&
                         it.openTurn?.get("question") == expected["question"]) it.copy(session = drafted) else it
                 }
                 if (pendingDraft === draft) pendingDraft = null

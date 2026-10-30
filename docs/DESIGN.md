@@ -342,6 +342,10 @@ Rename/tag and permanent Delete use native dialogs with Cancel/Back. They return
 to the initiating menu control when it remains mounted, or the Ideas heading. A confirmed
 deletion moves focus off the removed row. Mutations still go through LibraryViewModel,
 the session reducers, per-session work lock and store deletion protection.
+Confirmed Delete retires the matching graph-owned drive before waiting for storage:
+capture, output and its foreground service stop without saving a new draft or reopening
+the discarded idea. Another idea's drive remains untouched; a failed disk deletion reports
+failure without restarting voice.
 
 `LibraryPreview` renders an active idea without synthesis as **No write-up yet** plus its
 literal conversation and unsent draft, keeping checklist, skipped and answer-provenance

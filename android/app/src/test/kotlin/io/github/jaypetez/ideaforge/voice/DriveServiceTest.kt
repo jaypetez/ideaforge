@@ -4,8 +4,10 @@ import android.app.Notification
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import io.github.jaypetez.ideaforge.installTestGraph
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -109,6 +111,57 @@ class DriveServiceTest {
         val service = deliver(Intent(context, DriveService::class.java).setAction(DriveService.ACTION_START))
         assertEquals("entered the foreground first", 1, service.foregroundEntries)
         assertTrue(shadowOf(service).isStoppedBySelf)
+    }
+
+    @Test
+    fun libraryDeletionStopsTheForegroundServiceAndStaleResumeDoesNotRestartIt() {
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        rig.scripts += listOf(At(300, Ev.Ready), At(400, Ev.Rms(3f)))
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.state.listening })
+        val service = Robolectric.buildService(DriveService::class.java,
+            Intent(context, DriveService::class.java).setAction(DriveService.ACTION_START))
+        val active = service.create().startCommand(0, 1).get()
+        try {
+            assertFalse(shadowOf(active).isStoppedBySelf)
+            rig.library.delete(rig.id)
+            rig.advance(0)
+            assertTrue("the real service observes detached ownership and stops itself", shadowOf(active).isStoppedBySelf)
+            active.onStartCommand(
+                Intent(context, DriveService::class.java).setAction(DriveService.ACTION_RESUME), 0, 2,
+            )
+            rig.advance(12_000)
+            assertFalse(rig.state.attached)
+            assertEquals(1, rig.service.starts)
+            assertEquals(1, rig.starts())
+            assertEquals(CaptureState.IDLE, rig.recognizer.state.value)
+        } finally {
+            service.destroy()
+        }
+    }
+
+    @Test
+    fun deletionDuringSpeechBeforeTheServiceStartsStillEntersForegroundThenStops() {
+        rig.writes.launch { rig.store.save(rig.seeded) }
+        rig.advance(0)
+        rig.controller.start(rig.seeded, "typed")
+        assertTrue(rig.until { rig.service.starts == 1 })
+        assertTrue(rig.speaker.said.isNotEmpty())
+        rig.library.delete(rig.id)
+        val service = Robolectric.buildService(DriveService::class.java,
+            Intent(context, DriveService::class.java).setAction(DriveService.ACTION_START))
+        val delayed = service.create().startCommand(0, 1).get()
+        try {
+            assertEquals("even a retired START must fulfill startForeground first", 1, delayed.foregroundEntries)
+            assertTrue(shadowOf(delayed).isStoppedBySelf)
+            val said = rig.speaker.said.size
+            rig.advance(12_000)
+            assertEquals("cancelled speech never opens capture", 0, rig.starts())
+            assertEquals(said, rig.speaker.said.size)
+        } finally {
+            service.destroy()
+        }
     }
 
     @Test

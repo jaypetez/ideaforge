@@ -672,6 +672,15 @@ source wins over prose, and a generated artifact wins over a description of that
   [`test/agent-support.test.mjs`](../../../../test/agent-support.test.mjs), plus
   `.claude/skills/`, `.claude/agents/`, and `.github/agents/`. Re-check assistant guidance
   and adapters.
+- **Android bug audits.** Source:
+  [`audit-android-app`](../../audit-android-app/SKILL.md) specializes
+  [`audit-ideaforge-codebase`](../../audit-ideaforge-codebase/SKILL.md) and
+  [`android-verify`](../../android-verify/SKILL.md). Re-check `CONTRIBUTING.md`,
+  `docs/ASSISTANT-PROCESS.md` and the expected/explicit inventories in
+  `test/agent-support.test.mjs`. The Android entry defaults to main-only/report-only,
+  reports all confirmed deduplicated roots, and separates source reasoning from actual
+  test/device/image evidence. It does not change the general audit's cap or authorize
+  repairs, issue publication, new runners or production signing.
 - **Lean coding and assistant processes.** Sources:
   [`AGENTS.md`](../../../../AGENTS.md) (`Lean coding`),
   [`tools/assistant-process.mjs`](../../../../tools/assistant-process.mjs)
@@ -682,7 +691,7 @@ source wins over prose, and a generated artifact wins over a description of that
   [foreground SDK entry](../../../../.github/extensions/ideaforge-assist/extension.mjs).
   Re-check [`docs/ASSISTANT-PROCESS.md`](../../../../docs/ASSISTANT-PROCESS.md),
   `CONTRIBUTING.md`, the README assistant paragraph, the development guide,
-  the five assist/audit/debt/gain/help skills, and `test/agent-support.test.mjs`.
+  the assist/audit/debt/gain/help skills, and `test/agent-support.test.mjs`.
   The host supplies Copilot's SDK; this is not an app dependency. Local mode state never
   belongs in the published tree. Native loading/protocol proof and empirical coding
   benefit remain separate claims.

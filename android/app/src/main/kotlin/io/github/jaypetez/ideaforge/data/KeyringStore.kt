@@ -10,6 +10,8 @@ import io.github.jaypetez.ideaforge.core.migrateCredentials
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -184,6 +186,26 @@ class KeyringStore(
     }
 
     /**
+     * Merge an operation's submitted branch with the durable ring while owning the writer
+     * mutex. Building a whole-ring snapshot before this lock loses independent saved branches.
+     * Null means Forget retired the operation; UNREADABLE means nothing was written unless
+     * [replaceUnreadable] explicitly authorized replacement for this operation.
+     */
+    suspend fun saveIf(
+        generation: Long,
+        replaceUnreadable: Boolean = false,
+        update: (Keyring) -> Keyring,
+    ): KeyringState? = mutex.withLock {
+        if (_generation.value != generation) return null
+        val current = loadLocked()
+        currentCoroutineContext().ensureActive()
+        if (_generation.value != generation) return null
+        if (current.status == KeyringState.Status.UNREADABLE && !replaceUnreadable) return current
+        saveLocked(update(current.ring))
+        _state.value
+    }
+
+    /**
      * Read and decrypt. Never throws: an unreadable blob reads as an empty keyring with
      * [KeyringState.Status.UNREADABLE], because an app that will not start over a credential
      * it could re-ask for is worse than one that asks.
@@ -193,10 +215,12 @@ class KeyringStore(
      * update) looks the same as a lost key from in here, and deleting would turn a hiccup
      * into a lost credential. The next [save] replaces the blob, and [forget] removes it.
      */
-    suspend fun load(): KeyringState = mutex.withLock {
+    suspend fun load(): KeyringState = mutex.withLock { loadLocked() }
+
+    private suspend fun loadLocked(): KeyringState {
         val next = withContext(io) { read() }
         _state.value = next
-        next
+        return next
     }
 
     private fun read(): KeyringState {

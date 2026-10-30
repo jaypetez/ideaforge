@@ -35,6 +35,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.IOException
 
 /** Typed answers from tools/fixtures/walkthrough.mjs, as the vector records them. */
 private val ANSWERS: List<String> by lazy {
@@ -355,6 +356,187 @@ class InterviewViewModelTest {
         assertEquals("The originating draft.", stringOf(stored()!!["draftAnswer"]))
         assertEquals("probing", stringOf(other.state.value.session!!["coverage"]["outcome"]["status"]))
         assertNull(vm.state.value.dimensionEdit)
+    }
+
+    @Test
+    fun aFailedFirstSaveKeepsTheAnswerEditableAndRetrySubmitsItOnce() {
+        val gate = CompletableDeferred<Unit>()
+        val model = ScriptedModel(gate = gate)
+        val vm = h.vm(model)
+        idle()
+        val question = vm.state.value.openTurn
+        val text = "  A workshop tracker for volunteers doing bicycle repairs.  "
+        vm.onAnswerChange(text)
+        assertTrue(h.dir.delete())
+        assertTrue(h.dir.createNewFile())
+        vm.send()
+        h.scheduler.runCurrent()
+        val failed = vm.state.value
+        assertTrue(failed.notice is InterviewNotice.Failed)
+        assertNull("failed admission cannot create a durable row", stored())
+        assertTrue("no inference before durable admission", model.requests.isEmpty())
+
+        assertTrue(h.dir.delete())
+        assertTrue(h.dir.mkdir())
+        vm.noticeShown()
+        vm.send()
+        vm.send()
+        h.scheduler.runCurrent()
+        assertTrue("the failed answer must be editable, not just shown in history", failed.canAnswer)
+        assertEquals(question, failed.openTurn)
+        assertEquals(text, failed.answer)
+        assertEquals("typed", failed.answerSource)
+        assertEquals("one deliberate retry, despite a second tap", 1, model.requests.size)
+        val pending = stored()!!
+        assertEquals(text.trim(), stringOf(turns(pending).single()["answer"]))
+        assertEquals("typed", stringOf(turns(pending).single()["answerSource"]))
+        assertEquals("turn", stringOf(pending["pending"]["kind"]))
+        assertEquals(promptHash(model.turnPrompts.single().joined()), stringOf(pending["pending"]["promptHash"]))
+
+        gate.complete(Unit)
+        idle()
+        assertEquals(2, turns(stored()).size)
+        assertEquals(1, turns(stored()).count { stringOf(it["answer"]) == text.trim() })
+        assertTrue(vm.state.value.canAnswer)
+        assertEquals("", vm.state.value.answer)
+        assertEquals("", stringOf(stored()!!["draftAnswer"]))
+        assertEquals("the retry does not duplicate inference", 1, model.requests.size)
+    }
+
+    @Test
+    fun aFailedChipSaveKeepsItsQuestionAndUneditedSourceForRetry() {
+        var reject = false
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (reject) throw IOException("controlled admission failure")
+            SessionStore.write(file, bytes)
+        })
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        idle()
+        answer(vm, ANSWERS[0])
+        val question = vm.state.value.openTurn!!
+        val chip = stringOf((question["chips"] as JsonArray).first())!!
+        vm.onChip(chip)
+        reject = true
+        vm.send()
+        h.scheduler.runCurrent()
+        assertEquals(question, vm.state.value.openTurn)
+        assertEquals(chip, vm.state.value.answer)
+        assertEquals("chip", vm.state.value.answerSource)
+        assertTrue(vm.state.value.canAnswer)
+        assertEquals(1, model.requests.size)
+
+        reject = false
+        vm.send()
+        idle()
+        assertEquals(chip, stringOf(turns(stored())[1]["answer"]))
+        assertEquals("chip", stringOf(turns(stored())[1]["answerSource"]))
+        assertEquals(3, turns(stored()).size)
+        assertEquals(2, model.requests.size)
+    }
+
+    @Test
+    fun anEditArrivingBeforeTheFailedSaveSettlesWinsOverTheSubmittedText() {
+        var reject = true
+        lateinit var vm: InterviewViewModel
+        val edited = "A newer answer about repairing bicycles together."
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (reject) {
+                vm.onAnswerChange(edited)
+                throw IOException("controlled late admission failure")
+            }
+            SessionStore.write(file, bytes)
+        })
+        val model = ScriptedModel()
+        vm = h.vm(model)
+        idle()
+        vm.onAnswerChange("The original words before the later edit.")
+        vm.send()
+        h.scheduler.runCurrent()
+        assertTrue(vm.state.value.canAnswer)
+        assertEquals(edited, vm.state.value.answer)
+        assertTrue(model.requests.isEmpty())
+
+        reject = false
+        vm.send()
+        idle()
+        assertEquals(edited, stringOf(turns(stored()).first()["answer"]))
+        assertEquals(2, turns(stored()).size)
+        assertEquals(1, model.requests.size)
+    }
+
+    @Test
+    fun aFailedSaveForARetiredOwnerCannotRestoreOrFlushItsOldAnswer() {
+        lateinit var vm: InterviewViewModel
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { _, _ ->
+            h.worker.retire(vm.sessionId)
+            throw IOException("controlled retired admission failure")
+        })
+        val model = ScriptedModel()
+        vm = h.vm(model)
+        idle()
+        vm.onAnswerChange("An answer owned by the retired interview.")
+        vm.send()
+        h.scheduler.runCurrent()
+        assertFalse("a retired submit cannot reopen its question", vm.state.value.canAnswer)
+        assertEquals("", vm.state.value.answer)
+        vm.flushDraft()
+        idle()
+        assertNull(stored())
+        assertTrue(model.requests.isEmpty())
+    }
+
+    @Test
+    fun aRecoveredDraftCannotFlushOverANewerOwnersDraft() {
+        var reject = true
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (reject) throw IOException("controlled admission failure")
+            SessionStore.write(file, bytes)
+        })
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        idle()
+        vm.onAnswerChange("The rejected answer belongs to the old editor.")
+        vm.send()
+        h.scheduler.runCurrent()
+        assertTrue(vm.state.value.canAnswer)
+        reject = false
+        h.worker.retire(vm.sessionId)
+        val replacement = h.vm(model)
+        h.scheduler.runCurrent()
+        val newer = "The reopened editor owns these newer words."
+        replacement.onAnswerChange(newer)
+        replacement.flushDraft()
+        h.scheduler.runCurrent()
+        assertEquals(newer, stringOf(stored()!!["draftAnswer"]))
+
+        vm.flushDraft()
+        idle()
+        assertEquals("a late navigation flush must keep its original work tag",
+            newer, stringOf(stored()!!["draftAnswer"]))
+        assertEquals(newer, replacement.state.value.answer)
+        assertTrue(model.requests.isEmpty())
+    }
+
+    @Test
+    fun aSettledSaveFailureCannotReopenAnAlreadyAdmittedAnswer() {
+        var writes = 0
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (++writes == 2) throw IOException("controlled settled save failure")
+            SessionStore.write(file, bytes)
+        })
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        idle()
+        answer(vm, ANSWERS[0])
+        assertTrue(vm.state.value.notice is InterviewNotice.Failed)
+        assertFalse("only admission failure can restore an unsent answer", vm.state.value.canAnswer)
+        assertEquals("", vm.state.value.answer)
+        assertEquals(ANSWERS[0], stringOf(turns(stored()).single()["answer"]))
+        assertEquals("turn", stringOf(stored()!!["pending"]["kind"]))
+        vm.send()
+        idle()
+        assertEquals("a settled-write failure must not submit or infer twice", 1, model.requests.size)
     }
 
     // A tapped chip is the model's wording. It must reach submitAnswer as source 'chip', or
