@@ -17,9 +17,13 @@
 // And at 800px none of it exists: no pane content, no selection mark, no Details button, no
 // index, and the page is back to its single column.
 
-import { createSession, renameSession, setSynthesis, setTitle } from '../../src/core/session.js';
+import {
+  askQuestion, createSession, renameSession, setDraftAnswer, setSessionTags, setSynthesis, setTitle,
+} from '../../src/core/session.js';
+import { SEED_QUESTION } from '../../src/core/dimensions.js';
+import { buildExport } from '../../src/core/markdown.js';
 import { seedTurn, submitAnswer } from '../../src/runtime/turn.js';
-import { deleteSession, listSessions, saveSession } from '../../src/store/sessions.js';
+import { deleteSession, listSessions, loadSession, saveSession } from '../../src/store/sessions.js';
 import { acknowledgeInference } from './fixtures/inference.js';
 
 const BOOT_MS = 5000;
@@ -70,7 +74,7 @@ function completedSession(id, now, name, body) {
   return setTitle(session, `${name} generated`, now + 6);
 }
 
-const IDS = ['d_done', 'd_active', 'd_fresh', 'd_hostile'];
+const IDS = ['d_done', 'd_active', 'd_fresh', 'd_hostile', 'd_failed'];
 
 async function clean() {
   for (const registration of await navigator.serviceWorker.getRegistrations()) {
@@ -86,9 +90,18 @@ export default async function run(check) {
   // Newest first in the list: hostile, fresh, active, done.
   await saveSession(completedSession('d_done', now, 'Orchard planner',
     'Plan the orchard rows by sunlight and water.'));
-  await saveSession(activeSession('d_active', now + 10, 'A bike route finder', { name: 'Bike routes' }));
+  let active = activeSession('d_active', now + 10, 'A bike route finder', { name: 'Bike routes' });
+  active = askQuestion(active, {
+    question: 'Which bike route should the first version support?', dimension: 'constraints',
+    source: 'model', now: now + 13,
+  });
+  active = setDraftAnswer(active, 'A riverside route, with this draft kept literally <b>safe</b>.', now + 14);
+  active = setSessionTags(active, Array.from({ length: 12 }, (_, i) => `route-${i + 1}`), now + 15);
+  await saveSession(active);
   await saveSession(activeSession('d_fresh', now + 20, '', { name: 'Fresh idea', answered: false }));
   await saveSession(completedSession('d_hostile', now + 30, HOSTILE_NAME, HOSTILE_LINE));
+  await saveSession(setSynthesis(activeSession('d_failed', now + 40, 'A failed write-up',
+    { name: 'Failed write-up' }), { text: '', now: now + 45 }));
 
   const frame = await loadFrame(1280, 900);
   const win = frame.contentWindow;
@@ -189,9 +202,43 @@ export default async function run(check) {
 
     card('d_fresh').querySelector('.idea-meta').click();
     await settle(50);
-    check('an idea with nothing answered says so instead of previewing an empty document',
-      agrees('d_fresh') && /Nothing to preview yet/.test(detail().textContent)
+    check('an unanswered idea previews its question and No write-up yet, never a failed synthesis',
+      agrees('d_fresh') && /No write-up yet/.test(detail().textContent)
+        && detail().textContent.includes(SEED_QUESTION)
+        && !/could not be generated|Not generated/.test(detail().textContent)
         && Boolean(button(detail(), 'Continue')));
+    card('d_active').querySelector('.idea-meta').click();
+    check('an active answered idea previews its latest answer without inventing a synthesis failure',
+      agrees('d_active') && /No write-up yet/.test(detail().textContent)
+        && detail().textContent.includes('A bike route finder')
+        && detail().textContent.includes('Which bike route should the first version support?')
+        && detail().textContent.includes('draft kept literally <b>safe</b>')
+        && !detail().querySelector('.library-preview b')
+        && !/could not be generated|Not generated/.test(detail().textContent));
+    const rowTags = card('d_active').querySelector('.idea-tags');
+    check('a row shows two tags and an accessible remaining count; detail reveals every tag',
+      rowTags.children.length === 3 && rowTags.lastElementChild.textContent.includes('+10 more tags')
+        && detail().querySelector('.idea-tags').children.length === 12);
+    const shared = [];
+    Object.defineProperty(win.navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(win.navigator, 'share', {
+      configurable: true, value: (payload) => { shared.push(payload); return Promise.resolve(); },
+    });
+    detail().querySelector('.idea-more').click();
+    button(detail(), 'Share .md').click();
+    await settle(50);
+    check('the truthful active preview does not alter canonical exported markdown bytes',
+      shared.length === 1 && await shared[0].files[0].text() === buildExport(
+        await loadSession('d_active'), { mode: 'checklist',
+          note: 'The refined prompt could not be generated, but nothing else was lost.' }));
+    card('d_failed').querySelector('.idea-meta').click();
+    check('a genuinely failed completed write-up keeps its degraded export warning',
+      agrees('d_failed') && /refined prompt could not be generated/.test(detail().textContent)
+        && !/No write-up yet/.test(detail().textContent)
+        && Boolean(button(detail(), 'View result')));
+    check('wide rows select Details rather than repeating the selected idea’s Continue/View result',
+      [...$('library-rows').querySelectorAll('.idea-actions > button:first-child')]
+        .every((action) => action.textContent === 'Details'));
 
     // Markup in the name and in the model's write-up arrives as text.
     card('d_hostile').querySelector('.idea-meta').click();
@@ -379,8 +426,10 @@ export default async function run(check) {
       !rendered(detail()) && detail().childNodes.length === 0
         && marked().length === 0 && box(doc.querySelector('.wrap')).width <= 720,
       `${detail().childNodes.length} nodes, marked ${marked().join(',')}`);
-    check('…no Details buttons',
-      [...$('library-rows').querySelectorAll('.idea-select')].every((el) => !rendered(el)));
+    check('…the same row controls become visible direct Continue/View result actions',
+      [...$('library-rows').querySelectorAll('.idea-select')]
+        .every((el) => rendered(el) && /^(Continue|View result)$/.test(el.textContent)
+          && !el.hasAttribute('aria-pressed') && !el.hasAttribute('aria-controls')));
     card('d_done').querySelector('.idea-meta').click();
     await settle(50);
     check('…and a card body click selects nothing',

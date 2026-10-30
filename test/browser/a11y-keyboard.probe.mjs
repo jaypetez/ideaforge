@@ -131,6 +131,15 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await cdp.click(selector);
     await settled(panel, label);
   };
+  const openIdea = async (id, panel, label) => {
+    const row = `#library-rows [data-session-id="${id}"] .idea-select`;
+    if (await evaluate("matchMedia('(min-width:1024px)').matches")) {
+      await click(row, 'library', `${label} selection`);
+      await until(`document.getElementById('library-detail').dataset.sessionId === ${JSON.stringify(id)}`,
+        `${label} detail identity`);
+      await click('#library-detail .idea-actions > button:first-child', panel, label);
+    } else await click(row, panel, label);
+  };
 
   /**
    * Tab from the skip link to the end of the document, recording each stop, and judge it.
@@ -383,8 +392,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     }
 
     // Interview
-    await click('#library-rows [data-session-id="s_a11y_active"] .idea-actions > button:first-child',
-      'interview', `${at} Interview`);
+    await openIdea('s_a11y_active', 'interview', `${at} Interview`);
     await until(`document.querySelectorAll('#chips .chip').length > 0`,
       `${at} Interview controls`);
     await current(`${at} Interview`, '');
@@ -400,8 +408,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
       await shareProfile(profile);
       await click('#b-library', 'library', `${at} back to Ideas`);
       await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_done"]')`, 'done card');
-      await click('#library-rows [data-session-id="s_a11y_done"] .idea-actions > button:first-child',
-        'done', `${at} Done, ${profile}`);
+      await openIdea('s_a11y_done', 'done', `${at} Done, ${profile}`);
       const layout = await evaluate(`({
         primary: document.querySelector('#done-actions > button:not(.done-more)').id,
         first: document.getElementById('done-menu').firstElementChild.id,
@@ -461,13 +468,12 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     for (const name of await targets(`${at} Settings`)) exemptions.add(name);
     await go('b-library', 'library');
     await until(`!!document.querySelector('#library-rows .idea-card')`, `${at} coarse Ideas`);
-    await evaluate(`document.querySelectorAll('#library-rows details').forEach((d) => { d.open = true; })`);
+    await evaluate(`document.querySelector('.library-filter-options').open = true`);
     for (const name of await targets(`${at} Ideas`)) exemptions.add(name);
     await evaluate(`document.getElementById('idea-menu-s_a11y_active').showPopover()`);
     for (const name of await targets(`${at} Ideas, menu open`)) exemptions.add(name);
     await evaluate(`document.getElementById('idea-menu-s_a11y_active').hidePopover()`);
-    await evaluate(`document.querySelector('#library-rows [data-session-id="s_a11y_active"] .idea-actions > button:first-child').click()`);
-    await settled('interview', `${at} coarse Interview`);
+    await openIdea('s_a11y_active', 'interview', `${at} coarse Interview`);
     await until(`document.querySelectorAll('#chips .chip').length > 0`, `${at} coarse chips`);
     await evaluate(`(() => {
       document.querySelector('details.cov').open = true;
@@ -477,8 +483,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     for (const name of await targets(`${at} Interview`)) exemptions.add(name);
     await go('b-library', 'library');
     await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_done"]')`, 'coarse done card');
-    await evaluate(`document.querySelector('#library-rows [data-session-id="s_a11y_done"] .idea-actions > button:first-child').click()`);
-    await settled('done', `${at} coarse Done`);
+    await openIdea('s_a11y_done', 'done', `${at} coarse Done`);
     for (const name of await targets(`${at} Done`)) exemptions.add(name);
     await evaluate(`document.getElementById('done-menu').showPopover()`);
     for (const name of await targets(`${at} Done, menu open`)) exemptions.add(name);
@@ -533,8 +538,7 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
     await go('b-library', 'library');
     await until(`!!document.querySelector('#library-rows [data-session-id="s_a11y_active"]')`,
       'safe-area source idea');
-    await click('#library-rows [data-session-id="s_a11y_active"] .idea-actions > button:first-child',
-      'interview', 'safe-area interview');
+    await openIdea('s_a11y_active', 'interview', 'safe-area interview');
     const side = await evaluate(`(() => {
       window.scrollTo(0, document.documentElement.scrollHeight);
       const cov = document.querySelector('details.cov');
@@ -612,6 +616,83 @@ export async function runA11yKeyboard(cdp, { origin, bootstrap, check }) {
         document.getElementById('provider').value='artifact';
         document.getElementById('provider').dispatchEvent(new Event('change'));`);
     }
+  }
+
+  for (const [size, scale] of [[PHONE, 1], [DESKTOP, 2]]) {
+    await viewport(size);
+    await evaluate(`document.documentElement.style.fontSize=${JSON.stringify(`${scale * 100}%`)}`);
+    await click('#b-library', 'library', 'Ideas dialog recovery');
+    const storedIdea = (id) => evaluate(`(async () => {
+      const {loadSession}=await import('/src/store/sessions.js');
+      return await loadSession(${JSON.stringify(id)});
+    })()`);
+    const more = '#idea-menu-s_a11y_active';
+    const action = async (icon) => {
+      await click('#library-rows [data-session-id="s_a11y_active"] .idea-more', 'library', 'Ideas actions');
+      await cdp.click(`${more} [data-icon="${icon}"]`);
+      await until(`Boolean(document.querySelector('dialog[open]'))`, 'Ideas native dialog');
+    };
+    const original = await storedIdea('s_a11y_active');
+    await action('edit-note');
+    check(`${size.width}px text ${scale}: the actual editor has labelled fields and native modality`,
+      await evaluate(`document.querySelector('dialog').matches(':modal')
+        && document.activeElement.id === 'idea-editor-name'
+        && document.querySelector('label[for="idea-editor-name"]')
+        && document.querySelector('label[for="idea-editor-tags"]')`));
+    await evaluate("document.getElementById('idea-editor-name').value='Unsaved keyboard edit'");
+    await press('Escape');
+    await until(`!document.querySelector('dialog')`, 'editor Escape');
+    check(`${size.width}px text ${scale}: editor Escape preserves its idea and restores More focus`,
+      (await storedIdea('s_a11y_active')).name === original.name
+        && await evaluate(`document.activeElement ===
+          document.querySelector('#library-rows [data-session-id="s_a11y_active"] .idea-more')`));
+    for (const cancel of ['Cancel', 'Escape']) {
+      await action('delete');
+      const pending = await storedIdea('s_a11y_active');
+      check(`${size.width}px text ${scale}: Delete awaits consent with Cancel focused`,
+        Boolean(pending) && await evaluate(`document.activeElement ===
+          document.querySelector('dialog [value="cancel"]')`));
+      if (cancel === 'Escape') await press('Escape');
+      else await cdp.click('dialog [value="cancel"]');
+      await until(`!document.querySelector('dialog')`, `Delete ${cancel}`);
+      check(`${size.width}px text ${scale}: Delete ${cancel} deletes nothing and restores visible focus`,
+        Boolean(await storedIdea('s_a11y_active')) && await evaluate(`document.activeElement ===
+          document.querySelector('#library-rows [data-session-id="s_a11y_active"] .idea-more')`));
+    }
+    const id = `s_a11y_delete_${size.width}_${scale}`;
+    await evaluate(`(async () => {
+      const {createSession,renameSession}=await import('/src/core/session.js');
+      const {seedTurn}=await import('/src/runtime/turn.js');
+      const {saveSession}=await import('/src/store/sessions.js');
+      await saveSession(renameSession(seedTurn(createSession({id:${JSON.stringify(id)},now:Date.now()})),
+        'Only this idea is deleted',Date.now()));
+    })()`);
+    await click('#b-library', 'library', 'refresh intended deletion');
+    const expanded = await evaluate("matchMedia('(min-width:1024px)').matches");
+    if (expanded) {
+      await click(`#library-rows [data-session-id="${id}"] .idea-select`, 'library',
+        'select the intended idea before deletion');
+    }
+    await click(`#library-rows [data-session-id="${id}"] .idea-more`, 'library', 'intended deletion menu');
+    await cdp.click(`#idea-menu-${id} [data-icon="delete"]`);
+    await until(`Boolean(document.querySelector('dialog[open]'))`, 'intended Delete dialog');
+    await press('Tab');
+    await press('Enter');
+    await until(`!document.querySelector('#library-rows [data-session-id="${id}"]')`, 'confirmed deletion');
+    const restored = await focusInfo(['#panel-library']);
+    check(`${size.width}px text ${scale}: affirmative Delete removes only its idea with unobscured row focus`,
+      !(await storedIdea(id)) && Boolean(await storedIdea('s_a11y_active'))
+        && Boolean(await storedIdea('s_a11y_done')) && restored.shown
+        && restored.inView && !restored.covered
+        && await evaluate("Boolean(document.activeElement.closest('.idea-card'))"), JSON.stringify(restored));
+    if (expanded) {
+      check('deleting the selected expanded idea moves its preview to a still-listed idea',
+        await evaluate(`(() => {
+          const id=document.getElementById('library-detail').dataset.sessionId;
+          return Boolean(id && document.querySelector('#library-rows [data-session-id="'+id+'"]'));
+        })()`));
+    }
+    await evaluate("document.documentElement.style.fontSize='100%'");
   }
 
   for (const [size, scale] of [[PHONE, 1], [DESKTOP, 2]]) {

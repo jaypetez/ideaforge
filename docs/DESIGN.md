@@ -15,7 +15,7 @@ dark (see [Contrast and targets](#contrast-and-targets)).
 The [Focus Studio contract](#focus-studio-contract) below is the approved target for
 [the second UX pass](https://github.com/jaypetez/ideaforge/issues/186). The web and native
 colour/type/spacing/shape/state foundations and adaptive web (#191) and native (#192)
-shells, progressive web Start (#193), native Ideas (#198), native Interview (#200),
+shells, progressive web Start (#193), compact web Ideas (#197), native Ideas (#198), native Interview (#200),
 native voice presentation (#202) and native Start (#195), Settings (#196) and Result (#204)
 are implemented here.
 The guide's own Focus Studio migration is **not yet implemented**; its stylesheet keeps
@@ -192,8 +192,42 @@ with an explicit retry; field clearing happens before storage so later edits are
 Unknown credential reads never become a claim that no keys exist. Independent keyring
 updates merge their owned branches inside serialization; navigation cancellation also
 withdraws a pending hosted check, including after its payload write has issued.
-Library Delete still uses its browser confirmation
-until its own redesign slice.
+Library Delete reuses this awaited native confirmation, including Cancel/Escape and
+focus restoration.
+
+## Current web Ideas
+
+`src/ui/library.js` keeps the app as the session owner. The home is a separated compact
+list, not repeated rounded edit cards. New idea is dominant; search stays visible and one
+Filters disclosure names the selected Status and Tag. Clear filters resets both and the
+search. Rows show literal titles, textual status, coverage/update metadata and at most
+two tag labels plus an accessible remaining count. More actions opens the shared native
+popover; Rename or tag opens one labelled native dialog with all tags. A pending save
+names its work and protects its submitted fields; Close dismisses the dialog without
+cancelling that requested save or trapping navigation behind model work. An open editor
+keeps failed fields for retry.
+
+Below 1024px the main row button opens Continue/View result directly, with a separate
+48px More target. Wider rows select Details; the selected pane owns Continue/View result
+and a safe preview rather than repeating the main toolbar on every row. Selection falls
+to a listed idea after filtering or mutation, and no-match/loading states have no stale
+pane. An active idea without synthesis previews its latest question, answer and draft as
+**No write-up yet**. Completed ideas retain the safe markdown renderer and genuine degraded
+write-up warnings. `exportFor` and canonical export bytes are unchanged.
+
+Delete awaits `confirmAction`'s boolean. Cancel/Escape removes nothing; confirmation
+retains app-owned deletion and retired-work guards. Successful mutations restore focus
+to the changed/next available row or heading without stealing a newer focus target.
+Empty, no-match, loading and unavailable remain distinct; unavailable offers Retry reading
+ideas rather than New idea as if nothing were saved. Library focus clearance includes
+persistent errors and compact navigation.
+
+`library.browser.mjs` pins the first-row/three-complete-row reference at 390x844, and
+long Unicode names/tags at 320/360/390/600/840/1280/1440px in both themes at 100%/200% text.
+`desktop`, `loading`, `toasts` and the trusted keyboard policy probes cover truthful
+previews, unchanged export bytes, pending edits/archive/delete, native dialog cancellation
+and unobscured focus. These are scripted desktop-browser checks, not physical-phone,
+manual screen-reader or real-user usability evidence.
 
 ## Current native shell
 

@@ -64,9 +64,8 @@
                 srcset="../docs/screenshots/07-ideas-library.dark.png">
         <img class="hero-shot"
              src="../docs/screenshots/07-ideas-library.light.png"
-             alt="The IdeaForge Ideas library with search, status and tag filters, and a
-                  completed idea card with View result, a More actions button and
-                  Rename or tag.">
+             alt="The compact Ideas library with search, a collapsed filter summary and
+                  one completed row with View result and a separate More actions button.">
       </picture>
 
       <div class="callout warning">
@@ -97,16 +96,18 @@
           questions, answers, recorded facts, and refined prompt text.
         </li>
         <li>
-          <strong>Filter by status.</strong>
-          Choose all, active, completed, or archived ideas.
+          <strong>Open Filters.</strong>
+          Its summary names the current status and tag. Choose all, active, completed,
+          or archived ideas under Status.
         </li>
         <li>
           <strong>Filter by tag.</strong>
-          The tag list is built from the tags currently present in the library.
+          Tag is in the same disclosure, with choices from the current library.
+          <strong>Clear filters</strong> resets Status, Tag and the search together.
         </li>
         <li>
-          <strong>Open the card.</strong>
-          Each card has one main button: completed ideas offer <strong>View result</strong>,
+          <strong>Open an idea.</strong>
+          On compact screens each row has one main button: completed ideas offer <strong>View result</strong>,
           even after they are archived, and every other idea offers
           <strong>Continue</strong>.
         </li>
@@ -120,7 +121,7 @@
 
       <p>
         Everything else about an idea is in its <strong>More actions</strong> menu, the
-        three-dot button beside the main one: <strong>Share .md</strong>,
+        separate three-dot button: <strong>Rename or tag</strong>, <strong>Share .md</strong>,
         <strong>Download .md</strong>, <strong>Archive</strong> (or <strong>Restore</strong>
         for an archived idea) and <strong>Delete</strong>. <kbd>Esc</kbd> or a tap outside
         closes the menu without doing anything.
@@ -130,25 +131,36 @@
         With no ideas saved yet, the library shows <strong>No ideas yet</strong> and a
         <strong>New idea</strong> button instead of search and filters. When ideas exist but
         the search or filters match none of them, it says so and leaves the filters on
-        screen to change.
+        screen with <strong>Clear filters</strong>. A failed read instead says
+        <strong>Ideas unavailable</strong> and offers <strong>Retry reading ideas</strong>;
+        it does not claim there are no saved ideas.
       </p>
 
       <p>
-        Cards show the display title, status, answered-question count, coverage percentage,
-        last update date, and tags. The display title uses your chosen name first, then a
+        Rows show the display title, textual status, coverage percentage, last update
+        date and up to two tags. A remaining-tag count is available to assistive technology;
+        the editor and wide detail pane reveal all tags. The detail pane also shows the
+        answered-question count. The display title uses your chosen name first, then a
         generated title, then the opening statement.
       </p>
 
       <h2 id="wide-screens">On a wide screen</h2>
       <p>
         In a window 1024 pixels wide or wider, the library is a list with a detail pane
-        beside it. The first idea listed is selected to begin with. Click a card, or its
+        beside it. The first idea listed is selected to begin with. Click a row, or its
         <strong>Details</strong> button, to show that idea in the pane: its title, status,
-        counts and tags, the same main button and <strong>More actions</strong> menu as the
-        card, and a rendered preview of its markdown. The card's own main button still opens
-        the idea straight away. When a search or filter hides the selected idea, the pane
-        moves to the first idea still listed. Narrower windows have no pane, and the cards
-        work as described above.
+        counts and all tags, <strong>Continue</strong> or <strong>View result</strong>,
+        <strong>More actions</strong>, and its preview. The row selects; the pane opens
+        the selected idea. When a search or filter hides that idea, the pane moves to the
+        first idea still listed. No matches means no stale preview. Narrower windows have
+        no pane and open directly.
+      </p>
+      <p>
+        An unfinished idea without synthesis says <strong>No write-up yet</strong> and
+        previews its latest question, answer and unfinished draft. This is not a failed
+        generation. A completed idea renders its markdown safely; if its write-up really
+        failed, the degraded warning remains. Preview wording does not change exported
+        markdown.
       </p>
       <figure class="screenshot">
         <picture>
@@ -156,13 +168,13 @@
                   srcset="../docs/screenshots/11-library-wide.dark.png">
           <img class="hero-shot"
                src="../docs/screenshots/11-library-wide.light.png"
-               alt="The Ideas library in a wide window: the list of ideas on the left and,
-                    on the right, the selected idea with View result, a More actions button
-                    and a rendered preview of its refined prompt."
+               alt="The wide Ideas library with search, a compact filter summary and a
+                    selected row on the left; its View result, More actions and rendered
+                    refined prompt are in the detail pane."
                loading="lazy">
         </picture>
         <figcaption>
-          The card's main button still opens the idea; the pane is for looking before you do.
+          Select in the list, then Continue or View result in the detail pane.
         </figcaption>
       </figure>
 
@@ -202,10 +214,20 @@
 
       <h2 id="organise">Rename, tag, archive, or delete</h2>
       <p>
-        In the web app, Archive, Restore and Delete are in the card's <strong>More actions</strong> menu.
-        Expand <strong>Rename or tag</strong> on a card to give the idea a stable name and
-        comma-separated tags. Saving the details updates the card, search index, export
-        filename, and result title without changing the transcript.
+        In the web app, choose <strong>More actions &rarr; Rename or tag</strong> to open
+        a labelled dialog with the name and every comma-separated tag. Before saving,
+        Cancel or <kbd>Esc</kbd> discards those edits without changing the saved idea.
+        Saving updates the row, search index,
+        export filename and result title without changing the transcript. An open editor
+        keeps the entered fields after a failed save and explains how to retry. If a save
+        waits for current interview work, <strong>Close</strong> dismisses the dialog while
+        the requested save finishes. Archive, Restore and Delete remain in the same menu.
+      </p>
+      <p>
+        Delete opens a separate permanent-removal confirmation, initially focused on
+        <strong>Cancel</strong>. Cancel or <kbd>Esc</kbd> deletes nothing; only
+        <strong>Delete idea</strong> removes that idea. Work finishing later cannot
+        recreate it. After a change, keyboard focus returns to an available row or heading.
       </p>
       <p>
         Native Android uses compact rows: a phone row opens Continue or View result
