@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 144" role="img" aria-label="A spark becoming a useful document">
+  <path d="M30 108H214" fill="none" stroke="#71938B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M48 75C73 75 78 39 111 39" fill="none" stroke="#71938B" stroke-width="2" stroke-dasharray="4 6" stroke-linecap="round"/>
+  <rect x="95" y="21" width="79" height="88" rx="12" fill="#B8DBCF" transform="rotate(-9 134 65)"/>
+  <path d="M121 22H168L188 42V103A9 9 0 0 1 179 112H121A9 9 0 0 1 112 103V31A9 9 0 0 1 121 22Z" fill="#F8FAF3" stroke="#0B625D" stroke-width="2"/>
+  <path d="M167 22V43H188M126 59H168M126 71H162M126 83H150" fill="none" stroke="#0B625D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 41L53 54L66 59L53 64L48 77L43 64L30 59L43 54Z" fill="#E0A859"/>
+  <circle cx="199" cy="90" r="17" fill="#0B625D"/>
+  <path d="M191 90L197 96L208 84" fill="none" stroke="#F8FAF3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

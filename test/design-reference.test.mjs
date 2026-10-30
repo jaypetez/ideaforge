@@ -13,7 +13,12 @@ const webStates = ['start-provider', 'start-ready', 'ideas', 'interview', 'voice
   'voice-paused', 'voice-recovering', 'result', 'settings'];
 const edgeStates = ['ideas-empty', 'ideas-filtered', 'ideas-unavailable', 'connection-checking',
   'connection-error', 'model-unavailable', 'settings-unsaved', 'interview-busy', 'save-failure',
-  'wrap-offer', 'voice-blocked', 'result-failed', 'long-content'];
+  'wrap-offer', 'voice-blocked', 'result-failed', 'long-content', 'large-text'];
+const nativeStates = ['native-onboarding', 'native-start', 'native-interview',
+  'native-voice-listening', 'native-result', 'native-settings'];
+const nativeEdges = ['ideas-empty', 'ideas-unavailable', 'interview-busy', 'save-failure',
+  'result-failed', 'long-content', 'voice-paused', 'voice-recovering', 'voice-blocked',
+  'settings-unsaved', 'connection-error', 'large-text'].map((state) => `native-${state}`);
 const read = (path) => readFileSync(path, 'utf8');
 const boards = (html) => [...html.matchAll(/<article class="reference-board"([^>]*)>([\s\S]*?)<\/article>/g)]
   .map((match) => ({
@@ -38,6 +43,9 @@ test('reference boards remain distinct from the delivered foundations, adaptive 
   const status = design.replace(/\s+/g, ' ');
   assert.match(status, /foundations and adaptive web \(#191\) and native \(#192\) shells, progressive web Start \(#193\), compact web Ideas \(#197\), native Ideas \(#198\), native Interview \(#200\), native voice presentation \(#202\) and native Start \(#195\), Settings \(#196\) and Result \(#204\) are implemented here/);
   assert.match(status, /guide's own Focus Studio migration is \*\*not yet implemented\*\*/);
+  assert.match(status, /Forge Studio proposal/);
+  assert.match(status, /owner-approved direction/);
+  assert.match(status, /not yet implemented in the apps/);
 });
 
 test('DESIGN records owning web and native fallback roles and their composites exactly', () => {
@@ -139,8 +147,19 @@ test('every main web reference has both themes at actual 390 and 1280 logical wi
       assert.equal(all.filter((board) => board.state === 'native-ideas' && board.theme === theme
         && board.width === width && board.platform === 'android').length, 1);
     }
+    for (const state of nativeStates) for (const width of [390, 840]) {
+      assert.equal(all.filter((board) => board.state === state && board.theme === theme
+        && board.width === width && board.platform === 'android').length, 1,
+      `${state}/${theme}/${width} native proposal is missing`);
+    }
+    for (const state of nativeEdges) {
+      assert.equal(all.filter((board) => board.state === state && board.theme === theme
+        && board.width === 390 && board.platform === 'android').length, 1,
+      `${state}/${theme} native recovery proposal is missing`);
+    }
   }
-  assert.equal(all.length, webStates.length * 4 + edgeStates.length * 2 + 4);
+  assert.equal(all.length, webStates.length * 4 + edgeStates.length * 2 + 4
+    + nativeStates.length * 4 + nativeEdges.length * 2);
 });
 
 test('reference boards cannot run app effects or load third-party resources', () => {
@@ -178,9 +197,58 @@ test('the design drawings are not copied into the assembled application', async 
   assert.ok(!files.some((path) => path.startsWith('docs/design/')));
 });
 
+test('original brand studies remain local references rather than shipped or remotely loaded artwork', () => {
+  const html = read(HTML);
+  const css = read(CSS);
+  for (const name of ['forge-mark.svg', 'forge-anvil.svg', 'idea-workbench.svg']) {
+    const svg = read(join(DIR, name));
+    assert.match(svg, /<svg\b/);
+    assert.doesNotMatch(svg, /<(?:script|foreignObject|image)\b|\bon\w+\s*=|\b(?:href|src)=/i);
+    assert.ok(html.includes(name) || css.includes(name), `unreferenced artwork ${name}`);
+  }
+  for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+    assert.ok(existsSync(resolve(DIR, match[1])), `missing local reference artwork ${match[1]}`);
+  }
+  assert.match(html, /owner-approved direction, not yet shipped/i);
+  assert.match(html, /not Android adaptive-icon or PWA safe-zone certification/);
+  assert.match(css, /\[data-reference-state="ideas-empty"\] \.ref-empty::before/);
+  assert.doesNotMatch(css, /(?:^|\n)\.ref-empty::before/);
+});
+
+test('Ideas references separate a labeled coverage measure from write-up availability', () => {
+  const all = boards(read(HTML)).filter((board) => ['ideas', 'native-ideas'].includes(board.state));
+  assert.equal(all.length, 8);
+  for (const board of all) {
+    const values = [...board.content.matchAll(/<span>(\d+)%<\/span><\/span>\s*<meter min="0" max="100" value="(\d+)" aria-label="Exploration coverage" aria-valuetext="[^"]*not write-up completion"/g)];
+    assert.equal(values.length, 6, 'every example row has a labeled real-valued measure');
+    for (const [, visible, value] of values) assert.equal(visible, value, 'the graphic and text agree');
+    assert.ok(new Set(values.map((match) => match[1])).size > 1, 'mixed progress, not a constant bar');
+    assert.match(board.content, /ref-writeup-state[^>]*>Interviewing/);
+    assert.match(board.content, /ref-writeup-state[^>]*>Write-up available/);
+    assert.match(board.content, /ref-writeup-state[^>]*>No write-up yet/);
+  }
+});
+
+test('native proposals retain platform-specific appearance and output behavior', () => {
+  const all = boards(read(HTML));
+  for (const board of all.filter((entry) => entry.state === 'native-settings')) {
+    assert.match(board.content, /IdeaForge brand \(default\)/);
+    assert.match(board.content, /wallpaper-opt-in/);
+    assert.match(board.content, /separate from light or dark appearance/);
+    assert.match(board.content, /Device voice/);
+    assert.doesNotMatch(board.content, /Browser voice/);
+  }
+  for (const board of all.filter((entry) => entry.state === 'native-result')) {
+    assert.doesNotMatch(board.content, /download-markdown|Download \.md|assumes file sharing/);
+    assert.match(board.content, /data-action="save-markdown"/);
+    assert.match(board.content, /data-action="copy-markdown"/);
+    assert.match(board.content, /data-action="share-file"/);
+  }
+});
+
 test('voice-first and direct output action priorities are unambiguous in the references', () => {
   const all = boards(read(HTML));
-  for (const board of all.filter((entry) => entry.state === 'start-ready')) {
+  for (const board of all.filter((entry) => ['start-ready', 'native-start'].includes(entry.state))) {
     assert.match(board.content, /class="ref-button primary"[^>]*data-action="start-voice"[^>]*>Start with voice/);
     assert.match(board.content, /data-action="start-type"[^>]*>Type instead/);
   }
@@ -190,7 +258,7 @@ test('voice-first and direct output action priorities are unambiguous in the ref
     assert.match(board.content, /data-action="copy-markdown"/);
     if (board.width === 1280) assert.match(board.content, /data-action="download-markdown"/);
   }
-  for (const board of all.filter((entry) => entry.state.startsWith('voice-'))) {
+  for (const board of all.filter((entry) => entry.state.includes('voice-'))) {
     assert.match(board.content, /No level reading/);
     assert.doesNotMatch(board.content, /waveform|ref-bars|[<>]audio\b/i);
     assert.match(board.content, /data-action="exit-voice"/);
@@ -215,9 +283,14 @@ test('reference recovery states do not masquerade as zero ideas or a completed A
     assert.match(board.content, /Not saved to this device/);
     assert.match(board.content, /Export before closing/);
   }
-  for (const board of all.filter((entry) => entry.state === 'result-failed')) {
+  for (const board of all.filter((entry) => ['result-failed', 'native-result-failed'].includes(entry.state))) {
     assert.match(board.content, /The refined prompt was not generated/);
     assert.match(board.content, /transcript/);
+    assert.match(board.content, /data-action="retry-writeup"/);
+    assert.match(board.content, /No extra answer is needed/);
+    const primary = [...board.content.matchAll(/class="ref-button primary"[^>]*data-action="([^"]+)"/g)];
+    assert.deepEqual(primary.map((match) => match[1]), ['retry-writeup'],
+      'recovering the missing write-up is the sole primary, not a successful-looking export');
   }
 });
 
