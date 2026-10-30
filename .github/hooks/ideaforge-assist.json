@@ -30,6 +30,16 @@
           "const p=require('node:path');const u=require('node:url');const r=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();Promise.all([import(u.pathToFileURL(p.join(r,'tools','assistant-hook.mjs')).href),import(u.pathToFileURL(p.join(r,'tools','assistant.mjs')).href)]).then(async([h,a])=>{const s=await h.copilotHook('subagentStart',await a.readHookInput(process.stdin));process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge assist unavailable: '+e.message+'\\n');process.exitCode=1})"
         ]
       }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "exec": "node",
+        "args": [
+          "-e",
+          "const p=require('node:path');const u=require('node:url');Promise.resolve().then(()=>{const r=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();return Promise.all([import(u.pathToFileURL(p.join(r,'tools','assistant-hook.mjs')).href),import(u.pathToFileURL(p.join(r,'tools','assistant.mjs')).href)])}).then(async([h,a])=>{const s=await h.copilotHook('preToolUse',await a.readHookInput(process.stdin,{maxBytes:1048576}));process.stdout.write(s+'\\n')}).catch(e=>{process.stderr.write('IdeaForge review gate unavailable: '+e.message+'\\n');process.stdout.write('{}\\n')})"
+        ]
+      }
     ]
   }
 }

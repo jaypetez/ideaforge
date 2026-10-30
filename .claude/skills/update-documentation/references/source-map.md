@@ -672,6 +672,16 @@ source wins over prose, and a generated artifact wins over a description of that
   The host supplies Copilot's SDK; this is not an app dependency. Local mode state never
   belongs in the published tree. Native loading/protocol proof and empirical coding
   benefit remain separate claims.
+- **Pre-PR review gate.** Sources:
+  [`review-ideaforge-before-pr`](../../review-ideaforge-before-pr/SKILL.md),
+  [`tools/assistant-review.mjs`](../../../../tools/assistant-review.mjs)
+  (`prGateDecision`, `prepareReview`, `recordReview`), the `PreToolUse`/`preToolUse`
+  entries in both hook configurations, and
+  [`test/assistant-review.test.mjs`](../../../../test/assistant-review.test.mjs).
+  Re-check `AGENTS.md` (`Landing a change`), `CONTRIBUTING.md`, the Copilot instructions,
+  the README assistant paragraph, the development guide, `docs/ASSISTANT-PROCESS.md`,
+  `work-issues` and `release`. The gate refuses only; never describe it as approving a
+  command or as a security boundary.
 
 ## Change triggers
 

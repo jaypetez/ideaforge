@@ -654,7 +654,9 @@ silently when broken, which is most of them. Security policy and the honest thre
 
 Claude Code and GitHub Copilot CLI/VS Code share repository skills for provider, voice,
 local-model, Android, README, review, and explicit release work, plus client-specific read-only
-review agents. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
+review agents. Before any pull request an assistant opens, at least two of those agents review
+the exact diff blind and a fresh one challenges each finding; a pre-tool hook refuses `gh pr create`
+until that review passes for the commit. [Coding assistant setup](CONTRIBUTING.md#coding-assistants) explains
 discovery and use. The CLI clients also consume one
 [lean process contract](AGENTS.md#lean-coding): complete scope before smaller code, with
 explicit mode controls, read-only audits, a shortcut ledger and counted evidence rather

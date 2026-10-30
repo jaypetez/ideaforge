@@ -208,16 +208,18 @@ needs correction or section 9 escalation, not retries until green.
 
 ## 6. Independent review
 
-Commit, then give the exact diff (`git diff main...HEAD`) to the client's matching read-only
-code review adapter, plus its documentation review adapter when documentation changed; see
-[the client table](../../../CONTRIBUTING.md#coding-assistants). The caller owns validation:
+Commit, then run [`review-ideaforge-before-pr`](../review-ideaforge-before-pr/SKILL.md).
+It gives the exact diff to at least two read-only reviewers who cannot see each
+other and has a fresh one challenge their findings, using the current client's review agents
+(see [the client table](../../../CONTRIBUTING.md#coding-assistants)). The caller owns validation:
 the issue worker in a multi-issue run, not its coordinator. Review agents do not run commands
 or repeat the test ladder.
 
-Fix every confirmed finding and run the focused regression checks. Re-review the changed
-diff and affected consumers, carrying forward unresolved findings. Count combined code/docs
-review-and-fix rounds per issue, not per agent; compaction or resume never resets the count.
-Stop after three rounds that still leave confirmed findings, and escalate.
+Fix every confirmed finding, run the focused regression checks and review the new HEAD,
+carrying forward unresolved findings. Count combined code/docs review-and-fix rounds per
+issue, not per agent; compaction or resume never resets the count.
+Stop after three rounds that still leave confirmed findings, and escalate. The skill records
+the result that lets `gh pr create` run.
 
 A clean review of an unchanged diff is terminal. CI completion, a progress question or a
 context restore is not a reason for another review. Changed code, documentation or relevant
