@@ -4,6 +4,7 @@ import io.github.jaypetez.ideaforge.core.emptyKeyring
 import io.github.jaypetez.ideaforge.core.withCreds
 import io.github.jaypetez.ideaforge.data.SoftwareKey
 import io.github.jaypetez.ideaforge.data.PrefsStore
+import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.providers.ProviderChoice
 import io.github.jaypetez.ideaforge.providers.ProviderConfig
 import io.github.jaypetez.ideaforge.ui.onboarding.ProviderCheck
@@ -31,10 +32,11 @@ class FakeCheck(var answer: (ProviderChoice, ProviderConfig) -> List<String> = {
 fun installTestGraph(check: ProviderCheck = FakeCheck(), ring: JsonObject? = null, key: SoftwareKey = SoftwareKey(),
     inferenceAgreed: Boolean = false, preferences: PrefsStore? = null,
     ttsEngine: io.github.jaypetez.ideaforge.voice.TtsEngine? = null,
-    recognitionAvailable: () -> Boolean = { android.speech.SpeechRecognizer.isRecognitionAvailable(RuntimeEnvironment.getApplication()) }): AppGraph {
+    recognitionAvailable: () -> Boolean = { android.speech.SpeechRecognizer.isRecognitionAvailable(RuntimeEnvironment.getApplication()) },
+    sessionStorage: SessionStore? = null): AppGraph {
     val app = RuntimeEnvironment.getApplication() as IdeaForgeApp
     val graph = AppGraph(app, keyringKey = key, providerCheck = check, preferences = preferences, ttsEngine = ttsEngine,
-        recognitionAvailable = recognitionAvailable)
+        recognitionAvailable = recognitionAvailable, sessionStorage = sessionStorage)
     runBlocking {
         if (ring != null) graph.keyringStore.save(ring)
         graph.keyringStore.load()

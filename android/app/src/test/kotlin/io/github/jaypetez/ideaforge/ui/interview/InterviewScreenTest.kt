@@ -146,6 +146,62 @@ class InterviewScreenTest {
     }
 
     @Test
+    fun aDimensionWaiverRequiresConfirmationAndCancelKeepsTheQuestionAndDraft() {
+        val model = ScriptedModel()
+        val vm = show(model)
+        compose.waitForIdle()
+        compose.runOnIdle { vm.onAnswerChange("Keep my unfinished answer.") }
+        val before = vm.state.value.session!!
+        compose.onNodeWithTag("coverage-details").performClick()
+        compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-waive").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-reason").performScrollTo().performTextInput("Outside this idea.")
+        compose.onNodeWithTag("dimension-cancel").performClick()
+        assertEquals(before["coverage"], vm.state.value.session!!["coverage"])
+        assertEquals(before["turns"], vm.state.value.session!!["turns"])
+        assertEquals("Keep my unfinished answer.", vm.state.value.answer)
+        assertTrue(model.requests.isEmpty())
+
+        compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-waive").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-reason").performScrollTo().performTextInput("Outside this idea.")
+        compose.onNodeWithTag("dimension-confirm").performClick()
+        compose.waitUntil(5_000) { stringOf(store.get(id)?.get("coverage")?.get("outcome")?.get("status")) == "waived" }
+        compose.onNodeWithTag("dimension-saved").assertExists()
+        compose.onNodeWithTag("dimension-done").performClick()
+        compose.onNodeWithTag("pill-outcome").assert(hasContentDescription("What we’re making: not relevant. Reason: Outside this idea."))
+        assertEquals("Outside this idea.", stringOf(store.get(id)!!["coverage"]["outcome"]["waivedReason"]))
+        assertEquals(before["turns"], store.get(id)!!["turns"])
+        assertEquals("thin", stringOf(store.get(id)!!["coverage"]["outcome"]["level"]))
+        assertEquals("Keep my unfinished answer.", vm.state.value.answer)
+        assertTrue("a dimension choice cannot call a provider", model.requests.isEmpty())
+    }
+
+    @Test
+    fun deferredDimensionsOfferOnlyResumeAndTheActualPreviousLevelIsRetained() {
+        val vm = show(ScriptedModel())
+        compose.waitForIdle()
+        compose.onNodeWithTag("coverage-details").performClick()
+        compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-resume").assertDoesNotExist()
+        compose.onNodeWithTag("dimension-defer").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-reason").assertDoesNotExist()
+        compose.onNodeWithTag("dimension-confirm").performClick()
+        compose.waitUntil(5_000) { vm.state.value.dimensionEdit?.saved == true }
+        compose.onNodeWithTag("dimension-done").performClick()
+        compose.onNodeWithTag("pill-outcome").assert(hasContentDescription("What we’re making: later"))
+        compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-waive").assertDoesNotExist()
+        compose.onNodeWithTag("dimension-defer").assertDoesNotExist()
+        compose.onNodeWithTag("dimension-resume").performScrollTo().performClick()
+        compose.onNodeWithTag("dimension-confirm").performClick()
+        compose.waitUntil(5_000) { vm.state.value.dimensionEdit?.saved == true }
+        assertEquals("probing", stringOf(store.get(id)!!["coverage"]["outcome"]["status"]))
+        assertEquals("thin", stringOf(store.get(id)!!["coverage"]["outcome"]["level"]))
+        assertEquals(1, (store.get(id)!!["turns"] as JsonArray).size)
+    }
+
+    @Test
     @Config(qualifiers = "w390dp-h844dp")
     fun coverageStartsQuietAndRevealsTheActualDimensionLevelsOnRequest() {
         show(ScriptedModel())

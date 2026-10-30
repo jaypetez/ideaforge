@@ -2,6 +2,7 @@ package io.github.jaypetez.ideaforge.ui.interview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,12 +69,12 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick as semanticClick
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -122,7 +124,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 /** One coverage pill: a dimension, its level, and whether it is still being asked about. */
-data class CoveragePill(val id: String, val label: String, val level: String, val status: String)
+data class CoveragePill(val id: String, val label: String, val level: String, val status: String, val reason: String = "")
 
 /** One settled exchange in the thread. */
 data class ThreadEntry(val n: Int, val question: String, val answer: String?, val fromChip: Boolean, val id: String = "")
@@ -135,7 +137,8 @@ private data class VoicePermissionIntent(
 internal fun pillsOf(state: InterviewState): List<CoveragePill> = DIMENSIONS.map { d ->
     val id = stringOf(d["id"]).orEmpty()
     val c = state.session?.get("coverage")?.get(id)
-    CoveragePill(id, stringOf(d["label"]).orEmpty(), stringOf(c["level"]) ?: "thin", stringOf(c["status"]) ?: "probing")
+    CoveragePill(id, stringOf(d["label"]).orEmpty(), stringOf(c["level"]) ?: "thin", stringOf(c["status"]) ?: "probing",
+        stringOf(c["waivedReason"]).orEmpty())
 }
 
 internal fun threadOf(state: InterviewState): List<ThreadEntry> =
@@ -229,7 +232,7 @@ fun InterviewScreen(
     }
     fun ownsVoiceIntent(intent: VoicePermissionIntent): Boolean =
         intent.request == voiceRequest.longValue && vm.ownsVoiceInput(intent.inputRevision) &&
-            screenVisible && isCurrentView() && vm.reports.state.value.output == null
+            screenVisible && isCurrentView() && vm.reports.state.value.output == null && vm.state.value.dimensionEdit == null
 
     fun beginAdmittedVoice(intent: VoicePermissionIntent, mic: Boolean) {
         if (!ownsVoiceIntent(intent) || drive == null) return
@@ -379,6 +382,9 @@ fun InterviewScreen(
         )
     }
     ContentReportDialog(vm.reports, onReplace = { vm.replaceReportedQuestion(fromVoice = voiceAttached) })
+    state.dimensionEdit?.let {
+        DimensionDialog(it, vm::chooseDimension, vm::dimensionReason, vm::confirmDimension, { vm.dismissDimension() })
+    }
     LaunchedEffect(state.notice, voiceAttached) {
         val notice = state.notice
         if (notice != null && noticeText != null) {
@@ -476,7 +482,18 @@ fun InterviewScreen(
                             }
                         }
                     }
-                    CoverageStrip(state, coverageExpanded) { coverageExpanded = !coverageExpanded }
+                    CoverageStrip(state, coverageExpanded, toggle = { coverageExpanded = !coverageExpanded }, onDimension = { id ->
+                        if (screenVisible && isCurrentView()) {
+                            voiceRequest.longValue++
+                            rationale = false
+                            voicePermissionIntent = null
+                            dictationRationale = null
+                            initialVoicePending = false
+                            entryVoiceInProgress = false
+                            onVoiceEntryConsumed()
+                            vm.openDimension(id)
+                        }
+                    })
                     if (state.busy != null) {
                         LinearProgressIndicator(Modifier.fillMaxWidth().testTag("interview-busy"))
                     } else {
@@ -550,7 +567,7 @@ private fun noticeText(n: InterviewNotice): String = when (n) {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun CoverageStrip(state: InterviewState, expanded: Boolean, toggle: () -> Unit) {
+private fun CoverageStrip(state: InterviewState, expanded: Boolean, toggle: () -> Unit, onDimension: (String) -> Unit) {
     val pct = state.session?.let(::coveragePercent) ?: 0
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IdeaForgeSpacing.content, vertical = IdeaForgeSpacing.micro)
@@ -569,16 +586,20 @@ private fun CoverageStrip(state: InterviewState, expanded: Boolean, toggle: () -
             }
         }
         if (expanded) {
+            Text(stringResource(R.string.dimension_hint), style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = IdeaForgeSpacing.tight))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
                 verticalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight)) {
-                for (pill in pillsOf(state)) Pill(pill)
+                for (pill in pillsOf(state)) Pill(pill, enabled = state.session != null && state.busy != Busy.Writing) {
+                    onDimension(pill.id)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Pill(pill: CoveragePill) {
+private fun Pill(pill: CoveragePill, enabled: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val status = MaterialTheme.statusColors
     val probing = pill.status == "probing"
@@ -596,32 +617,41 @@ private fun Pill(pill: CoveragePill) {
         else -> scheme.outline
     }
     val description = stringResource(R.string.interview_pill, pill.label, word)
-    Row(
-        Modifier
-            .border(1.dp, accent, IdeaForgeShape.status)
-            .background(if (probing && pill.level == "covered") accent.copy(alpha = 0.12f) else Color.Transparent, IdeaForgeShape.status)
-            .padding(horizontal = IdeaForgeSpacing.related, vertical = IdeaForgeSpacing.tight)
-            .testTag("pill-${pill.id}")
-            .clearAndSetSemantics { contentDescription = description },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+    val fullDescription = if (pill.reason.isNotEmpty()) stringResource(R.string.dimension_pill_reason, description, pill.reason) else description
+    val actionLabel = stringResource(R.string.dimension_manage, pill.label)
+    Surface(
+        onClick = onClick, enabled = enabled, shape = IdeaForgeShape.status, border = BorderStroke(1.dp, accent),
+        color = if (probing && pill.level == "covered") accent.copy(alpha = 0.12f) else scheme.surface,
+        modifier = Modifier.sizeIn(minWidth = IdeaForgeSpacing.control, minHeight = IdeaForgeSpacing.control).testTag("pill-${pill.id}")
+            .semantics { semanticClick(label = actionLabel, action = null) },
     ) {
-        // A filled dot for covered, a ring for partial, nothing louder than the outline for thin.
-        Box(
-            Modifier.size(IdeaForgeSpacing.tight).let {
-                when {
-                    probing && pill.level == "covered" -> it.background(accent, CircleShape)
-                    probing && pill.level == "partial" -> it.border(2.dp, accent, CircleShape)
-                    else -> it.border(1.dp, accent, CircleShape)
-                }
-            },
-        )
-        Text(
-            description,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (probing) scheme.onSurface else scheme.onSurfaceVariant,
-            fontStyle = if (probing) FontStyle.Normal else FontStyle.Italic,
-        )
+        Row(
+            Modifier.padding(horizontal = IdeaForgeSpacing.related, vertical = IdeaForgeSpacing.tight)
+                .semantics { contentDescription = fullDescription },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IdeaForgeSpacing.tight),
+        ) {
+            // A filled dot for covered, a ring for partial, nothing louder than the outline for thin.
+            Box(
+                Modifier.size(IdeaForgeSpacing.tight).let {
+                    when {
+                        probing && pill.level == "covered" -> it.background(accent, CircleShape)
+                        probing && pill.level == "partial" -> it.border(2.dp, accent, CircleShape)
+                        else -> it.border(1.dp, accent, CircleShape)
+                    }
+                },
+            )
+            Column(Modifier.weight(1f, fill = false)) {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (probing) scheme.onSurface else scheme.onSurfaceVariant,
+                    fontStyle = if (probing) FontStyle.Normal else FontStyle.Italic,
+                )
+                if (pill.reason.isNotEmpty()) Text(stringResource(R.string.dimension_has_reason),
+                    style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            }
+        }
     }
 }
 
