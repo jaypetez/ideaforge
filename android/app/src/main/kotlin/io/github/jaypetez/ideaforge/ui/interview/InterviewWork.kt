@@ -16,6 +16,7 @@ import io.github.jaypetez.ideaforge.core.wrapAdvisory
 import io.github.jaypetez.ideaforge.data.Clock
 import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.SessionWorker
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -26,6 +27,10 @@ internal typealias SettledTurn = Triple<TurnResult, Session, String?>
 
 /** A write-up's outcome and the session saved for it. */
 internal typealias SettledSynthesis = Pair<SynthesisResult, Session>
+
+/** Only failed admission can reopen an answer: a later save may already have run inference. */
+internal class TurnAdmissionFailure(val tag: SessionWorker.Tag, val error: Exception) :
+    Exception(error.message, error)
 
 /**
  * One idea's model calls and their writes: shared by the typed interview
@@ -57,19 +62,31 @@ internal class InterviewWork(
                 tag,
                 work = {
                     val base = withLibraryMetadata(session, store.get(sessionId), now())
+                    var admitted = resume
+                    suspend fun admit(value: Session) {
+                        try {
+                            store.save(value)
+                            admitted = true
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            if (!admitted) throw TurnAdmissionFailure(tag, error)
+                            throw error
+                        }
+                    }
                     try {
                         val model = provider()
                         val out = if (resume) {
                             resumeTurn(base, model, now())
                         } else {
-                            store.save(if (model != null) withPendingTurn(base, now()) else base)
+                            admit(if (model != null) withPendingTurn(base, now()) else base)
                             runTurn(base, model, now())
                         }
                         settle(out, recordOffer)
                     } catch (error: ProviderException) {
                         // A submitted local answer is still the user's work when permission
                         // is withdrawn or its strict preference read fails before dispatch.
-                        if (error.code == "consent" && !resume) store.save(base)
+                        if (error.code == "consent" && !resume) admit(base)
                         throw error
                     }
                 },

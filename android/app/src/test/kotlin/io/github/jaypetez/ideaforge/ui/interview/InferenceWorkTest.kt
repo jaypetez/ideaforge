@@ -12,6 +12,7 @@ import io.github.jaypetez.ideaforge.core.js.obj
 import io.github.jaypetez.ideaforge.core.js.num
 import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.data.inferenceConfig
+import io.github.jaypetez.ideaforge.data.SessionStore
 import io.github.jaypetez.ideaforge.data.testInferenceRing
 import io.github.jaypetez.ideaforge.providers.inferenceDestination
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.IOException
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class InferenceWorkTest {
@@ -94,6 +96,43 @@ class InferenceWorkTest {
         assertNotNull(openTurn(vm.state.value.session!!))
         assertTrue(model.requests.isEmpty())
         assertTrue(vm.state.value.notice is InterviewNotice.Consent)
+    }
+
+    @Test
+    fun withdrawalDuringFailedAdmissionKeepsTheAnswerWithoutAllowingAnUnconsentedRetry() {
+        val h = fixture(true)
+        var reject = true
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (reject) throw IOException("controlled admission failure after withdrawal")
+            SessionStore.write(file, bytes)
+        })
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        h.scheduler.advanceUntilIdle()
+        val text = "These words must remain editable if consent and storage both fail."
+        vm.onAnswerChange(text)
+        vm.send()
+        h.inference.withdraw()
+        h.scheduler.runCurrent()
+        assertTrue(vm.state.value.notice is InterviewNotice.Failed)
+        assertEquals(text, vm.state.value.answer)
+        assertNotNull(vm.state.value.openTurn)
+        assertTrue(model.requests.isEmpty())
+        assertTrue(h.store.sessions.value.isEmpty())
+
+        reject = false
+        vm.send()
+        h.scheduler.runCurrent()
+        assertTrue(vm.state.value.consentRequired)
+        assertEquals(text, vm.state.value.answer)
+        assertTrue(model.requests.isEmpty())
+        h.writes.launch { h.inference.accept(inferenceDestination(inferenceConfig(testInferenceRing()))) }
+        h.scheduler.advanceUntilIdle()
+        vm.send()
+        h.scheduler.advanceUntilIdle()
+        assertEquals(2, vm.state.value.turnCount)
+        assertEquals(1, model.requests.size)
+        assertEquals(text, stringOf((h.store.get(vm.sessionId)!!["turns"] as kotlinx.serialization.json.JsonArray).first()["answer"]))
     }
 
     @Test
