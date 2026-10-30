@@ -266,7 +266,7 @@ class ResultViewModel(
                 val graph = app.graph
                 ResultViewModel(
                     sessionId, graph.sessionStore, graph.sessionWorker, graph.clock,
-                    sink = ContentResolverSink(app.contentResolver),
+                    sink = graph.documentSink,
                     writes = graph.appScope,
                     inference = graph.inferenceConsent,
                     reportDrive = { graph.driveController },

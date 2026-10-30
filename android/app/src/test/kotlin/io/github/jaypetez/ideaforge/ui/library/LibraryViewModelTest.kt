@@ -67,6 +67,7 @@ class LibraryViewModelTest {
         val worker = SessionWorker()
         val vm = LibraryViewModel(
             store, IdGen(Clock { 9 }), Clock { 9 }, worker, CoroutineScope(Dispatchers.Unconfined),
+            sink = io.github.jaypetez.ideaforge.ui.result.DocumentSink { error("unexpected document write") },
         )
 
         // Another idea's save holds the store while the delete and the rename arrive.
@@ -93,6 +94,7 @@ class LibraryViewModelTest {
         runBlocking { store.save(idea("s_a_00000001", 1)) }
         val vm = LibraryViewModel(
             store, IdGen(Clock { 9 }), Clock { 9 }, SessionWorker(), CoroutineScope(Dispatchers.Unconfined),
+            sink = io.github.jaypetez.ideaforge.ui.result.DocumentSink { error("unexpected document write") },
         )
         vm.delete("s_a_00000001")
         assertEquals(LibraryNotice.Deleted, vm.notice.value)

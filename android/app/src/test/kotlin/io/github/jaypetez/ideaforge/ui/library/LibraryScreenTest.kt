@@ -1,5 +1,12 @@
 package io.github.jaypetez.ideaforge.ui.library
 
+import android.content.Intent
+import android.content.ContextWrapper
+import android.content.ActivityNotFoundException
+import android.net.Uri
+import androidx.core.content.FileProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
 import android.view.View
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
@@ -25,11 +32,13 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.compose.ui.unit.dp
@@ -60,15 +69,22 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowDialog
 import java.io.File
+import io.github.jaypetez.ideaforge.ui.result.ResultActions
+import io.github.jaypetez.ideaforge.ui.result.ResultVectors
+import io.github.jaypetez.ideaforge.ui.result.exportFor
+import io.github.jaypetez.ideaforge.core.exportFilename
 
 // A tall compact phone: the lazy list only composes what fits, and every card must fit.
 @RunWith(RobolectricTestRunner::class)
@@ -88,11 +104,35 @@ class LibraryScreenTest {
     private var newIdeas = 0
     private var inputMode: InputModeManager? = null
     private var owner: View? = null
+    private val realContentUri = ResultActions.contentUri
 
     @Before
     fun setUp() {
         dir = File(tmp.root, "sessions")
         store = SessionStore(dir, io = Dispatchers.Unconfined)
+        val cache = FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }
+        (cache.get(null) as MutableMap<*, *>).clear()
+    }
+
+    @After fun restoreShareProvider() { ResultActions.contentUri = realContentUri }
+
+    private fun prepareShareProvider() {
+        val app = RuntimeEnvironment.getApplication()
+        val probe = File(File(app.cacheDir, ResultActions.SHARE_DIR), "probe/probe.md")
+        probe.parentFile!!.mkdirs()
+        probe.writeText("probe")
+        try {
+            realContentUri(app, probe)
+        } catch (error: IllegalArgumentException) {
+            assertTrue("the real FileProvider is required off Windows",
+                System.getProperty("os.name").orEmpty().startsWith("Windows"))
+            ResultActions.contentUri = { context, file ->
+                file.relativeTo(File(context.cacheDir, ResultActions.SHARE_DIR)).invariantSeparatorsPath.split('/')
+                    .fold(Uri.Builder().scheme("content").authority(ResultActions.authority(context)).appendPath(ResultActions.SHARE_DIR)) {
+                        builder, segment -> builder.appendPath(segment)
+                    }.build()
+            }
+        } finally { probe.parentFile!!.deleteRecursively() }
     }
 
     /** An idea as the interview leaves it: the seed question answered, so `opening` is set. */
@@ -115,17 +155,27 @@ class LibraryScreenTest {
         return s
     }
 
-    private fun show(vararg sessions: Session): LibraryViewModel {
+    private fun show(vararg sessions: Session, shareFailure: RuntimeException? = null): LibraryViewModel {
         runBlocking { sessions.forEach { store.save(it) } }
         // Unconfined writes: a click's save has landed on disk by the time performClick returns.
         val vm = LibraryViewModel(
             store, IdGen(Clock { now }), Clock { now }, SessionWorker(), CoroutineScope(Dispatchers.Unconfined),
+            sink = io.github.jaypetez.ideaforge.ui.result.DocumentSink { error("unexpected document write") },
         )
         compose.setContent {
             IdeaForgeTheme {
                 inputMode = LocalInputModeManager.current
                 owner = LocalView.current
-                LibraryScreen(vm, open = { opened += it }, newIdea = { newIdeas++ }, onboarding = {})
+                val actual = LocalContext.current
+                val context = if (shareFailure != null) object : ContextWrapper(actual) {
+                    override fun startActivity(intent: Intent) {
+                        if (intent.action == Intent.ACTION_CHOOSER) throw shareFailure
+                        super.startActivity(intent)
+                    }
+                } else actual
+                CompositionLocalProvider(LocalContext provides context) {
+                    LibraryScreen(vm, open = { opened += it }, newIdea = { newIdeas++ }, onboarding = {})
+                }
             }
         }
         return vm
@@ -462,6 +512,254 @@ class LibraryScreenTest {
         show(*library())
         compose.onNodeWithText("Soil talk").performClick()
         assertEquals(listOf(podcast), opened.map { it.id })
+    }
+
+    @Test
+    fun saveFromARowUsesThatIdeaWithoutOpeningTheInterviewOrSelectingDetails() {
+        val source = library()[1]
+        show(*library())
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithText("Save .md").performClick()
+        val intent = shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
+        assertEquals(Intent.ACTION_CREATE_DOCUMENT, intent.action)
+        assertEquals("text/markdown", intent.type)
+        assertEquals(io.github.jaypetez.ideaforge.core.exportFilename(source), intent.getStringExtra(Intent.EXTRA_TITLE))
+        assertTrue(opened.isEmpty())
+        assertTrue(shown(LibraryTags.LIST))
+        assertFalse(shown(LibraryTags.DETAIL))
+        assertEquals(source, stored(podcast))
+    }
+
+    @Test
+    fun sharingEveryApplicableStateUsesExactCanonicalBytesNamesMimeAndReadGrants() {
+        prepareShareProvider()
+        fun copyId(source: Session, id: String) = kotlinx.serialization.json.JsonObject(source + ("id" to str(id)))
+        val active = idea(garden, 1, "Café notes — <script>literal</script>\nSecond line.")
+        val draft = io.github.jaypetez.ideaforge.core.setDraftAnswer(idea(podcast, 2, "An unfinished interview"),
+            str("Unsent draft stays on this device"), num(3))
+        val failed = copyId(ResultVectors.unwritten, "s_export_failed")
+        val archived = archiveSession(copyId(ResultVectors.written, "s_export_archived"), num(now))
+        val reported = io.github.jaypetez.ideaforge.core.addContentReport(copyId(ResultVectors.written, "s_export_reported"),
+            str("r_library"), io.github.jaypetez.ideaforge.core.reportableOutput(ResultVectors.written, "result")!!,
+            str("other"), str("A private local report."), num(now))
+        val sources = listOf(active, draft, failed, ResultVectors.written, archived, reported)
+        val vm = show(*sources.toTypedArray())
+        val previous = mutableListOf<Pair<File, ByteArray>>()
+        for (source in sources) {
+            val id = source["id"]!!.jsonPrimitive.content
+            compose.runOnIdle {
+                vm.clearFilters()
+                vm.setShowArchived(io.github.jaypetez.ideaforge.core.js.truthy(source["archivedAt"]))
+            }
+            val list = compose.onNode(androidx.compose.ui.test.hasScrollToIndexAction() and
+                hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
+            list.performScrollToNode(hasTestTag(LibraryTags.more(id)))
+            compose.onNodeWithTag(LibraryTags.more(id)).performClick()
+            compose.onNodeWithTag(LibraryTags.share(id)).performClick()
+            val chooser = shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
+            assertEquals(Intent.ACTION_CHOOSER, chooser.action)
+            val send = chooser.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)!!
+            assertEquals(Intent.ACTION_SEND, send.action)
+            assertEquals("text/markdown", send.type)
+            assertEquals(exportFor(source), send.getStringExtra(Intent.EXTRA_TEXT))
+            assertTrue(send.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+            val uri = send.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)!!
+            assertEquals("content", uri.scheme)
+            assertEquals(ResultActions.authority(RuntimeEnvironment.getApplication()), uri.authority)
+            assertEquals(exportFilename(source), uri.lastPathSegment)
+            assertEquals(uri, send.clipData!!.getItemAt(0).uri)
+            val file = File(RuntimeEnvironment.getApplication().cacheDir, uri.path!!.removePrefix("/"))
+            val bytes = exportFor(source).encodeToByteArray()
+            org.junit.Assert.assertArrayEquals(bytes, file.readBytes())
+            previous += file to bytes
+            previous.forEach { (prior, expected) -> org.junit.Assert.assertArrayEquals(expected, prior.readBytes()) }
+            assertEquals(source, stored(id))
+            assertTrue(opened.isEmpty())
+            assertFalse(shown(LibraryTags.DETAIL))
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h1600dp")
+    fun exportingAnUnselectedRowKeepsTheSelectedIdeaAndSiblingControls() {
+        prepareShareProvider()
+        show(*library())
+        compose.onNodeWithText("Grandma's cookbook").performClick()
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(podcast)).performClick()
+        val chooser = shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
+        val send = chooser.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)!!
+        assertEquals(exportFor(library()[1]), send.getStringExtra(Intent.EXTRA_TEXT))
+        compose.onNode(hasText("Grandma's cookbook") and hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))).assertExists()
+        compose.onNodeWithTag(LibraryTags.share(recipes)).assertIsDisplayed()
+        compose.onNodeWithTag(LibraryTags.save(recipes)).assertIsDisplayed()
+        compose.onNodeWithTag(LibraryTags.more(podcast)).assert(
+            androidx.compose.ui.test.SemanticsMatcher("no clickable row ancestor") { node ->
+                generateSequence(node.parent) { it.parent }.none { it.config.contains(SemanticsActions.OnClick) }
+            })
+        assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    fun anUnavailableShareIsNamedPersistentAndDoesNotExposePrivateExceptionDetails() {
+        prepareShareProvider()
+        show(*library(), shareFailure = ActivityNotFoundException("private exception detail"))
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertExists()
+        compose.onNodeWithText("Cannot open Share .md for “Soil talk”. Try Save .md.").assertExists()
+        compose.onNodeWithText("private exception detail", substring = true).assertDoesNotExist()
+        assertEquals(library()[1], stored(podcast))
+        assertTrue(opened.isEmpty())
+        compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertDoesNotExist()
+    }
+
+    @Test
+    fun aBinderSizeFailureIsAnExplicitShareErrorRatherThanAnUncaughtClick() {
+        prepareShareProvider()
+        show(*library(), shareFailure = RuntimeException(android.os.TransactionTooLargeException("private oversized payload")))
+        compose.onNodeWithTag(LibraryTags.more(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(podcast)).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertIsDisplayed()
+        compose.onNodeWithText("private oversized payload", substring = true).assertDoesNotExist()
+        assertEquals(library()[1], stored(podcast))
+        assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp")
+    fun aFailureFromTheLastLibraryRowIsVisibleWithoutScrollingBackToTheTop() {
+        prepareShareProvider()
+        val sources = (1..30).map { idea("s_export_row_$it", it.toLong(), "Local conversation $it") }
+        show(*sources.toTypedArray(), shareFailure = ActivityNotFoundException("controlled missing app"))
+        val lastId = "s_export_row_1"
+        compose.onNode(androidx.compose.ui.test.hasScrollToIndexAction() and hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
+            .performScrollToNode(hasTestTag(LibraryTags.more(lastId)))
+        compose.onNodeWithTag(LibraryTags.more(lastId)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(lastId)).performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertIsDisplayed()
+        compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed()
+        assertEquals(sources.first(), stored(lastId))
+        assertTrue(opened.isEmpty())
+        assertFalse(shown(LibraryTags.DETAIL))
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h720dp", fontScale = 2f)
+    fun aMaximumNameFailureKeepsItsCompleteMessageAndLibraryControlsReachable() {
+        prepareShareProvider()
+        val name = "A deliberately long idea name ".padEnd(120, 'x')
+        show(idea(garden, 1, "A local conversation", name = name),
+            shareFailure = RuntimeException(android.os.TransactionTooLargeException("controlled Binder limit")))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo().performClick()
+        compose.onNodeWithTag(LibraryTags.share(garden)).performScrollTo().performClick()
+        val message = compose.onNodeWithText("Share .md failed for “$name”. Your idea is unchanged.")
+        message.assertIsDisplayed()
+        val node = message.fetchSemanticsNode()
+        assertTrue("the named error is fully visible, not a clipped live region",
+            node.layoutInfo.coordinates.size.height <= node.boundsInRoot.height + 1)
+        compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag(LibraryTags.more(garden)).performScrollTo().assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        assertTrue(opened.isEmpty())
+    }
+
+    /**
+     * Cancels a row Save for a maximum-length name and proves the feedback cannot consume the
+     * window: Dismiss lies wholly inside the root, the pane keeps a usable height, the complete
+     * named text can be scrolled into view, and the row's More stays reachable in the list.
+     */
+    private fun cancelledMaximumNameKeepsRecoveryInsideTheWindow(name: String) {
+        val vm = show(idea(garden, 1, "A local conversation", name = name))
+        val list = compose.onNode(androidx.compose.ui.test.hasScrollToIndexAction() and
+            hasAnyAncestor(hasTestTag(LibraryTags.LIST)))
+        list.performScrollToNode(hasTestTag(LibraryTags.more(garden)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
+        compose.onNodeWithTag(LibraryTags.save(garden)).performScrollTo().performClick()
+        assertEquals(Intent.ACTION_CREATE_DOCUMENT, shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity.action)
+        compose.runOnIdle { vm.exports.saveResult(null) }
+
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val dismiss = compose.onNodeWithTag(LibraryTags.EXPORT_DISMISS).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        val dismissBounds = dismiss.fetchSemanticsNode().boundsInRoot
+        val full = dismiss.fetchSemanticsNode().layoutInfo.coordinates.size
+        assertTrue("Dismiss is wholly inside the window: $dismissBounds in $root",
+            dismissBounds.bottom <= root.bottom + 1 && dismissBounds.height >= full.height - 1)
+        val pane = compose.onNodeWithTag(LibraryTags.LIST).fetchSemanticsNode().boundsInRoot
+        assertTrue("the list pane keeps a usable height below the feedback: $pane in $root",
+            pane.top < root.bottom && pane.bottom.coerceAtMost(root.bottom) - pane.top >= 48f)
+
+        val message = compose.onNodeWithText("Save .md cancelled for “$name”. Nothing was written.")
+        message.performScrollTo().assertIsDisplayed()
+        val text = message.fetchSemanticsNode()
+        val hidden = text.layoutInfo.coordinates.size.height - text.boundsInRoot.height
+        if (hidden > 1f) {
+            // A clipped message must be a scrollable one, with room to reveal every hidden line.
+            val range = generateSequence(text.parent) { it.parent }
+                .firstNotNullOfOrNull { it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange) { null } }
+            assertTrue("clipped feedback text can scroll to its end", range != null && range.maxValue() >= hidden - 1f)
+        }
+        list.performScrollToNode(hasTestTag(LibraryTags.more(garden)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        assertEquals(LibraryExportResult.Cancelled, vm.exports.state.value.notice?.result)
+        assertTrue(opened.isEmpty())
+        dismiss.performClick()
+        compose.onNodeWithTag(LibraryTags.EXPORT_NOTICE).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h400dp", fontScale = 2f)
+    fun shortLandscapeCancellationKeepsNamedFeedbackDismissAndAUsablePane() {
+        cancelledMaximumNameKeepsRecoveryInsideTheWindow("A deliberately long idea name ".padEnd(120, 'x'))
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h720dp", fontScale = 2f)
+    fun narrowPortraitCancellationKeepsAFullWidthNameAndRecoveryReachable() {
+        val name = "会議で会った人の名前を思い出すためのアプリ".repeat(6).take(120)
+        assertEquals(io.github.jaypetez.ideaforge.core.MAX_SESSION_NAME, name.length)
+        cancelledMaximumNameKeepsRecoveryInsideTheWindow(name)
+    }
+
+    @Test
+    fun aDelayedPickerCancellationPreservesNewerSearchFocusAndFilters() {
+        val vm = show(*library())
+        compose.runOnIdle { vm.exports.beginSave(podcast) }
+        compose.onNodeWithTag(LibraryTags.SEARCH).performTextInput("soil")
+        compose.onNodeWithTag(LibraryTags.SEARCH).assertIsFocused()
+        compose.runOnIdle { vm.exports.saveResult(null) }
+        compose.onNodeWithTag(LibraryTags.SEARCH).assertIsFocused()
+        assertEquals("soil", vm.state.value.filters.query)
+        assertEquals(library()[1], stored(podcast))
+        assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h844dp", fontScale = 2f)
+    fun enlargedExportMenuAndSelectedDetailKeepNativeTargetsReachable() {
+        show(idea(garden, 1, "A local conversation", name = "A deliberately long idea name ".repeat(4)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
+        for (tag in listOf(LibraryTags.share(garden), LibraryTags.save(garden), LibraryTags.details(garden))) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+                .assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        }
+        compose.onNodeWithTag(LibraryTags.details(garden)).performClick()
+        for (tag in listOf(LibraryTags.share(garden), LibraryTags.save(garden))) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+                .assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        }
+        compose.onNode(hasText("Continue") and hasClickAction()).performScrollTo().assertIsDisplayed()
+        assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    fun aSeedWithoutAnyRecordedAnswerDoesNotOfferAnEmptyExport() {
+        show(seedTurn(createSession(garden, num(1)), num(1)))
+        compose.onNodeWithTag(LibraryTags.more(garden)).performClick()
+        compose.onNodeWithTag(LibraryTags.share(garden)).assertDoesNotExist()
+        compose.onNodeWithTag(LibraryTags.save(garden)).assertDoesNotExist()
+        compose.onNodeWithTag(LibraryTags.details(garden)).assertExists()
+        assertTrue(opened.isEmpty())
     }
 
     @Test
