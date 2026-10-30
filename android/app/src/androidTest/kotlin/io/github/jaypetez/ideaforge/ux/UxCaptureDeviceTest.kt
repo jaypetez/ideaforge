@@ -2009,8 +2009,13 @@ class UxCaptureDeviceTest {
             UxControl("dimension-status", hasTestTag("dimension-status"), actionRequired = false)))
         click("dimension-done")
         scenario!!.onActivity { (it as androidx.activity.ComponentActivity).onBackPressedDispatcher.onBackPressed() }
+        // Back returns to the selected idea's library detail in every window class (compact shows
+        // only that pane), as the report journey also asserts; reopen through its own Continue.
         await(NAVIGATION)
-        selectSession(id)
+        await(LibraryTags.DETAIL)
+        compose.onNode(hasTestTag(LibraryTags.DETAIL) and hasAnyDescendant(hasText(sessionDisplayTitle(before)))).assertIsDisplayed()
+        compose.onNode(hasText(target.getString(R.string.idea_continue)) and hasClickAction() and
+            hasAnyAncestor(hasTestTag(LibraryTags.DETAIL))).performScrollTo().performClick()
         awaitEditableQuestion()
         assertEquals(fixtures.text("answer"), editableAnswer())
         assertEquals(fixtures.text("question"), nodeText("question"))
@@ -2046,7 +2051,9 @@ class UxCaptureDeviceTest {
         await("new-idea-type")
         click("new-idea-type")
         awaitEditableQuestion()
-        compose.onNodeWithTag("answer").performScrollTo()
+        // The docked composer has no scroll ancestor in roomy windows; scroll only when clipped.
+        revealControl("answer")
+        compose.onNodeWithTag("answer")
             .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(reason)) }
         scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
         scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
