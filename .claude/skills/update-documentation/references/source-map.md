@@ -34,11 +34,17 @@ source wins over prose, and a generated artifact wins over a description of that
   [`docs/design/focus-studio.html`](../../../../docs/design/focus-studio.html) and its
   [local stylesheet](../../../../docs/design/focus-studio.css) are static repository
   references, not app/README/native screenshots or a production route.
+  Their Forge Studio evolution (#356) has owner visual approval for concept A, Forged spark,
+  not app implementation acceptance; the current
+  shipped token tables remain source-derived and separate. Original local
+  `docs/design/forge-mark.svg`, `forge-anvil.svg` and `idea-workbench.svg` are reference
+  studies, not shipped icons. Proposed native brand-first colours with wallpaper opt-in,
+  labelled exploration meters and direct write-up retry are not implementation claims.
   [`test/design-reference.test.mjs`](../../../../test/design-reference.test.mjs) checks
   inventory, local-only/CSP structure, priorities, recovery copy and proposed opaque contrast;
   `test:docs` in `package.json` includes it. Re-check the design state/transition matrix
   against the owning UI/store/provider/voice symbols before changing a screen.
-  Native drawings use a system family and fallback colours; actual dynamic colour,
+  Native drawings use a system family and proposed branded colours; actual dynamic colour,
   device/IME/permission behavior and running-app accessibility need separate evidence.
   `tools/assemble-site.mjs` excludes `docs/design/` from published assets. Do not refresh
   canonical README screenshots to make an unimplemented screen appear shipped.
