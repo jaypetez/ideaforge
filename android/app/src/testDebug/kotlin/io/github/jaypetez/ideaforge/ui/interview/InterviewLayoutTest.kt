@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasAnyAncestor
@@ -19,12 +20,18 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ActivityScenario
 import io.github.jaypetez.ideaforge.AppGraph
 import io.github.jaypetez.ideaforge.MainActivity
 import io.github.jaypetez.ideaforge.core.DIMENSION_IDS
 import io.github.jaypetez.ideaforge.core.js.get
+import io.github.jaypetez.ideaforge.core.js.num
+import io.github.jaypetez.ideaforge.core.js.str
 import io.github.jaypetez.ideaforge.core.js.stringOf
+import io.github.jaypetez.ideaforge.core.openTurn
+import io.github.jaypetez.ideaforge.core.setDraftAnswer
+import io.github.jaypetez.ideaforge.core.runtime.submitAnswer
 import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.installTestGraph
 import io.github.jaypetez.ideaforge.ui.NAVIGATION
@@ -40,6 +47,7 @@ import io.github.jaypetez.ideaforge.ux.UxFixtures
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
@@ -79,6 +87,85 @@ class InterviewLayoutTest {
     @Test
     fun enlargedCoverageDetailsKeepEveryLevelAndTheComposerReachable() {
         requireLongInterviewReachable(coverageDetails = true)
+    }
+
+    @Test
+    fun enlargedCompactDimensionConfirmationKeepsNativeTargetsAndCompleteLabelsReachable() {
+        requireDimensionConfirmationReachable()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp", fontScale = 2f)
+    fun enlargedExpandedDimensionConfirmationKeepsNativeTargetsAndCompleteLabelsReachable() {
+        requireDimensionConfirmationReachable()
+    }
+
+    private fun requireDimensionConfirmationReachable() {
+        val graph = installTestGraph(ring = usableRing(), inferenceAgreed = true).also { graphs += it }
+        graph.providerSource = ProviderSource { ScriptedModel() }
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitUntilAtLeastOneExists(hasTestTag(NAVIGATION), 5_000)
+            compose.onNode(hasText("New idea") and hasAnyAncestor(hasTestTag(NAVIGATION))).performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("new-idea-type"), 5_000)
+            compose.onNodeWithTag("new-idea-type").performScrollTo().performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("coverage-details"), 5_000)
+            compose.onNodeWithTag("coverage-details").performScrollTo().performClick()
+            for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension")
+            compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+            for (tag in listOf("dimension-waive", "dimension-defer", "dimension-cancel")) requireReachable(tag)
+            compose.onNodeWithTag("dimension-waive").performScrollTo().performClick()
+            compose.onNodeWithTag("dimension-reason").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(
+                    "This belongs to a later project. Keep all original notes and the current question while I choose the scope.")) }
+            for (tag in listOf("dimension-reason", "dimension-confirm", "dimension-cancel")) {
+                requireReachable(tag)
+                val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
+                val touch = UxEvidence.touchBounds(node)
+                val density = node.layoutInfo.density.density
+                UxEvidence.requireTarget(tag, touch.width / density, touch.height / density)
+            }
+            compose.onNodeWithTag("dimension-confirm").performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("dimension-saved"), 5_000)
+            requireReachable("dimension-done")
+            compose.onNodeWithTag("dimension-done").performClick()
+            compose.onNodeWithTag("pill-outcome").performScrollTo().performClick()
+            requireReachable("dimension-resume")
+            requireReachable("dimension-stored-reason", actionRequired = false)
+            compose.onNodeWithTag("dimension-cancel").performClick()
+
+            val earlier = UxFixtures.parse(File(System.getProperty("ideaforge.fixtures"), "ux.json").readText()).text("dimensionReason")
+            compose.onNodeWithTag("answer").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString(earlier)) }
+            val id = stringOf(graph.sessionStore.sessions.value.single()["id"])!!
+            val model = ScriptedModel()
+            val now = num(graph.clock.now())
+            val steps = Vectors.load("walkthrough").cases.single { it.name == "a chip answer" }.input["steps"] as JsonArray
+            val submitted = submitAnswer(graph.sessionStore.get(id)!!, steps.first()["text"], now = now)
+            // Another editor's explicit Send uses real turn work, not a forged question.
+            val work = InterviewWork(id, graph.sessionStore, graph.sessionWorker, graph.clock, graph.appScope)
+            runBlocking { withTimeout(5_000) {
+                work.turn(submitted, { graph.inferenceConsent.require(); model }, resume = false).await()
+            } }
+            assertEquals(2, (graph.sessionStore.get(id)!!["turns"] as JsonArray).size)
+            assertEquals("model", stringOf(openTurn(graph.sessionStore.get(id)!!)?.get("questionSource")))
+            runBlocking { withTimeout(5_000) { graph.sessionWorker.exclusive(id) {
+                graph.sessionStore.save(setDraftAnswer(graph.sessionStore.get(id)!!, str("The later question's own draft."), now))
+            } } }
+            compose.onNodeWithTag("pill-constraints").performScrollTo().performClick()
+            compose.onNodeWithTag("dimension-defer").performScrollTo().performClick()
+            compose.onNodeWithTag("dimension-confirm").performClick()
+            compose.waitUntilAtLeastOneExists(hasTestTag("dimension-retained-draft"), 5_000)
+            compose.onNodeWithTag("dimension-retained-draft").assertTextContains(earlier)
+            requireReachable("dimension-retained-disclosure", actionRequired = false)
+            requireReachable("dimension-retained-question", actionRequired = false)
+            requireReachable("dimension-retained-draft", actionRequired = false)
+            requireReachable("dimension-done")
+            compose.onNodeWithTag("dimension-done").performClick()
+            assertEquals("The later question's own draft.", compose.onNodeWithTag("answer").fetchSemanticsNode()
+                .config.getOrNull(SemanticsProperties.EditableText)?.text)
+            assertEquals("The later question's own draft.", stringOf(graph.sessionStore.get(id)!!["draftAnswer"]))
+            assertEquals("only the other editor's explicit Send calls the model", 1, model.requests.size)
+        }
     }
 
     @Test
@@ -148,7 +235,7 @@ class InterviewLayoutTest {
             if (coverageDetails) {
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
-                for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension", actionRequired = false)
+                for (dimension in DIMENSION_IDS) requireReachable("pill-$dimension")
                 requireReachable("coverage-details")
                 compose.onNodeWithTag("coverage-details").performClick()
             }

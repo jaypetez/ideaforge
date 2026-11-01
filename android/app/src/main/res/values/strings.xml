@@ -171,6 +171,7 @@
     <string name="idea_tags_placeholder">work, writing, product</string>
     <string name="idea_save_details">Save details</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_done">Done</string>
     <string name="idea_delete_title">Permanently delete “%1$s”?</string>
     <string name="idea_delete_body">It is removed from this device and cannot be undone.</string>
     <string name="idea_select">Select an idea to see its summary.</string>
@@ -204,6 +205,29 @@
     <string name="level_covered">covered</string>
     <string name="status_waived">not relevant</string>
     <string name="status_deferred">later</string>
+    <string name="dimension_manage">Change whether to ask about %1$s</string>
+    <string name="dimension_hint">Tap a dimension to change whether it belongs in this idea.</string>
+    <string name="dimension_probing">still asking</string>
+    <string name="dimension_status">Status: %1$s. Coverage level: %2$s.</string>
+    <string name="dimension_saved_reason">Reason: %1$s</string>
+    <string name="dimension_has_reason">Reason saved — open to read</string>
+    <string name="dimension_pill_reason">%1$s. Reason: %2$s</string>
+    <string name="dimension_disclosure">These choices affect future questions and readiness, not the coverage level. The current question and your draft stay unchanged; use Skip if you do not want to answer it. Opening these controls stops dictation and exits hands-free voice.</string>
+    <string name="dimension_waive">Not relevant</string>
+    <string name="dimension_defer">Defer</string>
+    <string name="dimension_resume">Resume</string>
+    <string name="dimension_confirm_waive">Confirm not relevant</string>
+    <string name="dimension_reason">Reason (optional)</string>
+    <string name="dimension_waive_body">Leave this dimension out of this idea? It will no longer be asked about or count toward readiness or the coverage percentage. Your write-up records it as deliberately left out. You can Resume later.</string>
+    <string name="dimension_defer_body">Set this dimension aside until you choose Resume. It will not be asked about or count toward readiness or the coverage percentage. It remains a decision still to make, not a covered area.</string>
+    <string name="dimension_resume_body">Include this dimension in future questions and readiness again. Its coverage level stays as it was. Any not-relevant reason is cleared.</string>
+    <string name="dimension_saving">Saving dimension choice on this device…</string>
+    <string name="dimension_saved">Dimension choice saved on this device. No answer was sent.</string>
+    <string name="dimension_save_failed">The change was not saved. Choice and reason kept for retry. %1$s</string>
+    <string name="dimension_changed">The idea or dimension changed. Nothing was overwritten. Close and reopen to review its current state. %1$s</string>
+    <string name="dimension_retired">This operation ended. Close these controls; a deleted idea stays deleted. %1$s</string>
+    <string name="dimension_retained_disclosure">The question changed elsewhere. Your earlier draft is kept below, not applied to the new question. Copy it before closing these controls.</string>
+    <string name="dimension_retained_question">Earlier question: %1$s</string>
     <!-- #turnline: "question 3 of up to 25 · audience · from the built-in checklist" -->
     <string name="interview_turnline">question %1$d of up to %2$d</string>
     <string name="interview_turnline_dimension">question %1$d of up to %2$d · %3$s</string>

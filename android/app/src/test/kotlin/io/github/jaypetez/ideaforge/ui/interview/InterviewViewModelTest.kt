@@ -1,6 +1,13 @@
 package io.github.jaypetez.ideaforge.ui.interview
 
 import io.github.jaypetez.ideaforge.core.SEED_QUESTION
+import io.github.jaypetez.ideaforge.core.buildExport
+import io.github.jaypetez.ideaforge.core.js.num
+import io.github.jaypetez.ideaforge.core.js.str
+import io.github.jaypetez.ideaforge.core.renameSession
+import io.github.jaypetez.ideaforge.core.setSessionTags
+import io.github.jaypetez.ideaforge.core.addContentReport
+import io.github.jaypetez.ideaforge.core.reportableOutput
 import io.github.jaypetez.ideaforge.core.js.get
 import io.github.jaypetez.ideaforge.core.js.stringOf
 import io.github.jaypetez.ideaforge.core.openTurn
@@ -9,6 +16,7 @@ import io.github.jaypetez.ideaforge.core.runtime.ProviderException
 import io.github.jaypetez.ideaforge.data.SessionStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonArray
@@ -72,6 +80,282 @@ class InterviewViewModelTest {
         assertEquals(SEED_QUESTION, stringOf(vm.state.value.openTurn?.get("question")))
         assertTrue("turn 1 never calls the model", model.requests.isEmpty())
         assertNull("nothing is written for an idea with no answer yet", stored())
+    }
+
+    @Test
+    fun dimensionChoicesUseTheReducersWithoutChangingTheQuestionFactsDraftOrOtherMetadataAndReopen() {
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        idle()
+        answer(vm, ANSWERS[0])
+        val before = stored()!!
+        val output = reportableOutput(before, "question", "t2")!!
+        h.writes.launch {
+            h.store.save(addContentReport(setSessionTags(renameSession(before, str("My own title"), num(5)),
+                JsonArray(listOf(str("retained"))), num(6)), str("r_keep"), output, str("other"), str("Keep my report."), num(7)))
+        }
+        idle()
+        vm.onAnswerChange("Unfinished user draft.")
+        vm.openDimension("audience")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("Not part of this idea.")
+        assertEquals("probing", stringOf(stored()!!["coverage"]["audience"]["status"]))
+        vm.confirmDimension()
+        idle()
+        assertTrue(vm.state.value.dimensionEdit!!.saved)
+        val waived = stored()!!
+        assertEquals("waived", stringOf(waived["coverage"]["audience"]["status"]))
+        assertEquals("Not part of this idea.", stringOf(waived["coverage"]["audience"]["waivedReason"]))
+        for (key in listOf("turns", "facts", "zeroGainStreak", "opening", "synthesis")) assertEquals(key, before[key], waived[key])
+        for (key in listOf("level", "gap", "evidence", "turnsSpent", "lastTurn"))
+            assertEquals(key, before["coverage"]["audience"][key], waived["coverage"]["audience"][key])
+        assertEquals("Unfinished user draft.", stringOf(waived["draftAnswer"]))
+        assertEquals("My own title", stringOf(waived["name"]))
+        assertEquals("retained", stringOf((waived["tags"] as JsonArray).single()))
+        assertEquals("Keep my report.", stringOf((waived["contentReports"] as JsonArray).single()["note"]))
+        assertTrue(buildExport(waived).contains("Not part of this idea."))
+        vm.dismissDimension()
+        vm.openDimension("constraints")
+        vm.chooseDimension(DimensionAction.Defer)
+        vm.confirmDimension()
+        idle()
+        assertEquals("deferred", stringOf(stored()!!["coverage"]["constraints"]["status"]))
+        assertTrue(buildExport(stored()!!).contains("a decision still to make"))
+        assertEquals("dimension controls do not run inference", 1, model.requests.size)
+
+        h.restart()
+        val reopenedModel = ScriptedModel()
+        val reopened = h.vm(reopenedModel)
+        idle()
+        assertEquals("waived", stringOf(reopened.state.value.session!!["coverage"]["audience"]["status"]))
+        reopened.openDimension("audience")
+        assertEquals("Not part of this idea.", reopened.state.value.dimensionEdit!!.storedReason)
+        reopened.chooseDimension(DimensionAction.Defer)
+        assertNull("a waived dimension offers Resume, not another misleading removal", reopened.state.value.dimensionEdit!!.action)
+        reopened.chooseDimension(DimensionAction.Resume)
+        reopened.confirmDimension()
+        idle()
+        assertEquals("probing", stringOf(stored()!!["coverage"]["audience"]["status"]))
+        assertEquals("null", stored()!!["coverage"]["audience"]["waivedReason"].toString())
+        assertEquals(before["coverage"]["audience"]["level"], stored()!!["coverage"]["audience"]["level"])
+        assertEquals("Unfinished user draft.", reopened.state.value.answer)
+        assertTrue(reopenedModel.requests.isEmpty())
+    }
+
+    @Test
+    fun aDimensionChoiceWaitsOutAHeldTurnAndIsNotLostToAnotherEditorsOlderSnapshot() {
+        val model = ScriptedModel()
+        val vm = h.vm(model)
+        idle()
+        answer(vm, ANSWERS[0])
+        model.gate = CompletableDeferred()
+        answer(vm, ANSWERS[1])
+        assertEquals(Busy.Thinking, vm.state.value.busy)
+        vm.openDimension("constraints")
+        vm.chooseDimension(DimensionAction.Defer)
+        vm.confirmDimension()
+        h.scheduler.runCurrent()
+        assertTrue(vm.state.value.dimensionEdit!!.busy)
+        model.gate!!.complete(Unit)
+        idle()
+        assertEquals(3, turns(stored()).size)
+        assertEquals(ANSWERS[1], stringOf(turns(stored())[1]["answer"]))
+        assertEquals("deferred", stringOf(stored()!!["coverage"]["constraints"]["status"]))
+        assertEquals(stored()!!["coverage"], vm.state.value.session!!["coverage"])
+        vm.dismissDimension()
+        val stale = h.vm(model)
+        idle()
+        vm.openDimension("audience")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("An explicit scope choice.")
+        vm.confirmDimension()
+        idle()
+        val level = stored()!!["coverage"]["audience"]["level"]
+        answer(stale, ANSWERS[2])
+        assertEquals("an older editor must merge durable dimension choices before running its turn",
+            "waived", stringOf(stored()!!["coverage"]["audience"]["status"]))
+        assertEquals("An explicit scope choice.", stringOf(stored()!!["coverage"]["audience"]["waivedReason"]))
+        assertEquals("the model cannot score a waived dimension", level, stored()!!["coverage"]["audience"]["level"])
+        assertEquals("deferred", stringOf(stored()!!["coverage"]["constraints"]["status"]))
+    }
+
+    @Test
+    fun cancelAndFailedDimensionSaveKeepExistingDataAndTheReasonCanBeRetried() {
+        var reject = false
+        h.store = SessionStore(h.dir, io = h.dispatcher, writer = { file, bytes ->
+            if (reject) throw java.io.IOException("Controlled dimension write failure.")
+            SessionStore.write(file, bytes)
+        })
+        val vm = h.vm(ScriptedModel())
+        idle()
+        vm.onAnswerChange("Keep this draft.")
+        idle()
+        val before = stored()
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("My optional reason.")
+        vm.dismissDimension()
+        assertEquals(before, stored())
+        assertEquals("Keep this draft.", vm.state.value.answer)
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("My optional reason.")
+        reject = true
+        vm.confirmDimension()
+        idle()
+        assertEquals(DimensionFailure.Save, vm.state.value.dimensionEdit!!.failure)
+        assertEquals("My optional reason.", vm.state.value.dimensionEdit!!.reason)
+        assertEquals(before, stored())
+        reject = false
+        vm.confirmDimension()
+        idle()
+        assertTrue(vm.state.value.dimensionEdit!!.saved)
+        assertNull("successful retry must remove the previous failure", vm.state.value.dimensionEdit!!.failure)
+        assertEquals("", vm.state.value.dimensionEdit!!.detail)
+        assertEquals("My optional reason.", stringOf(stored()!!["coverage"]["outcome"]["waivedReason"]))
+        val saved = stored()
+        vm.confirmDimension()
+        idle()
+        assertEquals("a completed confirmation is not submitted twice", saved, stored())
+    }
+
+    @Test
+    fun anotherEditorsNewerDimensionChoiceIsNotOverwrittenByAnOldDialog() {
+        val vm = h.vm(ScriptedModel())
+        idle()
+        vm.onAnswerChange("Keep a persisted idea.")
+        idle()
+        val other = h.vm(ScriptedModel())
+        idle()
+        vm.openDimension("outcome")
+        other.openDimension("outcome")
+        other.chooseDimension(DimensionAction.Defer)
+        other.confirmDimension()
+        idle()
+        val newer = stored()
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.dimensionReason("A stale choice.")
+        vm.confirmDimension()
+        idle()
+        assertEquals(DimensionFailure.Changed, vm.state.value.dimensionEdit!!.failure)
+        assertEquals(newer, stored())
+        assertEquals("A stale choice.", vm.state.value.dimensionEdit!!.reason)
+        vm.dismissDimension()
+        vm.openDimension("outcome")
+        assertEquals("deferred", vm.state.value.dimensionEdit!!.status)
+        vm.chooseDimension(DimensionAction.Waive)
+        assertNull(vm.state.value.dimensionEdit!!.action)
+        vm.chooseDimension(DimensionAction.Resume)
+        vm.confirmDimension()
+        idle()
+        assertEquals("probing", stringOf(stored()!!["coverage"]["outcome"]["status"]))
+    }
+
+    @Test
+    fun aDimensionSaveKeepsNewerDurableDraftWithoutRebasingOlderVisibleEdits() {
+        val vm = h.vm(ScriptedModel())
+        idle()
+        vm.onAnswerChange("Original draft.")
+        idle()
+        val other = h.vm(ScriptedModel())
+        idle()
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Defer)
+        other.onAnswerChange("Newer durable draft from the other editor.")
+        idle()
+        vm.confirmDimension()
+        idle()
+        assertTrue(vm.state.value.dimensionEdit!!.saved)
+        assertEquals("Newer durable draft from the other editor.", stringOf(stored()!!["draftAnswer"]))
+        assertEquals("the visible older draft keeps its own observed baseline", "Original draft.", vm.state.value.answer)
+        assertEquals("Original draft.", stringOf(vm.state.value.session!!["draftAnswer"]))
+    }
+
+    @Test
+    fun aDimensionCompletionCannotMoveAnOlderQuestionsDebouncedDraftOntoTheNewQuestion() {
+        for (flush in listOf(false, true)) {
+            val id = "s_dimension_origin_$flush"
+            val model = ScriptedModel()
+            val vm = h.vm(model, id)
+            idle()
+            answer(vm, ANSWERS[0])
+            val other = h.vm(model, id)
+            idle()
+            vm.onAnswerChange("Only for the earlier question.")
+            other.onAnswerChange(ANSWERS[1])
+            other.send()
+            h.scheduler.runCurrent()
+            assertEquals(3, turns(stored(id)).size)
+            other.onAnswerChange("The new question's durable draft.")
+            other.flushDraft()
+            h.scheduler.runCurrent()
+            assertEquals("The new question's durable draft.", stringOf(stored(id)!!["draftAnswer"]))
+            vm.openDimension("constraints")
+            vm.chooseDimension(DimensionAction.Defer)
+            vm.confirmDimension()
+            h.scheduler.runCurrent()
+            assertTrue(vm.state.value.dimensionEdit!!.saved)
+            if (flush) vm.flushDraft()
+            h.scheduler.advanceTimeBy(DRAFT_DEBOUNCE_MS + 1)
+            idle()
+            assertEquals("an older ${if (flush) "flush" else "timer"} cannot borrow a later question",
+                "The new question's durable draft.", stringOf(stored(id)!!["draftAnswer"]))
+            assertEquals("The new question's durable draft.", vm.state.value.answer)
+            assertEquals("deferred", stringOf(stored(id)!!["coverage"]["constraints"]["status"]))
+            assertEquals("Only for the earlier question.", vm.state.value.dimensionEdit!!.retainedDraft)
+            assertEquals(stringOf(turns(stored(id))[1]["question"]), vm.state.value.dimensionEdit!!.retainedQuestion)
+        }
+    }
+
+    @Test
+    fun aQueuedDimensionSaveCannotResurrectADeletedIdeaOrChangeAnotherIdea() {
+        val vm = h.vm(ScriptedModel())
+        idle()
+        vm.onAnswerChange("Persist this idea first.")
+        idle()
+        val other = h.vm(ScriptedModel(), "s_other_dimension")
+        idle()
+        other.onAnswerChange("Another idea stays untouched.")
+        idle()
+        val otherBefore = stored("s_other_dimension")
+        val release = CompletableDeferred<Unit>()
+        h.writes.launch { h.worker.exclusive("s_test_00000001") { release.await() } }
+        h.scheduler.runCurrent()
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Waive)
+        vm.confirmDimension()
+        h.scheduler.runCurrent()
+        h.worker.retire("s_test_00000001")
+        h.writes.launch { h.worker.exclusive("s_test_00000001") { h.store.delete("s_test_00000001") } }
+        release.complete(Unit)
+        idle()
+        assertNull(stored())
+        assertEquals(DimensionFailure.Retired, vm.state.value.dimensionEdit!!.failure)
+        assertEquals(otherBefore, stored("s_other_dimension"))
+    }
+
+    @Test
+    fun aConfirmedDimensionSaveOutlivesNavigationButRemainsBoundToItsOriginalIdea() {
+        val (owner, vm) = ownedVm()
+        idle()
+        vm.onAnswerChange("The originating draft.")
+        idle()
+        val release = CompletableDeferred<Unit>()
+        h.writes.launch { h.worker.exclusive("s_test_00000001") { release.await() } }
+        h.scheduler.runCurrent()
+        vm.openDimension("outcome")
+        vm.chooseDimension(DimensionAction.Defer)
+        vm.confirmDimension()
+        h.scheduler.runCurrent()
+        owner.clear()
+        val other = h.vm(ScriptedModel(), "s_next_dimension")
+        idle()
+        release.complete(Unit)
+        idle()
+        assertEquals("deferred", stringOf(stored()!!["coverage"]["outcome"]["status"]))
+        assertEquals("The originating draft.", stringOf(stored()!!["draftAnswer"]))
+        assertEquals("probing", stringOf(other.state.value.session!!["coverage"]["outcome"]["status"]))
+        assertNull(vm.state.value.dimensionEdit)
     }
 
     @Test
@@ -345,8 +629,8 @@ class InterviewViewModelTest {
             duringWrite = null
             interleave?.invoke()
         })
-        for (flush in listOf(false, true)) {
-            val id = "s_reverted_$flush"
+        for (flush in listOf(false, true)) for (changeDimension in listOf(false, true)) {
+            val id = "s_reverted_${flush}_$changeDimension"
             val vm = h.vm(ScriptedModel(), id)
             idle()
             answer(vm, ANSWERS[0])
@@ -364,10 +648,18 @@ class InterviewViewModelTest {
             assertEquals("the cancelled write never updated this older UI snapshot",
                 "Neutral draft A", stringOf(vm.state.value.session!!["draftAnswer"]))
 
+            if (changeDimension) {
+                vm.openDimension("audience")
+                vm.chooseDimension(DimensionAction.Defer)
+                vm.confirmDimension()
+                h.scheduler.runCurrent()
+                assertTrue(vm.state.value.dimensionEdit!!.saved)
+            }
             if (flush) vm.flushDraft()
             idle()
             assertEquals("the final text survives ${if (flush) "flush" else "debounce"}",
                 "Neutral draft A", stringOf(stored(id)!!["draftAnswer"]))
+            if (changeDimension) assertEquals("deferred", stringOf(stored(id)!!["coverage"]["audience"]["status"]))
             val reopened = h.vm(ScriptedModel(), id)
             idle()
             assertEquals("Neutral draft A", reopened.state.value.answer)
